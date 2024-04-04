@@ -135,11 +135,13 @@ public static function output($data, $params){
     $rt_counts = array(); //counts of records by record type
     
 
+    $total = null;
     // Check if offset and limit are provided for pagination
     if (isset($params['offset'], $params['limit'])) {
         $offset = max((int) $params['offset'], 0); // Ensure offset is non-negative
         $limit = (int) $params['limit'];
 
+        $total = count($records);
         // Apply pagination to $records
         $records = array_slice($records, $offset, $limit);
     }
@@ -798,8 +800,7 @@ XML;
                     } else {
                         $dty_IDs = is_array($params['dty_ID']) ? $params['dty_ID'] : [$params['dty_ID']];
                     }
-                
-                    error_log('dtyid:  ' . json_encode($dty_IDs));
+
 
                     if (is_array($dty_IDs)) {
                         // Filter the details array to include only the elements with a matching dty_ID
@@ -999,7 +1000,10 @@ XML;
                 $rt_counts[$rtid] = array('name'=>$rectypes[$rtid][0],'code'=>$rectypes[$rtid][1],'count'=>$cnt);
             }
             $database_info['rectypes'] = $rt_counts;
-            
+            if ($total){
+                $database_info['total'] = $total;
+            }
+
             if($params['format']=='json'){
                     fwrite($fd, ',"database":'.json_encode($database_info));
                     fwrite($fd, '}}');     
