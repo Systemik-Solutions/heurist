@@ -134,6 +134,16 @@ public static function output($data, $params){
     $records_out = array(); //ids already out
     $rt_counts = array(); //counts of records by record type
     
+
+    // Check if offset and limit are provided for pagination
+    if (isset($params['offset'], $params['limit'])) {
+        $offset = max((int) $params['offset'], 0); // Ensure offset is non-negative
+        $limit = (int) $params['limit'];
+
+        // Apply pagination to $records
+        $records = array_slice($records, $offset, $limit);
+    }
+    
     $error_log = array();
     $error_log[] = 'Total rec count '.count($records);
     
@@ -359,6 +369,7 @@ IIIF;
             
             fwrite($fd, '{"data": [');     
         }else{
+            error_log('json format');
             fwrite($fd, '{"heurist":{"records":[');         
         }
             
@@ -778,7 +789,32 @@ XML;
                 
             }else if(@$params['extended']>0 && @$params['extended']<3){ //with concept codes and labels
                 $feature = self::_getJsonFeature($record, $params['extended']);
-                fwrite($fd, $comma.json_encode($feature));
+                
+                // Check if dty_ID is set and not empty
+                if (!empty($params['dty_ID'])) {
+                    // Check if dty_ID is a JSON string and decode it, otherwise ensure it's an array
+                    if (is_string($params['dty_ID']) && strpos($params['dty_ID'], '[') === 0) {
+                        $dty_IDs = json_decode($params['dty_ID']);
+                    } else {
+                        $dty_IDs = is_array($params['dty_ID']) ? $params['dty_ID'] : [$params['dty_ID']];
+                    }
+                
+                    error_log('dtyid:  ' . json_encode($dty_IDs));
+
+                    if (is_array($dty_IDs)) {
+                        // Filter the details array to include only the elements with a matching dty_ID
+                        $filteredDetails = array_filter($feature['details'], function($detail) use ($dty_IDs) {
+                            return in_array($detail['dty_ID'], $dty_IDs);
+                        });
+                
+                        // Replace the details array in the feature with the filtered result
+                        $feature['details'] = array_values($filteredDetails); // array_values to reindex the array
+                    }
+                }
+
+                // Write the possibly modified feature to the file
+                fwrite($fd, $comma . json_encode($feature));
+
             }else if(@$params['extended']==3){
 
                 $feature = self::_getMediaViewerData($record);
