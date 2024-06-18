@@ -366,13 +366,14 @@ if($mode>1){
                     </label>
                 </div>
 
+<!-- 2024-04-09 - we use solely zip
                 <div class="input-row">
                     <label title="Export / Upload the archive in BZip format, instead of Zip">
                         <input type="checkbox" name="is_tar" value="1">
-Use Zip format rather than BZip (BZip is more efficient for archiving, but Zip is faster if there are lot of images and easier to open on personal computers)
+Use BZip format rather than Zip (BZip is more efficient for archiving, but Zip is faster if there are lot of images and easier to open on personal computers)
                     </label>
                 </div>
-
+-->
                 <div class="input-row" style="display:none;">
                     <label 
                         title="Adds documents describing Heurist structure and data formats - check this box if the output is for long-term archiving">
@@ -424,7 +425,7 @@ Use Zip format rather than BZip (BZip is more efficient for archiving, but Zip i
         <?php } ?>
 
                 <div id="buttons" class="actionButtons" style="padding-top:10px;text-align:left">
-                    <input type="button" value="<?php echo ($is_repository ? 'Export & Upload' : 'Create Archive'); ?>" 
+                    <input type="button" value="<?php echo $is_repository ? 'Export & Upload' : 'Create Archive'; ?>" 
                         style="margin-right: 20px;" class="ui-button-action" onClick="{ exportArchive(); }">
                     <input type="button" id="btnClose_1" value="Cancel" onClick="closeArchiveWindow();">
                 </div>
@@ -454,7 +455,8 @@ Use Zip format rather than BZip (BZip is more efficient for archiving, but Zip i
                 }
             }
             if (!folderCreate(FOLDER_BACKUP, true)) {
-                $message = 'Failed to create folder '.FOLDER_BACKUP.'<br> in which to create the backup. Please consult your sysadmin.';            report_message($message, true);
+                $message = 'Failed to create folder '.FOLDER_BACKUP.'<br> in which to create the backup. Please consult your sysadmin.';
+                report_message($message, true);
             }
 
             // Just SQL dump
@@ -472,7 +474,7 @@ Use Zip format rather than BZip (BZip is more efficient for archiving, but Zip i
             }
 
             $repo = !empty(@$_REQUEST['repository']) ? htmlspecialchars($_REQUEST['repository']) : null;
-            if($is_repository && (!$repo || $repo == 'Nakala')){
+            if($is_repository && (!$repo || $repo != 'Nakala')){
                 report_message('The repository ' . $repo . ' is not supported please ' . CONTACT_HEURIST_TEAM, true, false);
             }
 
@@ -828,9 +830,9 @@ function report_message($message, $is_error=true, $need_cleanup=false)
 
             <!-- <div class="logo" style="background-color:#2e3e50;width:100%"></div> -->
 
-            <div class="<?php echo ($is_error)?'ui-state-error':''; ?>" 
+            <div class="<?php echo $is_error?'ui-state-error':''; ?>" 
                 style="width:90%;margin:auto;margin-top:10px;padding:10px;">
-                <span class="ui-icon <?php echo ($is_error)?'ui-icon-alert':'ui-icon-info'; ?>" 
+                <span class="ui-icon <?php echo $is_error?'ui-icon-alert':'ui-icon-info'; ?>" 
                       style="float: left; margin-right:.3em;font-weight:bold"></span>
                 <?php echo $message;?>
             </div>
