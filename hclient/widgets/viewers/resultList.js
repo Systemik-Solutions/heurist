@@ -2590,7 +2590,10 @@ $.widget( "heurist.resultList", {
                         
 
                     }else{
-
+                        if(window.hWin.HAPI4.database == "balipaintings" ){
+                            window.open(infoURL, '_blank').focus();
+                                return;
+                        }
                         ele.addClass('loading').css({'overflow-y':'auto'}).load(infoURL, function(){ 
 
                             var ele2 = $(this);
