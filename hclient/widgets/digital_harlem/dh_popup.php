@@ -379,7 +379,7 @@ function composeDates( $records, $recID, $prefix='') {
             $dt = new Temporal($date_start);
          }   
          
-         return $dt?$prefix.$dt->toReadble():'';
+         return $dt?$prefix.$dt->toReadable():'';
      }
      return $date_out;
 }
