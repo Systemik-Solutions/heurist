@@ -273,3 +273,7 @@ div.infowindow a:hover {
 .recordDiv .recTypeThumb{
     top:0px;
 }
+
+#dialog-popup {
+    overflow: auto !important;
+}
