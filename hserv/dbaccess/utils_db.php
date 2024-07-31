@@ -1539,7 +1539,7 @@
         $dtl_Value = trim($dtl_Value);
         $len  = strlen($dtl_Value);  //number of bytes
         $len2 = mb_strlen($dtl_Value); //number of characters
-        $lim = ($len-$len2<200)?64000:32000; //32768;
+        $lim = ($len - $len2 < 200) ? 258000 : 128000;
         if($len>$lim){   //size in bytes more than allowed limit
             return $lim;
         }else{
@@ -1566,10 +1566,10 @@
         }
         */
         //number of bytes more than limit
-        //limit: if number of bytes and chars is slightly different it takes 64KB 
-        // otherwise it is assumed utf and limit is 32KB
+        // limit: if number of bytes and chars is slightly different it takes 258KB 
+        // otherwise it is assumed utf and limit is 128KB
         if($lim>0){ //65535){  32768
-            $lim2 = ($lim>32000)?64:32;
+            $lim2 = ($lim > 129000) ? 258 : 128;
             return 'The data in field ('.$dty_Name
             .') exceeds the maximum size for a field of '.$lim2.'Kbytes. '
             .'Note that this does not mean '.$lim2.'K characters, '
