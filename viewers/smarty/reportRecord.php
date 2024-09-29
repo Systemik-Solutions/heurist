@@ -418,23 +418,22 @@ class ReportRecord {
                 else  if ($key == "details")
                 {
                     if ($extended != null && $extended == 2) {
-
-                        unset($rec['details']);
                         foreach ($value as $dtValue) {
                             $fieldName = $dtValue['fieldName'];
                             $fieldValue = $this->getExtendedDetailsForSmarty($dtValue);
                     
                             if($fieldValue){
-                                if (!isset($rec[$fieldName])) {
-                                    $rec[$fieldName] = $fieldValue;
+                                if (!isset($record[$fieldName])) {
+                                    $record[$fieldName] = $fieldValue;
                                 } else {
-                                    if (is_array($rec[$fieldName])) {
-                                        $rec[$fieldName][] = $fieldValue;
+                                    if (is_array($record[$fieldName])) {
+                                        $record[$fieldName][] = $fieldValue;
                                     } else {
-                                        $rec[$fieldName] = [$rec[$fieldName], $fieldValue];
+                                        $record[$fieldName] = [$record[$fieldName], $fieldValue];
                                     }
                                 }
                             }
+                            ksort($record);
                         }
                     }else{
                         $details = array();
