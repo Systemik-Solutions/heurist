@@ -151,7 +151,7 @@ class ReportRecord {
     //
     // this method is used in smarty template in main loop to access record info by record ID
     //
-    public function getRecord($rec, $smarty_obj=null) {
+    public function getRecord($rec, $smarty_obj=null , $extended=null) {
 
         if(is_array($rec) && $rec['recID']){
             $rec_ID = $rec['recID'];
@@ -164,7 +164,7 @@ class ReportRecord {
             return $this->loaded_recs[$rec_ID];
         }
 
-        $rec = recordSearchByID($this->system, $rec_ID); //from recordSearch.php
+        $rec = recordSearchByID($this->system, $rec_ID , true , null , $extended); //from recordSearch.php
         
         if($rec){
             $rec['rec_Tags'] = recordSearchPersonalTags($this->system, $rec_ID); //for current user only
@@ -173,7 +173,7 @@ class ReportRecord {
             $rec['rec_IsVisible'] = $this->recordIsVisible($rec); //for current user only
         }
         
-        $res1 = $this->getRecordForSmarty($rec); 
+        $res1 = $this->getRecordForSmarty($rec , $extended); 
         
         return $res1;
     }
@@ -367,7 +367,7 @@ class ReportRecord {
     //
     // convert record array to array to be assigned to smarty variable
     //
-    private function getRecordForSmarty($rec){
+    private function getRecordForSmarty($rec , $extended=null){
 
         if(!$rec){
             return null;
@@ -417,12 +417,32 @@ class ReportRecord {
                 }
                 else  if ($key == "details")
                 {
+                    if ($extended != null && $extended == 2) {
 
-                    $details = array();
-                    foreach ($value as $dtKey => $dtValue){
-                        $dt = $this->getDetailForSmarty($dtKey, $dtValue, $recTypeID, $recordID, $lang); //$record['recID']);
-                        if($dt){
-                            $record = array_merge($record, $dt);
+                        unset($rec['details']);
+                        foreach ($value as $dtValue) {
+                            $fieldName = $dtValue['fieldName'];
+                            $fieldValue = $this->getExtendedDetailsForSmarty($dtValue);
+                    
+                            if($fieldValue){
+                                if (!isset($rec[$fieldName])) {
+                                    $rec[$fieldName] = $fieldValue;
+                                } else {
+                                    if (is_array($rec[$fieldName])) {
+                                        $rec[$fieldName][] = $fieldValue;
+                                    } else {
+                                        $rec[$fieldName] = [$rec[$fieldName], $fieldValue];
+                                    }
+                                }
+                            }
+                        }
+                    }else{
+                        $details = array();
+                        foreach ($value as $dtKey => $dtValue){
+                            $dt = $this->getDetailForSmarty($dtKey, $dtValue, $recTypeID, $recordID, $lang); //$record['recID']);
+                            if($dt){
+                                $record = array_merge($record, $dt);
+                            }
                         }
                     }
 
@@ -711,6 +731,32 @@ class ReportRecord {
             return null;
         }
 
+    }
+
+    private function getExtendedDetailsForSmarty($value){
+        
+        $fieldValue = null;
+        switch ($value['fieldType']) {
+            case 'blocktext':
+                $fieldValue = $value['value'];
+                break;
+            case 'float':
+                $fieldValue = $value['value'];
+                break;
+            case 'date':
+                $fieldValue = $value['value'];
+                break;
+            case 'enum':
+                $fieldValue = $value['termLabel'];
+                break;
+            case 'resource': 
+                $fieldValue = $value['value']['title'];
+                break;    
+            default:
+                break;
+        }
+      
+        return $fieldValue ;
     }
 
 

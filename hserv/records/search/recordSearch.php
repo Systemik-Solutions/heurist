@@ -3192,7 +3192,7 @@ function recordTemplateByRecTypeID($system, $id){
 
 
 //------------------------
-function recordSearchByID($system, $id, $need_details = true, $fields = null) 
+function recordSearchByID($system, $id, $need_details = true, $fields = null , $extended = null) 
 {
     if($fields==null){
         $fields = "rec_ID,
@@ -3217,7 +3217,93 @@ function recordSearchByID($system, $id, $need_details = true, $fields = null)
     if ($need_details !== false && $record) {
         recordSearchDetails($system, $record, $need_details);
     }
+
+    if($extended && $extended == 2){
+        $record = _getJsonFeature($system , $record , 2);
+    }
+
     return $record;
+}
+
+function _getJsonFeature($system, $record, $extended_mode){
+
+    if($extended_mode==0){ //leave as is
+        return $record;
+    }
+
+    $rty_ID = $record['rec_RecTypeID'];
+
+    $res = $record;
+    $res['details'] = array();
+    
+
+    $defDetailtypes = dbs_GetDetailTypes($system, null, 2);   
+    
+    $idx_dtype = $defDetailtypes['typedefs']['fieldNamesToIndex']['dty_Type'];
+    
+    if($extended_mode==2){ //extended - with concept codes and names/labels
+    
+        
+        $defRecTypes = dbs_GetRectypeStructures($system, null, 2);
+            
+        $defTerms = dbs_GetTerms($system);
+        $defTerms = new DbsTerms($system, $defTerms);
+        
+        $idx_name = $defRecTypes['typedefs']['dtFieldNamesToIndex']['rst_DisplayName'];
+        
+        $idx_dname = $defDetailtypes['typedefs']['fieldNamesToIndex']['dty_Name'];
+        $idx_ccode = $defDetailtypes['typedefs']['fieldNamesToIndex']['dty_ConceptID'];
+        
+        
+        $idx_ccode2 = $defRecTypes['typedefs']['commonNamesToIndex']['rty_ConceptID'];
+        
+        $res['rec_RecTypeName'] = $defRecTypes['names'][$rty_ID];    
+        $idx_ccode2 = $defRecTypes['typedefs'][$rty_ID]['commonFields'][$idx_ccode2];
+        if($idx_ccode2) $res['rec_RecTypeConceptID'] = $idx_ccode2;
+        
+    }
+
+    //convert details to proper JSON format, extract geo fields and convert WKT to geojson geometry
+    foreach ($record['details'] as $dty_ID=>$field_details) {
+
+        foreach($field_details as $dtl_ID=>$value){ //for detail multivalues
+        
+            $val = array('dty_ID'=>$dty_ID,'value'=>$value);
+            $field_type = $defDetailtypes['typedefs'][$dty_ID]['commonFields'][$idx_dtype];
+
+            if($extended_mode==2){ //extended - with concept codes and names/labels
+                
+                //It needs to include the field name and term label and term standard code.
+                if($field_type=='enum' || $field_type=='relationtype'){
+                    $val['termLabel'] = $defTerms->getTermLabel($value, true);
+                    $term_code  = $defTerms->getTermCode($value);
+                    if($term_code) $val['termCode'] = $term_code; 
+                    $term_code  = $defTerms->getTermConceptID($value);
+                    if($term_code) $val['termConceptID'] = $term_code;    
+                }
+
+                if($defRecTypes['typedefs'][$rty_ID]['dtFields'][$dty_ID]){
+                    $val['fieldName'] = $defRecTypes['typedefs'][$rty_ID]['dtFields'][$dty_ID][$idx_name];    
+                }else{
+                    //non standard field
+                    $val['fieldName'] = $defDetailtypes['typedefs'][$dty_ID]['commonFields'][$idx_dname];    
+                }
+
+                $val['fieldType'] = $field_type;
+                $val['conceptID'] = $defDetailtypes['typedefs'][$dty_ID]['commonFields'][$idx_ccode];
+            }
+            if($field_type=='date'){ //decode json temporal
+                $temporal = json_decode($val['value']);
+                if($temporal!=null){
+                    $val['value'] = $temporal;
+                }
+            }
+
+            $res['details'][] = $val;
+        } //for detail multivalues
+    } //for all details of record
+
+    return $res;
 }
 
 //
