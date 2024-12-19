@@ -252,6 +252,86 @@ var cfg_layouts = [
         }
     },
 
+    
+    // Position of widgets are specified in CSS, all widgets can be dragged around and repositioned
+    /* This layout needs to be defiend spcifically to be useful
+    {id:'FreeLayout', name:'Free example', theme:'heurist', type:'free',
+    mainpane: {dropable:true, tabs:[{dockable:true, dragable:true, resizable:true,
+    apps:[{appid:'heurist_mainMenu', hasheader:false, css:{width:'100%', border:'none', 'background':'none'} },
+    {appid:'heurist_Search', hasheader:false, css:{width:'100%', border:'none', 'background':'none'} },
+    {appid:'heurist_SearchTree', hasheader:false, css:{border:'none', 'background':'none'} },  //saved searches
+    {appid:'heurist_resultList', name: 'Search result' },
+    {appid:'heurist_resultListExt', name: 'Record', options:{url: 'viewers/record/renderRecordData.php?recID=[recID]&db=[dbname]', is_single_selection:true}},    //H3 record viewer
+    {appid:'heurist_Map'}, // H4 map V2
+    {appid:'heurist_resultListExt', options:{title:'Report', url: 'viewers/smarty/showReps.html'}},     //H3 smarty
+    {appid:'heurist_Graph',   options:{title:'Network', url: 'hclient/framecontent/visualize/springDiagram.php?db=[dbname]'}}  //H4 connections
+    ]}]
+    }
+    },
+    */
+
+    {id:'Beyond1914', name:'Beyond 1914 / Book of Remembrance, University of Sydney, built with Heurist', theme:'heurist', type:'free', 
+                cssfile:['hclient/widgets/expertnation/expertnation.css','hclient/widgets/expertnation/beyond1914.css'],
+                template: 'hclient/widgets/expertnation/beyond1914_main.html'
+       //widgets will be loaded into divs with id "result_pane" and "search_pane" in beyond1914_main.html         
+       ,expertnation_place:{dropable:false,css:{},
+                apps:[                           
+                {appid:'expertnation_place', 
+                    options:{view_mode:'list', show_toolbar: false, select_mode:'select_single', 
+                                multiselect:false, show_menu: false},
+                hasheader:false, css:{border:'none', 'background':'none'} }]}
+       ,result_pane:{dropable:false,css:{},
+                apps:[{appid:'expertnation_results', 
+                    options:{view_mode:'list', show_toolbar: false, select_mode:'select_single', 
+                    multiselect:false, show_menu: false, hasheader:false},
+                hasheader:false, css:{border:'none', 'background':'none'} }]}
+       ,search_pane:{dropable:false,css:{},
+                apps:[                           
+                //prod 
+                {appid:'dh_search', options:{UGrpID:48, search_at_init:152, uni_ID:4705}, 
+                    hasheader:false, css:{border:'none', 'background':'none'} }]       }  
+                //faceted/forms searches
+                //dev
+                //{appid:'dh_search', options:{UGrpID:18, Xsearch_at_init:110}, hasheader:false, css:{border:'none', 'background':'none'} }]}  //faceted/forms searches
+       ,expertnation_nav:{dropable:false,css:{},
+                apps:[                           
+                //creates navigation menu and loads info pages
+                {appid:'expertnation_nav', options:{menu_div:'bor-navbar-collapse', search_UGrpID:48, uni_ID:4705}, hasheader:false, 
+                            css:{border:'none', 'background':'none'} }]}
+    },
+
+    {id:'UAdelaide', name:'November 1918, University of Adelaide, built with Heurist', theme:'heurist', type:'free', 
+                cssfile:['hclient/widgets/expertnation/expertnation.css',
+                'https://global.adelaide.edu.au/style-guide-v2/latest/css/global-assets.css',
+                'https://global.adelaide.edu.au/style-guide-v2/0.24.0/css/header-footer.css',
+                'hclient/widgets/expertnation/uadelaide.css'], 
+                template: 'hclient/widgets/expertnation/uadelaide_main.html'
+       //widgets will be loaded into divs with id "result_pane" and "search_pane" in uadelaide_main.html         
+       ,expertnation_place:{dropable:false,css:{},
+                apps:[                           
+                {appid:'expertnation_place', 
+                    options:{view_mode:'list', show_toolbar: false, select_mode:'select_single', 
+                                multiselect:false, show_menu: false},
+                hasheader:false, css:{border:'none', 'background':'none'} }]}
+       ,result_pane:{dropable:false,css:{},
+                apps:[{appid:'expertnation_results', 
+                    options:{view_mode:'list', show_toolbar: false, select_mode:'select_single', 
+                    multiselect:false, show_menu: false},
+                hasheader:false, css:{border:'none', 'background':'none'} }]}
+       ,search_pane:{dropable:false,css:{},
+                apps:[                           
+                //prod 
+                {appid:'dh_search', options:{UGrpID:55, search_at_init:196, uni_ID:4710}, hasheader:false, 
+                css:{border:'none', 'background':'none'} }]         
+       }
+       ,expertnation_nav:{dropable:false,css:{},
+                apps:[                           
+                //creates navigation menu and loads info pages
+                {appid:'expertnation_nav', options:{menu_div:'bor-navbar-collapse', search_UGrpID:55, uni_ID:4710}, hasheader:false, 
+                            css:{border:'none', 'background':'none'} }]}
+    },
+
+    
     {id:'DigitalHarlem', name:'Digital Harlem', theme:'heurist', type:'cardinal', cssfile:'hclient/widgets/digital_harlem/dh_style.css',
         north:{size:140, resizable:false, overflow:'hidden',
             apps:[
