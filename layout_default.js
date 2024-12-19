@@ -65,6 +65,17 @@ var cfg_widgets = [
     {id:'heurist_recordAddButton', name:'Add Record', widgetname:'recordAddButton', script:'hclient/widgets/record/recordAddButton.js'},
     {id:'heurist_emailForm', name:'Email Us Form', widgetname:'emailForm', script:'hclient/widgets/admin/emailForm.js'},
         
+    // DIGITAL HARLEM APPS
+    {id:'dh_search', name:'Search Forms', widgetname:'dh_search', script:'hclient/widgets/digital_harlem/dh_search.js'},
+    {id:'dh_maps', name:'Saved Maps', widgetname:'dh_maps', script:'hclient/widgets/digital_harlem/dh_maps.js'},
+    {id:'dh_results', name:'Layers', widgetname:'dh_results', script:'hclient/widgets/digital_harlem/dh_results.js'}, //not used
+    {id:'dh_legend', name:'Legend', widgetname:'dh_legend', script:'hclient/widgets/digital_harlem/dh_legend.js'}, //not used
+
+    //ExpertNation APPS
+    {id:'expertnation_results', name:'Search Result', widgetname:'expertnation_results', script:'hclient/widgets/expertnation/expertnation_results.js'},
+    {id:'expertnation_nav', name:'Navigation', widgetname:'expertnation_nav', script:'hclient/widgets/expertnation/expertnation_nav.js'},
+    {id:'expertnation_place', name:'Place', widgetname:'expertnation_place', script:'hclient/widgets/expertnation/expertnation_place.js'},
+     
     //fake app - reference to another layout to include
     {id:'include_layout',name:'Inner Layout', widgetname:'include_layout'}
 
@@ -239,7 +250,85 @@ var cfg_layouts = [
                                 css:{overflow:'hidden'}}}
             ]}]
         }
-    }
+    },
+
+    {id:'DigitalHarlem', name:'Digital Harlem', theme:'heurist', type:'cardinal', cssfile:'hclient/widgets/digital_harlem/dh_style.css',
+        north:{size:140, resizable:false, overflow:'hidden',
+            apps:[
+                {appid:'heurist_Frame', hasheader:false,
+                    options:{url: 'hclient/widgets/digital_harlem/dh_header.php?db=[dbname]&app=[layout]',init_at_once:true}
+                    //css:{width:'100%',height:'100%'}},
+                    ,css:{position:'absolute', top:0,left:0,bottom:0,right:0, border:'none', 'background':'none', 'min-width':'75em'}},    //top panel
+        ]},
+        west:{size:270, resizable:false, apps:[
+            //{appid:'heurist_Search', hasheader:false, css:{position:'absolute', top:'0', height:'0', border:'none', display:'none'}, options:{has_paginator:false, isloginforced:false} },
+            {appid:'dh_search', options:{UGrpID:1007}, hasheader:false, css:{border:'none', 'background':'none'} }]},  //faceted/forms searches
+        center:{minsize:300, dropable:false,
+            tabs:[{dockable:false, dragable:false, resizable:false, adjust_positions:true,
+                apps:[
+                    {appid:'heurist_Map', name: 'Map', options:{layout:['map','timeline'], mapdocument:61557, eventbased:false, published:1} } //mapping
+                    ,{appid:'heurist_resultList', hasheader:true, name: 'List', 
+                        options:{empty_remark:null, title:'List', show_viewmode:false, eventbased:false} }
+                    //,{appid:'heurist_Frame', hasheader:true, name: 'DH Blog', options:{url: 'https://drstephenrobertson.com/digitalharlemblog/'} }
+                ]
+            }]
+        },
+        east:{size:300, minsize:300, dropable:false,
+            tabs:[{dockable:false, dragable:false, resizable:false,
+                apps:[
+                    {appid:'dh_maps', name: 'Maps'},     // saved searches(maps)
+                    {appid:'heurist_Frame', name:'Legend', options:{title:'Legend', 
+                            url: 'hclient/widgets/digital_harlem/dh_legend.php?db=[dbname]',init_at_once:true}}
+                ]
+            }]
+        },
+        south:{size:40, resizable:false, overflow:'hidden',
+            apps:[
+                {appid:'heurist_Frame', hasheader:false,
+                    options:{url: 'hclient/widgets/digital_harlem/dh_footer.php?db=[dbname]&app=[layout]',init_at_once:true}
+                    //old way options:{url: 'hclient/widgets/digital_harlem/dh_footer.html'}
+                    ,css:{position:'absolute', top:0,left:0,bottom:0,right:0}}
+        ]},
+    },
+
+    {id:'DigitalHarlem1935', name:'Digital Harlem 1935', theme:'heurist', type:'cardinal', cssfile:'hclient/widgets/digital_harlem/dh_style1935.css',
+        north:{size:140, resizable:false, overflow:'hidden',
+            apps:[
+                {appid:'heurist_Frame', hasheader:false,
+                    options:{url: 'hclient/widgets/digital_harlem/dh_header.php?db=[dbname]&app=[layout]',init_at_once:true}
+                    //css:{width:'100%',height:'100%'}},
+                    ,css:{position:'absolute', top:0,left:0,bottom:0,right:0, border:'none', 'background':'none', 'min-width':'75em'}},    //top panel
+        ]},
+        west:{size:270, resizable:false, apps:[
+            //{appid:'heurist_Search', hasheader:false, css:{position:'absolute', top:'0', height:'0', border:'none', display:'none'}, options:{has_paginator:false, isloginforced:false} },
+            {appid:'dh_search', options:{UGrpID:1010}, hasheader:false, css:{border:'none', 'background':'none'} }]},  //faceted/forms searches
+        center:{minsize:300, dropable:false,
+            tabs:[{dockable:false, dragable:false, resizable:false, adjust_positions:true,
+                apps:[
+                    {appid:'heurist_Map', name: 'Map', options:{layout:['map','timeline'], mapdocument:61557, eventbased:false, published:1} } //mapping
+                    ,{appid:'heurist_resultList', hasheader:true, name: 'List', 
+                        options:{empty_remark:null, title:'List', show_viewmode:false, eventbased:false} }
+                    //,{appid:'heurist_Frame', hasheader:true, name: 'DH Blog', options:{url: 'https://drstephenrobertson.com/digitalharlemblog/'} }
+                ]
+            }]
+        },
+        east:{size:300, minsize:300, dropable:false,
+            tabs:[{dockable:false, dragable:false, resizable:false,
+                apps:[
+                    {appid:'dh_maps', name: 'Maps'},     // saved searches(maps)
+                    {appid:'heurist_Frame', name:'Legend', options:{title:'Legend', url: 'hclient/widgets/digital_harlem/dh_legend.php?db=[dbname]',init_at_once:true}}
+                ]
+            }]
+        },
+        south:{size:40, resizable:false, overflow:'hidden',
+            apps:[
+                {appid:'heurist_Frame', hasheader:false,
+                    options:{url: 'hclient/widgets/digital_harlem/dh_footer.php?db=[dbname]&app=[layout]',init_at_once:true}
+                    //old static version options:{url: 'hclient/widgets/digital_harlem/dh_footer.html'}
+                    ,css:{position:'absolute', top:0,left:0,bottom:0,right:0}}
+        ]},
+    },
+
 
 ];
 
