@@ -3520,17 +3520,6 @@ $Db.rty(rectypeID, 'rty_Name') + ' is defined as a child of <b>'+names.join(', '
 
                         for (let k=0; k<values.length; k++){
                             
-<<<<<<< HEAD
-                            let len = window.hWin.HEURIST4.util.byteLength(values[k]);
-                            let len2 = values[k].length;
-                            let lim = (len-len2<200)?64000:32768;
-                            let lim2 = (len-len2<200)?64:32;
-                            
-                            if(len>lim){ //65535){  32768
-                                let sMsg = 'The data in field ' + $Db.rst(that._currentEditRecTypeID, dtyID, 'rst_DisplayName')
-                                +' exceeds the maximum size for a field of 64Kbytes.<br>' //lim2
-                                +'Note that this does not mean 64K characters, ' //lim2
-=======
                             var len = window.hWin.HEURIST4.util.byteLength(values[k]);
                             var len2 = values[k].length;
                             var lim = (len-len2<200)?512000:256000;
@@ -3540,7 +3529,6 @@ $Db.rty(rectypeID, 'rty_Name') + ' is defined as a child of <b>'+names.join(', '
                                 var sMsg = 'The data in field ' + $Db.rst(that._currentEditRecTypeID, dtyID, 'rst_DisplayName')
                                 +' exceeds the maximum size for a field of 512Kbytes.<br>' //lim2
                                 +'Note that this does not mean 512K characters, ' //lim2
->>>>>>> h6dev
                                 +'as Unicode uses multiple bytes per character.<br>'
                                 +'You can store more than 512Kbytes by making the field repeating and splitting the data into two or more values for this field.';
                                 window.hWin.HEURIST4.msg.showMsgErr(sMsg);
