@@ -227,6 +227,11 @@
             $path = $path.$version.'/';
         }
 
+        // Backward compatibility for term icons (Digital Harlem)
+        if ($entity_name === 'defTerms' && !file_exists(HEURIST_FILESTORE_ROOT . $db_name . $path)) {
+            $path = '/term-icons/';
+        }
+        
         $filename = null;
         $content_type = null;
         $url = null;
