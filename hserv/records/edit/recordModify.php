@@ -437,7 +437,7 @@ function recordSave($system, $record, $use_transaction=true, $suppress_parent_ch
             return $system->addError(HEURIST_ACTION_BLOCKED,
                 'Are you a bot? Please enter the correct answer to the challenge question');
         }else{
-            if($system->get_user_id()<1){ //if captcha is valid allow
+            if($system->get_user_id()<1){ //if captcha is valid allow   (for ExpertNation - submit feedback)
                 $system->setCurrentUser(array('ugr_ID'=>5, 'ugr_FullName'=>'Guest'));
             }
         }

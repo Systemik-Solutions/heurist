@@ -144,7 +144,13 @@ $system->defineConstants();
     function onPageInit(success){
 
         is_page_loaded = success;
-        if(!success || !is_googlemap_loaded) {return;}
+        if(!success || !is_googlemap_loaded) return;
+        
+        var lt = window.hWin.HAPI4.sysinfo['layout'];
+        if(lt=='Beyond1914' || lt=='UAdelaide'){
+                $("head").append($('<link rel="stylesheet" type="text/css" href="'
+                    +window.hWin.HAPI4.baseURL+'hclient/widgets/expertnation/expertnation.css?t='+(new Date().getTime())+'">'));
+        }        
 
         // Layout options
         var layout_opts =  {
@@ -194,8 +200,8 @@ $system->defineConstants();
         var mylayout = $('#mapping').layout(layout_opts);
 
         $('#map').css('padding',0);
-        //$('#map').attr('data-mapid', 'code provided by google');//google mapid
-
+        $('#map').attr('data-mapid', 'cb51443861458fd0'); //google mapid for digital harlem
+        
         // Mapping data
         var mapdata = [];
         mapping = new hMapping("map", "timeline", _options, mylayout);

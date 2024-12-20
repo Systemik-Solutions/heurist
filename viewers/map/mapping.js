@@ -845,7 +845,7 @@ $.widget( "heurist.mapping", {
     //
     // Adds layer to searchResults mapdoc
     // recset - recordset to be converted to geojson
-    // it was used in Digital Harlem and Expert Nation where recordset is generated and prepared in custom way on client side
+    // it is used in Digital Harlem and Expert Nation where recordset is generated and prepared in custom way on client side
     //
     addRecordSet: function(recset, dataset_name) {
         //it is not publish recordset since it is prepared localy 
@@ -2005,6 +2005,17 @@ $.widget( "heurist.mapping", {
                                 //disableClusteringAtZoom:this.markerClusterMaxZoom
                 };
                                 
+                if(window.hWin.HAPI4.database=='digital_harlem'){
+                    opts['iconCreateFunction'] = function(cluster) {
+                        
+                        var markers = cluster.getAllChildMarkers();
+                        if(markers.length>0){
+                            markers = markers[0];
+                            return markers.options.icon;
+                        }
+                    }
+                }
+                
                 this.all_clusters[layer_id] = L.markerClusterGroup(opts);
                 
 
