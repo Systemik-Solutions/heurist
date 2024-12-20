@@ -1314,6 +1314,7 @@ map.data.addListener('mouseover', function(event) {
                             warning:'<div class="ui-icon ui-icon-alert" style="display:inline-block;width:20px" onclick="{window.hWin.HEURIST4.msg.showMsgDlg(\''+s+'\')}">&nbsp;</div>'};
                         */    
                     }
+                }
             }
         }    
 
