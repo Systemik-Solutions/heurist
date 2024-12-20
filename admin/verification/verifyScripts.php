@@ -1306,10 +1306,14 @@ function __listOfAdminUsers(){
         //get version of database
         $query = "SELECT ugr_Name, ugr_eMail, ugr_Modified FROM sysUGrps where  ugr_FirstName = 'sys' AND ugr_LastName = 'admin'";
         $vals = mysql__select_row_assoc($mysqli, $query);
-        if($vals){
-            if(strpos($vals['ugr_Modified'],'2019')!==0 && $vals['ugr_Modified']<$mind) {$mind = $vals['ugr_Modified'];}
-            echo  {'<br>'.htmlspecialchars($db_name.'   '.$vals['ugr_Modified']);}//.'   '.$vals['ugr_Name'].'  '.$vals['ugr_eMail'];
+        if ($vals) {
+            if (strpos($vals['ugr_Modified'], '2019') !== 0 && $vals['ugr_Modified'] < $mind) {
+                $mind = $vals['ugr_Modified'];
+            }
+            echo '<br>' . htmlspecialchars($db_name . '   ' . $vals['ugr_Modified']);
+            // .'   '.$vals['ugr_Name'].'  '.$vals['ugr_eMail'];
         }
+        
     }
     print '<br>Earliest: '.$mind.'<br>END';
 }

@@ -758,6 +758,8 @@ mapDraw.js initial_wkt -> parseWKT -> GeoJSON -> _loadGeoJSON (as set of separat
                         }
                         
                     }//for geo fields
+                }else{
+                    recID = recID + "_link"; //for Digital Harlem
                 }
                                                
                 if(geovalues.length>1){

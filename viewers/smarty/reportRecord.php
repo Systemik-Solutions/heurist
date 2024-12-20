@@ -732,30 +732,53 @@ class ReportRecord {
 
     }
 
-    private function getExtendedDetailsForSmarty($value){
-        
+    private function getExtendedDetailsForSmarty($value)
+    {
+
         $fieldValue = null;
         switch ($value['fieldType']) {
             case 'blocktext':
+                $fieldValue = $value['value'];
+                break;
+            case 'freetext':
                 $fieldValue = $value['value'];
                 break;
             case 'float':
                 $fieldValue = $value['value'];
                 break;
             case 'date':
-                $fieldValue = $value['value'];
+                $dateValue = $value['value'];
+                // For handling timestamps
+                if (isset($dateValue) && isset($dateValue->timestamp)) {
+                    $fieldValue = $dateValue->timestamp->in;
+                }
+                // For handling range of years
+                elseif (isset($dateValue) && isset($dateValue->start) && isset($dateValue->end)) {
+                    $fieldValue = $dateValue->start->earliest . ' to ' . $dateValue->end->latest;
+                } else {
+                    $fieldValue = $dateValue;
+                }
                 break;
             case 'enum':
                 $fieldValue = $value['termLabel'];
                 break;
-            case 'resource': 
-                $fieldValue = $value['value']['title'];
-                break;    
+            case 'resource':
+                if ($value['dty_ID'] == 386) {
+                    $fieldValue = $value['value']['title'];
+                } else {
+                    $fieldValue = $value;
+                }
+                break;
+            case 'file':
+                if (isset($value['value']['file']['fxm_MimeType']) && $value['value']['file']['fxm_MimeType'] === "image/jpeg") {
+                    $fieldValue = '<img width="400" src="https://heurist-usyd.cloud.edu.au/heurist/?db=balipaintings&file=' . $value['value']['fileid'] . '&fancybox=1">';
+                }
+                break;
             default:
                 break;
         }
-      
-        return $fieldValue ;
+
+        return $fieldValue;
     }
 
 
