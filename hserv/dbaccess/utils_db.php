@@ -141,9 +141,9 @@
         if($db_name==null || trim($db_name)==''){
             $res = 'Database parameter not defined';
         }else if(preg_match('/[^A-Za-z0-9_\$]/', $db_name)){ //validatate database name
-            $res = 'Database name '.$db_name.' is wrong. Only letters, numbers and underscores (_) are allowed in the database name';
+            $res = 'Database name '.htmlspecialchars($db_name).' is wrong. Only letters, numbers and underscores (_) are allowed in the database name';
         }else if(strlen($db_name)>64){
-            $res = 'Database name '.$db_name.' is too long. Max 64 characters allowed';
+            $res = 'Database name '.htmlspecialchars($db_name).' is too long. Max 64 characters allowed';
         }
         
         if($res!==true){
