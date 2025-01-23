@@ -23,8 +23,6 @@ $.widget( "heurist.searchDefDetailTypes", $.heurist.searchEntity, {
     //
     _initControls: function() {
 
-        let that = this;
-        
         this.input_search_type = this.element.find('#input_search_type');   //field type
         let vals = []; 
         let filter_types = [];
@@ -58,7 +56,7 @@ $.widget( "heurist.searchDefDetailTypes", $.heurist.searchEntity, {
         this.element.find('.heurist-helper1').find('span').hide();
         this.element.find('.heurist-helper1').find('span.'+smode+',span.common_help').show();
         
-        this.btn_add_record = this.element.find('#btn_add_record');
+        this.btn_add_record = this.element.find('.btn_AddRecord');
         this.btn_find_record = this.element.find('#btn_find_record');
         this.btn_csv_import = this.element.find('#btn_csv_import');
 
@@ -142,8 +140,9 @@ $.widget( "heurist.searchDefDetailTypes", $.heurist.searchEntity, {
                     this.startSearch();
                 }
             });
+            this.input_filter_rectype.parent().show();
         }else{
-            this.input_filter_rectype.hide();
+            this.input_filter_rectype.parent().hide();
         }
         
         if(this.options.simpleSearch){
@@ -173,8 +172,6 @@ $.widget( "heurist.searchDefDetailTypes", $.heurist.searchEntity, {
     //
     startSearch: function(){
         
-            this._super();
-            
             let request = {}
         
             if(this.input_search.val()!=''){
@@ -218,7 +215,7 @@ $.widget( "heurist.searchDefDetailTypes", $.heurist.searchEntity, {
         
                 sGroupTitle = '<h4 style="margin:0;padding-bottom:5px;">';
                 if(!this.element.find('#chb_show_all_groups').is(':checked') && this.options.dtg_ID>0){ //this.input_search_group.val()
-                    let dtg_id = this.options.dtg_ID; //this.input_search_group.val();
+                    let dtg_id = this.options.dtg_ID;
                     request['dty_DetailTypeGroupID'] = dtg_id;
                     sGroupTitle += ($Db.dtg(dtg_id,'dtg_Name')
                                         +'</h4><div class="heurist-helper3 truncate" style="font-size:0.7em">'
@@ -247,28 +244,8 @@ $.widget( "heurist.searchDefDetailTypes", $.heurist.searchEntity, {
                 this._trigger( "onfilter", null, request);            
                 
             }else{
-                this._trigger( "onstart" );
-        
-                request['a']          = 'search'; //action
-                request['entity']     = this.options.entity.entityName;
-                request['details']    = 'id'; //'id';
-                request['request_id'] = window.hWin.HEURIST4.util.random();
-                
-                //we may search users in any database
-                request['db']     = this.options.database;
-
-                let that = this;                                                
-           
-                window.hWin.HAPI4.EntityMgr.doRequest(request, 
-                    function(response){
-                        if(response.status == window.hWin.ResponseStatus.OK){
-                            that._trigger( "onresult", null, 
-                                {recordset:new HRecordSet(response.data), request:request} );
-                        }else{
-                            window.hWin.HEURIST4.msg.showMsgErr(response);
-                        }
-                    });
-                    
+                this._search_request = request;
+                this._super();                
             }            
             
     },

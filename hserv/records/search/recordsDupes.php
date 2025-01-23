@@ -62,7 +62,7 @@ private static function initialize()
 
     global $system;
     self::$system  = $system;
-    self::$mysqli = $system->get_mysqli();
+    self::$mysqli = $system->getMysqli();
     self::$initialized = true;
 
     //check existense NEW_LIPOSUCTION_255
@@ -74,7 +74,7 @@ private static function initialize()
 //
 public static function setSession($system){
     self::$system  = $system;
-    self::$mysqli = $system->get_mysqli();
+    self::$mysqli = $system->getMysqli();
     self::$initialized = true;
 }
 
@@ -261,7 +261,7 @@ public static function findDupes( $params ){
     //2. equal+leven          - individual search for every loop
     //3. only  equal searches - individual search for every loop
 
-    if(count($compare_fields)>0){
+    if(!empty($compare_fields)){
 
             if($sort_field==null){
                 $sort_field = $compare_fields[0];
@@ -283,7 +283,7 @@ public static function findDupes( $params ){
             $sort_field = null;
             $startgroup = 0; //only exact search - no reason group by first chars
     }
-    if(count($exact_fields)>0){
+    if(!empty($exact_fields)){
         $compare_mode = ($compare_mode==1)?2:3;
 
         if($compare_mode==3){ //each field separately
@@ -409,42 +409,41 @@ public static function findDupes( $params ){
 
                 if($row[1]==''){
                     continue;
-                }else{
-
-                    if($cache_cnt>=$in_memory_limit){
-
-                       $is_reset = true;
-                       $cache_cnt = 0;
-
-                    }elseif($startgroup>0){
-                        //strcasecmp()
-                        $str1 = mb_strtolower(mb_substr($row[1], 0, $startgroup));
-                        if($str1!=$curr_c1){
-                            $curr_c1 = $str1;
-                            $is_reset = true;
-                        }
-                    }
-                    if($is_reset){
-                            $is_reset = false;
-                            //start search
-                            $rep = self::_searchInCache();
-                            if($rep>0){
-                                $msg_termination = ($rep==2);
-                                break;
-                            }
-
-                            //reset
-                            self::$cache_id = array();
-                            self::$cache_str = array();
-                            self::$cache_str_exact = array();
-                    }
-
-                    self::$cache_id[] = $row[0];//array($row[0]=>$row[1]); rec_ID
-                    self::$cache_str[] = $row[1];//array($row[0]=>$row[1]); C1
-                    if($compare_mode==2) {self::$cache_str_exact[] = $row[2];}
-                    $cache_cnt++;
                 }
 
+
+                if($cache_cnt>=$in_memory_limit){
+
+                   $is_reset = true;
+                   $cache_cnt = 0;
+
+                }elseif($startgroup>0){
+                    //strcasecmp()
+                    $str1 = mb_strtolower(mb_substr($row[1], 0, $startgroup));
+                    if($str1!=$curr_c1){
+                        $curr_c1 = $str1;
+                        $is_reset = true;
+                    }
+                }
+                if($is_reset){
+                        $is_reset = false;
+                        //start search
+                        $rep = self::_searchInCache();
+                        if($rep>0){
+                            $msg_termination = ($rep==2);
+                            break;
+                        }
+
+                        //reset
+                        self::$cache_id = array();
+                        self::$cache_str = array();
+                        self::$cache_str_exact = array();
+                }
+
+                self::$cache_id[] = $row[0];//array($row[0]=>$row[1]); rec_ID
+                self::$cache_str[] = $row[1];//array($row[0]=>$row[1]); C1
+                if($compare_mode==2) {self::$cache_str_exact[] = $row[2];}
+                $cache_cnt++;
             }//while
 
             if(count(self::$cache_id)>0){
@@ -457,7 +456,7 @@ public static function findDupes( $params ){
 
             //3. create search query    uss $compare_fields
             $search_query = 'SELECT rec_ID '.($compare_mode<3?(', '.$compare_fields):'').$main_query; //' FROM tmp_find_dupes WHERE ';
-            $search_query = $search_query.' AND ('. implode(' AND ', $search_where) .')';
+            $search_query = $search_query.' AND ('. implode(SQL_AND, $search_where) .')';
 
             /*
             if($startgroup>0){ //limit search query to records that starts with the same characters
@@ -678,7 +677,7 @@ private static function _searchInCache(){
             }
         }
 
-        if(count($group)>0){
+        if(!empty($group)){
             array_unshift($group, $curr_recid);//add current
 
             sort($group);
@@ -722,6 +721,70 @@ private static function _searchInCache(){
     }  //for
 
     return 0;
+}
+
+public static function exportList($params){
+
+    if(!array_key_exists('export', $params)){
+        self::$system->addError(HEURIST_INVALID_REQUEST, 'Invalid request to export duplicates list');
+        return false;
+    }
+    if(!defined('HEURIST_SCRATCH_DIR')){
+        self::$system->addError(HEURIST_ACTION_BLOCKED, 'Unable to write to temporary space');
+        return false;
+    }
+
+    $duplicates = self::findDupes($params);
+    if(!$duplicates){
+        return false;
+    }elseif($duplicates['summary']['cnt_records'] == 0){
+        self::$system->addError(HEURIST_ACTION_BLOCKED, 'No duplicate records found for exporting');
+        return false;
+    }
+
+    $fd = fopen('php://output', 'w');
+    if(!$fd){
+        header(CTYPE_HTML);
+        echo 'Unable to open temporary output for writing TSV.<br>Please contact the Heurist team.';
+        return false;
+    }
+
+    // Add headers
+    fputcsv($fd, ['Record ID', 'Record title', 'View record', 'Merge group', 'Search group', 'Ignore group', 'Instant merge (replace record_to_keep with record ID to keep)'], "\t");
+
+    unset($duplicates['summary']);
+
+    foreach($duplicates as $records){
+
+        $all_group_IDs = implode(',', array_keys($records));
+
+        $merge_URL = HEURIST_BASE_URL . "admin/verification/combineDuplicateRecords.php?bib_ids={$all_group_IDs}&db=" . HEURIST_DBNAME;
+        $search_URL = HEURIST_BASE_URL . "?w=all&q=ids:{$all_group_IDs}&db=" . HEURIST_DBNAME;
+        $ignore_URL = HEURIST_BASE_URL . "hserv/controller/recordVerify.php?a=dupes&ignore={$all_group_IDs}&db=" . HEURIST_DBNAME;
+        $instant_URL = HEURIST_BASE_URL . "admin/verification/combineDuplicateRecords.php?bib_ids={$all_group_IDs}&instant_merge=1&db=" . HEURIST_DBNAME . "&master_rec_id=record_to_keep";
+
+        foreach($records as $rec_ID => $rec_Title) {
+
+            $rec_URL = HEURIST_BASE_URL . "viewers/record/viewRecord.php?recID={$rec_ID}&db=" . HEURIST_DBNAME;
+            fputcsv($fd, [$rec_ID, $rec_Title, $rec_URL, $merge_URL, $search_URL, $ignore_URL, $instant_URL], "\t");
+
+            $merge_URL = '';
+            $search_URL = '';
+            $ignore_URL = '';
+            $instant_URL = '';
+        }
+
+        fwrite($fd, "\n\n");
+    }
+
+    // Get content, length and close resource
+    rewind($fd);
+    $output = stream_get_contents($fd);
+    fclose($fd);
+
+    $filename = HEURIST_DBNAME . '_Duplicate_Records.tsv';
+
+    dataOutput($output, $filename, 'text/tab-separated-values');
 }
 
 } //end class

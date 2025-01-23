@@ -1,5 +1,4 @@
 <?php
-
     /**
     * Application interface. See HSystemMgr in hapi.js
     *    user/groups information/credentials
@@ -22,43 +21,36 @@
     * See the License for the specific language governing permissions and limitations under the License.
     */
 
-    require_once dirname(__FILE__).'/../System.php';
+    //use hserv\utilities as utils;
+    use hserv\utilities\USanitize;
+
+    require_once dirname(__FILE__).'/../../autoload.php';
+
     require_once dirname(__FILE__).'/../structure/dbsUsersGroups.php';
     require_once dirname(__FILE__).'/../structure/dbsSavedSearches.php';
-    require_once dirname(__FILE__).'/../utilities/uFile.php';
-    require_once dirname(__FILE__).'/../utilities/uImage.php';
-    require_once dirname(__FILE__).'/../utilities/uSanitize.php';
 
-
-    $response = array();//"status"=>"fatal", "message"=>"OBLOM");
+    $response = array();
     $res = false;
 
-    if(@$_SERVER['REQUEST_METHOD']=='POST'){
-        $req_params = filter_input_array(INPUT_POST);
-    }else{
-        $req_params = filter_input_array(INPUT_GET);
-    }
+    $req_params = USanitize::sanitizeInputArray();
 
-    $action = @$req_params['a'];//$system->getError();
+    $action = @$req_params['a'];
 
-    $system = new System();
+    $system = new hserv\System();
     $dbname = @$req_params['db'];
-    $error = System::dbname_check($dbname);
+    $error = mysql__check_dbname($dbname);
 
-    $dbname = preg_replace(REGEX_ALPHANUM, "", $dbname);//for snyk
-
-    if($error){
+    if($error!=null){
         $system->addError(HEURIST_INVALID_REQUEST, $error);
         $res = false;
 
-    }else
-    if($action=='verify_credentials'){ //just check only if logged in (db connection not required)
+    }elseif($action=='verify_credentials'){ //just check only if logged in (db connection not required)
 
-        $res = $system->verify_credentials($dbname);
+        $res = $system->verifyCredentials($dbname);
 
         if( $res>0 ){ //if logged id verify that session info (especially groups) is up to date
             //if exists file with userid it means need to reload system info
-            $db_full_name = $system->dbname_full();
+            $db_full_name = $system->dbnameFull();
             $reload_user_from_db = (@$_SESSION[$db_full_name]['need_refresh']==1);
 
             $const_toinit = true;
@@ -104,10 +96,10 @@
     }
     elseif($action=='usr_log'){
 
-        if($system->set_dbname_full($dbname)){
+        if($system->setDbnameFull($dbname)){
 
             $system->initPathConstants($dbname);
-            $system->user_LogActivity(@$req_params['activity'], @$req_params['suplementary'], @$req_params['user']);
+            $system->userLogActivity(@$req_params['activity'], @$req_params['suplementary'], @$req_params['user']);
             $res = true;
 
             if(@$req_params['activity']=='impEmails'){
@@ -118,17 +110,17 @@
 
     } elseif (false && $action == "save_prefs"){ //NOT USED save preferences into session (without db)
 
-        if($system->verify_credentials($dbname)>0){
+        if($system->verifyCredentials($dbname)>0){
             user_setPreferences($system, $req_params);
             $res = true;
         }
 
     } elseif($action == "logout"){ //save preferences into session
 
-        if($system->set_dbname_full($dbname)){
+        if($system->setDbnameFull($dbname)){
 
             $system->initPathConstants($dbname);
-            $system->user_LogActivity('Logout');
+            $system->userLogActivity('Logout');
 
             if($system->doLogout()){
                 $res = true;
@@ -143,7 +135,7 @@
         if(!$is_alpha){
 
             if(!defined('HEURIST_FILESTORE_ROOT')){
-                if($system->set_dbname_full($dbname)){
+                if($system->setDbnameFull($dbname)){
                     $system->initPathConstants($dbname);
                 }
             }
@@ -208,23 +200,12 @@
 
     }elseif( !$system->init( $dbname ) ){
 
-    }elseif($action == 'check_allow_cms'){ // check if CMS creation is allow on current server - $allowCMSCreation set in heuristConfigIni.php
-
-        if(isset($allowCMSCreation) && $allowCMSCreation == -1){
-
-            $msg = 'Due to security restrictions, website creation is blocked on this server.<br>Please ' . CONTACT_SYSADMIN . ' if you wish to create a website.';
-
-            $system->addError(HEURIST_ACTION_BLOCKED, $msg);
-            $res = false;
-        }else{
-            $res = 1;
-        }
     }elseif($action == 'check_for_databases'){ // check if the provided databases are available on the current server
 
-        $mysqli = $system->get_mysqli();
+        $mysqli = $system->getMysqli();
         $data = $req_params['data'];
         if(!is_array($data)){
-            $data = json_decode($data, TRUE);
+            $data = json_decode($data, true);
         }
 
         if(JSON_ERROR_NONE !== json_last_error() || !is_array($data)){
@@ -255,9 +236,9 @@
         $res = user_getNotifications($system);
     }elseif($action == 'get_tinymce_formats'){
 
-        $settings = $system->getDatabaseSetting('TinyMCE formats');
+        $settings = $system->settings->getDatabaseSetting('TinyMCE formats');
 
-        if(!is_array($settings) || array_key_exists('status', $settings)){
+        if($settings===false){
             $res = false;
         }elseif(empty($settings) || empty($settings['formats'])){
             $res = array(
@@ -287,8 +268,9 @@
             */
             if(@$settings['webfonts']){
                 $res['webfonts'] = array();
+                $settingsURL = $system->getSysUrl('settings');
                 foreach($settings['webfonts'] as $key => $font){
-                    $font = str_replace("url('settings/", "url('".HEURIST_FILESTORE_URL.'settings/', $font);
+                    $font = str_replace("url('settings/", "url('".$settingsURL, $font);
                     $res['webfonts'][$key] = $font;
                 }
             }
@@ -371,7 +353,7 @@
         $res = getExternalTranslation($system, @$req_params['string'], @$req_params['target'], @$req_params['source']);
     }else{
 
-        $mysqli = $system->get_mysqli();
+        $mysqli = $system->getMysqli();
 
         //allowed actions for guest
         $quest_allowed = array('login','reset_password','svs_savetree','svs_gettree','usr_save','svs_get');
@@ -382,14 +364,13 @@
 
         }elseif($action == "save_prefs"){
 
-            if($system->verify_credentials($dbname)>0){
+            if($system->verifyCredentials($dbname)>0){
                 user_setPreferences($system, $req_params);
                 $res = true;
-                //session_write_close();
             }
 
         }
-        elseif ( $system->get_user_id()<1 &&  !in_array($action,$quest_allowed)) {
+        elseif ( $system->getUserId()<1 &&  !in_array($action,$quest_allowed)) {
 
             $response = $system->addError(HEURIST_REQUEST_DENIED);
 
@@ -400,7 +381,7 @@
               if($exts){
                     $exts = explode(',',$exts);
               }
-              if(!is_array($exts) || count($exts)<1){
+              if(!is_array($exts) || empty($exts)){
                     $exts = array('png','svg');
               }
 
@@ -423,7 +404,7 @@
               if(@$req_params['exts']){
                     $exts = explode(',',@$req_params['exts']);
               }
-              if(!is_array($exts) || count($exts)<1){
+              if(!is_array($exts) || empty($exts)){
                     $exts = array('png','svg');
               }
 
@@ -473,7 +454,6 @@
                   $res = folderTree($root_dir,
                       array('systemFolders'=>$folders,'format'=>'fancy') );//see utils_file
                   $res = $res['children'];
-                  //$res = folderTreeToFancyTree($res, 0, $folders);
               }else{
 
                   $res = false;
@@ -482,7 +462,7 @@
 
                   if($dir_name==''){
                       $response = $system->addError(HEURIST_ACTION_BLOCKED, 'Folder name is not defined or out of the root');
-                  }elseif(!is_dir(HEURIST_FILESTORE_DIR.$dir_name)){
+                  }elseif($op!='create' && !is_dir(HEURIST_FILESTORE_DIR.$dir_name)){
                       $response = $system->addError(HEURIST_ACTION_BLOCKED, 'Folder name is not a directory');
                   }else{
 
@@ -491,8 +471,7 @@
 
                   if($folders[strtolower($dir_name)]){
                       $response = $system->addError(HEURIST_ACTION_BLOCKED, 'Cannot modify system folder');
-                  }else
-                  if($op=='rename'){
+                  }elseif($op=='rename'){
 
                       $new_name = USanitize::sanitizePath(@$req_params['newname']);
                       if($new_name==''){
@@ -500,9 +479,9 @@
                       }elseif($folders[strtolower($new_name)]){
                           $response = $system->addError(HEURIST_ACTION_BLOCKED, 'Name "'.$new_name.'" is reserved for system folder');
                       }elseif(file_exists(HEURIST_FILESTORE_DIR.$new_name)){
-                          $response = $system->addError(HEURIST_ACTION_BLOCKED, 'Folder with name "'.$new_name.'" already exists');
+                          $response = $system->addError(HEURIST_ACTION_BLOCKED, "Folder with name '$new_name' already exists");
                       }elseif(!file_exists($folder_name)){
-                          $response = $system->addError(HEURIST_ACTION_BLOCKED, 'Folder with name "'.$f_name.'" does not exist');
+                          $response = $system->addError(HEURIST_ACTION_BLOCKED, "Folder with name '$f_name' does not exist");
                       }else{
                           $res = rename($folder_name, HEURIST_FILESTORE_DIR.$new_name);
                           if(!$res){
@@ -512,8 +491,6 @@
                       }
 
                   }elseif($op=='delete'){
-                      //if (is_dir($dir))
-
 
                       if(!file_exists($folder_name)){
                           $response = $system->addError(HEURIST_ACTION_BLOCKED, 'Folder with name "'.$f_name.'" does not exist');
@@ -597,7 +574,7 @@
                     $sp = $req_params['saml_entity'];
 
                     //check saml session
-                    require_once dirname(__FILE__).'/../utilities/uSaml.php';
+                    require_once dirname(__FILE__).'/../utilities/USaml.php';
 
                     //if currently authenticated - take username
                     $username = samlLogin($system, $sp, $system->dbname(), false);
@@ -616,7 +593,7 @@
 
                     checkDatabaseFunctions($mysqli);
 
-                    $system->user_LogActivity('Login');
+                    $system->userLogActivity('Login');
                 }
 
             } elseif($action=="reset_password") {
@@ -625,10 +602,10 @@
                 if(array_key_exists('new_password', $req_params)) {unset($req_params['new_password']);}// remove from REQUEST
 
                 if($req_params['pin'] && $req_params['username'] && $password){ // update password w/ pin
-                    $system->user_LogActivity('ResetPassword', "Updating password for {$req_params['username']}");
+                    $system->userLogActivity('ResetPassword', "Updating password for {$req_params['username']}");
                     $res = user_ResetPassword($system, $req_params['username'], $password, $req_params['pin']);
                 }elseif($req_params['pin']){ // get/validate reset pin
-                    $system->user_LogActivity('ResetPassword', "Handling reset pin for {$req_params['username']}");
+                    $system->userLogActivity('ResetPassword', "Handling reset pin for {$req_params['username']}");
                     $res = user_HandleResetPin($system, @$req_params['username'], @$req_params['pin'], @$req_params['captcha']);
                 }else{
                     $res = $system->addError(HEURIST_ERROR, 'An invalid request was made to the password reset system.<br>Please contact the Heurist team.');
@@ -640,7 +617,7 @@
                 }
                 */
 
-            } else  if ($action=="action_password") { //special passwords for some admin actions - defined in configIni.php
+            } elseif ($action=="action_password") { //special passwords for some admin actions - defined in configIni.php
 
                 $actions = array('DatabaseCreation', 'DatabaseDeletion', 'ReservedChanges', 'ServerFunctions');
                 $action = @$req_params['action'];
@@ -676,8 +653,8 @@
 
                 $ugrID = $req_params['UGrpID'];
 
-                if($system->has_access($ugrID)){  //allowed for itself only
-                    $res = user_getById($system->get_mysqli(), $ugrID);
+                if($system->hasAccess($ugrID)){  //allowed for itself only
+                    $res = user_getById($system->getMysqli(), $ugrID);
                     if(is_array($res)){
                         $res['ugr_Password'] = '';
                     }
@@ -691,13 +668,13 @@
 
             } elseif($action=="groups") {
 
-                $ugr_ID = @$req_params['UGrpID']?$req_params['UGrpID']:$system->get_user_id();
+                $ugr_ID = @$req_params['UGrpID']?$req_params['UGrpID']:$system->getUserId();
 
-                $res = user_getWorkgroups($system->get_mysqli(), $ugr_ID, true);
+                $res = user_getWorkgroups($system->getMysqli(), $ugr_ID, true);
 
             } elseif($action=="members" && @$req_params['UGrpID']) {
 
-                $res = user_getWorkgroupMembers($system->get_mysqli(), @$req_params['UGrpID']);
+                $res = user_getWorkgroupMembers($system->getMysqli(), @$req_params['UGrpID']);
 
             } elseif($action=="user_wss") {
 
@@ -755,7 +732,7 @@
 
                     // File
                     $params['file'] = array(
-                        'path' => HEURIST_FILESTORE_DIR . '/scratch/'
+                        'path' => HEURIST_FILESTORE_DIR . DIR_SCRATCH
                                 . USanitize::sanitizeFileName(USanitize::sanitizePath($req_params['file'][0]['name'])),
                         'type' => htmlspecialchars($req_params['file'][0]['type']),
                         'name' => htmlspecialchars($req_params['file'][0]['original_name'])
@@ -765,7 +742,7 @@
                     $params['meta']['title'] = array(
                         'value' => htmlspecialchars(@$req_params['meta']['title']),
                         'lang' => null,
-                        'typeUri' => 'http://www.w3.org/2001/XMLSchema#string',
+                        'typeUri' => XML_SCHEMA,
                         'propertyUri' => NAKALA_REPO.'terms#title'
                     );
 
@@ -791,7 +768,7 @@
                             $params['meta']['alt_creator'] = array(
                                 'value' => $fullname,
                                 'lang' => null,
-                                'typeUri' => 'http://www.w3.org/2001/XMLSchema#string',
+                                'typeUri' => XML_SCHEMA,
                                 'propertyUri' => 'http://purl.org/dc/terms/creator'
                             );
                         }
@@ -806,7 +783,7 @@
                         $params['meta']['created'] = array(
                             'value' => @$req_params['meta']['created'],
                             'lang' => null,
-                            'typeUri' => 'http://www.w3.org/2001/XMLSchema#string',
+                            'typeUri' => XML_SCHEMA,
                             'propertyUri' => NAKALA_REPO.'terms#created'
                         );
                     }else{
@@ -828,7 +805,7 @@
                     $params['meta']['license'] = array(
                         'value' => @$req_params['meta']['license'],
                         'lang' => null,
-                        'typeUri' => 'http://www.w3.org/2001/XMLSchema#string',
+                        'typeUri' => XML_SCHEMA,
                         'propertyUri' => NAKALA_REPO.'terms#license'
                     );
 
@@ -846,7 +823,7 @@
 
                 if($res !== false){
                     // delete local file after upload
-                    fileDelete(HEURIST_FILESTORE_DIR . '/scratch/' . basename($req_params['file'][0]['name']));
+                    fileDelete(HEURIST_FILESTORE_DIR . DIR_SCRATCH . basename($req_params['file'][0]['name']));
                     fileDelete(HEURIST_FILESTORE_DIR . '/scratch/thumbnail/' . basename($req_params['file'][0]['name']));
                 }
             } else {

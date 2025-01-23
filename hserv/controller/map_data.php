@@ -23,7 +23,7 @@
 * See the License for the specific language governing permissions and limitations under the License.
 */
 
-require_once dirname(__FILE__).'/../System.php';
+require_once dirname(__FILE__).'/../../autoload.php';
 require_once dirname(__FILE__).'/../records/search/recordFile.php';
 
 $recordQuery = "SELECT * FROM Records r INNER JOIN defRecTypes d ON r.rec_RecTypeID=d.rty_ID";
@@ -58,7 +58,7 @@ function _getTermByID($system, $id) {
 
     // Select term
     $query = "SELECT * FROM defTerms WHERE trm_ID=".intval($id);
-    $res = $system->get_mysqli()->query($query);
+    $res = $system->getMysqli()->query($query);
 
     if ($res) {
         $row = $res->fetch_assoc();
@@ -84,8 +84,8 @@ function getRecordByID($system, $id) {
     $record = new stdClass();
 
     // Select the record
-    $query = $recordQuery." WHERE ".$recordWhere." and r.rec_ID=".intval($id);
-    $res = $system->get_mysqli()->query($query);
+    $query = $recordQuery.SQL_WHERE.$recordWhere." and r.rec_ID=".intval($id);
+    $res = $system->getMysqli()->query($query);
 
     if ($res) {
         $row = $res->fetch_assoc();
@@ -130,7 +130,6 @@ function getRecord($row) {
 * @param mixed $id Record ID
 */
 function getDetailedRecord($system, $id) {
-    //echo "Get detailed record #".$id;
     $record = getRecordByID($system, $id);
     if(@$record->id){
         $record = getRecordDetails($system, $record);
@@ -169,11 +168,10 @@ zipFile: A .zip file
 */
 function getRecordDetails($system, $record) {
     global $detailQuery;
-    //echo "Get record details of " . ($record->id);
 
     // Retrieve extended details
     $query = $detailQuery . intval($record->id);
-    $details = $system->get_mysqli()->query($query);
+    $details = $system->getMysqli()->query($query);
     if($details) {
 
         $record->bookmarks = array();
@@ -181,7 +179,6 @@ function getRecordDetails($system, $record) {
         // [dtl_ID]  [dtl_RecID]  [dtl_DetailTypeID]  [dtl_Value] [dtl_AddedByImport]  [ulf_ObfuscatedFileID]   [dtl_Geo]  [dtl_ValShortened]  [dtl_Modified]
         while($detail = $details->fetch_assoc()) {
             // Fields
-            //print_r($detail);
             $type = $detail["dtl_DetailTypeID"];
             $value = $detail["dtl_Value"];
             $fileID = $detail["ulf_ObfuscatedFileID"];
@@ -192,8 +189,7 @@ function getRecordDetails($system, $record) {
             /* GENERAL */
             if($type == DT_NAME) {
                 $record->name = $value; //for layers use it instead of title (rec_Title)
-            }else
-            if($type == DT_SHORT_SUMMARY) {
+            }elseif($type == DT_SHORT_SUMMARY) {
                 // Description
                 $record->description = $value;
 
@@ -234,7 +230,7 @@ function getRecordDetails($system, $record) {
                 }
                 array_push($record->layers, getDetailedRecord($system, $value));
 
-            }else  if(defined('DT_MAP_BOOKMARK') && $type == DT_MAP_BOOKMARK) {
+            }elseif(defined('DT_MAP_BOOKMARK') && $type == DT_MAP_BOOKMARK) {
                 //string in format <xmin>,<xmax>,<ymin>,<ymax>,<tmin>,<tmax>
                 array_push($record->bookmarks, explode(',', $value));
 
@@ -295,7 +291,7 @@ function getRecordDetails($system, $record) {
 
             }elseif(defined('DT_KML') && $type == DT_KML) {
                 // KML snippet
-                $record->kmlSnippet = 1;//$value;
+                $record->kmlSnippet = 1;
 
 
                 /* FILES */
@@ -355,20 +351,19 @@ function getRecordDetails($system, $record) {
 * @param mixed $system System reference
 */
 function getMapDocuments($system, $recId) {
-    //echo "getMapDocuments() called!";
     global $recordQuery, $recordWhere;
     global $detailQuery;
     $documents = array();
 
     if(defined('RT_MAP_DOCUMENT') && RT_MAP_DOCUMENT>0){
         // Select all Map Document types
-        $query = $recordQuery." WHERE ".$recordWhere." and rec_RecTypeID=".intval(RT_MAP_DOCUMENT);//InOriginatingDB
+        $query = $recordQuery.SQL_WHERE.$recordWhere." and rec_RecTypeID=".intval(RT_MAP_DOCUMENT);//InOriginatingDB
 
         if($recId>0){
             $query = $query . ' and rec_ID='.intval($recId);
         }
 
-        $mysqli = $system->get_mysqli();
+        $mysqli = $system->getMysqli();
         $res = $mysqli->query($query);
         if ($res) {
             // Loop through all rows
@@ -376,21 +371,19 @@ function getMapDocuments($system, $recId) {
                 // Document object containing the row values
                 $document = getRecord($row);
                 $document = getRecordDetails($system, $document);
-                //print_r($document);
                 array_push($documents, $document);
             }
         }
     }
-    //print_r($documents);
     return $documents;
 }
 
 // Initialize a System object that uses the requested database
-$system = new System();
+$system = new hserv\System();
 
 if( $system->init(@$_REQUEST['db']) ){
 
-    $wg_ids = $system->get_user_group_ids();
+    $wg_ids = $system->getUserGroupIds();
     if($wg_ids==null) {$wg_ids = array();}
     array_push($wg_ids, 0);
     $recordWhere = '(not r.rec_FlagTemporary) and ((not r.rec_NonOwnerVisibility="hidden") or '

@@ -20,30 +20,30 @@
 
 if(!defined('PDIR')){
     define('PDIR','../');
-    require_once dirname(__FILE__).'/../hserv/System.php';
+    require_once dirname(__FILE__).'/../autoload.php';
 }
 
 $is_json = (@$_REQUEST['format']=='json');
 
 if(!isset($system)){
-    $system = new System();
+    $system = new hserv\System();
 }
 
-if(!$system->is_inited()){
+if(!$system->isInited()){
     $system->init(@$_REQUEST['db'], false);//init wihout db
 }
 
-if( !$system->is_inited() ){  //cannot init system (apparently connection to Database Server is wrong or server is down)
+if( !$system->isInited() ){  //cannot init system (apparently connection to Database Server is wrong or server is down)
     $err = $system->getError();
     $error_msg = @$err['message'];
 }
 
-if($system->get_mysqli()!=null) { //server is connected
+if($system->getMysqli()!=null) { //server is connected
 
-    $list =  mysql__getdatabases4($system->get_mysqli());
-    if(!$is_json && count($list)<1){
+    $list =  mysql__getdatabases4($system->getMysqli());
+    if(!$is_json && empty($list)){
         //redirect to create database
-        header('Location: ' . HEURIST_BASE_URL . 'startup/index.php');
+        redirectURL(HEURIST_BASE_URL . 'startup/index.php');
         exit;
     }
 }
@@ -68,6 +68,8 @@ if($is_json){
     <head>
         <title><?=HEURIST_TITLE?></title>
         <meta http-equiv="content-type" content="text/html; charset=utf-8">
+        <meta name="robots" content="nofollow">
+        
         <link rel=icon href="<?php echo PDIR?>favicon.ico" type="image/x-icon">
 
         <!-- CSS -->
@@ -88,7 +90,7 @@ if($is_json){
             if(isset($error_msg) && $error_msg!=''){
                 echo '<div class="ui-state-error" style="width:90%;margin:auto;margin-top:10px;padding:10px;">';
                 echo '<span class="ui-icon ui-icon-alert" style="float: left; margin-right: .3em;"></span>';
-                echo $error_msg.'</div>';
+                echo $error_msg.DIV_E;
                 $list_top = '12em';
             }else{
                 $list_top = '6em';
@@ -101,6 +103,7 @@ if($is_json){
                 <ul class="db-list">
                     <?php
                     foreach ($list as $name) {
+                        $name = htmlentities($name);
                         print "<li><a href='".HEURIST_BASE_URL."?db=$name'>$name</a></li>";
                     }
 

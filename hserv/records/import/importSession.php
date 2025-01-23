@@ -35,7 +35,7 @@ private static function initialize()
 
     global $system;
     self::$system  = $system;
-    self::$mysqli = $system->get_mysqli();
+    self::$mysqli = $system->getMysqli();
     self::$initialized = true;
 }
 
@@ -80,7 +80,7 @@ public static function save($imp_session){
 
     $imp_id = mysql__insertupdate(self::$mysqli, "sysImportFiles", "sif",
         array("sif_ID"=>@$imp_session["import_id"],
-            "sif_UGrpID"=>self::$system->get_user_id(),
+            "sif_UGrpID"=>self::$system->getUserId(),
             "sif_TempDataTable"=>$imp_session["import_name"],
             "sif_ProcessingInfo"=>json_encode($imp_session) ));
 
@@ -150,10 +150,10 @@ public static function getMatchingSamples($imp_ID, $rty_ID){
 
         $imp_session = json_decode($imp_session, true);
         if($imp_session!==false && is_array(@$imp_session['sequence'])){
-            //if($imp_session['primary_rectype']==$rty_ID){
+
             foreach($imp_session['sequence'] as $seq){
 
-                if($seq['rectype']==$rty_ID && is_array(@$seq['mapping_flds']) && count($seq['mapping_flds'])>0){
+                if($seq['rectype']==$rty_ID && !isEmptyArray(@$seq['mapping_flds'])){
                     $matching[ $imp_session['import_name'] ] = $seq['mapping_flds'];
                     break;
                 }
@@ -176,7 +176,7 @@ public static function getRecordsFromImportTable1( $import_table, $imp_ids) {
 
     self::initialize();
 
-    $mysqli = self::$system->get_mysqli();
+    $mysqli = self::$system->getMysqli();
 
     $imp_ids = prepareIds($imp_ids);
 
@@ -193,7 +193,7 @@ public static function getRecordsFromImportTable2( $import_table, $id_field, $mo
 
     self::initialize();
 
-    $mysqli = self::$system->get_mysqli();
+    $mysqli = self::$system->getMysqli();
 
     if($id_field==null || $id_field=='' || $id_field=='null' || $mode=='all'){
         $where  = '1';
@@ -213,7 +213,7 @@ public static function getRecordsFromImportTable2( $import_table, $id_field, $mo
         $mapping = json_decode($mapping, true);
     }
 
-    if(is_array($mapping) && count($mapping)>0){
+    if(!isEmptyArray($mapping)){
 
 
         $field_idx = array_keys($mapping);

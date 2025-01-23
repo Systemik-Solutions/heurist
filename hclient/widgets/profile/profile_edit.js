@@ -56,7 +56,7 @@ $.widget( "heurist.profile_edit", {
         .appendTo( this.element );
 
         // Sets up element to apply the ui-state-focus class on focus.
-        //this._focusable($element);
+       
 
         this._refresh();
 
@@ -72,6 +72,8 @@ $.widget( "heurist.profile_edit", {
 
             this.edit_form.load(window.hWin.HAPI4.baseURL+"hclient/widgets/profile/profile_edit.html?t="+(new Date().getTime()),
                 function(){
+                    
+                    $('#divConditions').load(`${window.hWin.HAPI4.baseURL}?disclaimer=terms_and_conditions.html #content`);
                     
                     that.edit_form.css('overflow','hidden');
                     
@@ -165,7 +167,7 @@ $.widget( "heurist.profile_edit", {
     // custom, widget-specific, cleanup.
     _destroy: function() {
         // remove generated elements
-        //this.select_rectype.remove();
+       
     },
 
     //----
@@ -194,7 +196,11 @@ $.widget( "heurist.profile_edit", {
                             if(that.options.edit_data && that.options.edit_data['ugr_ID']==that.options.ugr_ID){
                                 that._fromDataToUI();
                             }else{
-                                that.options.parentwin.HEURIST4.msg.showMsgErr("Unexpected user data obtained from server");
+                                that.options.parentwin.HEURIST4.msg.showMsgErr({
+                                    message: "Unexpected user data obtained from server",
+                                    error_title: 'Invalid user data',
+                                    status: window.hWin.ResponseStatus.UNKNOWN_ERROR
+                                });
                             }
                         }else{
                             that.options.parentwin.HEURIST4.msg.showMsgErr(response, true);
@@ -220,9 +226,9 @@ $.widget( "heurist.profile_edit", {
                 //init captcha
                 this.edit_form.find('#imgdiv').show();
                 /*that.edit_form.find('#btnCptRefresh')
-                .button({text:false, icons:{ secondary: "ui-icon-refresh" }})
+                .button({showLabel:false, iconPosition:'end', icon:'ui-icon-refresh'})
                 .show()
-                .click( __refreshCaptcha );*/
+                .on('click', __refreshCaptcha );*/
 
                 this._refreshCaptcha();
             }
@@ -237,8 +243,7 @@ $.widget( "heurist.profile_edit", {
 
         for(let id in this.options.edit_data){
             if(!window.hWin.HEURIST4.util.isnull(id)){
-                let inpt = this.edit_form.find("#"+id).val(this.options.edit_data[id]);
-                //if(inpt){                    inpt.val(this.options.edit_data[id]);                  }
+                this.edit_form.find("#"+id).val(this.options.edit_data[id]);
             }
         }
         //restore repeat password also
@@ -261,7 +266,7 @@ $.widget( "heurist.profile_edit", {
                 : window.hWin.HR('Registration')  );
             this.edit_form.dialog("open");
             this.edit_form.parent().addClass('ui-dialog-heurist');
-            //css({'font-size':'0.8em'});
+           
             this.edit_form.parent().position({ my: "center center", at: "center center", of: $(top.document) });
 
         }
@@ -276,7 +281,7 @@ $.widget( "heurist.profile_edit", {
         if(is_simple_captcha){  //simple captcha
             $dd.load(window.hWin.HAPI4.baseURL+'hserv/utilities/captcha.php?id='+id);
         }else{ //image captcha
-            $dd.empty(); //find("#img").remove();
+            $dd.empty();
             $('<img id="img" src="hserv/utilities/captcha.php?img='+id+'"/>').appendTo($dd);
         }
     },
@@ -415,7 +420,11 @@ $.widget( "heurist.profile_edit", {
             }
 
         }else{
-            parentWin.HEURIST4.msg.showMsgErr(err_text);
+            parentWin.HEURIST4.msg.showMsgErr({
+                message: err_text,
+                error_title: 'Missing required fields',
+                status: window.hWin.ResponseStatus.INVALID_REQUEST
+            });
             /*let message = $dlg.find('.messages');
             message.html(err_text).addClass( "ui-state-highlight" );
             setTimeout(function() {
@@ -437,18 +446,9 @@ $.widget( "heurist.profile_edit", {
         }
     },
     
-    enable_register: function (value){
-        let that = this;
+    enable_register: function (is_enabled){
         let ele = this.edit_form.parent().find('#btn_save');
-        if(ele){
-            if(value){
-                ele.removeAttr("disabled");
-                ele.removeClass("ui-button-disabled ui-state-disabled");
-            } else {
-                ele.attr("disabled", "disabled");
-                ele.addClass("ui-button-disabled ui-state-disabled");
-            }
-        }
+        window.hWin.HEURIST4.util.setDisabled(ele, !is_enabled);
     }
     
 

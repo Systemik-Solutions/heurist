@@ -57,15 +57,19 @@ $.widget( "heurist.search", {
 
     _is_publication:false, //this is CMS publication - take css from parent
 
+    _use_global_query: false, // when on clicking 'filter', apply the global query instead
+
+    _query_as_plain: '', // current query in plain text
+
     // the constructor
     _create: function() {
 
         let that = this;
+        
+        this._is_publication = window.hWin.HAPI4.is_publish_mode;
 
-        if(this.element.parent().attr('data-heurist-app-id') || this.element.hasClass('cms-element')){
-
+        if(this._is_publication){
             this.options.button_class = '';
-            this._is_publication = true;
             //this is CMS publication - take bg from parent
             this.element.addClass('ui-widget-content').css({'background':'none','border':'none'});
         }else if(!this.options.is_h6style){
@@ -75,9 +79,7 @@ $.widget( "heurist.search", {
             this.options.button_class = '';
         }
 
-        let sz_search = '600px',
-        sz_input = '450px',
-        sz_search_padding = this.options.is_h6style?'5px':'20px';
+        let sz_search_padding = this.options.is_h6style?'5px':'20px';
 
         //------------------------------------------- filter by entities
         this.options.btn_entity_filter = this.options.btn_entity_filter && (window.hWin.HAPI4.get_prefs_def('entity_btn_on','1')=='1');
@@ -97,7 +99,11 @@ $.widget( "heurist.search", {
                             if(window.hWin.HEURIST4.util.isFunction($('body')['searchByEntity'])){
                                 __initEntityFilter();
                             }else{
-                                window.hWin.HEURIST4.msg.showMsgErr('Widget searchByEntity not loaded. Verify your configuration');
+                                window.hWin.HEURIST4.msg.showMsgErr({
+                                    message: 'Widget searchByEntity not loaded. Verify your configuration',
+                                    error_title: 'Script loading failed',
+                                    status: window.hWin.ResponseStatus.UNKNOWN_ERROR
+                                });
                             }
                     });
 
@@ -112,7 +118,7 @@ $.widget( "heurist.search", {
         //------------------------------------------- filter inputs                        
 
         // Search functions container
-        //'height':'100%', 'float':'left'   , 'min-width':sz_search  ,  
+        //'height':'100%', 'float':'left'  
         this.div_search   = $('<div>').css({ 'width':'100%', display:'table' }).appendTo( this.element ); //was table-row
 
 
@@ -150,28 +156,39 @@ $.widget( "heurist.search", {
         }} );
 
 
-        this.input_search = $( "<textarea>", {rows: 2} )
+        this.input_search = $( "<textarea>", {rows: 2, title: 'Insert value to search'} )
         .css({
             'max-width':'99%',
             'resize':'none', 
-            'padding':'2px 50px 2px 5px',
+            'padding':'2px 50px 2px 17.5px',
             'line-height': '14px', 
             'min-width':'80px', 'width':'100%' }) 
         .addClass("text ui-widget-content ui-corner-all")
         .uniqueId()
-        .appendTo(  this.div_search_input );
+        .appendTo( this.div_search_input );
+
+        // Icon to bring up the query as plain text
+        let $query_icon = $('<span>', {class: 'icon_view_query ui-icon ui-icon-circle-b-help', style: 'font-size: 12px; position: absolute; cursor: pointer;'}).appendTo(this.div_search_input);
+        setTimeout(() => $query_icon.position({ my: 'left+2 top+2', at: 'left top', of: this.input_search }), 1000);
+        this._on($query_icon, {
+            click: () => {
+                if(!window.hWin.HEURIST4.util.isempty(this._query_as_plain)){
+                    window.hWin.HEURIST4.msg.showMsgDlg(this._query_as_plain, null, {title: 'Current query'}, {default_palette_class: 'ui-heurist-explore'});
+                }
+            }
+        });
 
         let isNotFirefox = (navigator.userAgent.indexOf('Firefox')<0);
 
         //promt to be shown when input has complex search expression (json search)
         this.input_search_prompt2 = $( "<span>" )
         .html('<span style="font-size:1em;padding:3px;display:inline-block;">'+window.hWin.HR("filter")
-            +'</span>&nbsp;&nbsp;<span class="ui-icon ui-icon-eye" style="font-size:1.8em;width: 1.7em;margin-top:1px"/>')
+            +'</span>&nbsp;&nbsp;<span class="ui-icon ui-icon-eye" style="font-size:1.8em;width: 1.7em;margin-top:1px"></span>')
         .css({ height:isNotFirefox?28:24, 'margin':'1px '+(isNotFirefox?'4px':'7px')+' 1px 2px',
             'position':'absolute', 'text-align':'left', display:'block'})
         .appendTo( this.div_search_input );
         this._on( this.input_search_prompt2, {click: function(){
-            this.input_search_prompt2.css({visibility:'hidden'});//hide();
+            this.input_search_prompt2.css({visibility:'hidden'});
             this._setFocus();
         }} );
 
@@ -190,7 +207,7 @@ $.widget( "heurist.search", {
             this.input_search.css('padding-right', '28px');
         }
 
-        // AAAA
+        // Search textarea
         this._on( this.input_search, {
             click: function(){
                 if(this.input_search_prompt2.is(':visible')){
@@ -199,6 +216,36 @@ $.widget( "heurist.search", {
             },
             keyup: this._showhide_input_prompt, 
             change: this._showhide_input_prompt
+        });
+
+        let $tooltip = null;
+        this._on(this.input_search.parent(), {
+            mouseenter: () => {
+
+                if(window.hWin.HEURIST4.util.isempty(this._query_as_plain)){
+                    return;
+                }
+
+                $tooltip = this.input_search.tooltip({
+                    show: {
+                        delay: 500,
+                        duration: 0
+                    },
+                    content: this._query_as_plain,
+                    open: (event, ui) => {
+                        ui.tooltip.css({
+                            'font-size': '12px',
+                            'background-color': '#D4DBEA'
+                        })
+                    }
+                });
+                $tooltip.tooltip('open');
+            },
+            mouseleave: () => {
+                if($tooltip && $tooltip.tooltip('instance') !== undefined){
+                    $tooltip.tooltip('destroy');
+                }
+            }
         });
 
         //disable because of initial search
@@ -223,11 +270,11 @@ $.widget( "heurist.search", {
                 + ' <span class="ui-icon ui-icon-info" style="font-size:0.8em"></span></span>')
             .attr('id', 'search_help_link')
             .addClass('graytext')
-            .css({'font-size':'10px',display:'inline-block','text-decoration':'none','outline':0, cursor:'pointer'})
+            .css({'font-size':'10px',display:'inline-block','text-decoration':'none','outline':'none', cursor:'pointer'})
             .appendTo(this.div_search_input);
 
             this._on( link, {  click: function(){
-                window.open('context_help/advanced_search.html','_blank');
+                window.open(window.hWin.HRes('advanced_search'),'_blank');
             } });
 
             let adjustTextareaRows = (context) => {
@@ -238,12 +285,13 @@ $.widget( "heurist.search", {
 
                 let cur_rows = parseInt(context.input_search.attr('rows'), 10);
 
-                let row_height = context.input_search.attr('rows', '1').height();
+                let row_height = context.input_search.prop('rows', '1').height();
                 let content_height = context.input_search[0].scrollHeight;
                 let rows_count = Math.ceil(content_height / row_height) + 1;
-                rows_count = (rows_count > 10) ? 10 : rows_count;
+                rows_count = rows_count > 10 ? 10 : rows_count;
+                rows_count = rows_count < 2 ? 2 : rows_count;
 
-                context.input_search.attr('rows', rows_count);
+                context.input_search.prop('rows', rows_count);
 
                 if(rows_count != cur_rows){
                     $(window.hWin.document).trigger(window.hWin.HAPI4.Event.ON_LAYOUT_RESIZE);
@@ -260,36 +308,32 @@ $.widget( "heurist.search", {
             });
         }
 
-
         let menu_h = window.hWin.HEURIST4.util.em(1); //get current font size in em
 
         this.input_search.data('x', this.input_search.outerWidth());
         this.input_search.data('y', this.input_search.outerHeight());
 
-        /*AAAA*/
-        this.input_search.mouseup(function () {
-            let $this = $(this);
-            if ($this.outerWidth() != $this.data('x') || $this.outerHeight() != $this.data('y')) {
-                //alert($this.outerWidth() + ' - ' + $this.data('x') + '\n' + $this.outerHeight() + ' - ' + $this.data('y'));
-                if($this.outerHeight()<25){
-                    //aaa  that.div_search.css('padding-top','1.8em');
-                    $this.height(23);
-                }else{
-                    let pt;
-                    if($this.outerHeight()> that.element.height()-menu_h-8){    //, 'max-height': (this.element.height()-12)+':px'
-                        $this.height(that.element.height()-menu_h-10);
-                        pt = '2px';
-                    }else{
-                        //parseFloat(that.div_search.css('padding-top'))
-                        pt =  (that.element.height() - $this.height())/2 - menu_h;
+        this._on(this.input_search, {
+            mouseup: function(){
+
+                if (this.input_search.outerWidth() != this.input_search.data('x') || this.input_search.outerHeight() != this.input_search.data('y')) {
+
+                    let new_height = that.element.height() - menu_h - 8;
+                    new_height = new_height < 30 ? 30 : new_height;
+
+                    if(this.input_search.outerHeight() < 30){
+                        this.input_search.height(30);
+                    }else if(this.input_search.outerHeight() > new_height){
+                        this.input_search.height(new_height - 2);
                     }
-                    //aaa that.div_search.css('padding-top', pt );
+
+                    $(window.hWin.document).trigger(window.hWin.HAPI4.Event.ON_LAYOUT_RESIZE);
                 }
+                // set new height/width
+                this.input_search.data('x', this.input_search.outerWidth());
+                this.input_search.data('y', this.input_search.outerHeight());
             }
-            // set new height/width
-            $this.data('x', $this.outerWidth());
-            $this.data('y', $this.outerHeight());
-        }) // this.input_search.mouseup
+        }); // this.input_search.mouseup
 
         //
         // quick filter builder buttons
@@ -315,10 +359,10 @@ $.widget( "heurist.search", {
             .appendTo(this.div_buttons);
 
             this._on(this.btn_saved_filters, {click: function(){
-                let widget = window.hWin.HAPI4.LayoutMgr.getWidgetByName('mainMenu6');
+                let widget = window.hWin.HAPI4.LayoutMgr.getWidgetByName('slidersMenu');
                 if(widget){
                     let ele = this.btn_saved_filters;
-                    widget.mainMenu6('show_ExploreMenu', null, 'search_filters', 
+                    widget.slidersMenu('show_ExploreMenu', null, 'search_filters', 
                         {top:ele.position().top+18 , left:ele.offset().left });
                 }            
             }});
@@ -328,7 +372,7 @@ $.widget( "heurist.search", {
                 title:window.hWin.HR('filter_builder_hint')})
             .css({display:'inline-block'}) //,top:'-3px'
             .addClass('ui-main-color btn-aux')
-            .append('<span class="ui-icon ui-icon-magnify-explore" style="height:15px;font-size:larger;" />')
+            .append('<span class="ui-icon ui-icon-magnify-explore" style="height:15px;font-size:larger;" ></span>')
             .append('<span style="display:inline-block; text-decoration: none; font-size: smaller; margin-left: 5px">'
             + window.hWin.HR('Filter builder') 
             +'</span>')
@@ -340,16 +384,16 @@ $.widget( "heurist.search", {
                 title:window.hWin.HR('filter_facetbuilder_hint')})
             .css({display:'inline-block',padding:'0px 15px'}) //width:90,,top:'-3px'
             .addClass('ui-main-color btn-aux')
-            .append('<span class="ui-icon ui-icon-box" style="font-size: larger;" />')
+            .append('<span class="ui-icon ui-icon-box" style="font-size: larger;" ></span>')
             .append('<span style="display:inline-block; text-decoration: none; font-size: smaller; margin-left: 5px">'
             + window.hWin.HR('Facet builder') +'</span>')
             .appendTo(this.div_buttons);
             this._on( this.btn_faceted_wiz, {  click: function(){
 
-                let widget = window.hWin.HAPI4.LayoutMgr.getWidgetByName('mainMenu6');
+                let widget = window.hWin.HAPI4.LayoutMgr.getWidgetByName('slidersMenu');
                 if(widget){
                     let ele = this.btn_faceted_wiz;
-                    widget.mainMenu6('show_ExploreMenu', null, 'svsAddFaceted', 
+                    widget.slidersMenu('show_ExploreMenu', null, 'svsAddFaceted', 
                         {top:ele.offset().top , left:ele.offset().left });
                 }            
             }});
@@ -358,16 +402,16 @@ $.widget( "heurist.search", {
             this.btn_save_filter = $('<a>', {href: '#', title: window.hWin.HR('filter_save_hint')})
             .addClass('ui-main-color btn-aux logged-in-only')
             .css({display:'inline-block'})  //width:'70px',
-            .append('<span class="ui-icon ui-icon-save" />')
+            .append('<span class="ui-icon ui-icon-save" ></span>')
             .append('<span style="display: inline-block; text-decoration: none; font-size: smaller; margin-left: 5px">'
             + window.hWin.HR('Save filter for re-use') +'</span>')
             .appendTo(this.div_buttons); // div_save_filter
             this._on(this.btn_save_filter, {click: function(){
-                let widget = window.hWin.HAPI4.LayoutMgr.getWidgetByName('mainMenu6');
+                let widget = window.hWin.HAPI4.LayoutMgr.getWidgetByName('slidersMenu');
                 if(widget){
                     let ele = this.btn_saved_filters;
 
-                    widget.mainMenu6('show_ExploreMenu', null, 'svsAdd', 
+                    widget.slidersMenu('show_ExploreMenu', null, 'svsAdd', 
                         {top:ele.offset().top , left:ele.offset().left-300 });
                 }            
             }});
@@ -408,11 +452,9 @@ $.widget( "heurist.search", {
         .appendTo( this.div_search_as_user )
         .addClass(this.options.button_class+' heurist-bookmark-search')
         .button({icon:'ui-icon-carat-1-s',  label: window.hWin.HR("filter domain"), showLabel:false});
-        //.height( this.btn_search_as_user.height() );
 
-        //btn_search_domain is hidden this.div_search_as_user.controlgroup();
 
-        let dset = ((this.options.search_domain_set)?this.options.search_domain_set:'a,b').split(',');//,c,r,s';
+        let dset = ((this.options.search_domain_set)?this.options.search_domain_set:'a,b').split(',');
         let smenu = "";
         $.each(dset, function(index, value){
             let lbl = that._getSearchDomainLabel(value);
@@ -426,7 +468,7 @@ $.widget( "heurist.search", {
         .appendTo( this.document.find('body') )
         .menu({
             select: function( event, ui ) {
-                let mode =  ui.item.attr('id').substr(14);  //(ui.item.attr('id')=="search-domain-b")?"b":"a";
+                let mode =  ui.item.attr('id').substr(14); 
                 that.option("search_domain", mode);
                 that._refresh();
         }})
@@ -468,13 +510,13 @@ $.widget( "heurist.search", {
             .appendTo( this.div_add_record )
             .button({label: window.hWin.HR("Add Record"), icon:'ui-icon-plusthick'}) //"ui-icon-circle-plus"
             .addClass('truncate')
-            .click( function(){ 
+            .on('click', function(){ 
                 window.hWin.HAPI4.SystemMgr.verify_credentials(function(){
                     if(that.select_rectype_addrec.val()>0){
                         window.hWin.HEURIST4.ui.openRecordEdit(-1, null, 
                             {new_record_params:{RecTypeID:that.select_rectype_addrec.val()}});
                     }else{
-                        that.btn_select_rt.click();
+                        that.btn_select_rt.trigger('click');
                     }
                 }); 
             });
@@ -492,7 +534,7 @@ $.widget( "heurist.search", {
                 +window.hWin.HR('Define Parameters') +'<br>'+window.hWin.HR('Add Record')+'</div>', 
                 icon: "ui-icon-carat-1-s", iconPosition:'end',
                 title:'Click to define parameters and add new record'})
-            .click( function(){ 
+            .on('click', function(){ 
                 window.hWin.HEURIST4.ui.showRecordActionDialog('recordAdd');            
             });
 
@@ -503,7 +545,7 @@ $.widget( "heurist.search", {
             .appendTo( this.div_add_record )
             .button({label:'owner', icon: "ui-icon-carat-1-s", iconPosition:'end',
                 title:'Ownership and access rights for new record'}).hide();
-            //.addClass('truncate');
+           
             this.btn_select_owner.find('.ui-button-icon').css('vertical-align','baseline');
 
             this._on( this.btn_select_rt, {
@@ -518,9 +560,6 @@ $.widget( "heurist.search", {
 
             this._on( this.btn_select_owner, {
                 click:  function(){
-
-                    let btn_select_owner = this.btn_select_owner;
-
                     let add_rec_prefs = window.hWin.HAPI4.get_prefs('record-add-defaults');
                     if(!Array.isArray(add_rec_prefs) || add_rec_prefs.length<4){
                         add_rec_prefs = [0, 0, 'viewable', '']; //rt, owner, access, tags  (default to Everyone)
@@ -567,9 +606,12 @@ $.widget( "heurist.search", {
 
         // bind click events
         this._on( this.btn_search_as_user, {
-            click:  function(){
-                //that.option("search_domain", "a");
-                that._doSearch(true);}
+            click: function(){
+                if(that._use_global_query){
+                    that.input_search.val(window.hWin.HEURIST4.current_query_request.q);
+                }
+                that._doSearch(true);
+            }
         });
         /* AAAA */        
         this._on( this.input_search, {
@@ -665,12 +707,30 @@ $.widget( "heurist.search", {
     //
     // help text inside input field
     //
-    _showhide_input_prompt:function() {
+    _showhide_input_prompt:function(event) {
+
         if(this.input_search.val()==''){
             this.input_search_prompt.show();    
             this.input_search_prompt2.css({'visibility':'hidden'});//hide();    
         }else{
             this.input_search_prompt.hide();     
+        }
+
+        if(this._use_global_query && event){
+            // revert only if the query has been changed
+            this._use_global_query = false;
+
+            this.btn_search_as_user.attr('title', window.hWin.HR('filter_start_hint'));
+            this.btn_search_as_user.button('option', 'label', window.hWin.HR(this.options.search_button_label));
+        }
+
+        this._query_as_plain = window.hWin.HEURIST4.query.jsonQueryToPlainText(this.input_search.val(), false);
+        if(!window.hWin.HEURIST4.util.isempty(this._query_as_plain)){
+            this.div_search_input.find('.icon_view_query').show().position({
+                my: 'left+2 top+2', at: 'left top', of: this.input_search
+            });
+        }else{
+            this.div_search_input.find('.icon_view_query').hide();
         }
     },
 
@@ -705,8 +765,8 @@ $.widget( "heurist.search", {
             $(this.element).find('.logged-out-only').hide();
         }else{
             $(this.element).find('.logged-in-only').hide();
-            //$(this.element).find('.logged-in-only').css('visibility','hidden');
-            //$(this.element).find('.logged-out-only').css('visibility','visible');
+           
+           
 
             $(this.element).find('.logged-out-only').show();
             if(this.options.is_h6style){
@@ -789,12 +849,12 @@ $.widget( "heurist.search", {
 
                     showing_label = false;
                 }else{
-                    //this.div_buttons.css('min-width',70);
+                   
                     this.div_buttons.find('.btn-aux :nth-child(2)').show();
                     this.div_buttons.find('.btn-aux').width('auto');
-                    //this.btn_save_filter.width(70);
-                    //this.btn_faceted_wiz.width(90);
-                    //this.btn_filter_wiz.width(90);
+                   
+                   
+                   
                     this.btn_search_as_user.button('option','showLabel',true);
                     this.btn_search_as_user.css('min-width',90);
                 }
@@ -856,7 +916,7 @@ $.widget( "heurist.search", {
             //data is search query request
             if(data.reset){
                 that.input_search.val('');
-                that.input_search.change();
+                that.input_search.trigger('change');
             }else            
                 //topids not defined - this is not rules request
                 if(window.hWin.HEURIST4.util.isempty(data.topids) && data.apply_rules!==true){
@@ -897,12 +957,12 @@ $.widget( "heurist.search", {
                         }
                     }
 
-                    that.input_search.change();
+                    that.input_search.trigger('change');
 
                 }
 
 
-            //ART that.div_search.css('display','none');
+           
         }else 
             if(e.type == window.hWin.HAPI4.Event.ON_REC_SEARCH_FINISH){ //search completed
 
@@ -910,6 +970,19 @@ $.widget( "heurist.search", {
                 if(!that._isSameRealm(data)) return;
 
                 window.hWin.HEURIST4.util.setDisabled(this.input_search, false);
+
+                if(!this._is_publication && data.showing_subset && !window.hWin.HEURIST4.util.isempty(data.query)){
+                    this.input_search.val(data.query).trigger('change');
+
+                    if(window.hWin.HEURIST4?.current_query_request?.q){
+                        that._use_global_query = true;
+
+                        // Change filter button labelling to reflect temporary functionality
+                        let query = window.hWin.HEURIST4.current_query_request.q.replace('"', '&quot;');
+                        this.btn_search_as_user.attr('title', `Re-apply to the previous query:\n${query}`);
+                        this.btn_search_as_user.button('option', 'label', 'Reset<br>filter').button('option', 'icon', '');
+                    }
+                }
 
                 this._setFocus();
                 //show if there is resulst
@@ -922,7 +995,7 @@ $.widget( "heurist.search", {
                     }
                 }
 
-                if(that.btn_save_filter.is(':visible')){ // 'flash' save filter button
+                if(that.btn_save_filter?.is(':visible')){ // 'flash' save filter button
 
                     that.btn_save_filter.fadeOut(100)
                                         .fadeIn(100)
@@ -947,9 +1020,7 @@ $.widget( "heurist.search", {
     _setFocus: function(){
 
         if(this.input_search.is(':visible')) {
-            try{
-                this.input_search.focus();
-            }catch(e){}
+                this.input_search.trigger('focus');
         }
 
     },
@@ -988,21 +1059,12 @@ $.widget( "heurist.search", {
             // w  all|bookmark
             // stype  key|all   - key-search tags, all-title and pointer record title, by default rec_Title
 
-            let that = this;
-
-            /* concatenation with previos search  -- NOT USED
-            if(this.options.search_domain=="c" && !window.hWin.HEURIST4.util.isnull(this.query_request)){ 
-            this.options.search_domain = this.query_request.w;
-            qsearch = this.query_request.q + ' AND ' + qsearch;
-            }
-            */
-
             window.hWin.HAPI4.SystemMgr.user_log('search_Record_direct');
 
             let request = window.hWin.HEURIST4.query.parseHeuristQuery(qsearch);
 
             request.w  = this.options.search_domain;
-            request.detail = 'ids'; //'detail';
+            request.detail = 'ids';
             request.source = this.element.attr('id');
             request.search_realm = this.options.search_realm;
             request.search_page = this.options.search_page;
@@ -1033,10 +1095,10 @@ $.widget( "heurist.search", {
 
 
         if(this.options.is_h6style){
-            let widget = window.hWin.HAPI4.LayoutMgr.getWidgetByName('mainMenu6');
+            let widget = window.hWin.HAPI4.LayoutMgr.getWidgetByName('slidersMenu');
             if(widget){
                 let pos = this.element.offset();
-                widget.mainMenu6('show_ExploreMenu', null, 'searchBuilder', {top:pos.top+10, left:pos.left});
+                widget.slidersMenu('show_ExploreMenu', null, 'searchBuilder', {top:pos.top+10, left:pos.left});
             }
         }else{
 

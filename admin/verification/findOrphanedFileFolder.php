@@ -40,6 +40,7 @@ if(!@$_REQUEST['mail']){
     <head>
         <title>List of orphaned file folders. Ie without databases</title>
         <meta http-equiv="content-type" content="text/html; charset=utf-8">
+        <meta name="robots" content="noindex,nofollow">
         <link rel="stylesheet" type="text/css" href="<?php echo PDIR;?>h4styles.css" />
     </head>
     <body class="popup">
@@ -52,7 +53,7 @@ if(!@$_REQUEST['mail']){
     $_REQUEST['dbs'] = null; //reset - only report
 }
 
-    $mysqli = $system->get_mysqli();
+    $mysqli = $system->getMysqli();
     //1. find all database
     $databases = mysql__getdatabases4($mysqli, false);
 
@@ -76,15 +77,15 @@ if(!@$_REQUEST['mail']){
     }
     $cnt = 0;
     $cnt_del = 0;
-    if(count($orphaned)>0){
+    if(!empty($orphaned)){
 
         $to_delete = null;
         if(@$_REQUEST['dbs']){
             $to_delete = $_REQUEST['dbs'];
-            if(!(is_array($to_delete) && count($to_delete)>0)){
+            if(isEmptyArray($to_delete)){
                 $to_delete = null;
             }
-            //print 'Folders to be deleted '.print_r($to_delete, true);
+
         }
 
         $rep.='<h3>ORPHANED FOLDERS in HEURIST_FILESTORE_DIR</h3>';

@@ -35,20 +35,21 @@
     * distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied
     * See the License for the specific language governing permissions and limitations under the License.
     */
+    use hserv\structure\ConceptCode;
+    use hserv\utilities\USanitize;
+    use hserv\utilities\UArchive;
 
-    require_once dirname(__FILE__).'/../System.php';
+    require_once dirname(__FILE__).'/../../autoload.php';
+
     require_once dirname(__FILE__).'/../records/search/recordSearch.php';
-    require_once dirname(__FILE__).'/../dbaccess/utils_db.php';
 
     require_once dirname(__FILE__).'/../../vendor/autoload.php';//for geoPHP
     require_once dirname(__FILE__).'/../records/import/importParser.php';//parse CSV, KML and save into import table
-    require_once dirname(__FILE__).'/../records/export/recordsExport.php';
     require_once dirname(__FILE__).'/../utilities/geo/mapSimplify.php';
-    require_once dirname(__FILE__).'/../utilities/uArchive.php';
 
     $response = array();
 
-    $system = new System();
+    $system = new hserv\System();
 
     $params = $_REQUEST;
 
@@ -57,19 +58,14 @@
     $input_format = null;
 
     if(!(@$params['recID']>0)){
-        $system->error_exit_api('recID parameter value is missing or invalid');//exit from script
+        $system->errorExitApi('recID parameter value is missing or invalid');//exit from script
     }
 
     if( ! $system->init(@$params['db']) ){
         //get error and response
-        $system->error_exit_api();//exit from script
+        $system->errorExitApi();//exit from script
     }
     $system->defineConstants();
-
-    /*
-    if(!(defined('DT_KML') && defined('DT_KML_FILE'))){
-        $system->error_exit_api('Database '.$params['db'].' does not have field definitions for KML/CSV snipppet and file');//exit from script
-    }*/
 
     $record = array("rec_ID"=>intval($params['recID']));
     //load record with details and 2 header fields
@@ -108,7 +104,7 @@
                 if($url){
                     $file_content = loadRemoteURLContent($url, true);//load remote KML into temp file
                     if($file_content===false){
-                      $system->error_exit_api('Cannot load remote file '.$url, HEURIST_ERROR);
+                      $system->errorExitApi('Cannot load remote file '.$url, HEURIST_ERROR);
                     }
 
                     $ext = strtolower(substr($url,-4,4));
@@ -122,7 +118,7 @@
 
                     $filepath = isPathInHeuristUploadFolder($filepath);//snyk SSRF
 
-                    if ($filepath!==false && file_exists($filepath)) {
+                    if ($filepath && file_exists($filepath)) {
 
                         $ext = strtolower(substr($filepath,-4,4));
                     }else{
@@ -136,7 +132,7 @@
                             //check if scratch folder exists
                             $res = folderExistsVerbose(HEURIST_SCRATCH_DIR, true, 'scratch');
                             if($res!==true){
-                                $system->error_exit_api('Cannot extract kmz data to "scratch" folder. '.$res, HEURIST_ERROR);
+                                $system->errorExitApi('Cannot extract kmz data to "scratch" folder. '.$res, HEURIST_ERROR);
                             }
 
                             $files = UArchive::unzipFlat($filepath, HEURIST_SCRATCH_DIR);
@@ -162,7 +158,6 @@
 
                 if($input_format=='kml' || $ext=='.kmz' || $ext=='.kml'){
                     $input_format = 'kml';
-                    //$input_format = 'csv';
                 }elseif($ext=='.tsv'){
                     $input_format = 'csv';
                     $parser_parms['csv_delimiter'] = 'tab';
@@ -182,14 +177,6 @@
                         $input_format = 'csv';
                     }
                 }
-
-                /*
-                $system->defineConstant('DT_NAME');
-                $system->defineConstant('DT_EXTENDED_DESCRIPTION');
-                $system->defineConstant('DT_START_DATE');
-                $system->defineConstant('DT_END_DATE');
-                $system->defineConstant('DT_GEO_OBJECT');
-                */
 
                 //X 2-930, Y 2-931, t1 2-932, t2 2-933, Name 2-934, Summary description 2-935
                 $mapping = array();
@@ -219,9 +206,9 @@
                 if($input_format == 'kml'){
                     $parser_parms['kmldata'] = true;
                     $mapping[DT_GEO_OBJECT] = 'geometry';
-                    if(!@$mapping[DT_START_DATE]) {$mapping[DT_START_DATE] = 'timespan_begin';}//'timespan';
-                    if(!@$mapping[DT_END_DATE]) {$mapping[DT_END_DATE] = 'timespan_end';}//'timespan';
-                    if(!@$mapping[DT_DATE]) {$mapping[DT_DATE] = 'timestamp';}//'when';
+                    if(!@$mapping[DT_START_DATE]) {$mapping[DT_START_DATE] = 'timespan_begin';}
+                    if(!@$mapping[DT_END_DATE]) {$mapping[DT_END_DATE] = 'timespan_end';}
+                    if(!@$mapping[DT_DATE]) {$mapping[DT_DATE] = 'timestamp';}
 
                 }else{
                     $parser_parms['csvdata'] = true;
@@ -235,7 +222,7 @@
 
                 }
 
-                if(count($mapping)>0){
+                if(!empty($mapping)){
 
                     if(!@$mapping[DT_NAME]){
                         $mapping[DT_NAME] = 'name';
@@ -247,18 +234,19 @@
 
                     //returns records in PLACE? format recordSearchByID/recordSearchDetails
                     $records = ImportParser::convertParsedToRecords($parsed, $mapping);
+                    $recdata = array('status'=>HEURIST_OK, 'data'=>array('reccount'=>count($records), 'records'=>$records));
 
                     //it outputs geojson and exits
-                    $recdata = array('status'=>HEURIST_OK, 'data'=>array('reccount'=>count($records), 'records'=>$records));
-                    RecordsExport::output($recdata, array('format'=>'geojson','leaflet'=>true,'depth'=>0, 'simplify'=>true));
-
+                    $classname = 'hserv\records\export\ExportRecordsGEOJSON';
+                    $outputHandler = new $classname($system);
+                    $res = $outputHandler->output($recdata, array('format'=>'geojson', 'leaflet'=>true, 'depth'=>0, 'simplify'=>true) );
 
                 }else{
                     //entire kml is considered as unified map entry
                     try{
                         $geom = geoPHP::load($file_content, 'kml');
                     }catch(Exception $e){
-                        $system->error_exit_api('Cannot process kml: '.$e->getMessage(), HEURIST_ERROR);
+                        $system->errorExitApi('Cannot process kml: '.$e->getMessage(), HEURIST_ERROR);
                     }
                     if($geom!==false && !$geom->isEmpty()){
 
@@ -266,7 +254,7 @@
                             $geojson_adapter = new GeoJSON();
                             $json = $geojson_adapter->write($geom, true);
 
-                            if(is_array(@$json['coordinates']) && count($json['coordinates'])>0){
+                            if(!isEmptyArray(@$json['coordinates'])){
 
                                 if(@$params['simplify']){
 
@@ -296,12 +284,10 @@
 
                             $json = json_encode($json);
                             header(CTYPE_JSON);
-                            //header('Content-Type: application/vnd.geo+json');
-                            //header('Content-Disposition: attachment; filename=output.json');
                             header(CONTENT_LENGTH . strlen($json));
                             exit($json);
                     }else{
-                        $system->error_exit_api('No coordinates retrieved from kml file', HEURIST_ERROR);
+                        $system->errorExitApi('No coordinates retrieved from kml file', HEURIST_ERROR);
                     }
                 }
 
@@ -323,7 +309,7 @@
                     $file_zip_full = tempnam(HEURIST_SCRATCHSPACE_DIR, "arc");
                     $zip = new ZipArchive();
                     if (!$zip->open($file_zip_full, ZIPARCHIVE::CREATE)) {
-                        $system->error_exit_api("Cannot create zip $file_zip_full");
+                        $system->errorExitApi("Cannot create zip $file_zip_full");
                     }else{
                         $zip->addFile($tmp_destination, $originalFileName.'.'.$input_format);
                     }
@@ -365,7 +351,7 @@
 
             }
     }else{
-        $system->error_exit_api('Database '
+        $system->errorExitApi('Database '
                 .htmlspecialchars($params['db']).'. Record '
                 .intval($params['recID']).' does not have data for KML/CSV snipppet or file');
     }

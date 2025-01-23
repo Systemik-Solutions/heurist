@@ -25,134 +25,25 @@
 * See the License for the specific language governing permissions and limitations under the License.
 */
 
-$.widget( "heurist.lookupBnFLibrary_bib", $.heurist.recordAction, {
+$.widget( "heurist.lookupBnFLibrary_bib", $.heurist.lookupBnF, {
 
     // default options
     options: {
     
         height: 700,
         width:  800,
-        modal:  true,
         
-        title:  "Search the Bibliothèque nationale de France's bibliographic records",
-        
-        htmlContent: 'lookupBnFLibrary_bib.html',
-        helpContent: null, //in context_help folder
-
-        mapping: null, //configuration from record_lookup_config.json
-
-        add_new_record: false, //if true it creates new record on selection
-        
-        pagesize: 20 // result list's number of records per page
+        title:  "Search the Bibliothèque nationale de France's bibliographic records"
     },
-    
-    recordList: null,
 
-    action_timeout: null, // timeout for processing doAction
+    baseURL: 'https://catalogue.bnf.fr/api/SRU?', // external url base
+    serviceName: 'bnflibrary_bib', // service name
 
-    tabs_container: null, // tabs container
-
-    _forceClose: false, // skip saving additional mapping and close dialog
-
-    //  
-    // invoked from _init after loading of html content
-    //
     _initControls: function(){
 
-        //this.element => dialog inner content
-        //this._as_dialog => dialog container
-
-        let that = this;
-
         // Extra field styling
-        this.element.find('.header.recommended').css({width:'100px', 'min-width':'100px', display: 'inline-block'});
+        this.element.find('.header.recommended').css({width: '100px', 'min-width': '100px', display: 'inline-block'});
         this.element.find('.bnf_form_field').css({display:'inline-block', 'margin-top': '7.5px'});
-
-        // Action button styling
-        this.element.find('#btnStartSearch').addClass("ui-button-action");
-
-        // Prepare result list options
-        this.options.resultList = $.extend(this.options.resultList, 
-        {
-               recordDivEvenClass: 'recordDiv_blue',
-               eventbased: false,  //do not listent global events
-
-               multiselect: false, // allow only one record to be selected
-               select_mode: 'select_single', // only accept one record for selection
-
-               selectbutton_label: 'select!!', // not used
-
-               view_mode: 'list', // result list viewing mode [list, icon, thumb]
-               show_viewmode:false,
-               
-               entityName: this._entityName,
-               
-               pagesize: this.options.pagesize, // number of records to display per page, 
-               empty_remark: '<div style="padding:1em 0 1em 0">No records match the search</div>', // For empty results
-               renderer: this._rendererResultList // Record render function, is called on resultList updateResultSet
-        });                
-
-        // Init record list
-        this.recordList = this.element.find('.div_result');
-
-        this.recordList.resultList( this.options.resultList );
-        this.recordList.resultList('option', 'pagesize', this.options.pagesize); // so the pagesize doesn't get set to a different value
-
-        // Init select & double click events for result list
-        this._on( this.recordList, {        
-            "resultlistonselect": function(event, selected_recs){
-                window.hWin.HEURIST4.util.setDisabled( 
-                    this.element.parents('.ui-dialog').find('#btnDoAction'), 
-                    (selected_recs && selected_recs.length()!=1));
-            },
-            "resultlistondblclick": function(event, selected_recs){
-                if(selected_recs && selected_recs.length()==1){
-                    this.doAction();                                
-                }
-            }
-        });        
-
-        // Handling for 'Search' button        
-        this._on(this.element.find('#btnStartSearch').button(),{
-            'click':this._doSearch
-        });
-
-        // For capturing the 'Enter' key while typing
-        this._on(this.element.find('input'),{
-            'keypress':this.startSearchOnEnterPress
-        });
-
-        let $select = this.element.find('#rty_flds');
-        let top_opt = [{key: '', title: 'select a field...', disabled: true, selected: true, hidden: true}];
-        let sel_options = {
-            'useHtmlSelect': false
-        };
-        window.hWin.HEURIST4.ui.createRectypeDetailSelect($select[0], this.options.mapping.rty_ID, ['blocktext'], top_opt, sel_options);
-
-        this._on(this.element.find('input[name="dump_field"]'), {
-            'change': function(){
-                let opt = this.element.find('input[name="dump_field"]:checked').val();
-                window.hWin.HEURIST4.util.setDisabled(this.element.find('#rty_flds'), opt == 'rec_ScratchPad');
-            }
-        });
-
-        this._on(this.element.find('#save-settings').button(), {
-            'click': this._saveExtraSettings
-        });
-
-        // Setup settings tab
-        this._setupSettings();
-
-        this._as_dialog.on('dialogbeforeclose', function(e){
-            if(!that._forceClose){
-                that._forceClose = true;
-                that._saveExtraSettings(true);
-                return false;
-            }
-        });
-
-        this.tabs_container = this.element.find('#tabs-cont').tabs();
-        this.element.find('#inpt_any').focus();
 
         return this._super();
     },
@@ -162,180 +53,70 @@ $.widget( "heurist.lookupBnFLibrary_bib", $.heurist.recordAction, {
      */
     _setupSettings: function(){
 
-        let options = this.options.mapping?.options;
-        let need_save = false;
-
-        if(!options || window.hWin.HEURIST4.util.isempty(options)){
-            options = {
-                'author_codes': '',
-                'dump_record': true,
-                'dump_field': 'rec_ScratchPad'
-            };
-
-            need_save = true;
-        }
-
-        if(!window.hWin.HEURIST4.util.isempty(options['author_codes'])){
-            this.element.find('#author-codes').text(options['author_codes']);
-            //this.element.find('#contributor-codes').text(options['contributor_codes']);
-        }
-
-        if(!window.hWin.HEURIST4.util.isempty(options['dump_record'])){
-            this.element.find('input[name="dump_record"]').prop('checked', options['dump_field']);
-        }
-
-        if(!window.hWin.HEURIST4.util.isempty(options['dump_field'])){
-            const selected = options['dump_field'];
-
-            if(selected === 'rec_ScratchPad'){
-                this.element.find('input[name="dump_field"][value="rec_ScratchPad"]').prop('checked', true);
-            }else{
-                this.element.find('input[name="dump_field"][value="dty_ID"]').prop('checked', true);
-                this.element.find('#rty_flds').val(selected);
-
-                if(this.element.find('#rty_flds').hSelect('instance') !== undefined){
-                    this.element.find('#rty_flds').hSelect('refresh');
-                }
-            }
-
-            window.hWin.HEURIST4.util.setDisabled(this.element.find('#rty_flds'), selected == 'rec_ScratchPad');
-        }
-
-        if(need_save){
-            this._saveExtraSettings();
-        }
+        this._super({
+            author_codes: '',
+            dump_record: true,
+            dump_field: 'rec_ScratchPad'
+        });
     },
 
     /**
-     * Get listed author codes
+     * Get listed author and contributor codes
+     * 
+     * @returns {Array<String, String>} array containing [author codes, contributor codes]
      */
     _getRoleCodes: function(){
 
-        let author_codes = this.element.find('#author-codes').text();
+        let author_codes = this.element.find('#author_codes').text();
         let contributor_codes = '';//this.element.find('#contributor-codes').text()
-        const regex = /\d+/;
+        const regex = /\d+/g;
 
-        if(regex.test(author_codes)){
-            let parts = author_codes.match(regex);
-            author_codes = parts.join(',');
-        }else{
-            author_codes = '';
-        }
-
-        if(regex.test(contributor_codes)){
-            let parts = contributor_codes.match(regex);
-            contributor_codes = parts.join(',');
-        }else{
-            contributor_codes = '';
-        }
+        author_codes = regex.test(author_codes) ? author_codes.match(regex).join(',') : '';
 
         return [ author_codes, contributor_codes ];
     },
 
     /**
-     * Get record dump settings
-     */
-    _getRecDumpSetting: function(){
-
-        const get_recdump = this.element.find('input[name="dump_record"]').is(':checked');
-        let recdump_fld = '';
-        
-        if(get_recdump){
-
-            recdump_fld = this.element.find('input[name="dump_field"]:checked').val();
-            if(recdump_fld === 'dty_ID'){
-                recdump_fld = this.element.find('#rty_flds').val();
-            }
-        }
-
-        return [ get_recdump, recdump_fld ];
-    },
-
-    /**
      * Save extra settings
-     * @param {boolean} close_dlg - whether to close the dialog after saving 
+     *
+     * @param {Boolean} settings - whether to get settings for saving
+     * @param {Boolean} close_dlg - whether to close the dialog after saving 
      */
-    _saveExtraSettings: function(close_dlg = false){
+    _saveExtraSettings: function(settings = false, close_dlg = false){
 
-        let that = this;
-        let services = window.hWin.HEURIST4.util.isJSON(window.hWin.HAPI4.sysinfo['service_config']);
         const codes = this._getRoleCodes();
         const rec_dump_settings = this._getRecDumpSetting();
 
-        if(services !== false){
-            services[this.options.mapping.service_id]['options'] = { 
-                'author_codes': codes[0], //'contributor_codes': codes[1]
-                'dump_record': rec_dump_settings[0],
-                'dump_field': rec_dump_settings[1]
+        if(settings !== null){
+            settings = {
+                author_codes: codes[0],
+                dump_record: rec_dump_settings[0],
+                dump_field: rec_dump_settings[1]
             };
-
-            let fields = {
-                'sys_ID': 1,
-                'sys_ExternalReferenceLookups': JSON.stringify(services)
-            };
-    
-            // Update sysIdentification record
-            let request = {
-                'a': 'save',
-                'entity': 'sysIdentification',
-                'request_id': window.hWin.HEURIST4.util.random(),
-                'isfull': 0,
-                'fields': fields
-            };
-    
-            window.hWin.HAPI4.EntityMgr.doRequest(request, function(response){
-    
-                if(response.status == window.hWin.ResponseStatus.OK){
-                    window.hWin.HAPI4.sysinfo['service_config'] = window.hWin.HEURIST4.util.cloneJSON(services); // update global copy
-                    if(close_dlg === true){
-                        that._as_dialog.dialog('close');
-                    }else{
-                        that.options.mapping = window.hWin.HEURIST4.util.cloneJSON(services[that.options.mapping.service_id]);
-                        window.hWin.HEURIST4.msg.showMsgFlash('Extra lookup settings saved...', 3000);
-                    }
-                }else{
-                    window.hWin.HEURIST4.msg.showMsgErr(response);
-                }
-            });
-        }
-    },
-    
-    /**
-     * Function handler for pressing the enter button while focused on input element
-     * 
-     * Param:
-     *  e (event trigger)
-     */
-    startSearchOnEnterPress: function(e){
-        
-        let code = (e.keyCode ? e.keyCode : e.which);
-        if (code == 13) {
-            window.hWin.HEURIST4.util.stopEvent(e);
-            e.preventDefault();
-            this._doSearch();
         }
 
+        this._super(settings, close_dlg);
     },
-    
+
     /**
      * Result list rendering function called for each record
+     *
+     * @param {HRecordSet} recordset - complete record set, to retrieve fields
+     * @param {Array} record - record being rendered
      * 
-     * Param:
-     *  recordset (HRecordSet) => Heurist Record Set
-     *  record (json) => Current Record being rendered
-     * 
-     * Return: html
+     * @returns {String} formatted html string
      */
     _rendererResultList: function(recordset, record){
+
+        let that = this;
 
         /**
          * Get field details for displaying
          * 
-         * Param:
-         *  fldname (string) => mapping field name
-         *  width (int) => width for field
+         * @param {String} fldname - mapping field name
+         * @param {Number} width - width for field
          * 
-         * Return: html
+         * @returns {String} sized and formatted html string
          */
         function fld(fldname, width){
 
@@ -343,384 +124,337 @@ $.widget( "heurist.lookupBnFLibrary_bib", $.heurist.recordAction, {
 
             if(fldname == 'author'){
 
-                let contributor = recordset.fld(record, 'contributor');
-                if(contributor !== undefined){
-                    s = !s ? contributor : {...contributor, ...s};
-                }
+                s = that.getAuthorHTML(recordset, record);
 
-                if(!s || s == ''){ 
-                    return '<div style="display:inline-block;width:'+width+'ex" class="truncate"">No provided creator</div>';
-                }
-
-                let creator_val = '';
-
-                for(let idx in s){
-
-                    let cur_string = '';
-                    let cur_obj = s[idx];
-
-                    if($.isPlainObject(cur_obj)){
-                        if(Object.hasOwn(cur_obj,'firstname') && cur_obj['firstname'] != ''){
-                            cur_string = cur_obj['firstname'];
-                        }
-                        if(Object.hasOwn(cur_obj,'surname') && cur_obj['surname'] != ''){
-                            cur_string = (cur_string != '') ? cur_obj['surname'] + ', ' + cur_string : cur_obj['surname'];
-                        }
-                        if(Object.hasOwn(cur_obj,'active') && cur_obj['active'] != ''){
-                            cur_string += ' (' + cur_obj['active'] + ')';
-                        }
-
-                        if(cur_string == ''){
-                            Object.values(cur_obj);
-                        }
-                    }else{
-                        cur_string = cur_obj;
-                    }
-
-                    if(!cur_string || Array.isArray(cur_string) || $.isPlainObject(cur_string)){
-                        creator_val += 'Missing author; ';
-                    }else{
-                        creator_val += cur_string + '; ';
-                    }
-                }
-
-                s = creator_val;
             }else if(fldname == 'publisher'){
 
-                if(!s || s == ''){ 
-                    return '<div style="display:inline-block;width:'+width+'ex" class="truncate"">No provided publisher</div>';
-                }
+                s = that.getPublisherHTML(s);
 
-                let pub_val = '';
-
-                for(let idx in s){
-
-                    let cur_string = '';
-                    let cur_obj = s[idx];
-
-                    if($.isPlainObject(cur_obj)){
-                        if(Object.hasOwn(cur_obj,'name') && cur_obj['name'] != ''){
-                            cur_string = cur_obj['name'];
-                        }
-                        if(Object.hasOwn(cur_obj,'location') && cur_obj['location'] != '' && cur_string == ''){
-                            cur_string = cur_obj['location'];
-                        }
-
-                        if(cur_string == ''){
-                            Object.values(cur_obj);
-                        }
-                    }else{
-                        cur_string = cur_obj;
-                    }
-
-                    if(!cur_string || Array.isArray(cur_string) || $.isPlainObject(cur_string)){
-                        pub_val += 'Missing publisher; ';
-                    }else{
-                        pub_val += cur_string + '; ';
-                    }
-                }
-
-                s = pub_val;
-            }else if(Array.isArray(s) && s.length > 1){
-                s = window.hWin.HEURIST4.util.htmlEscape(s.join('; '));
-            }else if(Array.isArray(s) && s.length == 1){
-                s = window.hWin.HEURIST4.util.htmlEscape(s[0]?s[0]:'');
             }else{
-                s = window.hWin.HEURIST4.util.htmlEscape(s?s:'');
+                s = Array.isArray(s) ? s.join('; ') : s;
+                s = window.hWin.HEURIST4.util.htmlEscape(s || '');
             }
 
             let title = s;
 
             if(fldname == 'biburl'){
-                s = '<a href="' + s + '" target="_blank"> view here </a>';
+                s = `<a href="${s}" target="_blank" rel="noopener"> view here </a>`;
                 title = 'View bibliographic record';
             }
-            
-            if(width>0){
-                s = '<div style="display:inline-block;width:'+width+'ex" class="truncate" title="'+title+'">'+s+'</div>';
-            }
-            return s;
+
+            return width > 0 ? `<div style="display:inline-block;width:${width}ex" class="truncate" title="${title}">${s}</div>` : s;
         }
 
-        // Generic details, not completely necessary
-        let recID = fld('rec_ID');
-        let rectypeID = fld('rec_RecTypeID');
-        let recIcon = window.hWin.HAPI4.iconBaseURL + rectypeID;
-        let html_thumb = '<div class="recTypeThumb" style="background-image: url(&quot;' + window.hWin.HAPI4.iconBaseURL + rectypeID + '&version=thumb&quot;);"></div>';
+        const recTitle = fld('author', 25) + fld('publisher', 20) + fld('date', 10) + fld('title', 70) + fld('biburl', 12); 
+        recordset.setFld(record, 'rec_Title', recTitle);
 
-        let recTitle = fld('author', 25) + fld('publisher', 20) + fld('date', 10) + fld('title', 70) + fld('biburl', 12); 
-
-        let html = '<div class="recordDiv" id="rd'+recID+'" recid="'+recID+'" rectype="'+rectypeID+'">'
-            + html_thumb
-                + '<div class="recordIcons">'
-                +     '<img src="'+window.hWin.HAPI4.baseURL+'hclient/assets/16x16.gif'
-                +     '" class="rt-icon" style="background-image: url(&quot;'+recIcon+'&quot;);"/>' 
-                + '</div>'
-                +  recTitle
-            + '</div>';
-        return html;
+        return this._super(recordset, record);
     },
 
     /**
-     * Initial dialog buttons on bottom bar, _getActionButtons() under recordAction.js
+     * Get author value as a html string
+     *
+     * @param {HRecordSet} recordset - complete record set, to retrieve fields
+     * @param {Array} record - record being rendered
+     * 
+     * @returns {String} html formatted author value
      */
-    _getActionButtons: function(){
-        let res = this._super(); //dialog buttons
-        res[1].text = window.hWin.HR('Select');
-        return res;
+    getAuthorHTML: function(recordset, record){
+
+        let value = recordset.fld(record, 'author');
+
+        let contributor = recordset.fld(record, 'contributor');
+        if(contributor !== undefined){
+            value = window.hWin.HEURIST4.util.isempty(value) ? contributor : {...contributor, ...value};
+        }
+
+        if(window.hWin.HEURIST4.util.isempty(value)){
+            return 'No provided creator';
+        }
+
+        let creator_val = '';
+
+        for(let idx in value){
+
+            let cur_obj = value[idx];
+            let cur_string = cur_obj;
+
+            if(window.hWin.HEURIST4.util.isObject(cur_obj)){
+                cur_string = this._extractAuthorValue(cur_obj, false);
+            }
+
+            creator_val += !cur_string || typeof cur_string !== 'string' ? 'Missing author; ' : `${cur_string}; `;
+        }
+
+        return creator_val;
+    },
+
+    /**
+     * Convert author value into formatted array of values
+     *
+     * @param {Object} cur_value - Author value to process
+     * @param {Boolean} returning_search - is this for a search
+     *
+     * @returns {String|Array<String, String, String>} either field value or array of values [field value, search string, author role ID]
+     */
+    _extractAuthorValue: function(cur_value, returning_search = false){
+
+        if(window.hWin.HEURIST4.util.isempty(cur_value)){
+            return cur_value;
+        }
+
+        let value = '', search = '';
+
+        value = cur_value['firstname'] ?? '';
+
+        if(!window.hWin.HEURIST4.util.isempty(cur_value['surname'])){
+            value = !window.hWin.HEURIST4.util.isempty(value) ? `${value} ${cur_value['surname']}` : cur_value['surname'];
+        }
+
+        search = value;
+
+        if(!window.hWin.HEURIST4.util.isempty(cur_value['active'])){
+            value += ` [${cur_value['active']}]`;
+        }
+
+        if(!returning_search){
+            return value;
+        }
+
+        value = !window.hWin.HEURIST4.util.isempty(value) ? `${value} (id: ${cur_value['id']})` : `id: ${cur_value['id']}`;
+
+        let role = !window.hWin.HEURIST4.util.isempty(value) ? cur_value['role'] : '';
+
+        return [value, search, role];
+    },
+
+    /**
+     * Convert publisher values into a html string
+     *
+     * @param {Array} value - array of publiher values to convert
+     *
+     * @returns {String} html formatted publisher string
+     */
+    getPublisherHTML: function(value){
+
+        if(window.hWin.HEURIST4.util.isempty(value)){
+            return 'No provided publisher';
+        }
+
+        let pub_val = '';
+
+        for(let idx in value){
+
+            let cur_obj = value[idx];
+            let cur_string = cur_obj;
+
+            if(window.hWin.HEURIST4.util.isObject(cur_obj)){
+                [cur_string] = this._extractPublisherValue(cur_obj);
+            }
+
+            pub_val += !cur_string || typeof cur_string !== 'string' ? 'Missing author; ' : `${cur_string}; `;
+        }
+
+        return pub_val;
+    },
+
+    /**
+     * Convert publisher value into formatted array of values
+     *
+     * @param {Object} cur_value - the current publisher
+     * @param {Boolean} returning_search - is this for a search
+     *
+     * @returns {Array<String,String|Null>} an array containing [publisher value, seach string]
+     */
+    _extractPublisherValue: function(cur_value, returning_search = false){
+
+        let value = '', search = '';
+
+        if(!window.hWin.HEURIST4.util.isempty(cur_value['name'])){
+            value = cur_value['name'];
+            search = value;
+        }
+        if(!window.hWin.HEURIST4.util.isempty(cur_value['location'])){
+            value = (value != '') ? `${value} ${cur_value['location']}` : cur_value['location'];
+            search = (search != '') ? search : value;
+        }
+
+        return returning_search ? [value, search] : [value, null];
     },
 
     /**
      * Return record field values in the form of a json array mapped as [dty_ID: value, ...]
      * For multi-values, [dty_ID: [value1, value2, ...], ...]
-     * 
-     * To trigger record pointer selection/creation popup, value must equal [dty_ID, default_searching_value]
-     * 
-     * Include a url to an external record that will appear in the record pointer guiding popup, add 'ext_url' to res
-     *  the value must be the complete html (i.e. anchor tag with href and target attributes set)
-     *  e.g. res['ext_url'] = '<a href="www.example.com" target="_blank">Link to Example</a>'
-     * 
-     * Param: None
      */
     doAction: function(){
 
         window.hWin.HEURIST4.msg.bringCoverallToFront(this.element);
 
-        let that = this;
-        let field_name, val; // in case timeout completes 
-
-        this.action_timeout = setTimeout(function(){
-
-            window.hWin.HEURIST4.msg.sendCoverallToBack();
-
-            let dty_id = that.options.mapping.fields[field_name];
-
-            if(Array.isArray(val) || window.hWin.HEURIST4.util.isObject(val)){
-                val = JSON.stringify(val);
-            }
-
-            window.hWin.HEURIST4.msg.showMsgErr({
-                message: 'An error has occurred with mapping values to their respective fields,<br>'
-                        + 'please report this by using the bug reporter under Help at the top right of the main screen or,<br>'
-                        + 'via email directly to support@heuristnetwork.org so we can fix this quickly.<br><br>'
-                        + 'Invalid field details:<br>'
-                        + `Response field - "${field_name}"<br>`
-                        + `Record field - "${$Db.rst(that.options.mapping.rty_ID, dty_id, 'rst_DisplayName')}" (<em>${$Db.dty(dty_id, 'dty_Type')}</em>)<br>`
-                        + `Value to insert - "${val}"<br>`,
-                status: window.hWin.ResponseStatus.UNKNOWN_ERROR
-            });
-        }, 20000); // set timeout to 20 seconds
-
         // get selected recordset
-        let recset = this.recordList.resultList('getSelected', false);
-
-        if(recset && recset.length() == 1){
-
-            let res = {};
-            let rec = recset.getFirstRecord(); // get selected record
-
-            let map_flds = Object.keys(this.options.mapping.fields); // mapped fields names, to access fields of rec
-
-            if(this.options.mapping.options.dump_record == true){
-                res['BnF_ID'] = recset.fld(rec, 'BnF_ID'); // add BnF ID
-            }
-            res['ext_url'] = recset.fld(rec, 'biburl'); // add BnF URL
-
-            // Assign individual field values, here you would perform any additional processing for selected values (example. get ids for vocabulrary/terms and record pointers)
-            for(let k=0; k<map_flds.length; k++){
-
-                field_name = map_flds[k];
-                let dty_ID = this.options.mapping.fields[field_name];
-                val = recset.fld(rec, field_name);
-                let field_type = $Db.dty(dty_ID, 'dty_Type');
-
-                if(val != null && dty_ID != ''){
-
-                    // Convert to array
-                    if(window.hWin.HEURIST4.util.isObject(val)){
-                        //obj_keys = Object.keys(val);
-                        val = Object.values(val);
-                    }else if(!Array.isArray(val)){
-                        val = window.hWin.HEURIST4.util.isnull(val) ? '' : val;
-                        val = [val];
-                    }
-
-                    if(field_name == 'author' || field_name == 'contributor'){ // special treatment for author field
-
-                        for(let i = 0; i < val.length; i++){
-
-                            let value = '';
-                            let search = '';
-                            let role = '';
-                            let cur_val = val[i];
-
-                            if($.isPlainObject(cur_val)){
-                                if(cur_val['firstname']){
-                                    value = cur_val['firstname'];
-                                }
-                                if(cur_val['surname']){
-                                    value = (value != '') ? value + ' ' + cur_val['surname'] : cur_val['surname'];
-                                }
-                                search = value;
-                                if(cur_val['active']){
-                                    value = (value != '') ? value + ' [' + cur_val['active'] + ']' : 'No Name, years active: ' + cur_val['active'];
-                                }
-                                if(cur_val['id']){
-                                    value = (value != '') ? value + ' (id: ' + cur_val['id'] + ')' : 'id: ' + cur_val['id'];
-                                }
-                                if(cur_val['role']){
-                                    role = (value != '') ? cur_val['role'] : '';
-                                }
-                            }else{
-                                value = cur_val;
-                                search = cur_val;
-                            }
-
-                            if(value != '' && !Array.isArray(value) && !$.isPlainObject(value)){
-                                if(field_type == 'resource'){
-                                    val[i] = {'value': value, 'search': search};
-                                }else if(field_type == 'relmarker'){
-                                    val[i] = {'value': value, 'search': search, 'relation': role};
-                                }else{
-                                    val[i] = value;
-                                }
-                            }
-                        }
-
-                        if(!res[dty_ID]){
-                            res[dty_ID] = [];
-                        }
-                        res[dty_ID] = res[dty_ID].concat(val);
-
-                        continue;
-                    }else if(field_name == 'publisher'){
-
-                        for(let i = 0; i < val.length; i++){
-
-                            let value = '';
-                            let search = '';
-                            let cur_val = val[i];
-
-                            if($.isPlainObject(cur_val)){
-                                if(cur_val['name']){
-                                    value = cur_val['name'];
-                                    search = value;
-                                }
-                                if(cur_val['location']){
-                                    value = (value != '') ? value + ' ' + cur_val['location'] : cur_val['location'];
-                                    search = (search != '') ? search : value;
-                                }
-                            }else{
-                                let completed_val = cur_val; //????
-                            }
-
-                            if(value != '' && !Array.isArray(value) && !$.isPlainObject(value)){
-
-                                if(field_type == 'resource'){
-                                    val[i] = {'value': value, 'search': search};
-                                }else if(field_type == 'relmarker'){
-                                    val[i] = {'value': value, 'search': search, 'relation': ''};
-                                }else{
-                                    val[i] = value;
-                                }
-                            }
-                        }
-
-                        if(!res[dty_ID]){
-                            res[dty_ID] = [];
-                        }
-                        res[dty_ID] = res[dty_ID].concat(val);
-
-                        continue;
-                    }else if(field_name == 'language'){ // handle if language equals '###'
-
-                        for(let i = 0; i < val.length; i++){
-                            if(val[i] == '###' || val[i] == 'und'){
-                                val[i] = 'unknown';
-                            }
-                        }
-                    }
-
-                    if(field_type == 'enum'){ // Match term labels with val, need to return the term's id to properly save its value
-
-                        if(window.hWin.HEURIST4.util.isObject(val)){ 
-                            val = Object.values(val);
-                        }else if(!Array.isArray(val)){
-                            val = [val];
-                        }
-
-                        let vocab_ID = $Db.dty(dty_ID, 'dty_JsonTermIDTree');
-                        let term_Ids = $Db.trm_TreeData(vocab_ID, 'set');
-
-                        for(let i=0; i<val.length; i++){
-
-                            if(!Number.isInteger(+val[i])){
-                                continue;
-                            }
-
-                            for(let j = 0; j < term_Ids.length; j++){
-                                let trm_code = $Db.trm(term_Ids[j], 'trm_Code');
-                                if(trm_code == val[i]){
-                                    val[i] = term_Ids[j];
-                                    break;
-                                }
-                            }
-                        }
-                    }
-                }
-
-                // Check that val and id are valid, add to response object
-                if(dty_ID > 0 && val){
-
-                    if(!res[dty_ID]){
-                        res[dty_ID] = [];
-                    }
-
-                    if(window.hWin.HEURIST4.util.isObject(val)){
-                        res[dty_ID] = res[dty_ID].concat(Object.values(val));
-                    }else{
-                        res[dty_ID] = res[dty_ID].concat(val);    
-                    }
-                }
-            }
-
-            this.closingAction(res);
+        let [recset, record] = this._getSelection(true);
+        if(recset?.length() < 0 || !record){
+            return;
         }
-    },
 
+        this.setupTimeout();
+
+        let res = {};
+        let map_flds = Object.keys(this.options.mapping.fields); // mapped fields names, to access fields of rec
+
+        res['BnF_ID'] = recset.fld(record, 'BnF_ID'); // add BnF ID
+        res['ext_url'] = recset.fld(record, 'biburl'); // add BnF URL
+
+        // Assign individual field values, here you would perform any additional processing for selected values (example. get ids for vocabulrary/terms and record pointers)
+        for(const fld_Name of map_flds){
+
+            this.timeout.field_name = fld_Name;
+            let dty_ID = this.options.mapping.fields[fld_Name];
+            if(dty_ID < 1){
+                continue;
+            }
+
+            let val = recset.fld(record, fld_Name);
+            this.timeout.value = val;
+
+            let field_type = $Db.dty(dty_ID, 'dty_Type');
+
+            val = this.valueToArray(val);
+
+            if(window.hWin.HEURIST4.util.isempty(val)){
+                continue;
+            }
+
+            switch(fld_Name){
+                case 'author': // special treatment for author fields
+                case 'contributor':
+
+                    this.getAuthorValues(val, field_type);
+                    break;
+                case 'publisher':
+
+                    this.getPublisherValues(val, field_type);
+                    break;
+                case 'language': // handle if language equals '###'
+
+                    this.getLanguageValues(val);
+                    break;
+                default:
+
+                    this.prepareValue(val, dty_ID, {check_term_codes: true});
+                    break;
+            }
+
+            // Check that val and id are valid, add to response object
+            if(window.hWin.HEURIST4.util.isempty(val)){
+                continue;
+            }
+            if(!Object.hasOwn(res, dty_ID)){
+                res[dty_ID] = [];
+            }
+            res[dty_ID] = res[dty_ID].concat(val);
+        }
+
+        this.closingAction(res);
+    },
 
     /**
-     * Perform final actions before exiting popup
-     * 
-     * Param:
-     *  dlg_reponse (json) => mapped values to fields
+     * Prepare the current value for returning to the record editor
+     *
+     * @param {Object} values - mapped object of field valus
+     * @param {Number} dty_ID - current field ID
+     * @param {Object} settings - Any extra settings, for saving
      */
-    closingAction: function(dlg_response, action = 'save'){
+    prepareValue: function(values, dty_ID, settings){
 
-        let that = this;
+        this._super(values, dty_ID, settings);
 
-        clearTimeout(this.action_timeout); // clear timeout
-
-        if(window.hWin.HEURIST4.util.isempty(dlg_response)){
-            dlg_response = {};
+        // Match term labels with val, need to return the term's id to properly save its value
+        if($Db.dty(dty_ID, 'dty_Type') == 'enum'){
+            this._getTermByCode(null, dty_ID, values);
         }
-
-        window.hWin.HEURIST4.msg.sendCoverallToBack();
-
-        // Pass mapped values back and close dialog
-        this._context_on_close = dlg_response;
-        this._as_dialog.dialog('close');
     },
-    
+
+    /**
+     * Processes author values for the specific field type
+     *
+     * @param {Object} values - mapped object of field values
+     * @param {String} field_type - field type
+     */
+    getAuthorValues: function(values, field_type){
+
+        for(const idx in values){
+
+            const cur_val = values[idx];
+            let is_object = window.hWin.HEURIST4.util.isObject(cur_val);
+            
+            let value = cur_val;
+            let search = cur_val;
+            let role = '';
+
+            if(is_object){
+                [value, search, role] = this._extractAuthorValue(cur_val, true);
+            }
+
+            if(window.hWin.HEURIST4.util.isempty(value) || Array.isArray(value) || window.hWin.HEURIST4.util.isObject(value)){
+                continue;
+            }
+
+            values[idx] = field_type == 'resource' || field_type == 'relmarker' ? {value: value, search: search, relation: role} : value;
+        }
+    },
+
+    /**
+     * Processes publisher values for the specific field type
+     *
+     * @param {Object} values - mapped object of field values
+     * @param {String} field_type - field type
+     */
+    getPublisherValues: function(values, field_type){
+
+        for(const idx in values){
+
+            let value = '';
+            let search = '';
+            const cur_val = values[idx];
+
+            if(window.hWin.HEURIST4.util.isObject(cur_val)){
+                [value, search] = this._extractPublisherValue(cur_val, true);
+            }
+
+            if(window.hWin.HEURIST4.util.isempty(value) || Array.isArray(value) || window.hWin.HEURIST4.util.isObject(value)){
+                continue;
+            }
+
+            if(field_type == 'resource'){
+                values[idx] = {value: value, search: search};
+            }else if(field_type == 'relmarker'){
+                values[idx] = {value: value, search: search, relation: ''};
+            }else{
+                values[idx] = value;
+            }
+        }
+    },
+
+    /**
+     * Handle language strings, mostly to handle unknowns
+     *
+     * @param {String} values - mapped field values
+     */
+    getLanguageValues: function(values){
+
+        for(const idx in values){
+            values[idx] = window.hWin.HEURIST4.util.isempty(values[idx])
+                        || values[idx] == '###'
+                        || values[idx] == 'und'
+                        ? 'unknown' : values[idx];
+        }
+    },
+
     /**
      * Create search URL using user input within form
      * Perform server call and handle response
-     * 
-     * Params: None
      */
     _doSearch: function(){
-
-        let that = this;
 
         /**
          * recordSchema: XML structure for record details (changing this will require changes to the php code in record_lookup.php)
@@ -728,23 +462,28 @@ $.widget( "heurist.lookupBnFLibrary_bib", $.heurist.recordAction, {
          * startRecord: starting point, complete searches in batches (api default: 1)
          * query: encoded string enclosed in brackets (at minimum, the spaces MUST be encoded)
          */
-
-        //let recordType = $('#inpt_doctype').val(); // which record type is requested
         let maxRecords = this.element.find('#rec_limit').val(); // limit number of returned records
-        maxRecords = (!maxRecords || maxRecords <= 0) ? 20 : maxRecords;
+        let params = {
+            version: '1.2',
+            operation: 'searchRetrieve',
+            recordSchema: 'unimarcxchange',
+            maximumRecords: !maxRecords || maxRecords <= 0 ? 20 : maxRecords,
+            startRecord: 1
+        };
 
-        let sURL = 'https://catalogue.bnf.fr/api/SRU?version=1.2&operation=searchRetrieve&maximumRecords='+maxRecords+'&startRecord=1&recordSchema=unimarcxchange'; // base URL
+        let has_filter = this.element.find('input.text:not(type)').filter((idx, input) => {
+            return !window.hWin.HEURIST4.util.isempty($(input).val());
+        });
 
         // Check that something has been entered
-        if(this.element.find('#inpt_any').val()=='' && this.element.find('#inpt_title').val()=='' 
-            && this.element.find('#inpt_author').val()=='' && this.element.find('#inpt_recordid').val()==''){
-
+        if(has_filter.length == 0){
             window.hWin.HEURIST4.msg.showMsgFlash('Please enter a value in any of the search fields...', 1000);
             return;
         }
         
         // Construct query portion of url
         let query = '(';
+        let last_logic = '';
 
         /** 
          * Additional search fields can be found here [catalogue.bnf.fr/api/test.do], note: ONLY the bibliographic fields can be added here (fields starting with 'bib.')
@@ -761,214 +500,41 @@ $.widget( "heurist.lookupBnFLibrary_bib", $.heurist.recordAction, {
 
         // any field
         if(this.element.find('#inpt_any').val()!=''){
-            query += 'bib.anywhere '+ this.element.find('#inpt_any_link').val() +' "' + this.element.find('#inpt_any').val() + '"';
-
-            if(titleHasValue || authorHasValue || recidHasValue){ // add combination logic
-                query += ' ' + this.element.find('#inpt_any_logic').val() + ' ';
-            }
+            last_logic = ` ${this.element.find('#inpt_any_logic').val()} `;
+            query += `bib.anywhere ${this.element.find('#inpt_any_link').val()} "${this.element.find('#inpt_any').val()}"${last_logic}`;
         }
 
         // work title field
         if(titleHasValue){
-
-            query += 'bib.title '+ this.element.find('#inpt_title_link').val() +' "' + this.element.find('#inpt_title').val() + '"';
-
-            if(authorHasValue || recidHasValue){ // add combination logic
-                query += ' ' + this.element.find('#inpt_title_logic').val() + ' ';
-            }
+            last_logic = ` ${this.element.find('#inpt_title_logic').val()} `;
+            query += `bib.title ${this.element.find('#inpt_title_link').val()} "${this.element.find('#inpt_title').val()}"${last_logic}`;
         }
 
         // author field
         if(authorHasValue){
-
-            query += 'bib.author '+ this.element.find('#inpt_author_link').val() +' "' + this.element.find('#inpt_author').val() + '"';
-
-            if(recidHasValue){ // add combination logic
-                query += ' ' + this.element.find('#inpt_author_logic').val() + ' ';
-            }
+            last_logic = ` ${this.element.find('#inpt_author_logic').val()} `;
+            query += `bib.author ${this.element.find('#inpt_author_link').val()} "${this.element.find('#inpt_author').val()}"${last_logic}`;
         }
 
         // record id field
         if(recidHasValue){
-            query += 'bib.recordid '+ this.element.find('#inpt_recordid_link').val() +' "' + this.element.find('#inpt_recordid').val() + '"';
+            last_logic = '';
+            query += `bib.recordid ${this.element.find('#inpt_recordid_link').val()} "${this.element.find('#inpt_recordid').val()}"`;
             // no combination logic as record id is the last field
         }
 
-        /* requested record type
-        if(recordType!=''){
-
-            if(query.length != 1){ // add combination logic (and, or, not)
-                query += ' and ';
-            }
-            query += 'bib.doctype all "' + recordType + '"'; 
-        }*/
-
-        // Close off and encode query portion, then add to request url
-        if(query.length != 1){
-
-            query += ')';
-            query = encodeURIComponent(query);
-
-            sURL += '&query=' + query;
+        // Remove last logic connection
+        if(!window.hWin.HEURIST4.util.isempty(last_logic)){
+            let regex = new RegExp(`${last_logic}$`);
+            query = query.replace(regex, '');
         }
 
-        window.hWin.HEURIST4.msg.bringCoverallToFront(this.element); // show loading cover
+        // Close off and encode query portion, then add to request url
+        query += ')';
+        params['query'] = query;
 
         const codes = this._getRoleCodes();
 
-        // for record_lookup.php
-        let request = {
-            service: sURL, // request url
-            serviceType: 'bnflibrary_bib', // requesting service, otherwise no
-            author_codes: codes[0]
-            //, contributor_codes: codes[1]
-        };
-
-        // calls /heurist/hserv/controller/record_lookup.php
-        window.hWin.HAPI4.RecordMgr.lookup_external_service(request, function(response){
-
-            window.hWin.HEURIST4.msg.sendCoverallToBack(); // hide loading cover
-
-            if(window.hWin.HEURIST4.util.isJSON(response)){ 
-
-                if(response.result != null){ // Search result
-                    that._onSearchResult(response);
-                }else if(response.status && response.status != window.hWin.ResponseStatus.OK){ // Error return
-                    window.hWin.HEURIST4.msg.showMsgErr(response);
-                }else{ // No results
-
-                    window.hWin.HEURIST4.msg.showMsgFlash('No results returned', 3000);
-
-                    that.recordList.show();
-                    that.recordList.resultList('updateResultSet', null);
-                }
-            }
-        });
-    },
-    
-    /**
-     * Prepare json for displaying via the Heuirst resultList widget
-     * 
-     * Param:
-     *  json_data (json) => search response
-     */
-    _onSearchResult: function(json_data){
-
-        this.recordList.show();
-
-        let is_wrong_data = true;
-
-        let maxRecords = this.element.find('#rec_limit').val(); // limit number of returned records
-        maxRecords = (!maxRecords || maxRecords <= 0) ? 20 : maxRecords;
-
-        json_data = window.hWin.HEURIST4.util.isJSON(json_data);
-
-        if (json_data) {
-            
-            if(!json_data.result) return false;
-
-            let res_records = {}, res_orders = [];
-
-            // Prepare fields for mapping
-            // the fields used here are defined within /heurist/hserv/controller/record_lookup_config.json where "service" = bnfLibrary
-            let fields = ['rec_ID', 'rec_RecTypeID']; // added for record set
-            let map_flds = Object.keys(this.options.mapping.fields);
-            fields = fields.concat(map_flds);
-
-            if(this.options.mapping.options.dump_record == true){
-                fields = fields.concat('BnF_ID');
-            }
-            
-            // Parse json to Record Set
-            let i=0;
-            for(;i<json_data.result.length;i++){
-
-                let record = json_data.result[i];                
-                let recID = i+1;
-                let values = [recID, this.options.mapping.rty_ID];
-
-                // Add current record details, field by field
-                for(let k=0; k<map_flds.length; k++){
-
-                    // With the current setup for API search, the 'Rights' field is no longer sent
-                    if(map_flds[k]=='rights'){
-                        values.push(null);
-                    }else{ // just add field details
-                        values.push(record[map_flds[k]]);
-                    }
-                }
-
-                if(this.options.mapping.options.dump_record == true){
-                    values.push(record['BnF_ID']);
-                }
-
-                res_orders.push(recID);
-                res_records[recID] = values;
-            }
-
-            if(res_orders.length>0){
-
-                //res_records = this.removeDupAuthors(fields.indexOf('author'), res_records);
-
-                // Create the record set for the resultList
-                let res_recordset = new HRecordSet({
-                    count: res_orders.length,
-                    offset: 0,
-                    fields: fields,
-                    rectypes: [this.options.mapping.rty_ID],
-                    records: res_records,
-                    order: res_orders,
-                    mapenabled: true
-                });
-                this.recordList.resultList('updateResultSet', res_recordset);            
-                is_wrong_data = false;
-            }
-
-            if(json_data.numberOfRecords > maxRecords){
-                window.hWin.HEURIST4.msg.showMsgDlg(
-                    "There are " + json_data.numberOfRecords + " records satisfying these criteria, only the first "+ maxRecords +" are shown.<br>Please narrow your search.",
-                );
-            }
-        }
-
-        if(is_wrong_data){
-            this.recordList.resultList('updateResultSet', null);
-            window.hWin.HEURIST4.msg.showMsgErr({
-                message: 'Service did not return data in an appropriate format',
-                error_title: 'No valid data'
-            });
-        }else{
-            this.tabs_container.tabs('option', 'active', 1); // switch to results tab
-        }
-    },
-
-    //
-    removeDupAuthors: function(author_key, records){
-
-        if(records == null || !window.hWin.HEURIST4.util.isObject(records) || window.hWin.HEURIST4.util.isempty(author_key)){
-            return records;
-        }
-
-        for(let i in records){
-
-            let author_details = records[i][author_key];
-
-            if(author_details && author_details.length > 1){
-
-                records[i][author_key] = author_details.filter(function(val, idx, arr){
-
-                    return idx === arr.findIndex(function(obj){
-
-                        if(val.id && obj.id){
-                            return val.id == obj.id;
-                        }else if(val.firstname && val.surname && obj.firstname && obj.surname){
-                            return val.firstname == obj.firstname && val.surname == obj.surname;
-                        }
-                    });
-                });
-            }
-        }
-
-        return records;
+        this._super(params, {author_codes: codes[0]});
     }
 });

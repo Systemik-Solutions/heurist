@@ -210,11 +210,11 @@ $.widget( "heurist.app_storymap", {
 
         let placeholder = !window.hWin.HEURIST4.util.isempty(this.options.storyPlaceholder) && this.options.storyPlaceholder != 'def' ? 
                             this.options.storyPlaceholder : '';
-        placeholder = this.options.storyPlaceholder == 'def' ? 'Please select a story in the list' : placeholder;
+        placeholder = this.options.storyPlaceholder == 'def' 
+            ? '<br><h3 class="not-found" style="color:teal;display:inline-block">Please select a story in the list</h3>' : placeholder;
         
         this._initial_div_message = 
-        $('<div class="ent_wrapper" style="padding: 1em;background: white;"><br>'
-        +`<h3 class="not-found" style="color:teal;display:inline-block">${placeholder}</h3></div>`)
+        $(`<div class="ent_wrapper" style="padding: 1em;background: white;">${placeholder}</div>`)
         .appendTo(this.element);
         
         
@@ -268,7 +268,7 @@ $.widget( "heurist.app_storymap", {
                 this.pnlStory.css({top:(this.pnlOverview.height()+'px')});
             }else 
             if(this.options.reportOverviewMode=='inline'){
-                //this.pnlStory.height(this.element.height());
+               
                 //this._resultList.height('100%');    
             }
 
@@ -287,7 +287,7 @@ $.widget( "heurist.app_storymap", {
                 +'text-decoration:none;text-align: center;font-weight: bold;color:black;'
                 
             let navbar = $('<div style="top:2px;right:46px;position:absolute;z-index: 800;border: 2px solid #ccc; background:white;'
-                +'background-clip: padding-box;border-radius: 4px;">' //;width:64px;
+                +'background-clip: padding-box;border-radius: 4px;">'
             +'<a id="btn-prev" '+css+'width:30px;border-right: 1px solid #ccc" href="#" '
                 +'title="Previous" role="button" aria-label="Previous">&lt;</a>'
             +'<span id="nav-status" '+css+';width:auto;padding:0px 5px;border-right: 1px solid #ccc" href="#" '
@@ -296,10 +296,6 @@ $.widget( "heurist.app_storymap", {
                 +'title="Next" role="button" aria-label="Next">&gt;</a></div>')        
                 .appendTo(this.pnlStory);
                 
-            //if(this.options.reportOverviewMode=='header'){
-                //navbar.css({top: this.pnlOverview.height()+10+'px'});
-                //this.pnlStoryReport.css({'position':'absolute',top:(this.pnlOverview.height()+'px'), bottom:0, left:0, right:0})
-            //}
             this.pnlStoryReport.css({width:'100%',height:'100%'});   
                 
             this._on(this.pnlStory.find('#btn-prev'),{click:function(){ this._onNavigate(false); }});    
@@ -354,13 +350,13 @@ $.widget( "heurist.app_storymap", {
         if(this.options.show_print_button){
 
             this._print_button = $('<button>', {
-                text: window.HR('Print'), title: window.hWin.HR('Print current story'),
+                text: window.HR('Print'), 
+                title: window.hWin.HR('Print current story'),
                 class: 'btnPrintStory'
             })
             .button({
-                icons: {
-                    primary: 'ui-icon-print'
-                }, 
+                label: window.HR('Print'), 
+                icon: 'ui-icon-print', 
                 showLabel: false
             })
             .hide()
@@ -388,13 +384,6 @@ $.widget( "heurist.app_storymap", {
         
         if(window.hWin.HEURIST4.util.isempty(this.options.storyPlaceholder) && !this.options.blank_placeholder){
             this.options.storyPlaceholder = 'Please select a story in the list';
-        }
-
-        if(window.hWin.HEURIST4.util.isempty(this.options.def_map_symbology)){
-            this.options.def_map_symbology = {"stroke":"1","color":"#00009b","fill":"1","fillColor":"#0000fa", "fillOpacity":"0.8"}; //blue
-        }
-        if(window.hWin.HEURIST4.util.isempty(this.options.def_story_symbology)){
-            this.options.def_story_symbology = this.options.def_map_symbology;
         }
 
         this._initCompleted();
@@ -432,7 +421,11 @@ $.widget( "heurist.app_storymap", {
                     setTimeout(function(){ that._initCompleted(); },200);
                     return;
                 }else{
-                    window.hWin.HEURIST4.msg.showMsgErr('Mapping widget for story map is not inited properly');
+                    window.hWin.HEURIST4.msg.showMsgErr({
+                        message: 'Mapping widget for story map is not inited properly',
+                        error_title: 'Map not initialised',
+                        status: window.hWin.ResponseStatus.UNKNOWN_ERROR
+                    });
                 }
             }
         }
@@ -463,17 +456,24 @@ $.widget( "heurist.app_storymap", {
                     }
                 }else if(e.type == window.hWin.HAPI4.Event.ON_REC_SEARCH_FINISH){
                 
+                    if(!that._initial_div_message){
+                        return;
+                    }
+                    
                     let recset = data.recordset; //record in main result set (for example Persons)
 
-                    let placeholder = !window.hWin.HEURIST4.util.isempty(that.options.storyPlaceholder) && that.options.storyPlaceholder != 'def' ? 
-                                        that.options.storyPlaceholder : '';
-                    placeholder = that.options.storyPlaceholder == 'def' ? 'Please select a story in the list' : placeholder;
-
-                    that._initial_div_message.find('h3')
-                        .html(recset.length()>0
-                            ?placeholder
-                            :'No records match the filter criteria');
-                    that._initial_div_message.show();
+                    let placeholder = (recset.length()>0)?'Please select a story in the list'
+                                                         :'No records match the filter criteria'
+                    if(!window.hWin.HEURIST4.util.isempty(that.options.storyPlaceholder) && that.options.storyPlaceholder != 'def'){
+                        placeholder = that.options.storyPlaceholder;
+                    }else{
+                        placeholder = `<br><h3 class="not-found" style="color:teal;display:inline-block">${placeholder}</h3>`;
+                    }
+                    
+console.log('on  search finish ', placeholder);
+                    if(that._initial_div_message.html()!=placeholder){
+                        that._initial_div_message.html(placeholder).show();    
+                    }
                     
                     that._resultset_main = recset;
                     
@@ -484,9 +484,22 @@ $.widget( "heurist.app_storymap", {
                 
             });
         }
-        
+
+        if(window.hWin.HEURIST4.util.isempty(this.options.def_map_symbology)){
+
+            let storymap_def = {"stroke":"1","color":"#00009b","fill":"1","fillColor":"#0000fa", "fillOpacity":"0.8"}; //blue
+            try{
+                let mapwidget = this._mapping?.app_timemap('getMapping');
+                this.options.def_map_symbology = mapwidget && mapwidget.options.default_style ? mapwidget.options.default_style : storymap_def;
+            }catch{
+                this.options.def_map_symbology = storymap_def;
+            }
+        }
+        if(window.hWin.HEURIST4.util.isempty(this.options.def_story_symbology)){
+            this.options.def_story_symbology = this.options.def_map_symbology;
+        }
+
         this.options.init_completed = true;
-        
     },
 
     //
@@ -540,9 +553,8 @@ $.widget( "heurist.app_storymap", {
     // Change current story element - resultList listener
     //     
     _onScroll: function(event, that) {
-        //if(this._disable_onScroll) return;
         
-        let ele = $(event.target); //this.div_content;
+        let ele = $(event.target);
         $.each(ele.find('.recordDiv'), function(i,item){
             let tt = $(item).position().top;
             let h = -($(item).height()-50);
@@ -769,8 +781,8 @@ $.widget( "heurist.app_storymap", {
                                                     }
                                                 });        
                                                 
-                                                //sortFields = {"9":1,"10":1,"11":1};
-                                                //sortFields[DT_DATE] = 1;
+                                               
+                                               
                                                 sortFields[DT_START_DATE] = 1;
                                                 sortFields[DT_END_DATE] = 1;
                                             }else{
@@ -899,6 +911,7 @@ $.widget( "heurist.app_storymap", {
                     try{
                         div_content.tabs('pagingResize');
                     }catch(ex){
+                        /* continue regardless of error */
                     }
                 }
         }
@@ -956,7 +969,7 @@ $.widget( "heurist.app_storymap", {
             }
         }else{
             //clear 
-            //this.options.storyRecordID = null;
+           
             this.pnlOverview.html(
             '<h3 class="not-found" style="color:teal;">'
             +  this.options.elementsPlaceholder + '</h3>'
@@ -1021,7 +1034,7 @@ $.widget( "heurist.app_storymap", {
             if( typeof this.options.reportOverview === 'string' 
                             && this.options.reportOverview.substr(-4)=='.tpl' ){
             
-                infoURL = window.hWin.HAPI4.baseURL + 'viewers/smarty/showReps.php?snippet=1&publish=1&debug=0&q=ids:'
+                infoURL = window.hWin.HAPI4.baseURL + '?snippet=1&q=ids:'
                         + recID 
                         + '&db='+window.hWin.HAPI4.database+'&template='
                         + encodeURIComponent(this.options.reportOverview);
@@ -1114,7 +1127,7 @@ $.widget( "heurist.app_storymap", {
         if( typeof this.options.reportEndPage === 'string' 
                         && this.options.reportEndPage.substr(-4)=='.tpl' ){
         
-            infoURL = window.hWin.HAPI4.baseURL + 'viewers/smarty/showReps.php?snippet=1&publish=1&debug=0&q=ids:'
+            infoURL = window.hWin.HAPI4.baseURL + '?snippet=1&q=ids:'
                     + recID 
                     + '&db='+window.hWin.HAPI4.database+'&template='
                     + encodeURIComponent(this.options.reportEndPage);
@@ -1258,10 +1271,12 @@ $.widget( "heurist.app_storymap", {
                     //find selected record id among stories
                     let rec = that._resultset_main.getById(rec_ids[0]);
                     if(rec){
-                        $(that.document).trigger(window.hWin.HAPI4.Event.ON_REC_SELECT, 
-                            {selection:[rec_ids[0]], source:that.element.attr('id'), 
-                                search_realm:that.options.search_realm} ); //highlight in main resultset
-                        that._checkForStory(rec_ids[0]); //load first story
+                        if(that.options.storyRecordID != rec_ids[0]){
+                            that._checkForStory(rec_ids[0]); //load first story
+                            $(that.document).trigger(window.hWin.HAPI4.Event.ON_REC_SELECT, 
+                                {selection:[rec_ids[0]], source:that.element.attr('id'), 
+                                    search_realm:that.options.search_realm} ); //highlight in main resultset
+                        }
                     }else{
                         //find selected record id among story elements    
                         rec = that._resultset.getById(rec_ids[0]);
@@ -1289,11 +1304,14 @@ $.widget( "heurist.app_storymap", {
         if(recset.length()==0) return;
         
         if(recset.length()==1){
-            //select the only story at once
-            $(that.document).trigger(window.hWin.HAPI4.Event.ON_REC_SELECT, 
-                {selection:recset.getIds(), source:that.element.attr('id'), 
-                    search_realm:that.options.search_realm} );
-            that._checkForStory(recset.getIds()[0]); //load certain story
+            const selids = recset.getIds();
+            if(that.options.storyRecordID != selids[0]){
+                that._checkForStory(selids[0]); //load certain story
+                //select the only story at once
+                $(that.document).trigger(window.hWin.HAPI4.Event.ON_REC_SELECT, 
+                    {selection:selids, source:that.element.attr('id'), 
+                        search_realm:that.options.search_realm} );
+            }
             return;            
         }
         
@@ -1435,7 +1453,7 @@ $.widget( "heurist.app_storymap", {
         {
             // loads from cache
             
-            if(!this._mapping.app_timemap('isMapInited')){
+            if(!(this._mapping.app_timemap('instance') && this._mapping.app_timemap('isMapInited'))){
                    
                 /*    
                 this._mapping.app_timemap('option','onMapInit', function(){
@@ -1485,7 +1503,7 @@ $.widget( "heurist.app_storymap", {
                         if(res){
                             that._initialElementID = item.rec_ID;
                             //open story element
-                            //setTimeout(function(){that._scrollToStoryElement( item.rec_ID )}, 1000);
+                           
                             return false;                        
                         }
                     }
@@ -1561,7 +1579,7 @@ $.widget( "heurist.app_storymap", {
                 if( typeof this.options.reportElement === 'string' 
                                 && this.options.reportElement.substr(-4)=='.tpl' ){
                 
-                    infoURL = window.hWin.HAPI4.baseURL + 'viewers/smarty/showReps.php?snippet=1&publish=1&debug=0&q=ids:'
+                    infoURL = window.hWin.HAPI4.baseURL + '?snippet=1&q=ids:'
                             + recID 
                             + '&db='+window.hWin.HAPI4.database+'&template='
                             + encodeURIComponent(this.options.reportElement);
@@ -1610,9 +1628,7 @@ $.widget( "heurist.app_storymap", {
                 
                 
             }
-            //else
-            //if(this.options.reportElementMode=='tab'){
-            else { //if(this.options.reportElementMode=='vertical'){    
+            else {
             
                 if(this.options.reportElementDistinct=='highlight'){
                     this._resultList.find('.recordDiv').removeClass('selected');
@@ -1631,7 +1647,7 @@ $.widget( "heurist.app_storymap", {
             }
             
             if(this._mapping && this._mapping.length>0){
-                //this._animateStoryElement_A(recID);
+               
                 if(recID==0 || Number.parseInt(recID)==this.options.storyRecordID){
                     //zoom for entire story
                     
@@ -1652,7 +1668,7 @@ $.widget( "heurist.app_storymap", {
     
     //
     // Every place is separate object on map - animate sequence - begin, transition, end places
-    // 1. find all resource fields that points to places
+    // 1. find all resource (record pointer) fields that points to places
     // 2. retrieve all places from server side as geojson
     // 3. create links between points
     // 4. update map
@@ -1682,8 +1698,8 @@ $.widget( "heurist.app_storymap", {
 
                 if(response.status == window.hWin.ResponseStatus.OK){
                     
-                    //recID = parseInt(recID);
-                    // 1. find all resource fields that points to places               
+                   
+                    // 1. find all resource (record pointer) fields that points to places               
                     that._cache_story_places[recID] = {};
                     that._cache_story_places[recID]['places'] = [];
                     const RT_PLACE  = window.hWin.HAPI4.sysinfo['dbconst']['RT_PLACE'];
@@ -1759,7 +1775,7 @@ $.widget( "heurist.app_storymap", {
                                 {
                                      
                                     that._cache_story_places[recID]['geojson'] = geojson_data;
-                                    //that._cache_story_places[recID]['timeline'] = timeline_data;
+                                   
 
                                     // 3. create links between points
                                     if(that.options.reportElementMapMode!='all'){
@@ -1843,7 +1859,7 @@ $.widget( "heurist.app_storymap", {
         */
 
         //or several actions per scope
-        //let anime = [{scope:'all',range:1,actions:[{action:'fly'},{action:'fade_in',duration:500}]}];
+       
         
         //let anime = [{scope:'all',range:1,action:'fade_in_out',duration:500}]; //show one by one
         
@@ -1936,7 +1952,7 @@ $.widget( "heurist.app_storymap", {
                 //particular record id
                 places = [step['scope']]; 
                 
-            }else{ //if(step['scope']=='all'){ //default
+            }else{
                 scope = 'places'; //all places ids in proper order
             }
             
@@ -1964,12 +1980,10 @@ $.widget( "heurist.app_storymap", {
                 while (end<places.length){
                     
                     end = start+range;
-                    //if(end>=places.length) end = places.length-1;
                     
                     aRanges.push(places.slice(start, end));
                     start = end;
                     
-                    //if(end>=places.length-1) break;
                 }
             }else{
                 aRanges.push(places);
@@ -2318,7 +2332,6 @@ $.widget( "heurist.app_storymap", {
                     
                     mapwidget.applyStyleForLayer(top_layer, lyr, style);
                     
-                    //if(lyr._map==null) lyr.addTo( nativemap )                    
                 });
                 color_step++;
                 setTimeout(__changeColor, delay);
@@ -2464,7 +2477,7 @@ $.widget( "heurist.app_storymap", {
         let path = null;
         //create link path from begin to end place
         if (begin_pnt.length>0 || end_pnt.length>0 || tran_pnt.length>0){
-            //$geovalues = array();
+           
             
             //PAIRS: many start points and transition points - star from start points to first transition
             if(begin_pnt.length>1 || end_pnt.length>1){

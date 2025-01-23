@@ -24,7 +24,7 @@ $.widget( "heurist.searchDefRecTypes", $.heurist.searchEntity, {
         
         let that = this;
         
-        //this.widgetEventPrefix = 'searchDefRecTypes';
+       
         
         this._super();
         
@@ -36,14 +36,14 @@ $.widget( "heurist.searchDefRecTypes", $.heurist.searchEntity, {
         this.element.find('.heurist-helper1').find('span').hide();
         this.element.find('.heurist-helper1').find('span.'+smode+',span.common_help').show();
         
-        this.btn_add_record = this.element.find('#btn_add_record');
+        this.btn_add_record = this.element.find('.btn_AddRecord');
         this.btn_find_record = this.element.find('#btn_find_record');
         this.btn_csv_import = this.element.find('#btn_csv_import');
 
         if(this.options.edit_mode=='none' || this.options.import_structure){
             this.btn_add_record.parent().hide();
-            //this.btn_find_record.hide();
-            //this.element.find('#inner_title').hide();
+           
+           
             
             let ele = this.element.find('#div_show_all_groups');
             ele.parent().css('float','left');
@@ -120,8 +120,7 @@ $.widget( "heurist.searchDefRecTypes", $.heurist.searchEntity, {
         if( this.options.simpleSearch){
             
             this.element.find('#input_sort_type_div').hide();
-        }else{
-            if(smode=='select_multi' || smode=='select_single'){
+        }else if(smode=='select_multi' || smode=='select_single'){
                 
                 this.element.find('#btn_ui_config').hide();
                 this.element.find('#div_show_all_groups').hide();
@@ -144,9 +143,8 @@ $.widget( "heurist.searchDefRecTypes", $.heurist.searchEntity, {
                 window.hWin.HEURIST4.ui.createRectypeGroupSelect(this.input_search_group[0], 
                             [{key:'any',title:'all groups'}]);
                 this._on(this.input_search_group,  { change:this.startSearch });
-        
                 
-            }else{
+        }else{
                 
                 this.btn_ui_config = this.element.find('#btn_ui_config')
                         //.css({'width':'6em'})
@@ -156,9 +154,6 @@ $.widget( "heurist.searchDefRecTypes", $.heurist.searchEntity, {
                     this._on( this.btn_ui_config, {
                             click: this.configureUI });
                 }
-            
-                
-            }
 
         }
        
@@ -177,7 +172,6 @@ $.widget( "heurist.searchDefRecTypes", $.heurist.searchEntity, {
         if(key == 'rtg_ID'){
             if(!this.element.find('#chb_show_all_groups').is(':checked'))
                 this.startSearch();
-                //this.element.find('#input_search_group').val(value).trigger('change');
                 
                 if(value==$Db.getTrashGroupId('rtg')){
                     this.btn_add_record.hide();
@@ -225,7 +219,7 @@ $.widget( "heurist.searchDefRecTypes", $.heurist.searchEntity, {
                     if(!(vB>=0)) vB = cnt;
                     return (vA < vB) ? -1 : (vA > vB) ? 1 : 0;
             });
-        let cop = flist.children();
+        
         flist.append(items);    
         
         flist.controlgroup('refresh');
@@ -287,8 +281,6 @@ $.widget( "heurist.searchDefRecTypes", $.heurist.searchEntity, {
     //
     startSearch: function(){
         
-            this._super();
-            
             if(!this.input_search) return;
             
             let request = {}
@@ -370,28 +362,8 @@ $.widget( "heurist.searchDefRecTypes", $.heurist.searchEntity, {
             
                 this._trigger( "onfilter", null, request);            
             }else{
-                this._trigger( "onstart" );
-        
-                request['a']          = 'search'; //action
-                request['entity']     = this.options.entity.entityName;
-                request['details']    = 'id'; //'id';
-                request['request_id'] = window.hWin.HEURIST4.util.random();
-                
-                //we may search users in any database
-                request['db']     = this.options.database;
-
-                let that = this;                                                
-           
-                window.hWin.HAPI4.EntityMgr.doRequest(request, 
-                    function(response){
-                        if(response.status == window.hWin.ResponseStatus.OK){
-                            that._trigger( "onresult", null, 
-                                {recordset:new HRecordSet(response.data), request:request} );
-                        }else{
-                            window.hWin.HEURIST4.msg.showMsgErr(response);
-                        }
-                    });
-                    
+                this._search_request = request;
+                this._super();                
             }            
     }
 });

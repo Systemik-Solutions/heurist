@@ -22,7 +22,7 @@
 define('PDIR','../../');//need for proper path to js and css
 require_once dirname(__FILE__).'/../../hclient/framecontent/initPage.php';
 ?>
-        <script type="text/javascript" src="<?php echo PDIR;?>external/layout/jquery.layout-latest.js"></script>
+        <script type="text/javascript" src="<?php echo PDIR;?>external/jquery.widgets/jquery.layout.js"></script>
 
         <script type="text/javascript" src="mapDraw2.js"></script>
         <script type="text/javascript" src="mapLayer.js"></script>
@@ -48,7 +48,7 @@ require_once dirname(__FILE__).'/../../hclient/framecontent/initPage.php';
                 // init helper (see utils.js)
                 window.hWin.HEURIST4.ui.initHelper( {button:$('#btn_help'),
                             title:'Mapping Drawing Overview',
-                            url:'../../context_help/mapping_drawing.html #content'});
+                            url: window.hWin.HRes('mapping_drawing #content')});
 
 
                 if (typeof window.hWin.google === 'object' && typeof window.hWin.google.maps === 'object') {

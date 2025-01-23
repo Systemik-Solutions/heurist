@@ -12,7 +12,7 @@
 *
 * @package     Heurist academic knowledge management system
 * @link        https://HeuristNetwork.org
-* @copyright   (C) 2005-2022 University of Sydney
+* @copyright   (C) 2005-2023 University of Sydney
 * @author      Artem Osmakov   <osmakov@gmail.com>
 * @author      Ian Johnson     <ian.johnson.heurist@gmail.com>
 * @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
@@ -36,6 +36,9 @@ $tabs0 = '';
 $is_command_line = false;
 $is_shell = true;
 
+define('PURGE','-purge');
+define('REPORT','-report');
+
 if (@$argv) {
 
 // example:
@@ -44,16 +47,17 @@ if (@$argv) {
 
     // handle command-line queries
     $ARGV = array();
-    for ($i = 0;$i < count($argv);++$i) {
+    $i = 0;
+    while ($i < count($argv)) {
         if ($argv[$i][0] === '-') {
             if (@$argv[$i + 1] && $argv[$i + 1][0] != '-') {
                 $ARGV[$argv[$i]] = $argv[$i + 1];
                 ++$i;
             } else {
-                if(strpos($argv[$i],'-purge')===0){
-                    $ARGV['-purge'] = true;
-                }elseif(strpos($argv[$i],'-report')===0){
-                    $ARGV['-report'] = true;
+                if(strpos($argv[$i],PURGE)===0){
+                    $ARGV[PURGE] = true;
+                }elseif(strpos($argv[$i],REPORT)===0){
+                    $ARGV[REPORT] = true;
                 }else{
                     $ARGV[$argv[$i]] = true;
                 }
@@ -63,10 +67,11 @@ if (@$argv) {
         } else {
             array_push($ARGV, $argv[$i]);
         }
+        ++$i;
     }
 
-    if (@$ARGV['-purge']) {$arg_need_action = true;}
-    if (@$ARGV['-report']) {$arg_need_report = true;}
+    if (@$ARGV[PURGE]) {$arg_need_action = true;}
+    if (@$ARGV[REPORT]) {$arg_need_report = true;}
 
     $is_command_line = true;
 
@@ -78,23 +83,21 @@ if (@$argv) {
 
     $eol = "</div><br>";
     $tabs0 = '<div style="min-width:300px;display:inline-block;text-align:left">';
-    $tabs = "</div>".$tabs0;
-    //exit('This function must be run from the shell');
+    $tabs = DIV_E.$tabs0;
 
     $arg_need_report = true;
     $arg_need_action = (@$_REQUEST['purge']=='1');
 }
 
 
-require_once dirname(__FILE__).'/../../configIni.php';// read in the configuration file
-require_once dirname(__FILE__).'/../../hserv/consts.php';
-require_once dirname(__FILE__).'/../../hserv/System.php';
-require_once dirname(__FILE__).'/../../hserv/utilities/dbUtils.php';
+use hserv\utilities\USanitize;
 
-$sysadmin_pwd = System::getAdminPwd();
+require_once dirname(__FILE__).'/../../autoload.php';
+
+$sysadmin_pwd = USanitize::getAdminPwd();
 
 //retrieve list of databases
-$system = new System();
+$system = new hserv\System();
 
 if(!$is_shell && $system->verifyActionPassword($sysadmin_pwd, $passwordForServerFunctions) ){
         include_once ERROR_REDIR;
@@ -109,9 +112,9 @@ if(!defined('HEURIST_MAIL_DOMAIN')) {define('HEURIST_MAIL_DOMAIN', 'cchum-kvm-he
 if(!defined('HEURIST_SERVER_NAME') && isset($serverName)) {define('HEURIST_SERVER_NAME', $serverName);}//'heurist.huma-num.fr'
 if(!defined('HEURIST_SERVER_NAME')) {define('HEURIST_SERVER_NAME', 'heurist.huma-num.fr');}
 
-//print 'Mail: '.HEURIST_MAIL_DOMAIN.'   Domain: '.HEURIST_SERVER_NAME."\n";
 
-$mysqli = $system->get_mysqli();
+
+$mysqli = $system->getMysqli();
 $databases = mysql__getdatabases4($mysqli, false);
 
 $upload_root = $system->getFileStoreRootFolder();
@@ -119,25 +122,16 @@ $upload_root = $system->getFileStoreRootFolder();
 define('HEURIST_FILESTORE_ROOT', $upload_root );
 
 $exclusion_list = array();
-//$exclusion_list = exclusion_list();
+
 
 if(!$arg_no_action){
 
     $action = 'cleanupFoldersDBs';
-    if(false && !isActionInProgress($action, 1)){
+    $check_action_in_progress = false;
+    if($check_action_in_progress && !isActionInProgress($action, 1)){
         exit("It appears that cleanup operation has been started already. Please try this function later\n");
     }
 }
-
-/*TMP
-//Arche_RECAP
-//AmateurS1
-//$databases = array('ARNMP_COMET','ArScAn_Material','arthur_base','arvin_stamps');
-$databases = array('AmateurS1');
-//$databases = array('ARNMP_COMET');
-*/
-
-//userInteraction.log
 
 set_time_limit(0);//no limit
 ini_set('memory_limit','1024M');
@@ -148,18 +142,16 @@ $email_list = array();
 $email_list_deleted = array();
 $tot_size = 0;
 
-//$databases = array('falk_playspace');
-
 foreach ($databases as $idx=>$db_name){
 
-    $dir_root = HEURIST_FILESTORE_ROOT.$db_name.'/';
+    $dir_root = HEURIST_FILESTORE_ROOT.basename($db_name).'/';
 
     $db_name = htmlspecialchars($db_name);
 
     if(file_exists($dir_root)){
 
-        $dir_backup = $dir_root.'backup/';
-        $dir_scratch = $dir_root.'scratch/';
+        $dir_backup = $dir_root.DIR_BACKUP;
+        $dir_scratch = $dir_root.DIR_SCRATCH;
         $dir_docs = $dir_root.'documentation_and_templates/';
 
         $report = '';
@@ -215,7 +207,7 @@ foreach ($databases as $idx=>$db_name){
                         continue;
                     }catch(Exception $e){
                         $err = $e->getMessage();
-                        $report .= "{$tabs}{$err}{$eol}";
+                        $report .= "{$tabs}{htmlentities($err)}{$eol}";
 
                         continue;
                     }
@@ -228,7 +220,7 @@ foreach ($databases as $idx=>$db_name){
                         $report .= "{$tabs}Failed to create temporary log file{$eol}";
                         continue;
                     }catch(Exception $e){
-                        $err = $e->getMessage();
+                        $err = htmlentities($e->getMessage());
                         $report .= "{$tabs}{$err}{$eol}";
 
                         continue;
@@ -264,7 +256,7 @@ foreach ($databases as $idx=>$db_name){
                             $remove_lines = 0;
                             break;
                         }
-                    }
+                    }//while
 
                     // Destroy file objects
                     unset($org_log);
@@ -272,7 +264,7 @@ foreach ($databases as $idx=>$db_name){
 
                     if($remove_lines > 0 && filesize($log_tmp) > 0){ // replace existing file with temp
                         fileCopy($log_tmp, $log_file);
-                        $report .= "{$tabs}Removed {$remove_lines} interactions from the log file{$eol}";
+                        $report .= "{$tabs}Removed {intval($remove_lines)} interactions from the log file{$eol}";
                     }
 
                     fileDelete($log_tmp);// delete temp file
@@ -335,12 +327,10 @@ foreach ($databases as $idx=>$db_name){
 
         }
 
-        if($arg_need_report){
-            if($report!=''){
+        if($arg_need_report && $report!=''){
                 echo $tabs0.'---'.$eol;
                 echo $tabs0.$db_name.$eol;
                 echo $tabs0.$report.$eol;
-            }
         }
 
         $cnt_archived++;
@@ -358,12 +348,6 @@ foreach ($databases as $idx=>$db_name){
 echo $tabs0.'---'.$eol;
 if($arg_need_action){
     echo $tabs0.'Processed '.$cnt_archived.' databases. Total disk volume cleaned: '.round($tot_size/(1024*1024)).'Mb'.$eol;
-    /*
-    if(count($email_list_deleted)>0){
-        $sTitle = 'Cleanup databases on '.HEURIST_SERVER_NAME;
-        sendEmail(array(HEURIST_MAIL_TO_ADMIN), $sTitle, $sTitle.' <table>'.implode("\n",$email_list_deleted).'</table>',true);
-    }
-    */
 }else{
     echo $tabs0.'Databases: '.$cnt_archived.'. Total size: '.round($tot_size/(1024*1024)).'Mb'.$eol;
 }
@@ -372,23 +356,18 @@ echo $tabs0.'finished'.$eol;
 
 if(!$is_command_line) {print '</body></html>';}
 
-/*
-if(is_array($email_list) && count($email_list)>0){
-
-sendEmail(HEURIST_MAIL_TO_ADMIN, "List of inactive databases on ".HEURIST_SERVER_NAME,
-    "List of inactive databases for more than a year with more than 200 records:\n"
-    .implode(",\n", $email_list));
-}
-*/
+//
+//
+//
 function listFolderContent($dir){
 
     $size = 0;
-    $list = '<div>'.substr($dir, strrpos($dir, '/',-2)).'</div><table style="min-width:500px;border:1px solid red"><tr><th align="left">file</th><th align="right">size</th></tr>';
+    $list = DIV_S.substr($dir, strrpos($dir, '/',-2)).'</div><table style="min-width:500px;border:1px solid red"><tr><th align="left">file</th><th align="right">size</th></tr>';
     $content = folderContent($dir);
 
     foreach ($content['records'] as $object) {
         if ($object[1] != '.' && $object[1] != '..') {
-            $list = $list.'<tr><td>'.$object[1].'</td><td align="right">'.$object[4].'</td></tr>';//(intdiv($object[4], 1024))
+            $list = $list.TR_S.$object[1].'</td><td align="right">'.$object[4].TR_E;//(intdiv($object[4], 1024))
             $size += intval($object[4]);
         }
     }
@@ -396,4 +375,3 @@ function listFolderContent($dir){
     $list = $list.'<tr><td align="left">total</td><td align="right">'.($size).'</td></tr></table>';
     return array($size, $list);
 }
-?>

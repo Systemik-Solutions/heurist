@@ -70,13 +70,13 @@ $.widget( "heurist.searchByEntity", {
         if(this.options.use_combined_select){
             
             this.combined_select = $('<div class="ui-heurist-header" style="top:0px;">'+window.hWin.HR('Filter by entity')+'</div>'
-                +'<div style="top:37px;position:absolute;width:100%">'  //width:100%;
+                +'<div style="top:37px;position:absolute;width:100%">' 
                     +'<div class="ui-heurist-title favorites" style="width: 100%;padding:12px 0px 0px 6px;">'
                                 +window.hWin.HR('Favorites')+'</div>'
-                    +'<ul class="by-selected" style="list-style-type:none;margin:0;padding:6px"/>'
+                    +'<ul class="by-selected" style="list-style-type:none;margin:0;padding:6px"></ul>'
                     +'<div class="ui-heurist-title" style="width: 100%;border-top:1px gray solid; padding:12px 0px 0px 6px;">'
                                 +window.hWin.HR('By Usage')+'</div>'
-                    +'<ul class="by-usage" style="list-style-type:none;margin:0;padding:6px"/>'
+                    +'<ul class="by-usage" style="list-style-type:none;margin:0;padding:6px"></ul>'
                     )
                 .appendTo(this.element);
 
@@ -91,8 +91,6 @@ $.widget( "heurist.searchByEntity", {
             //------------------------------------------- filter by entities
             this.options.by_favorites = this.options.by_favorites && (window.hWin.HAPI4.get_prefs_def('entity_btn_on','1')=='1');
             
-            let sz_search_padding = '0px';
-            
             //container for buttons
             this.div_entity_btns   = $('<div>').addClass('heurist-entity-filter-buttons') //to show on/off in preferences
                                     .css({ 'display':(this.options.is_publication?'none':'block'),
@@ -101,8 +99,7 @@ $.widget( "heurist.searchByEntity", {
                                         'height':this.options.by_favorites?'auto':'10px'})
                                     .appendTo( this.element );
             //Main label
-            let $d2 = $('<div>').css('float','left');
-            $('<label>').text(window.hWin.HR('Entities')).appendTo($d2);
+            let $d2 = $(`<div><span>${window.hWin.HR('Entities')}</span></div>`).css('float','left');
             
             //quick filter by entity  "by usage" 
             if(this.options.by_usage)
@@ -111,7 +108,7 @@ $.widget( "heurist.searchByEntity", {
                 this.usage_btn = $('<span title="Show list of entities to filter">'
                 +'by usage <span class="ui-icon ui-icon-triangle-1-s"></span></span>')  
                 .addClass('graytext')
-                .css({'text-decoration':'none','padding':'0 10px','outline':0,'font-weight':'bold','font-size':'1.1em', cursor:'pointer'})
+                .css({'text-decoration':'none','padding':'0 10px','outline':'none','font-weight':'bold','font-size':'1.1em', cursor:'pointer'})
                 .appendTo( $d2 ); //was div_search_help_links
         
                 //click on label "by usage" - opens selector
@@ -195,7 +192,7 @@ $.widget( "heurist.searchByEntity", {
                     setTimeout(function(){that.refreshOnShow()},500);
             }} );
             
-        //this.div_search.find('.div-table-cell').css('vertical-align','top');
+       
 
         this.recreateRectypeSelectors();
         
@@ -288,7 +285,7 @@ $.widget( "heurist.searchByEntity", {
                         +'<img src="'+window.hWin.HAPI4.baseURL+'hclient/assets/16x16.gif'
                             + '" class="rt-icon" style="vertical-align:bottom;background-image: url(&quot;'+item.attr('icon-url')+ '&quot;);"/>'
                         //+'<img src="'+item.attr('icon-url')+'"/>'
-                        +'<div class="menu-text truncate" style="max-width:130px;display:inline-block;">'
+                        +'<div class="menu-text truncate" style="max-width:80%;display:inline-block;">'
                         +item.text()+'</div>'
                         +'<span style="float:right;min-width:20px">'+(item.attr('rt-count')>=0?item.attr('rt-count'):'')+'</span>'
                        +'</li>').appendTo(container);    
@@ -319,7 +316,7 @@ $.widget( "heurist.searchByEntity", {
                         +'<img src="'+window.hWin.HAPI4.baseURL+'hclient/assets/16x16.gif'
                             + '" class="rt-icon" style="vertical-align:bottom;background-image: url(&quot;'
                             + window.hWin.HAPI4.iconBaseURL + rty_ID+ '&quot;);"/>'
-                        +'<div class="menu-text truncate" style="max-width:130px;display:inline-block;">'
+                        +'<div class="menu-text truncate" style="max-width:80%;display:inline-block;">'
                         + $Db.rty(rty_ID,'rty_Name')+'</div>'
                         +'<span style="float:right;">'
                         +(cnt>=0?cnt:'')+'</span>'
@@ -327,7 +324,7 @@ $.widget( "heurist.searchByEntity", {
                     
                 }else{
             
-                    let btn = $('<div>').button({label:
+                    $('<div>').button({label:
                     '<img src="'+window.hWin.HAPI4.iconBaseURL + rty_ID + '" height="12">'
                     +'<span class="truncate" style="max-width:100px;display:inline-block;margin-left:8px">'
                             + $Db.rty(rty_ID,'rty_Name') + '</span>'
@@ -337,7 +334,7 @@ $.widget( "heurist.searchByEntity", {
                         .attr('data-id', rty_ID)
                         .css({'margin-left':'6px','font-size':'0.9em'})        
                         .addClass('entity-filter-button')  // ui-state-active
-                        .insertAfter(this.config_btn.parent()); //appendTo(this.div_entity_btns);
+                        .insertAfter(this.config_btn.parent());
                     
                 }
             
@@ -416,11 +413,9 @@ $.widget( "heurist.searchByEntity", {
         
             let that = this;
 
-            let exp_level = window.hWin.HAPI4.get_prefs_def('userCompetencyLevel', 2);
-            
             let select_rectype = opts['select_name'];
             
-            opts.useIds = true;//(exp_level<2);
+            opts.useIds = true;
             
             opts.useHtmlSelect = (select_rectype=='usage_select' && that.options.use_combined_select);
             
@@ -524,7 +519,7 @@ $.widget( "heurist.searchByEntity", {
     _doSearch: function(rty_ID){
 
             let request = {};
-            request.q = 't:'+rty_ID; //'{"t":"'+rty_ID+'"}';
+            request.q = 't:'+rty_ID;
             request.w  = 'a';
             request.qname = $Db.rty(rty_ID, 'rty_Plural');
             request.detail = 'ids';

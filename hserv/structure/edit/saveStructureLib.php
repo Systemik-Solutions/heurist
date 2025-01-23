@@ -30,10 +30,12 @@
 * @package     Heurist academic knowledge management system
 * @subpackage  !!!subpackagename for file such as Administration, Search, Edit, Application, Library
 */
+use hserv\structure\ConceptCode;
+
 require_once dirname(__FILE__).'/../../records/edit/recordTitleMask.php';
 require_once dirname(__FILE__).'/../../records/edit/recordModify.php';//to delete temporary records
-require_once dirname(__FILE__).'/../conceptCode.php';
 
+global $rtyColumnNames, $rstColumnNames, $rcsColumnNames, $dtyColumnNames, $rtgColumnNames, $dtgColumnNames, $trmColumnNames;
 
 $rtyColumnNames = array(
     "rty_ID"=>"i",
@@ -172,6 +174,7 @@ $trmColumnNames = array(
     "trm_SemanticReferenceURL"=>"s",
     "trm_VocabularyGroupID"=>"i"
 );
+
 
 //
 // helper function
@@ -319,11 +322,11 @@ function renameRectype($rty_ID, $def, $def_rts){
     $query= 'SELECT rty_Name from defRecTypes WHERE rty_ID='.$rty_ID;
     $val = mysql__select_value($mysqli, $query);
     if(strcmp(mb_strtoupper($name, 'UTF-8'), mb_strtoupper($val, 'UTF-8'))==0){
-        //this rectype already has such name
-        return;
+    //this rectype already has such name
+    return;
     }
     if($name!=$alt_name){
-        $name=$alt_name;
+    $name=$alt_name;
     }
     */
     //rty_Description
@@ -335,10 +338,10 @@ function renameRectype($rty_ID, $def, $def_rts){
     $idx_ref = $def_rts['rty_ReferenceURL'];
 
     $query= 'UPDATE defRecTypes SET rty_Name="'.$mysqli->real_escape_string($def[$idx_name])
-        .'", rty_Description="'.$mysqli->real_escape_string($def[$idx_desc])
-        .'", rty_ReferenceURL="'.$mysqli->real_escape_string($def[$idx_ref])
-        .'", rty_Plural="'.$mysqli->real_escape_string($def[$idx_plural_name])
-        .'" where  rty_ID='.$rty_ID;
+    .'", rty_Description="'.$mysqli->real_escape_string($def[$idx_desc])
+    .'", rty_ReferenceURL="'.$mysqli->real_escape_string($def[$idx_ref])
+    .'", rty_Plural="'.$mysqli->real_escape_string($def[$idx_plural_name])
+    .'" where  rty_ID='.$rty_ID;
     $mysqli->query($query);
 
 }
@@ -349,11 +352,11 @@ function renameDetailtype($dty_ID, $def, $def_dts){
     $query= 'SELECT dty_Name from defDetailTypes WHERE dty_ID='.$dty_ID;
     $val = mysql__select_value($mysqli, $query);
     if(strcmp(mb_strtoupper($name, 'UTF-8'), mb_strtoupper($val, 'UTF-8'))==0){
-        //this field already has such name
-        return;
+    //this field already has such name
+    return;
     }
     if($name!=$alt_name){
-        $name=$alt_name;
+    $name=$alt_name;
     }
     */
     $idx_name = $def_dts['dty_Name'];
@@ -364,11 +367,11 @@ function renameDetailtype($dty_ID, $def, $def_dts){
 
 
     $query= 'UPDATE defDetailTypes SET dty_Name="'.$mysqli->real_escape_string($def[$idx_name])
-        .'", dty_Documentation="'.$mysqli->real_escape_string($def[$idx_desc])
-        .'", dty_ExtendedDescription="'.$mysqli->real_escape_string($def[$idx_desc2])
-        .'", dty_SemanticReferenceURL="'.$mysqli->real_escape_string($def[$idx_ref])
-        .'", dty_HelpText="'.$mysqli->real_escape_string($def[$idx_help])
-        .'" where dty_ID='.$dty_ID;
+    .'", dty_Documentation="'.$mysqli->real_escape_string($def[$idx_desc])
+    .'", dty_ExtendedDescription="'.$mysqli->real_escape_string($def[$idx_desc2])
+    .'", dty_SemanticReferenceURL="'.$mysqli->real_escape_string($def[$idx_ref])
+    .'", dty_HelpText="'.$mysqli->real_escape_string($def[$idx_help])
+    .'" where dty_ID='.$dty_ID;
     $mysqli->query($query);
 }
 
@@ -380,10 +383,10 @@ function renameTerm($term_id, $def, $columnNames){
     $idx_ref = $columnNames['trm_SemanticReferenceURL'];
 
     $query= 'UPDATE defTerms SET trm_Label="'.$mysqli->real_escape_string($def[$idx_name])
-        .'", trm_Description="'.$mysqli->real_escape_string($def[$idx_desc])
-        .'", trm_Code="'.$mysqli->real_escape_string($def[$idx_code])
-        .'", trm_SemanticReferenceURL="'.$mysqli->real_escape_string($def[$idx_ref])
-        .'" where trm_ID='.$term_id;
+    .'", trm_Description="'.$mysqli->real_escape_string($def[$idx_desc])
+    .'", trm_Code="'.$mysqli->real_escape_string($def[$idx_code])
+    .'", trm_SemanticReferenceURL="'.$mysqli->real_escape_string($def[$idx_ref])
+    .'" where trm_ID='.$term_id;
     $mysqli->query($query);
 }
 
@@ -402,7 +405,7 @@ function createRectypes($commonNames, $rt, $isAddDefaultSetOfFields, $convertTit
 
     $ret = null;
 
-    if (is_array($commonNames) && count($commonNames)>0) {
+    if (!isEmptyArray($commonNames)) {
 
         $colNames = join(",",$commonNames);
 
@@ -457,13 +460,13 @@ function createRectypes($commonNames, $rt, $isAddDefaultSetOfFields, $convertTit
         } else {
             $rtyID = $mysqli->insert_id;
 
-            $dbID = $system->get_system('sys_dbRegisteredID');
+            $dbID = $system->settings->get('sys_dbRegisteredID');
             if(!($dbID>0)){ $dbID = 0;}
 
             $query= 'UPDATE defRecTypes SET rty_OriginatingDBID='.intval($dbID)
-                .', rty_NameInOriginatingDB=rty_Name'
-                .', rty_IDInOriginatingDB='.intval($rtyID)
-                .' WHERE (NOT rty_OriginatingDBID>0 OR rty_OriginatingDBID IS NULL) AND rty_ID='.intval($rtyID);
+            .', rty_NameInOriginatingDB=rty_Name'
+            .', rty_IDInOriginatingDB='.intval($rtyID)
+            .' WHERE (NOT rty_OriginatingDBID>0 OR rty_OriginatingDBID IS NULL) AND rty_ID='.intval($rtyID);
             $mysqli->query($query);
 
             $ret = -$rtyID;
@@ -511,12 +514,12 @@ function updateRectype($commonNames, $rtyID, $rt) {
 
 
 
-    //		$row = $res->fetch_object();
-    //		$query = "rty_LocallyModified=".(($row->rty_OriginatingDBID>0)?"1":"0").",";
+    //$row = $res->fetch_object();
+    //$query = "rty_LocallyModified=".(($row->rty_OriginatingDBID>0)?"1":"0").",";
 
     $query="";
 
-    if (is_array($commonNames) && count($commonNames)>0) {
+    if (!isEmptyArray($commonNames)) {
 
         $parameters = array("");//list of field date types
         foreach ($commonNames as $colName) {
@@ -557,15 +560,15 @@ function updateRectype($commonNames, $rtyID, $rt) {
                 handleError($ret, $query, $res);
 
                 //}elseif($rows==0) {
-                //	$ret = "error updating $rtyID in updateRectype - ".$mysqli->error;
+                //$ret = "error updating $rtyID in updateRectype - ".$mysqli->error;
             } else {
                 $ret = $rtyID;
 
-                if($system->get_system('sys_dbRegisteredID')>0){
+                if($system->settings->get('sys_dbRegisteredID')>0){
                     $query= 'UPDATE defRecTypes SET rty_NameInOriginatingDB=rty_Name '
                     .' WHERE rty_ID='.$rtyID
                     .' AND rty_IDInOriginatingDB='.$rtyID
-                    .' AND rty_OriginatingDBID='.$system->get_system('sys_dbRegisteredID');
+                    .' AND rty_OriginatingDBID='.$system->settings->get('sys_dbRegisteredID');
                     $res = $mysqli->query($query);
                 }
 
@@ -704,7 +707,7 @@ function addDefaultFieldForNewRecordType($rtyID, $newfields)
     }
     $order = 10;
 
-    if(is_array($newfields) && count($newfields)>0){
+    if(!isEmptyArray($newfields)){
 
         //find two separators
         $seps = array();
@@ -775,7 +778,7 @@ function updateRecStructure( $dtFieldNames , $rtyID, $rt) {
 
     $query2 = "";
 
-    if (is_array($dtFieldNames) && count($dtFieldNames)>0 && count($rt['dtFields']))
+    if (!isEmptyArray($dtFieldNames) && !empty($rt['dtFields']))
     {
 
         //if  rst_OriginatingDBID>0 (means that rectype is registered) need to mark that
@@ -865,7 +868,7 @@ function updateRecStructure( $dtFieldNames , $rtyID, $rt) {
 
     } //if column names
 
-    if (count($ret[$rtyID])==0) {
+    if (empty($ret[$rtyID])) {
         array_push($ret[$rtyID], "no data supplied for updating record structure - $rtyID");
     }
 
@@ -906,11 +909,11 @@ function deleteRecStructure($rtyID, $dtyID) {
 function createRectypeGroups($columnNames, $rt) {
     global $system, $rtgColumnNames;
 
-    $mysqli = $system->get_mysqli();
+    $mysqli = $system->getMysqli();
 
     $rtg_Name = null;
     $ret = array();
-    if (is_array($columnNames) && count($columnNames)>0 ) {
+    if (!isEmptyArray($columnNames) ) {
 
         $colNames = join(",",$columnNames);
         foreach ( $rt as $newRT) {
@@ -982,7 +985,7 @@ function updateRectypeGroup($columnNames, $rtgID, $rt) {
     $ret = array();
     $query = "";
     $rtg_Name = null;
-    if ( is_array($columnNames) && count($columnNames)>0 ) {
+    if ( !isEmptyArray($columnNames) ) {
 
         $vals = $rt;
         $parameters = array("");//list of field date types
@@ -1092,7 +1095,7 @@ function createDettypeGroups($columnNames, $rt)
 
     $dtg_Name = null;
     $ret = array();
-    if (is_array($columnNames) && count($columnNames)>0) {
+    if (!isEmptyArray($columnNames)) {
 
         $colNames = join(",",$columnNames);
         foreach ( $rt as $newRT) {
@@ -1165,7 +1168,7 @@ function updateDettypeGroup($columnNames, $dtgID, $rt) {
     $ret = array();
     $dtg_Name = null;
     $query = "";
-    if (is_array($columnNames) && count($columnNames)>0) {
+    if (!isEmptyArray($columnNames)) {
 
         $vals = $rt;
         $parameters = array("");//list of field date types
@@ -1266,7 +1269,7 @@ function createDetailTypes($commonNames, $dt) {
 
     $ret = null;
 
-    if (is_array($commonNames) && count($commonNames)>0) {
+    if (!isEmptyArray($commonNames)) {
 
 
         $colNames = join(",",$commonNames);
@@ -1294,18 +1297,18 @@ function createDetailTypes($commonNames, $dt) {
 
         if($rows === "1062"){
             $ret =  "Field type with specified name already exists in the database, please use the existing field type.\nThe field may be hidden - turn it on through Database > Manage base field types";
-        }else  if ($rows==0 || is_string($rows) ) {
+        }elseif ($rows==0 || is_string($rows) ) {
             $ret = "Error inserting data into defDetailTypes table: ".$rows;
         } else {
             $dtyID = $mysqli->insert_id;
 
-            $dbID = $system->get_system('sys_dbRegisteredID');
+            $dbID = $system->settings->get('sys_dbRegisteredID');
             if(!($dbID>0)) {$dbID = 0;}
 
             $query= 'UPDATE defDetailTypes SET dty_OriginatingDBID='.$dbID
-                                .', dty_NameInOriginatingDB=dty_Name'
-                                .', dty_IDInOriginatingDB='.$dtyID
-                                .' WHERE (NOT dty_OriginatingDBID>0 OR dty_OriginatingDBID IS NULL) AND dty_ID='.$dtyID;
+            .', dty_NameInOriginatingDB=dty_Name'
+            .', dty_IDInOriginatingDB='.$dtyID
+            .' WHERE (NOT dty_OriginatingDBID>0 OR dty_OriginatingDBID IS NULL) AND dty_ID='.$dtyID;
             $mysqli->query($query);
 
 
@@ -1377,7 +1380,7 @@ function updateDetailType($commonNames,$dtyID,$dt) {
     $query = "";
     $dty_Name = null;
 
-    if (is_array($commonNames) && count($commonNames)>0) {
+    if (!isEmptyArray($commonNames)) {
 
         $vals = $dt['common'];
         $parameters = array("");//list of field date types
@@ -1441,12 +1444,12 @@ function addTermReference( $parentID, $trmID, $ext_db) {
     global $system;
 
     if($ext_db==null){
-        $ext_db = $system->get_mysqli();
+        $ext_db = $system->getMysqli();
     }
 
     $ret = $ext_db->query(
         'insert into defTermsLinks (trl_ParentID,trl_TermID)'
-            .'values ('.$parentID.','.$trmID.')');
+        .'values ('.$parentID.','.$trmID.')');
     if(!$ret){
         $system->addError(HEURIST_DB_ERROR,
             'Cannot insert to defTermsLinks table', $ext_db->error);
@@ -1473,12 +1476,12 @@ function updateTerms( $colNames, $trmID, $values, $ext_db) {
     global $system, $trmColumnNames;
 
     if($ext_db==null){
-        $ext_db = $system->get_mysqli();
+        $ext_db = $system->getMysqli();
     }
 
     $ret = null;
 
-    if (is_array($colNames) && count($colNames)>0 && is_array($values) && count($values)>0)
+    if (!isEmptyArray($colNames) && is_array($values))
     {
         $isInsert = ($trmID==null || (!is_numeric($trmID) && (strrpos($trmID, "-")>0)));
 
@@ -1607,13 +1610,13 @@ function updateTerms( $colNames, $trmID, $values, $ext_db) {
                 if($isInsert){
                     $trmID = $ext_db->insert_id;  // new id
 
-                    $dbID = $system->get_system('sys_dbRegisteredID');
+                    $dbID = $system->settings->get('sys_dbRegisteredID');
                     if(!($dbID>0)) {$dbID = 0;}
 
                     $query= 'UPDATE defTerms SET trm_OriginatingDBID='.$dbID
-                                .', trm_NameInOriginatingDB=trm_Label'
-                                .', trm_IDInOriginatingDB='.$trmID
-                                .' WHERE (NOT trm_OriginatingDBID>0 OR trm_OriginatingDBID IS NULL) AND trm_ID='.$trmID;
+                    .', trm_NameInOriginatingDB=trm_Label'
+                    .', trm_IDInOriginatingDB='.$trmID
+                    .' WHERE (NOT trm_OriginatingDBID>0 OR trm_OriginatingDBID IS NULL) AND trm_ID='.$trmID;
                     $ext_db->query($query);
                 }
 
@@ -1692,8 +1695,8 @@ function mergeTerms($retain_id, $merge_id, $colNames, $dt){
 
     //4. update term $retain_id
     $res = updateTerms( $colNames, $retain_id, $dt, null );
-    if(!($res>0)){
-        if(!(count($system->getError())>0)){
+    if(!isPositiveInt($res)){
+        if(empty($system->getError())){
             $system->addError(HEURIST_ACTION_BLOCKED, $res);
         }
         $ret = false;
@@ -1771,13 +1774,14 @@ function checkDtPtr($rty_IDs, $dty_ID){
                     array_push($links, $row[0]);
                 }
             }
-            $ret_message = $ret_message.'<br><br>'
-            ."<a href='#' onclick='window.open(\""
-            .HEURIST_BASE_URL."?db=".HEURIST_DBNAME."&q=ids:".implode(",", $recIDs).'&nometadatadisplay=true","_blank")\'>'
+
+            $recIDs_list = implode(',',$recIDs);
+            $ret_message = "$ret_message<br><br><a href='#' onclick='window.open(\""
+            .HEURIST_BASE_URL."?db=".HEURIST_DBNAME."&q=ids:$recIDs_list&nometadatadisplay=true\",\"_blank\")'>"
             .'Click here</a> to view all the records affected';
 
             if(count($links)<count($recIDs)){
-                $ret_message = $ret_message.' (limited to first 250)';
+                $ret_message = "$ret_message (limited to first 250)";
             }
 
             $system->addError(HEURIST_ACTION_BLOCKED, $ret_message);
@@ -1861,13 +1865,14 @@ function checkTerms($termID){
                                 array_push($rtyIDs, $row[1]);
                             }
                         }
-                        $ret_message = $ret_message.'<br><br>'
-                        ."<a href='#' onclick='window.open(\""
-                        .HEURIST_BASE_URL."?db=".HEURIST_DBNAME."&q=ids:".implode(",", $recIDs).'&nometadatadisplay=true","_blank")\'>'
+
+                        $recIDs_list = implode(',',$recIDs);
+                        $ret_message = "$ret_message<br><br><a href='#' onclick='window.open(\""
+                        .HEURIST_BASE_URL."?db=".HEURIST_DBNAME."&q=ids:$recIDs_list&nometadatadisplay=true\",\"_blank\")'>"
                         .'Click here</a> to view all the records affected';
 
                         if(count($links)<count($recIDs)){
-                            $ret_message = $ret_message.' (limited to first 250)';
+                            $ret_message = "$ret_message (limited to first 250)";
                         }
 
                         $ret_message = $ret_message.'<br><div style="padding:10px 30px;text-align:left">'
@@ -1875,7 +1880,7 @@ function checkTerms($termID){
                         $labels = dbs_GetRectypeNames( $mysqli, $rtyIDs );
 
                         foreach  ($labels as $rty_ID=>$rty_Name)  {
-                            $ret_message = $ret_message.'<li>'.$rty_Name.'</li>';
+                            $ret_message = $ret_message."<li>$rty_Name</li>";
                         }
 
                         $ret_message = $ret_message."</ul></div>";
@@ -1932,7 +1937,7 @@ function isTermInUse($trmID, $infield, $indetails){
                     $ret['dtyIDs'] = array();
                     while ($row = $res->fetch_row()) {
                         //array_push($ret['dtyIDs'], $row[0]);
-                        $errMessage = $errMessage.("<li>".$row[0]."&nbsp;".$row[1]."</li>");
+                        $errMessage = $errMessage.("<li>{$row[0]}&nbsp;{$row[1]}</li>");
                     }
                     $errMessage = $errMessage.'</ul>'
                     .'<br>Please note the field(s) listed below, then '
@@ -1982,11 +1987,12 @@ function isTermInUse($trmID, $infield, $indetails){
                     }
 
                 }
-                $errMessage = $errMessage."<br><br>"
-                ."<a href='#' onclick='window.open(\""
-                .HEURIST_BASE_URL."?db=".HEURIST_DBNAME."&q=ids:".implode(",",$links)."&nometadatadisplay=true\",\"_blank\")'>Click here</a> to view all the records affected";
+                $links = implode(',',$links);
+                $errMessage = "$errMessage<br><br><a href='#' onclick='window.open(\""
+                .HEURIST_BASE_URL."?db=".HEURIST_DBNAME
+                ."&q=ids:$links&nometadatadisplay=true\",\"_blank\")'>Click here</a> to view all the records affected";
                 if(count($links)<$recCount){
-                    $errMessage = $errMessage.' (limited to first 250)';
+                    $errMessage = "$errMessage (limited to first 250)";
                 }
 
                 $system->addError(HEURIST_ACTION_BLOCKED, $errMessage);
@@ -2063,7 +2069,7 @@ function updateRelConstraint($srcID, $trgID, $terms){
         $terms[2] = "null";
     }
 
-    $where = " where ";
+    $where = SQL_WHERE;
 
     if(intval($srcID)<1){
         $srcID = "null";
@@ -2082,7 +2088,7 @@ function updateRelConstraint($srcID, $trgID, $terms){
         $terms[0] = "null";
         $where = $where." and rcs_TermID is null";
     }else{
-        $where = $where." and rcs_TermID=".$terms[0];;
+        $where = $where." and rcs_TermID=".$terms[0];
     }
 
     $query = "select rcs_ID from defRelationshipConstraints ".$where;
@@ -2141,7 +2147,7 @@ function deleteRelConstraint($srcID, $trgID, $trmID){
     $trmID = prepareIds($trmID);
     if ( count($trmID)>1 ) {
         $query = $query." and rcs_TermID in (".implode(',',$trmID).")";
-    }elseif(count($trmID)==0){
+    }elseif(empty($trmID)){
         $query = $query." and rcs_TermID is null";
     }else{
         $query = $query." and rcs_TermID=".intval($trmID[0]);
@@ -2156,4 +2162,3 @@ function deleteRelConstraint($srcID, $trgID, $trmID){
     }
     return $ret;
 }
-?>

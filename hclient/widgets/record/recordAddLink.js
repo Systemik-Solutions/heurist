@@ -29,7 +29,6 @@ $.widget( "heurist.recordAddLink", $.heurist.recordAction, {
         title:  'Add new link or create a relationship between records',
         
         htmlContent: 'recordAddLink.html',
-        helpContent: 'recordAddLink.html', //in context_help folder
         
         source_ID:null,
         target_ID:null,
@@ -56,22 +55,22 @@ $.widget( "heurist.recordAddLink", $.heurist.recordAction, {
         if(window.hWin.HEURIST4.util.isempty(this.options.source_ID)){    
             //source reccord not defined - show scope selector
             
-            this.element.find('#div_source1').hide();
-            this.element.find('#div_source2').css('display','inline-block');
+            this._$('#div_source1').hide();
+            this._$('#div_source2').css('display','inline-block');
         }else{
-            this.element.find('#div_source_header').css('vertical-align','top');
+            this._$('#div_source_header').css('vertical-align','top');
             this.getRecordValue(this.options.source_ID, 'source'); 
             
             //show hint 
-            this.element.find('#edit_attrib_helper').show();
+            this._$('#edit_attrib_helper').show();
         }
        
         if(window.hWin.HEURIST4.util.isempty(this.options.target_ID)){
             //show record selector
-            this.element.find('#div_target1').hide();
-            this.element.find('#div_target2').css('display','inline-block');
+            this._$('#div_target1').hide();
+            this._$('#div_target2').css('display','inline-block');
         }else{
-            this.element.find('#div_target_header').css('vertical-align','top');
+            this._$('#div_target_header').css('vertical-align','top');
             
             this.getRecordValue(this.options.target_ID, 'target');
 
@@ -102,9 +101,8 @@ $.widget( "heurist.recordAddLink", $.heurist.recordAction, {
             //enable for relationships only
             res.splice(1, 0, 
                  {text:window.hWin.HR('Edit attributes'),
-                    id:'btnDoAction2',
                     disabled:'disabled',
-                    class: 'ui-button-action',
+                    class: 'ui-button-action btnDoAction2',
                     css:{'float':'right'}, //'font-size':'0.82em', 'margin-top':'0.6em', 'padding':'6.1px' 
                     click: function() { 
                             that._openRelationRecordEditor = true;
@@ -122,8 +120,6 @@ $.widget( "heurist.recordAddLink", $.heurist.recordAction, {
 
         let scope_types = this.options.scope_types;
         this.selectRecordScope.empty();
-        
-        let useHtmlSelect = false;
         
         if(scope_types=='none' || this.options.source_ID>0){
             this.selectRecordScope.parent().hide();
@@ -162,7 +158,7 @@ $.widget( "heurist.recordAddLink", $.heurist.recordAction, {
             $(opt).attr('data-select', 1);
             selScope.appendChild(opt);
             
-            //window.hWin.HEURIST4.ui.addoption(selScope,rty, 'Selected records: ' + $Db.rty(rty,'rty_Plural'));
+            
         }
           
         if(!(rty>0)){
@@ -304,7 +300,7 @@ $.widget( "heurist.recordAddLink", $.heurist.recordAction, {
     // 
     _fillSelectFieldTypes: function (party, recRecTypeID, oppositeRecTypeID) {
         
-        this.element.find('#'+party+'_field').empty();
+        this._$('#'+party+'_field').empty();
         
         //let $fieldset = $('#target_field').empty(); //@todo clear target selection only in case constraints were changed
             
@@ -390,17 +386,17 @@ $.widget( "heurist.recordAddLink", $.heurist.recordAction, {
 
         if(this.options.relmarker_dty_ID>0){
             //hide radio and field name - since it is the only one field in list
-            let ele = this.element.find('#source_field').find('.field_item').css('padding-left',0);
-            this.element.find('#source_field').find('.field_item > div').css('padding-left',0);
-            this.element.find('#source_field').find('.field_item > label').hide();
-            this.element.find('#source_field').find('input[type=radio]').hide().trigger('click'); //prop('checked',true).
+            this._$('#source_field').find('.field_item').css('padding-left',0);
+            this._$('#source_field').find('.field_item > div').css('padding-left',0);
+            this._$('#source_field').find('.field_item > label').hide();
+            this._$('#source_field').find('input[type=radio]').hide().trigger('click'); //prop('checked',true).
         }
                             
         
         if(party=='source' && window.hWin.HEURIST4.util.isempty(this.options.source_ID)){
 
-            if(this.element.find('input[type="radio"][name="link_field"]').length>0){
-                $(this.element.find('input[type="radio"][name="link_field"]')[0]).attr('checked','checked').trigger('change');
+            if(this._$('input[type="radio"][name="link_field"]').length>0){
+                $(this._$('input[type="radio"][name="link_field"]')[0]).attr('checked','checked').trigger('change');
             }
 
             if(window.hWin.HEURIST4.util.isempty(this.options.target_ID)){
@@ -415,9 +411,9 @@ $.widget( "heurist.recordAddLink", $.heurist.recordAction, {
             }
         }
         
-        let ele = this.element.find('#source_field').find('input[type=radio]');
+        let ele = this._$('#source_field').find('input[type=radio]');
         if(ele.length==1){
-            ele.click();
+            ele.trigger('click');
         }
         
 
@@ -430,11 +426,10 @@ $.widget( "heurist.recordAddLink", $.heurist.recordAction, {
     //
     _enableActionButton: function (){
         
-        let sel_field  = this.element.find('input[type="radio"][name="link_field"]:checked');
+        let sel_field  = this._$('input[type="radio"][name="link_field"]:checked');
         
         let isEnabled = ((this.options.target_ID>0 || this.getFieldValue('target_record')>0) && 
                             sel_field.val()>0);
-        let isEnabled2 = false;
                             
         if(isEnabled && sel_field.attr('data-type')=='relmarker'){
             //in case relmarker check if reltype selected
@@ -442,11 +437,10 @@ $.widget( "heurist.recordAddLink", $.heurist.recordAction, {
             let dtyID = sel_field.val()
             let termID = this.getFieldValue('rt_'+(isReverce?'target':'source')+'_sel_'+dtyID);        
             isEnabled = (termID>0);
-            isEnabled2 = isEnabled;
         }                
                         
-        window.hWin.HEURIST4.util.setDisabled( this.element.parents('.ui-dialog').find('#btnDoAction'), !isEnabled );
-        window.hWin.HEURIST4.util.setDisabled( this.element.parents('.ui-dialog').find('#btnDoAction2'), !isEnabled );
+        window.hWin.HEURIST4.util.setDisabled( this.element.parents('.ui-dialog').find('.btnDoAction'), !isEnabled );
+        window.hWin.HEURIST4.util.setDisabled( this.element.parents('.ui-dialog').find('.btnDoAction2'), !isEnabled );
         
     }, 
     
@@ -463,13 +457,13 @@ $.widget( "heurist.recordAddLink", $.heurist.recordAction, {
             }
         }
         
-        this.element.find('#div_'+party+'1').hide();
-        let $fieldset = this.element.find('#div_'+party+'2').empty();
+        this._$('#div_'+party+'1').hide();
+        let $fieldset = this._$('#div_'+party+'2').empty();
         
         let dtFields = {};
         dtFields['dt_ID'] = 9999999;    
         dtFields['rst_PtrFilteredIDs'] = rt_constraints;    
-        dtFields['rst_DisplayName'] = '';//input_label;
+        dtFields['rst_DisplayName'] = ''; //input_label
         dtFields['rst_RequirementType'] = 'optional';
         dtFields['rst_MaxValues'] = 1;
         dtFields['dty_Type'] = 'resource';
@@ -496,8 +490,8 @@ $.widget( "heurist.recordAddLink", $.heurist.recordAction, {
                     that.options.target_ID = rec_id;    
                 }
                 
-                //getRecordValue(rec_id, party);
-                //_enableActionButton();
+               
+               
             }    
         };
 
@@ -511,9 +505,9 @@ $.widget( "heurist.recordAddLink", $.heurist.recordAction, {
     //
     _createInputElement: function ( event ){ //input_id, input_label, init_value){
 
-        this.element.find('#div_target1').hide();
+        this._$('#div_target1').hide();
     
-        let $fieldset = this.element.find('#div_target2').empty();
+        let $fieldset = this._$('#div_target2').empty();
 
         let dtID = $(event.target).val();//
         
@@ -521,10 +515,6 @@ $.widget( "heurist.recordAddLink", $.heurist.recordAction, {
 
         if(window.hWin.HEURIST4.util.isempty(dtID)) return;
 
-        
-        let rectypeID = this.source_RecTypeID; //selectRecordScope.val(); 
-        //typedefs[rectypeID].dtFields[dtID
-        //_createInputElement_step2(rectypeID, dtID, $fieldset);
         
         let ptr_constraints = (dtID>0)?$Db.dty(dtID, 'dty_PtrTargetRectypeIDs'):'';
         
@@ -570,7 +560,7 @@ $.widget( "heurist.recordAddLink", $.heurist.recordAction, {
 
         if(window.hWin.HEURIST4.util.isempty(dtID)) return;
     
-        let $field = this.element.find('#rt_'+party+'_sel_'+dtID).empty();
+        let $field = this._$('#rt_'+party+'_sel_'+dtID).empty();
 
         let dt = $Db.dty(dtID);
 
@@ -596,14 +586,14 @@ $.widget( "heurist.recordAddLink", $.heurist.recordAction, {
             trm_id = $Db.rst(rectypeID, dtID, 'rst_DefaultValue');
         }
         
-        //let dtFields =  window.hWin.HEURIST4.util.cloneJSON($Db.rst(rectypeID, dtID));
+       
         let dtFields = {};
-        dtFields['rst_DisplayName'] = 'Relationship type:';//input_label;
+        dtFields['rst_DisplayName'] = 'Relationship type:'; //input_label
         dtFields['rst_RequirementType'] = 'optional';
         dtFields['rst_MaxValues'] = 1;
         dtFields['rst_DisplayWidth'] = '25ex';
         dtFields['dty_Type'] = 'relationtype';
-        dtFields['rst_PtrFilteredIDs'] = '';//dt['dty_PtrTargetRectypeIDs'];
+        dtFields['rst_PtrFilteredIDs'] = '';
         dtFields['rst_FilteredJsonTermIDTree'] = vocab_id;
         dtFields['rst_DefaultValue'] = trm_id;
         dtFields['dtID'] = dtID;
@@ -642,7 +632,7 @@ $.widget( "heurist.recordAddLink", $.heurist.recordAction, {
     //
     //
     getFieldValue: function (input_id) {
-        let ele =  this.element.find('#'+input_id);
+        let ele =  this._$('#'+input_id);
         if(ele.length>0){
             let sel = ele.editing_input('getValues');
             if(sel && sel.length>0){
@@ -663,8 +653,7 @@ $.widget( "heurist.recordAddLink", $.heurist.recordAction, {
                 let resdata = new HRecordSet(response.data);
         
                 //add SELECT and fill it with values
-                let idx, dty, rec_titles = [];
-                let records = resdata.getRecords();
+                let rec_titles = [];
             
                 let record = resdata.getById(rec_id);
                 let rec_title = window.hWin.HEURIST4.util.stripTags(resdata.fld(record, 'rec_Title'));
@@ -739,7 +728,7 @@ $.widget( "heurist.recordAddLink", $.heurist.recordAction, {
         
         let idx, requests = [], targetIDs = [], sourceIDs=[], currentScope=[];
         
-        let ele = this.element.find('input[type="radio"][name="link_field"]:checked');
+        let ele = this._$('input[type="radio"][name="link_field"]:checked');
         let dtyID = ele.val()
         let data_type = ele.attr('data-type');
         let isReverce = (ele.attr('data-party')=='target');
@@ -889,7 +878,7 @@ $.widget( "heurist.recordAddLink", $.heurist.recordAction, {
                         {relmarker_field: this.options.relmarker_dty_ID, relmarker_is_inward: false});   
                 }
                 this._as_dialog.dialog('close');
-                //)window.close(res);//'Link'+(requests.length>1?'s':'')+' created...');
+               
             }
         }
     }

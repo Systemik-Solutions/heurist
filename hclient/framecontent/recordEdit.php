@@ -1,4 +1,3 @@
-<!DOCTYPE html>
 <?php
 
     /**
@@ -27,8 +26,10 @@
     * distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied
     * See the License for the specific language governing permissions and limitations under the License.
     */
-    require_once 'initPage.php';
-    require_once dirname(__FILE__).'/../../hserv/utilities/testSimilarURLs.php';
+use hserv\structure\ConceptCode;
+
+require_once 'initPage.php';
+require_once dirname(__FILE__).'/../../hserv/utilities/testSimilarURLs.php';
 
     $params = array();
 
@@ -38,7 +39,7 @@ if(@$_REQUEST['annotationId'] || @$_REQUEST['a']){
 
     $uuid = (@$_REQUEST['annotationId'])?$_REQUEST['annotationId']:$_REQUEST['a'];
 
-    $mysqli = $system->get_mysqli();
+    $mysqli = $system->getMysqli();
 
     $res = mysql__select_row($mysqli, 'select dtl_RecID from recDetails '
         .' WHERE dtl_DetailTypeID='.DT_ORIGINAL_RECORD_ID .' AND dtl_Value="'.$mysqli->real_escape_string($uuid).'"');
@@ -47,13 +48,12 @@ if(@$_REQUEST['annotationId'] || @$_REQUEST['a']){
         $params = array('recID'=>intval($res[0]));
     }else{
         //annotation not found
-        //exit;
+
     }
 
 
-}else
+}elseif(@$_REQUEST['u']){
 //this is an addition/bookmark of URL - at the moment from bookmarklet only
-if(@$_REQUEST['u']){
 
     $url = filter_var($_REQUEST['u'],FILTER_SANITIZE_URL);
 
@@ -64,16 +64,16 @@ if(@$_REQUEST['u']){
     if (! preg_match('!^[a-z]+:!i', $url)) {$url = 'https://' . $url;}
     if (substr($url, -1) == '/') {$url = substr($url, 0, strlen($url)-1);}
 
-    $mysqli = $system->get_mysqli();
+    $mysqli = $system->getMysqli();
 
     // look up the user's bookmark (usrBookmarks) table, see if they've already got this URL bookmarked -- if so, just edit it
     $res = mysql__select_row($mysqli, 'select bkm_ID, rec_ID from usrBookmarks left join Records on rec_ID=bkm_recID '
-                .'where bkm_UGrpID="'.$system->get_user_id().'" '
+                .'where bkm_UGrpID="'.$system->getUserId().'" '
                 .' and (rec_URL="'.$mysqli->real_escape_string($url).'" or rec_URL="'.$mysqli->real_escape_string($url).'/")');
 
     if ($res && $res[1] > 0) { //already bookmarked
         $params = array('recID'=>$res[1]);
-        //print '<script>var prepared_params = {recID:'.$res[1].'};</script>';
+
     }elseif (false && exist_similar($mysqli, $url)) {  //@todo implement disambiguation dialog
 //----- 2. find similar url - show disambiguation dialog -----------------------------------------
 
@@ -104,7 +104,7 @@ if(@$_REQUEST['u']){
             $params['u'] = $url;
         }
         if(@$_REQUEST['f']){ //favicon
-            //$params['rec_title'] = $_REQUEST['f'];
+
         }
 
         // preprocess any description
@@ -119,8 +119,10 @@ if(@$_REQUEST['u']){
             $description = preg_replace('/ +/', ' ', $description);
 
         // trim() each line
-            $description = preg_replace('/^[ \t\v\f]+|[ \t\v\f]+$/m', '', $description);
-            $description = preg_replace('/^\s+|\s+$/s', '', $description);
+            $regex_trim_all_spaces_except_eol = '/(?:^[ \t\v\f]+)|(?:[ \t\v\f]+$)/m';  //except \r\n
+            $description = preg_replace($regex_trim_all_spaces_except_eol, '', $description);
+            //single line - remove \r\n at the begin and end
+            $description = preg_replace('/(?:^\s+)|(?:\s+$)/s', '', $description);
 
         // reduce anything more than two newlines in a row
             $description = preg_replace("/\n\n\n+/s", "\n\n", $description);
@@ -138,7 +140,7 @@ if(@$_REQUEST['u']){
             }
 
             $isbns = array();
-            if (preg_match_all('!ISBN(?:-?1[03])?[^a-z]*?(97[89][-0-9]{9,13}[0-9]|[0-9][-0-9]{7,10}[0-9X])\\b!i', $description, $matches, PREG_PATTERN_ORDER)) {
+            if (preg_match_all('!ISBN(?:-?1[03])?[^a-z]*?(97[89][-0-9]{9,13}\d|\d[-0-9]{7,10}[0-9X])\\b!i', $description, $matches, PREG_PATTERN_ORDER)) {
                 $isbns = array_unique($matches[1]);
                 if (!($rec_rectype>0) && defined('RT_BOOK')) {
                     $params['rec_rectype'] = RT_BOOK;
@@ -146,7 +148,7 @@ if(@$_REQUEST['u']){
             }
 
             $issns = array();
-            if (preg_match_all('!ISSN(?:-?1[03])?[^a-z]*?([0-9]{4}-?[0-9]{3}[0-9X])!i', $description, $matches, PREG_PATTERN_ORDER)) {
+            if (preg_match_all('!ISSN(?:-?1[03])?[^a-z]*?(\d{4}-?\d{3}[0-9X])!i', $description, $matches, PREG_PATTERN_ORDER)) {
                 $issns = array_unique($matches[1]);
                 if (!($rec_rectype>0) && defined('RT_JOURNAL_ARTICLE')){
                     $params['rec_rectype'] = RT_JOURNAL_ARTICLE;
@@ -181,16 +183,9 @@ $params['guest_data'] = (@$_REQUEST['guest_data']==1);
 
 print '<script>var prepared_params = '.json_encode($params).';</script>';
 
-if($_SERVER["SERVER_NAME"]=='localhost'||$_SERVER["SERVER_NAME"]=='127.0.0.1'){
-        print '<script type="text/javascript" src="'.PDIR.'external/jquery.fancytree/jquery.fancytree-all.min.js"></script>';
-}else{
-        print '<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/jquery.fancytree/2.16.1/jquery.fancytree-all.min.js"></script>';
-}
 ?>
-        <link rel="stylesheet" type="text/css" href="<?php echo PDIR;?>external/jquery.fancytree/skin-themeroller/ui.fancytree.css" />
-        <script type="text/javascript" src="<?php echo PDIR;?>external/js/ui.tabs.paging.js"></script>
-
-        <script type="text/javascript" src="<?php echo PDIR;?>external/jquery.layout/jquery.layout-latest.js"></script>
+        <script type="text/javascript" src="<?php echo PDIR;?>external/jquery.widgets/ui.tabs.paging.js"></script>
+        <script type="text/javascript" src="<?php echo PDIR;?>external/jquery.widgets/jquery.layout.js"></script>
         <script type="text/javascript" src="<?php echo PDIR;?>hclient/widgets/viewers/resultList.js"></script>
 
         <script type="text/javascript" src="<?php echo PDIR;?>hclient/widgets/editing/selectFile.js"></script>
@@ -210,42 +205,12 @@ if($_SERVER["SERVER_NAME"]=='localhost'||$_SERVER["SERVER_NAME"]=='127.0.0.1'){
         <script type="text/javascript" src="<?php echo PDIR;?>hclient/widgets/entity/searchUsrTags.js"></script>
         <script type="text/javascript" src="<?php echo PDIR;?>hclient/widgets/viewers/mediaViewer.js"></script>
 
+        <script type="text/javascript" src="<?php echo PDIR;?>hclient/widgets/baseAction.js"></script>
         <script type="text/javascript" src="<?php echo PDIR;?>hclient/widgets/record/recordAction.js"></script>
         <script type="text/javascript" src="<?php echo PDIR;?>hclient/widgets/record/recordAccess.js"></script>
 
         <script type="text/javascript" src="<?php echo PDIR;?>hclient/widgets/editing/editorCodeMirror.js"></script>
         <link rel="stylesheet" href="<?php echo PDIR;?>external/codemirror-5.61.0/lib/codemirror.css">
-
-
-        <!-- loaded dynamically in editing.js
-        <script type="text/javascript" src="<?php echo PDIR;?>external/tinymce5/tinymce.min.js"></script>
-        -->
-
-        <!-- Calendar picker -->
-<!--
-        <script type="text/javascript" src="<?php echo PDIR;?>external/jquery.calendars-2.1.1/js/jquery.plugin.min.js"></script>
-        <script type="text/javascript" src="<?php echo PDIR;?>external/jquery.calendars-2.1.1/js/jquery.calendars.all.min.js"></script>
-        <script type="text/javascript" src="<?php echo PDIR;?>external/jquery.calendars-2.1.1/js/jquery.calendars.picker.min.js"></script>
-        <link rel="stylesheet" type="text/css" href="<?php echo PDIR;?>external/jquery.calendars-2.1.1/css/jquery.calendars.picker.css">
-
-        <script type="text/javascript" src="<?php echo PDIR;?>external/jquery.calendars-1.2.1/jquery.calendars.js"></script>
-        <script type="text/javascript" src="<?php echo PDIR;?>external/jquery.calendars-1.2.1/jquery.calendars.plus.js"></script>
-
-        <link rel="stylesheet" type="text/css" href="<?php echo PDIR;?>external/jquery.calendars-1.2.1/jquery.calendars.picker.css">
-        <script type="text/javascript" src="<?php echo PDIR;?>external/jquery.calendars-1.2.1/jquery.calendars.picker.js"></script>
-
-        <script src="<?php echo PDIR;?>external/jquery.calendars-1.2.1/jquery.calendars.taiwan.js"></script>
-        <script src="<?php echo PDIR;?>external/jquery.calendars-1.2.1/jquery.calendars.thai.js"></script>
-        <script src="<?php echo PDIR;?>external/jquery.calendars-1.2.1/jquery.calendars.julian.js"></script>
-        <script src="<?php echo PDIR;?>external/jquery.calendars-1.2.1/jquery.calendars.persian.js"></script>
-        <script src="<?php echo PDIR;?>external/jquery.calendars-1.2.1/jquery.calendars.islamic.js"></script>
-        <script src="<?php echo PDIR;?>external/jquery.calendars-1.2.1/jquery.calendars.ummalqura.js"></script>
-        <script src="<?php echo PDIR;?>external/jquery.calendars-1.2.1/jquery.calendars.hebrew.js"></script>
-        <script src="<?php echo PDIR;?>external/jquery.calendars-1.2.1/jquery.calendars.ethiopian.js"></script>
-        <script src="<?php echo PDIR;?>external/jquery.calendars-1.2.1/jquery.calendars.coptic.js"></script>
-        <script src="<?php echo PDIR;?>external/jquery.calendars-1.2.1/jquery.calendars.nepali.js"></script>
-        <script src="<?php echo PDIR;?>external/jquery.calendars-1.2.1/jquery.calendars.mayan.js"></script>
--->
 
         <script type="text/javascript">
             var $container;
@@ -293,7 +258,7 @@ if($_SERVER["SERVER_NAME"]=='localhost'||$_SERVER["SERVER_NAME"]=='127.0.0.1'){
                         new_record_params['title'] = __param('d');
                         new_record_params['title'] = __param('f');//favicon
 
-                        if(count($details)>0)
+                        if(!empty($details))
                             new_record_params['details'] = $details;
                         */
 
@@ -306,16 +271,16 @@ if($_SERVER["SERVER_NAME"]=='localhost'||$_SERVER["SERVER_NAME"]=='127.0.0.1'){
                         in_popup_dialog: isPopup,
                         new_record_params: new_record_params,
                         layout_mode:'<div class="ent_wrapper editor">'
-                            + '<div class="ent_content_full recordList"  style="display:none;"/>'
+                            + '<div class="ent_content_full recordList"  style="display:none;"></div>'
 
                             + '<div class="ent_header editHeader"></div>'
                             + '<div class="editFormDialog ent_content">'
                                     + '<div class="ui-layout-west"><div class="editStructure treeview_with_header" style="background:white">'       +'</div></div>' //container for rts_editor
-                                    + '<div class="ui-layout-center"><div class="editForm"/></div>'
+                                    + '<div class="ui-layout-center"><div class="editForm"></div></div>'
                                     + '<div class="ui-layout-east"><div class="editFormSummary">....</div></div>'
-                                    //+ '<div class="ui-layout-south><div class="editForm-toolbar"/></div>'
+                                    //+ '<div class="ui-layout-south><div class="editForm-toolbar"></div></div>'
                             + '</div>'
-                            + '<div class="ent_footer editForm-toolbar"/>'
+                            + '<div class="ent_footer editForm-toolbar"></div>'
                         +'</div>',
                         onInitFinished:function(){
 
@@ -333,14 +298,14 @@ if($_SERVER["SERVER_NAME"]=='localhost'||$_SERVER["SERVER_NAME"]=='127.0.0.1'){
                                                 needall: 1, //it means return all recors - no limits
                                                 detail: 'ids'},
                                 function( response ){
-                                    //that.loadanimation(false);
+
                                     if(response.status == window.hWin.ResponseStatus.OK){
 
                                         var recset = new HRecordSet(response.data);
                                         if(recset.length()>0){
                                             $container.manageRecords('updateRecordList', null, {recordset:recset});
                                             $container.manageRecords('addEditRecord', recset.getOrder()[0]);
-                                            //since recID may be resolved via recForwarding  (recID>0)?recID:recset.getOrder()[0]);
+
                                         }else{ // if(isPopup){
 
                                             var sMsg = ' does not exist in database or has status "hidden" for non owners';

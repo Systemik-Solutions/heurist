@@ -34,7 +34,7 @@ require_once dirname(__FILE__).'/../../hclient/framecontent/initPage.php';
                 text-decoration: none;
             }
             .external-link{
-                background-image: url('<?=HEURIST_BASE_URL?>hclient/assets/external_link_16x16.gif');
+                background-image: url('<?php echo ICON_EXTLINK;?>');
                 background-repeat: no-repeat;
                 padding-left: 12px;
                 padding-top: 1px;
@@ -103,16 +103,15 @@ require_once dirname(__FILE__).'/../../hclient/framecontent/initPage.php';
         </style>
 
         <!-- Layouts -->
-        <script type="text/javascript" src="<?php echo PDIR;?>external/jquery.layout/jquery.layout-latest.js"></script>
+        <script type="text/javascript" src="<?php echo PDIR;?>external/jquery.widgets/jquery.layout.js"></script>
+        <script type="text/javascript" src="<?php echo PDIR;?>external/jquery.widgets/evol.colorpicker.js" charset="utf-8"></script>
+        <link type="text/css" href="<?php echo PDIR;?>external/jquery.widgets/evol.colorpicker.css" rel="stylesheet"/>
+
         <script type="text/javascript" src="<?php echo PDIR;?>hclient/core/layout.js"></script>
 
         <!-- D3 -->
         <script type="text/javascript" src="<?php echo PDIR;?>external/d3/d3.js"></script>
         <script type="text/javascript" src="<?php echo PDIR;?>external/d3/fisheye.js"></script>
-
-        <!-- Colpick -->
-        <script type="text/javascript" src="<?php echo PDIR;?>external/js/evol.colorpicker.js" charset="utf-8"></script>
-        <link href="<?php echo PDIR;?>external/js/evol.colorpicker.css" rel="stylesheet" type="text/css">
 
         <!-- Visualize plugin -->
         <script type="text/javascript" src="<?php echo PDIR;?>viewers/visualize/settings.js"></script>
@@ -135,9 +134,7 @@ require_once dirname(__FILE__).'/../../hclient/framecontent/initPage.php';
 
                     var request = {source: 'dbsummary', w:'a',
                                         q:  't:'+rt_ID};
-                    if(window.hWin.HAPI4.sysinfo['layout']=='H4Default'){
-                        window.hWin.HAPI4.LayoutMgr.putAppOnTopById('FAP');
-                    }
+
                     window.hWin.HAPI4.RecordSearch.doSearch( $(window.hWin.document), request );
 
                     if(window.hWin.HAPI4.sysinfo['layout']!='H4Default'){
@@ -155,6 +152,8 @@ require_once dirname(__FILE__).'/../../hclient/framecontent/initPage.php';
 
         </script>
 
+        
+        <meta name="robots" content="noindex,nofollow">
     </head>
 
     <body class="popup" style="background-color: #FFF;padding: 0px;margin: 0px;">
@@ -194,7 +193,7 @@ require_once dirname(__FILE__).'/../../hclient/framecontent/initPage.php';
                                       GROUP BY id
                                       ORDER BY rtg_Order, title ASC";
                             // Put record types & counts in the table
-                            $res = $system->get_mysqli()->query($query);
+                            $res = $system->getMysqli()->query($query);
                             $count = 0;
                             $grp_name = null;
                             $first_grp  = 'first_grp';
@@ -221,7 +220,7 @@ require_once dirname(__FILE__).'/../../hclient/framecontent/initPage.php';
                                 //HAPI4.iconBaseURL
                                 // Image
                                 $rectypeImg = "style='background-image:url(".HEURIST_RTY_ICON.$rt_ID.")'";
-                                $img = "<img src='".PDIR."hclient/assets/16x16.gif' title='".$title. "' ".$rectypeImg." class='rft' />";
+                                $img = "<img src='".ICON_PLACEHOLDER."' title='$title' $rectypeImg class='rft' />";
                                 echo "<td align='center'>$img</td>";
 
                                 // Type
@@ -276,29 +275,31 @@ require_once dirname(__FILE__).'/../../hclient/framecontent/initPage.php';
                 d3.json(url, function(error, json_data) {
                     // Error check
                     if(error) {
-                        window.hWin.HEURIST4.msg.showMsgErr("Error loading JSON data: " + error.message);
+                        window.hWin.HEURIST4.msg.showMsgErr({
+                            message: `Error loading JSON data: ${error.message}`,
+                            error_title: 'Unable to load diagram',
+                            status: window.hWin.ResponseStatus.UNKNOWN_ERROR
+                        });
                     }
 
                     // Data loaded successfully!
                     /** RECORD FILTERING */
                     // Set filtering settings in UI
-                    var isfirst_time = false;
-                    var at_least_one_marked = false;
+                    let isfirst_time = false;
+                    let at_least_one_marked = false;
 
                     <?php
                         if($count==0){ //reset setting for empty db (only once)
-                    ?>
-                            isfirst_time = !(getSetting('hdb_'+window.hWin.HAPI4.database)>0);
-                            putSetting('hdb_'+window.hWin.HAPI4.database, 1);
-                    <?php
+                            print 'isfirst_time = !(getSetting("'.HEURIST_DB_PREFIX.'"+window.hWin.HAPI4.database)>0); ';
+                            print 'putSetting("'.HEURIST_DB_PREFIX.'"+window.hWin.HAPI4.database, 1); ';
                         }
                     ?>
 
                     if(!isfirst_time){
                         //restore setting for non empty db
                         $(".show-record").each(function() {
-                            var name = $(this).attr("name");
-                            var record = getSetting(name);//@todo - change to recordtype ID
+                            const name = $(this).attr("name");
+                            const record = getSetting(name);//@todo - change to recordtype ID
                             if(record>0) {
                                 at_least_one_marked = true;
                                 $(this).prop("checked", true);
@@ -323,9 +324,9 @@ require_once dirname(__FILE__).'/../../hclient/framecontent/initPage.php';
                     // Listen to 'show-record' checkbox changes
                     $(".show-record").on('change', function(e) {
                         // Update record field 'checked' value in localstorage
-                        var name = $(e.target).attr("name");
+                        const name = $(e.target).attr("name");
 
-                        var value = $(e.target).is(':checked') ? 1 : 0;
+                        const value = $(e.target).is(':checked') ? 1 : 0;
                         // Set 'checked' attribute and store it
                         putSetting(name, value);
 
@@ -336,12 +337,12 @@ require_once dirname(__FILE__).'/../../hclient/framecontent/initPage.php';
                     // Listen to the 'show-all' checkbox
                     $("#show-all").on('change', function() {
                         // Change all check boxes
-                        var checked = $(this).prop('checked');
+                        const checked = $(this).prop('checked');
                         $(".show-record").prop("checked", checked);
 
                         // Update localstorage
                         $(".show-record").each(function(e) {
-                            var name = $(this).attr("name");
+                            const name = $(this).attr("name");
                             // Set 'checked' attribute and store it
                             putSetting(name, checked?1:0);
                         });
@@ -352,15 +353,15 @@ require_once dirname(__FILE__).'/../../hclient/framecontent/initPage.php';
                     // Listen to the 'group_chkbox' checkboxes, toggles all checkboxes within a record type group
                     $('.group_chkbox').on('change', function(){
 
-                        var group_id = $(this).attr('data-id');
-                        var checked = $(this).prop('checked');
+                        const group_id = $(this).attr('data-id');
+                        const checked = $(this).prop('checked');
 
                         if(group_id){
                             $('input.rectype_grp_'+group_id).prop('checked', checked);
 
                             // Update localstorage
                             $(".show-record").each(function(e) {
-                                var name = $(this).attr("name");
+                                const name = $(this).attr("name");
                                 // Set 'checked' attribute and store it
                                 putSetting(name, checked?1:0);
                             });
@@ -373,19 +374,19 @@ require_once dirname(__FILE__).'/../../hclient/framecontent/initPage.php';
                     // Parses the data
                     function getData(data) {
                         // Build name filter
-                        var names = [];
+                        let names = [];
                         $(".show-record").each(function() {
                             var checked = $(this).prop('checked');
                             if(checked == false) {
-                                var name = $(this).attr("name");
+                                const name = $(this).attr("name");
                                 names.push(name);
                             }
                         });
 
                         // Filter nodes
-                        var map = {};
-                        var size = 0;
-                        var nodes = data.nodes.filter(function(d, i) {
+                        let map = {};
+                        let size = 0;
+                        let nodes = data.nodes.filter(function(d, i) {
                             if($.inArray(d.name, names) == -1) {
                                 map[i] = d;
                                 return true;
@@ -394,10 +395,10 @@ require_once dirname(__FILE__).'/../../hclient/framecontent/initPage.php';
                         });
 
                         // Filter links
-                        var links = [];
+                        let links = [];
                         data.links.filter(function(d) {
                             if(map.hasOwnProperty(d.source) && map.hasOwnProperty(d.target)) {
-                                var link = {source: map[d.source], target: map[d.target], relation: d.relation, targetcount: d.targetcount};
+                                const link = {source: map[d.source], target: map[d.target], relation: d.relation, targetcount: d.targetcount};
                                 links.push(link);
                             }
                         })
@@ -409,7 +410,7 @@ require_once dirname(__FILE__).'/../../hclient/framecontent/initPage.php';
                     // Visualizes the data
                     function initVisualizeData() {
                         // Call plugin
-                        var data_to_vis = getData(json_data);
+                        const data_to_vis = getData(json_data);
 
                         $("#visualisation").visualize({
                             data: json_data,
@@ -425,7 +426,7 @@ require_once dirname(__FILE__).'/../../hclient/framecontent/initPage.php';
                         //localStorage.clear();
                     }
 
-                    $(window).resize(onVisualizeResize);
+                    $(window).on('onresize',onVisualizeResize);
 
                     onVisualizeResize();
                     initVisualizeData();
@@ -435,7 +436,7 @@ require_once dirname(__FILE__).'/../../hclient/framecontent/initPage.php';
 
             function onVisualizeResize(){
 
-				/*
+                /*
                 var width = $(window).width();
 
                 var is_advanced = getSetting('setting_advanced');
@@ -444,9 +445,9 @@ require_once dirname(__FILE__).'/../../hclient/framecontent/initPage.php';
                 if(width<645 || (is_advanced && width <= 1440)){
                      supw = 2;
                 }
-				*/
+                */
 
-                var dbkey = 'db'+window.hWin.HAPI4.database;
+                const dbkey = 'db'+window.hWin.HAPI4.database;
                 putSetting(dbkey, '1');
 
                 //$('#divSvg').css('top', 8+supw+'em');

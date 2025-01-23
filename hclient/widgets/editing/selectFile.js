@@ -73,7 +73,7 @@ $.widget( "heurist.selectFile", {
 
         $('<div class="ent_wrapper">'
                 +sFilter
-                +'<div class="ent_content_full recordList"/>'
+                +'<div class="ent_content_full recordList"></div>'
                 +'</div>').appendTo( this.element );
 
         if(this.options.showFilter){
@@ -88,7 +88,7 @@ $.widget( "heurist.selectFile", {
             +(this._is_archive_folder?'given folder':this.options.source);
         
         //resultList with images
-//init record list
+        //init record list
         this.recordList = this.element.find('.recordList');
         this.recordList
                     .resultList({
@@ -101,7 +101,7 @@ $.widget( "heurist.selectFile", {
                        show_viewmode: false,
                        
                        
-                       entityName: this._entityName,
+                       entityName: 'files', //this._entityName,
                        view_mode: this._is_archive_folder?'list':'thumbs',
                        
                        pagesize: 500,
@@ -157,8 +157,6 @@ $.widget( "heurist.selectFile", {
                 this._on( this.recordList, {        
                         "resultlistonselect": function(event, selected_recs){
                             
-                                    //var recordset = that.recordList.resultList('getRecordSet');
-                                    //recordset = recordset.getSubSetByIds(selected_recs);
                                     let recordset = selected_recs;
                                     let record = recordset.getFirstRecord();
                                     let filename = recordset.fld(record, 'file_name')
@@ -238,7 +236,6 @@ $.widget( "heurist.selectFile", {
                     if(response.status == window.hWin.ResponseStatus.OK){
                         
                         that._is_source_changed = false;
-                        
                         let recset = new HRecordSet(response.data);
                         if(recset.length()>0){
                             

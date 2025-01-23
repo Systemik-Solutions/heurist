@@ -26,24 +26,26 @@ Restore
 */
 set_time_limit(0);
 
-require_once dirname(__FILE__).'/../System.php';
+use hserv\utilities\DbUtils;
+use hserv\utilities\DbVerify;
+use hserv\utilities\DbVerifyURLs;
+use hserv\utilities\USanitize;
+
+require_once dirname(__FILE__).'/../../autoload.php';
+
 require_once dirname(__FILE__).'/../structure/dbsUsersGroups.php';
-require_once dirname(__FILE__).'/../utilities/dbUtils.php';
-require_once dirname(__FILE__).'/../utilities/dbVerify.php';
 require_once dirname(__FILE__).'/../../admin/setup/dboperations/welcomeEmail.php';
 
-$system = new System();
+define('PARAM_WELCOME','?welcome=1&db=');
+
+$system = new hserv\System();
 
 //sysadmin protection - reset from request to avoid exposure in possible error/log messages
-$create_pwd = System::getAdminPwd('create_pwd');
-$challenge_pwd = System::getAdminPwd('chpwd');
-$sysadmin_pwd = System::getAdminPwd('pwd');
+$create_pwd = USanitize::getAdminPwd('create_pwd');
+$challenge_pwd = USanitize::getAdminPwd('chpwd');
+$sysadmin_pwd = USanitize::getAdminPwd('pwd');
 
-if(@$_SERVER['REQUEST_METHOD']=='POST'){
-    $req_params = filter_input_array(INPUT_POST);
-}else{
-    $req_params = filter_input_array(INPUT_GET);
-}
+$req_params = USanitize::sanitizeInputArray();
 
 $action = @$req_params['a'];
 $locale = @$req_params['locale'];
@@ -59,9 +61,9 @@ if(!$system->init(@$req_params['db'], ($action!='create'))){ //db required, exce
     $response = $system->getError();
 }else{
 
-   $isNewUserRegistration = ($action=='create' && !$system->has_access());
+   $isNewUserRegistration = ($action=='create' && !$system->hasAccess());
 
-   if(!($isNewUserRegistration || $system->has_access())){
+   if(!($isNewUserRegistration || $system->hasAccess())){
         $response = $system->addError(HEURIST_REQUEST_DENIED, 'You must be logged in');
         //@todo !!!!!  check for $passwordForDatabaseCreation
    }else{
@@ -73,7 +75,7 @@ if(!$system->init(@$req_params['db'], ($action!='create'))){ //db required, exce
             DbUtils::setSessionId($session_id);//start progress session
         }
 
-        $mysqli =  $system->get_mysqli();
+        $mysqli =  $system->getMysqli();
 
         if($action=='list'){
             //get list of available databases
@@ -143,7 +145,7 @@ if(!$system->init(@$req_params['db'], ($action!='create'))){ //db required, exce
                         }
 
                     }else{
-                        $ugr_ID = $system->get_user_id();
+                        $ugr_ID = $system->getUserId();
                         $usr_owner = user_getById($mysqli, $ugr_ID);
                     }
 
@@ -152,11 +154,11 @@ if(!$system->init(@$req_params['db'], ($action!='create'))){ //db required, exce
                         $res = DbUtils::databaseCreateFull($database_name, $usr_owner);
 
                         if($res!==false){
-                            sendEmail_NewDatabase($usr_owner, $database_name, null);
+                            sendEmailNewDatabase($usr_owner, $database_name, null);
                             //add url to new database
                             $res = array(
                                 'newdbname'  => $database_name,
-                                'newdblink'  => HEURIST_BASE_URL.'?db='.$database_name.'&welcome=1',
+                                'newdblink'  => HEURIST_BASE_URL.PARAM_WELCOME.$database_name,
                                 'newusername'=> $usr_owner['ugr_Name'],
                                 'warnings'   => $res);
                         }
@@ -186,7 +188,7 @@ if(!$system->init(@$req_params['db'], ($action!='create'))){ //db required, exce
                         //add url to new database
                         $res = array(
                             'newdbname'  => $database_name,
-                            'newdblink'  => HEURIST_BASE_URL.'?db='.$database_name.'&welcome=1'
+                            'newdblink'  => HEURIST_BASE_URL.PARAM_WELCOME.$database_name
                         );
                     }
                 }
@@ -215,7 +217,7 @@ if(!$system->init(@$req_params['db'], ($action!='create'))){ //db required, exce
 
                 if($is_current_db) {
 
-                    if($system->is_dbowner() || $allow_action){
+                    if($system->isDbOwner() || $allow_action){
 
                         $challenge_word = ($action=='clear')?'CLEAR ALL RECORDS':'DELETE MY DATABASE';
                         $allow_action = !$system->verifyActionPassword($challenge_pwd, $challenge_word);
@@ -235,15 +237,14 @@ if(!$system->init(@$req_params['db'], ($action!='create'))){ //db required, exce
 
                     $res = DbUtils::databaseEmpty($db_target, false);
 
-                }else
-                if($action=='delete'){
+                }elseif($action=='delete'){
                     //keep owner info to send email after deletion
                     $usr_owner = user_getByField($mysqli, 'ugr_ID', 2, $db_target);
 
                     $res = DbUtils::databaseDrop(false, $db_target, $create_archive);
 
                     if($res!==false && !$is_current_db){
-                        sendEmail_DatabaseDelete($usr_owner, $db_target, 1);
+                        sendEmailDatabaseDelete($usr_owner, $db_target);
                     }
                 }
             }
@@ -300,7 +301,7 @@ if(!$system->init(@$req_params['db'], ($action!='create'))){ //db required, exce
                         $sourceRegID = mysql__select_value($mysqli, 'select sys_dbRegisteredID from `'.$db_source_full.'`.sysIdentification where 1');
 
                         if($is_current_db){
-                            if(!$system->is_admin()){
+                            if(!$system->isAdmin()){
                                 $system->addError(HEURIST_REQUEST_DENIED,
 'To perform this action you must be logged in as Administrator of group \'Database Managers\' or as Database Owner');
                             }else{
@@ -345,12 +346,11 @@ $sErrorMsg = "Sorry, the database $db_source must be registered with an ID less 
                     if($res!==false){
                         $res = array(
                                 'newdbname'  => $db_target,
-                                'newdblink'  => HEURIST_BASE_URL.'?db='.$db_target.'&welcome=1',
+                                'newdblink'  => HEURIST_BASE_URL.PARAM_WELCOME.$db_target,
                                 'warning'    => $system->getErrorMsg());
                     }
 
-                }else
-                if($action=='clone'){
+                }elseif($action=='clone'){
 
                     $res = DbUtils::databaseCloneFull($db_source, $db_target, $nodata, $is_template);
 
@@ -360,12 +360,12 @@ $sErrorMsg = "Sorry, the database $db_source must be registered with an ID less 
 
                         //to send email after clone
                         $usr_owner = user_getByField($mysqli, 'ugr_ID', 2, $db_target);
-                        sendEmail_NewDatabase($usr_owner, $db_target,
+                        sendEmailNewDatabase($usr_owner, $db_target,
                                 ' from  '.($is_template?'':'template ').$db_source);
 
                         $res = array(
                                 'newdbname'  => $db_target,
-                                'newdblink'  => HEURIST_BASE_URL.'?db='.$db_target.'&welcome=1');
+                                'newdblink'  => HEURIST_BASE_URL.PARAM_WELCOME.$db_target);
 
                     }
 
@@ -373,11 +373,36 @@ $sErrorMsg = "Sorry, the database $db_source must be registered with an ID less 
             }
 
         }
+        elseif($action=='verifyurls')
+        {
 
+            if(!$system->isAdmin()){
+                $system->addError(HEURIST_REQUEST_DENIED,
+'To perform this action you must be logged in as Administrator of group \'Database Managers\' or as Database Owner');
+            }else{
+                
+                $isHeuristReferenceIndex = (strcasecmp(HEURIST_DBNAME,'Heurist_Reference_Index')==0);
+                $checker = new DbVerifyURLs($system, HEURIST_SERVER_URL, $isHeuristReferenceIndex);
+                
+                if(@$req_params['checksession']==1){
+                    $res = $checker->getCurrentSessionInfo();
+                }elseif(@$req_params['getsession']==1){
+                    
+                    $checker->outputSummaryInfoAsCSV();
+                    exit;
+                    
+                }else{
+                    $res = $checker->checkURLs(@$req_params['verbose']==1, false, @$req_params['limit'], @$req_params['mode'], $session_id);
+                }
+                
+            }
+            
+            
+        }        
         elseif($action=='verify')
         {
 
-            if(!$system->is_admin()){
+            if(!$system->isAdmin()){
                 $system->addError(HEURIST_REQUEST_DENIED,
 'To perform this action you must be logged in as Administrator of group \'Database Managers\' or as Database Owner');
             }else{
@@ -397,7 +422,7 @@ $sErrorMsg = "Sorry, the database $db_source must be registered with an ID less 
                 }
 
                 $res = array();
-                if(count($actions)>0){
+                if(!empty($actions)){
 
                     $counter = 0;
                     foreach($actions as $action){
@@ -410,7 +435,7 @@ $sErrorMsg = "Sorry, the database $db_source must be registered with an ID less 
 
                             if(is_bool($res2) && $res2==false){
                                 //terminated by user
-                                if(count($res)==0){
+                                if(empty($res)){
                                     $res = false;
                                 }
                                 break;
@@ -420,7 +445,7 @@ $sErrorMsg = "Sorry, the database $db_source must be registered with an ID less 
                                 if(DbUtils::setSessionVal($counter)){
                                     //terminated by user
                                     $system->addError(HEURIST_ACTION_BLOCKED, 'Database Verification has been terminated by user');
-                                    if(count($res)==0){
+                                    if(empty($res)){
                                         $res = false;
                                     }
                                     break;
@@ -431,7 +456,7 @@ $sErrorMsg = "Sorry, the database $db_source must be registered with an ID less 
 
                 }
                 if(is_array($res)){
-                    if(!(count($res)>0)){
+                    if(empty($res)){
                         $system->addError(HEURIST_INVALID_REQUEST, "'Checks' parameter is missing or incorrect");
                         $res = false;
                     }elseif(@$req_params['reload']==1){
@@ -450,12 +475,12 @@ $sErrorMsg = "Sorry, the database $db_source must be registered with an ID less 
         if(is_bool($res) && $res==false){
                 $response = $system->getError();
         }else{
-                $response = array('status'=>HEURIST_OK, 'data'=> $res, 'message'=>$system->getErrorMsg());
+                $response = array('status'=>HEURIST_OK, 'data'=> $res, 'message'=>$system->getErrorMsg());  //last param is termination message
         }
    }
 }
 
-header('Content-type: text/javascript');
+header(CTYPE_JSON);
 print json_encode($response);
 
 
@@ -468,7 +493,9 @@ function __composeDbName($system, $req_params){
     $uName = '';
     if(@$req_params['uname']){
         $uName = trim(preg_replace(REGEX_ALPHANUM, '', @$req_params['uname'])).'_';//for snyk
-        if ($uName == '_') {$uName='';};// don't double up underscore if no user prefix
+        if ($uName == '_') {
+                $uName='';  // don't double up underscore if no user prefix
+        }
     }
     $dbName = trim(preg_replace(REGEX_ALPHANUM, '', @$req_params['dbname']));
 

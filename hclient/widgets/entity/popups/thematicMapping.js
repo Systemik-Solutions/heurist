@@ -74,8 +74,7 @@ $.widget( "heurist.thematicMapping", $.heurist.recordAction, {
         
         path: 'widgets/entity/popups/', //location of this widget
         
-        htmlContent: 'thematicMapping.html',
-        helpContent: 'thematicMapping.html' //in context_help folder
+        htmlContent: 'thematicMapping.html'
     },
     
     baseLayerSymbol: null, //from layer 
@@ -102,7 +101,6 @@ $.widget( "heurist.thematicMapping", $.heurist.recordAction, {
     //
     _getActionButtons: function(){
         let res = this._super();
-        let that = this;
         res[1].text = window.hWin.HR('Save thematic map');
         res[0].text = window.hWin.HR('Cancel');
         return res;
@@ -186,7 +184,7 @@ $.widget( "heurist.thematicMapping", $.heurist.recordAction, {
         //
         //
         //
-        let opt, selScope = this.selectRecordScope.get(0);
+        let selScope = this.selectRecordScope.get(0);
         this.selectRecordScope = window.hWin.HEURIST4.ui.createRectypeSelectNew( selScope,
         {
             topOptions: [{key:'-1',title:'select record type...'}],
@@ -300,7 +298,7 @@ $.widget( "heurist.thematicMapping", $.heurist.recordAction, {
     {
         let isdisabled = this._super();
         
-        //window.hWin.HEURIST4.util.setDisabled( this.element.parents('.ui-dialog').find('#btnDoAction2'), isdisabled );
+        
         
         let rtyID = this.selectRecordScope.val();
         
@@ -308,9 +306,6 @@ $.widget( "heurist.thematicMapping", $.heurist.recordAction, {
             if(rtyID>0){
                 //reload treeview
                 this._loadRecordTypesTreeView( rtyID );
-                //$('.rtt-tree').parent().show();
-            }else{
-                //$('.rtt-tree').parent().hide();
             }
         }
         
@@ -368,15 +363,15 @@ $.widget( "heurist.thematicMapping", $.heurist.recordAction, {
             },
             renderNode: function(event, data){
                 /*
-                if(false && data.node.data.type == "enum") { 
+                if(false && data.node.type == "enum") { 
                     // hide blue and expand arrows for terms
                     $(data.node.span.childNodes[0]).hide();
                     $(data.node.span.childNodes[1]).hide();
                 }*/
-                if(data.node.parent && (data.node.parent.data.type == 'resource' || data.node.parent.data.type == 'rectype')){ // add left border+margin
+                if(data.node.parent && (data.node.parent.type == 'resource' || data.node.parent.type == 'rectype')){ // add left border+margin
                     $(data.node.li).attr('style', 'border-left: black solid 1px !important;margin-left: 9px;');
                 }
-                if(!(data.node.data.type == 'resource' || data.node.data.type == 'rectype'))
+                if(!(data.node.type == 'resource' || data.node.type == 'rectype'))
                 {
                     //define action button
                    
@@ -414,8 +409,7 @@ $.widget( "heurist.thematicMapping", $.heurist.recordAction, {
                             ele.hide();
                         }               
 
-                        $(parent_span).hover(
-                            function(event){
+                        function _onmouseenter(event){
                                 let node;
                                 if($(event.target).hasClass('fancytree-node')){
                                     node =  $(event.target);
@@ -427,16 +421,17 @@ $.widget( "heurist.thematicMapping", $.heurist.recordAction, {
                                     ele.css({'display':'inline-block'});//.css('visibility','visible');
                                 }
                             }
-                        );               
-                        $(parent_span).mouseleave(
+
+                        $(parent_span).on('mouseenter',
+                            _onmouseenter
+                        ).on('mouseleave',
                             _onmouseexit
-                        );                                                  
-                        
+                        );               
                         
                     }
                     
                     /*
-                    if(data.node.parent && data.node.parent.data.type == 'enum'){ // make term options inline and smaller
+                    if(data.node.parent && data.node.parent.type == 'enum'){ // make term options inline and smaller
                         $(data.node.li).css('display', 'inline-block');
                         $(data.node.span.childNodes[0]).css('display', 'none');
 
@@ -446,7 +441,7 @@ $.widget( "heurist.thematicMapping", $.heurist.recordAction, {
                     }
                     */
                 }
-                if(data.node.data.type == 'separator'){
+                if(data.node.type == 'separator'){
                     $(data.node.span).attr('style', 'background: none !important;color: black !important;'); //stop highlighting
                     $(data.node.span.childNodes[1]).hide(); //checkbox for separators
                 }
@@ -468,15 +463,15 @@ $.widget( "heurist.thematicMapping", $.heurist.recordAction, {
             },
             loadChildren: function(e, data){
                 setTimeout(function(){
-                    //that._assignSelectedFields();
+                   
                     },500);
             },
             select: function(e, data) {
-                //that._addThemeField();
+               
             },
             click: function(e, data){
 
-                if(data.node.data.type == 'separator'){
+                if(data.node.type == 'separator'){
                     return false;
                 }
 
@@ -503,7 +498,7 @@ $.widget( "heurist.thematicMapping", $.heurist.recordAction, {
                 }
             },
             dblclick: function(e, data) {
-                if(data.node.data.type == 'separator'){
+                if(data.node.type == 'separator'){
                     return false;
                 }
                 data.node.toggleSelected();
@@ -533,8 +528,8 @@ $.widget( "heurist.thematicMapping", $.heurist.recordAction, {
             
             let themes_list = this.element.find('#thematic_maps_list');
             window.hWin.HEURIST4.ui.addoption(themes_list[0], last_idx, newname);
-            //ele.value = $(ele).uniqueId();
-            //this.options.thematic_mapping[last_idx].uid = ele.value;
+           
+           
             
             themes_list[0].selectedIndex = last_idx;
             themes_list.trigger('change');
@@ -559,7 +554,7 @@ $.widget( "heurist.thematicMapping", $.heurist.recordAction, {
             let themes_list = this.element.find('#thematic_maps_list');
             this.options.thematic_mapping.splice(this.currentThemeIdx, 1);
             //remove from select
-            themes_list.find('option:eq(' + this.currentThemeIdx + ')').remove();
+            themes_list.find('option').eq(this.currentThemeIdx).remove();
             
             if(this.options.thematic_mapping.length==0){
                 //offer exit
@@ -608,16 +603,22 @@ $.widget( "heurist.thematicMapping", $.heurist.recordAction, {
             }
             
             if(window.hWin.HEURIST4.util.isempty(t_map.title)){
-                window.hWin.HEURIST4.msg.showMsgErr('Title is mandatory');            
+                window.hWin.HEURIST4.msg.showMsgErr({
+                    message: 'Title is mandatory',
+                    error_title: 'Missing title'
+                });
                 return false;
             }
             if(t_map.fields.length==0){
-                window.hWin.HEURIST4.msg.showMsgErr('Need to define at least one field with ranges/categories');
+                window.hWin.HEURIST4.msg.showMsgErr({
+                    message: 'Need to define at least one field with ranges/categories',
+                    error_title: 'Missing field'
+                });
                 return false;
             }
 
             //rename in the list
-            this.element.find('#thematic_maps_list').find('option:eq(' + this.currentThemeIdx + ')').html(t_map.title);
+            this.element.find('#thematic_maps_list').find('option').eq(this.currentThemeIdx).html(t_map.title);
             
             this.options.thematic_mapping[this.currentThemeIdx] = t_map;
             
@@ -677,7 +678,7 @@ $.widget( "heurist.thematicMapping", $.heurist.recordAction, {
     //
     _addThemeField: function( nodekey )
     {
-        let tree = this.element.find('.rtt-tree').fancytree("getTree");
+        let tree = $.ui.fancytree.getTree( this.element.find('.rtt-tree') );
         
         let node = tree.getNodeByKey(nodekey);
         
@@ -877,7 +878,7 @@ $.widget( "heurist.thematicMapping", $.heurist.recordAction, {
         let f_ranges = this.element.find('#f_ranges');
         fele.attr('readonly','readonly');
         
-        let $btn_edit_clear = $('<span>')
+        $('<span>')
         .addClass("smallbutton ui-icon ui-icon-circlesmall-close")
         .attr('tabindex', '-1')
         .attr('title', 'Reset default symbology')
@@ -1098,7 +1099,7 @@ $.widget( "heurist.thematicMapping", $.heurist.recordAction, {
             let query;
             if( (typeof field['facet'] === 'string') && (field['facet'] == '$IDS') ){ //this is field form target record type
                 //replace with list of ids
-                query = this.options.maplayer_query; //{ids: this._currentRecordset.getMainSet().join(',')};
+                query = this.options.maplayer_query;
 
             }else{
                 if(!this.maplayer_ids && !window.hWin.HEURIST4.util.isJSON(this.options.maplayer_query)){
@@ -1136,7 +1137,8 @@ $.widget( "heurist.thematicMapping", $.heurist.recordAction, {
                         try{
                             that.popele.find('#int_min').val(response.data[0][0]);
                             that.popele.find('#int_max').val(response.data[0][1]);
-                        }catch(e){
+                        }catch{
+                            console.error('cannot assign min max values');
                         }
                     }
 
@@ -1215,7 +1217,7 @@ $.widget( "heurist.thematicMapping", $.heurist.recordAction, {
             }else{
                 //all available enums 
                 let vocab_id = $Db.dty(this.fieldSelected['id'],'dty_JsonTermIDTree');
-                //$Db.rst(this.fieldSelected['rtid'],this.fieldSelected['id'],'rst_FilteredJsonTermIDTree');
+               
                 ranges = $Db.trm_TreeData(vocab_id, 'set');
             }
 
@@ -1244,7 +1246,7 @@ $.widget( "heurist.thematicMapping", $.heurist.recordAction, {
             
             function __rnd(original){
                 if(dty_Type=='float' && int_round<10){
-                    //let multiplier = Math.pow(10, int_round);
+                   
                     //return Math.round(original*multiplier)/multiplier;   
                     return int_round==0?Math.round(original): parseFloat( original.toFixed(int_round) );
                 }else if(int_round>=10){

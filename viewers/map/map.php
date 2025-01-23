@@ -27,51 +27,49 @@ require_once dirname(__FILE__).'/../../hclient/framecontent/initPage.php';
 
 $system->defineConstants();
 ?>
-<script type="text/javascript" src="<?php echo PDIR;?>external/jquery.layout/jquery.layout-latest.js"></script>
+<script type="text/javascript" src="<?php echo PDIR;?>external/jquery.widgets/jquery.layout.js"></script>
+<script type="text/javascript" src="<?php echo PDIR;?>external/jquery.widgets/evol.colorpicker.js" charset="utf-8"></script>
+<link type="text/css" href="<?php echo PDIR;?>external/jquery.widgets/evol.colorpicker.css" rel="stylesheet"/>
 
-<link rel="stylesheet" href="<?php echo PDIR;?>external/leaflet/geocoder/Control.Geocoder.css" />
 <?php
-if($_SERVER["SERVER_NAME"]=='localhost'||$_SERVER["SERVER_NAME"]=='127.0.0.1'){
+if(isLocalHost()){
 ?>
     <link rel="stylesheet" href="<?php echo PDIR;?>external/leaflet/leaflet.css"/>
     <script type="text/javascript" src="<?php echo PDIR;?>external/leaflet/leaflet.js"></script>
-    <script type="text/javascript" src="<?php echo PDIR;?>external/jquery.fancytree/jquery.fancytree-all.min.js"></script>
 <?php
 }else{
 ?>
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-
-
-    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/jquery.fancytree/2.16.1/jquery.fancytree-all.min.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="anonymous" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin="anonymous"></script>
 <?php
 }
 ?>
-<script type="text/javascript" src="<?php echo PDIR;?>external/leaflet/geocoder/Control.Geocoder.js"></script>
-<script type="text/javascript" src="<?php echo PDIR;?>external/leaflet/leaflet-tileLayerPixelFilter.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/dom-to-image/2.6.0/dom-to-image.js"></script>
+<script type="text/javascript"  src="https://cdnjs.cloudflare.com/ajax/libs/dom-to-image/2.6.0/dom-to-image.js"></script>
 
 <!-- leaflet plugins -->
-<script src="<?php echo PDIR;?>external/leaflet/leaflet-providers.js"></script>
-<script src="<?php echo PDIR;?>external/leaflet/bookmarks/Leaflet.Bookmarks.min.js"></script>
-<script src="<?php echo PDIR;?>external/leaflet/draw/leaflet.draw-src.js"></script>
-<link type="text/css" rel="stylesheet" href="<?php echo PDIR;?>external/leaflet/bookmarks/leaflet.bookmarks.css">
-<script src="<?php echo PDIR;?>external/leaflet/leaflet.browser.print.min.js"></script>
-<link type="text/css" rel="stylesheet" href="<?php echo PDIR;?>external/leaflet/draw/leaflet.draw.css">
-<link type="text/css" rel="stylesheet" href="<?php echo PDIR;?>external/leaflet/markercluster/MarkerCluster.css">
-<link type="text/css" rel="stylesheet" href="<?php echo PDIR;?>external/leaflet/markercluster/MarkerCluster.Default.css">
-<script src="<?php echo PDIR;?>external/leaflet/markercluster/leaflet.markercluster.js"></script>
-<script src="<?php echo PDIR;?>external/leaflet/wise-leaflet-pip.js"></script>
-<script src="<?php echo PDIR;?>external/leaflet/leaflet.circle.topolygon-src.js"></script>
+<script type="text/javascript" src="<?php echo PDIR;?>external/leaflet.plugins/leaflet-tileLayerPixelFilter.js"></script>
+<script type="text/javascript" src="<?php echo PDIR;?>external/leaflet.plugins/geocoder/Control.Geocoder.js"></script>
+<link rel="stylesheet" href="<?php echo PDIR;?>external/leaflet.plugins/geocoder/Control.Geocoder.css" />
+<script type="text/javascript" src="<?php echo PDIR;?>external/leaflet.plugins/leaflet-tileLayerPixelFilter.js"></script>
+<script type="text/javascript" src="<?php echo PDIR;?>external/leaflet.plugins/leaflet-providers.js"></script>
+<script type="text/javascript" src="<?php echo PDIR;?>external/leaflet.plugins/bookmarks/Leaflet.Bookmarks.min.js"></script>
+<script type="text/javascript" src="<?php echo PDIR;?>external/leaflet.plugins/draw/leaflet.draw-src.js"></script>
+<link type="text/css" rel="stylesheet" href="<?php echo PDIR;?>external/leaflet.plugins/bookmarks/leaflet.bookmarks.css">
+<script type="text/javascript"  src="<?php echo PDIR;?>external/leaflet.plugins/leaflet.browser.print.min.js"></script>
+<link type="text/css" rel="stylesheet" href="<?php echo PDIR;?>external/leaflet.plugins/draw/leaflet.draw.css">
+<link type="text/css" rel="stylesheet" href="<?php echo PDIR;?>external/leaflet.plugins/markercluster/MarkerCluster.css">
+<link type="text/css" rel="stylesheet" href="<?php echo PDIR;?>external/leaflet.plugins/markercluster/MarkerCluster.Default.css">
+<script type="text/javascript" src="<?php echo PDIR;?>external/leaflet.plugins/markercluster/leaflet.markercluster.js"></script>
+<script type="text/javascript" src="<?php echo PDIR;?>external/leaflet.plugins/wise-leaflet-pip.js"></script>
+<script type="text/javascript" src="<?php echo PDIR;?>external/leaflet.plugins/leaflet.circle.topolygon-src.js"></script>
+<script type="text/javascript" src="<?php echo PDIR;?>external/leaflet.plugins/leaflet-iiif.js"></script>
 
-<link type="text/css" rel="stylesheet" href="<?php echo PDIR;?>external/leaflet/bookmarks/leaflet.bookmarks.css">
-
-
-<script src="<?php echo PDIR;?>external/leaflet/leaflet-iiif.js"></script>
-
-
-<link rel="stylesheet" type="text/css" href="<?php echo PDIR;?>external/jquery.fancytree/skin-themeroller/ui.fancytree.css" />
-
+<!--  geotiff support plugin is more than 1MB - it is loaded on demand
+<script src="https://unpkg.com/proj4"></script>
+<script src="https://unpkg.com/georaster"></script>
+<script src="https://unpkg.com/georaster-layer-for-leaflet"></script>
+-->
+ 
 <script type="text/javascript" src="<?php echo PDIR;?>hclient/core/temporalObjectLibrary.js"></script>
 
 <script type="text/javascript" src="<?php echo PDIR;?>hclient/core/accessTokens.php"></script>
@@ -87,8 +85,6 @@ if($_SERVER["SERVER_NAME"]=='localhost'||$_SERVER["SERVER_NAME"]=='127.0.0.1'){
 <script type="text/javascript" src="<?php echo PDIR;?>hclient/widgets/editing/editing2.js"></script>
 <script type="text/javascript" src="<?php echo PDIR;?>hclient/widgets/editing/editing_input.js"></script>
 <script type="text/javascript" src="<?php echo PDIR;?>hclient/widgets/editing/editing_exts.js"></script>
-<script type="text/javascript" src="<?php echo PDIR;?>external/js/evol.colorpicker.js" charset="utf-8"></script>
-<link href="<?php echo PDIR;?>external/js/evol.colorpicker.css" rel="stylesheet" type="text/css">
 
 <script type="text/javascript" src="<?php echo PDIR;?>hclient/widgets/entity/manageEntity.js"></script>
 <script type="text/javascript" src="<?php echo PDIR;?>hclient/widgets/entity/searchEntity.js"></script>
@@ -416,7 +412,7 @@ if (!(@$_REQUEST['notimeline']=='true' || @$_REQUEST['notimeline']=='1')) { ?>
 <!-- HTML -->
 
 <body>
-    <div id="mapping" style="min-height:1px;height:100%; width:100%;cursor:progress">
+    <div id="mapping" style="min-height:1px;height:100%; width:100%;cursor:progress;position:absolute;">
         <!-- Map -->
         <div class="ui-layout-center">
                 <div id="map" style="width:100%; height:100%" class="ui-layout-content"><span id="map-loading">Mapping...</span></div>

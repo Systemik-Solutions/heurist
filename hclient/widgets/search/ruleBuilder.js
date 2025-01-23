@@ -33,7 +33,7 @@ $.widget( "heurist.ruleBuilder", {
     },
 
     _selection: null,     // current set of selected records
-    _arr_fields:[],       // all direct and reverse resource and relation fields
+    _arr_fields:[],       // all direct and reverse resource (record pointer) and relation fields
     
     _arr_rectypes:[],          //list of all target rectypes for current selected source rt
 
@@ -97,34 +97,34 @@ $.widget( "heurist.ruleBuilder", {
         .attr('title', 'Add an additional Heurist query string which will filter the set of records retrieved by this rule' )
         .appendTo( $('<div>').css({'width':'220px'}).appendTo(this.element) );
 
-        /*this.btn_save   = $( "<button>", {text:'Save'} ).appendTo(this.element);
-        this.btn_cancel = $( "<button>", {text:'Cancel'} ).appendTo(this.element);*/
+        /*this.btn_save   = $( "<button>", {label:'Save'} ).appendTo(this.element);
+        this.btn_cancel = $( "<button>", {label:'Cancel'} ).appendTo(this.element);*/
 
         //(this.options.level<3)?'12em':
         this.div_btn2 =  $('<div>').css({'width':'60px'}).appendTo(this.element); //,'margin-left':'0.5em'
 
-        this.btn_edit = $( "<button>", {text:'Filter'})
+        this.btn_edit = $( "<button>")
         .attr('title', 'Create additional filter' )
         .css('font-size','0.8em')
-        .button({icons: { primary: "ui-icon-pencil" }, text:false}).appendTo(this.div_btn2);
+        .button({icon: "ui-icon-pencil", label:'Filter', showLabel:false}).appendTo(this.div_btn2);
         
-        this.btn_delete = $( "<button>", {text:'Delete'})
+        this.btn_delete = $( "<button>")
         .attr('title', 'Delete this step in the rule' )
         .css('font-size','0.8em')
-        .button({icons: { primary: "ui-icon-closethick" }, text:false}).appendTo(this.div_btn2);
+        .button({icon: "ui-icon-closethick", label:'Delete', showLabel:false}).appendTo(this.div_btn2);
 
         if(this.options.level<3)
             this.div_btn =  $('<div>').css({'display':'block','margin': '4px 0 0 '+this.options.level*25+'px'}).appendTo(this.element); //,'margin-left':'0.5em'
-            this.btn_add_next_level = $( "<button>", {text:'Add Step '+this.options.level} )
+            this.btn_add_next_level = $( "<button>" )
             .attr('title', 'Adds another step to this rule' )
             .css('font-size','0.8em')
-            .button().appendTo(this.div_btn);
+            .button({label:'Add Step '+this.options.level}).appendTo(this.div_btn);
 
 
         //event handlers
         this._on( this.select_source_rectype, { change: this._onSelectRectype });
 
-        this._on( this.btn_delete, {click: this._removeRule }); // function( event ){ this._trigger( "onremove", event, { id:this.element.attr('id') } ) } } );
+        this._on( this.btn_delete, {click: this._removeRule });
         this._on( this.btn_edit, {click: this._editFilter }); 
 
         if(this.options.level<3)
@@ -205,14 +205,12 @@ $.widget( "heurist.ruleBuilder", {
     //update relation and target selectors
     _onSelectRectype: function(event){
 
-        let rt_ID = this.select_source_rectype.val(); //event.target.value;
+        let rt_ID = this.select_source_rectype.val();
 
         //find all relation types
         // a. pointer fields
         // b. relation types for relmarkers
         // c. all recordtypes contrained in pointer and relmarkers fields
-
-        let source_rt_name = $Db.rty(rt_ID,'rty_Name');
 
         let vocab_id;
         let arr_direct = {};
@@ -225,7 +223,7 @@ $.widget( "heurist.ruleBuilder", {
             let recset = all_structs[rty_ID];
             recset.each2(function(dtyID, record){
             
-            //dtyID = record['rst_DetailTypeID'];
+           
             let fieldtype = $Db.dty(dtyID, 'dty_Type');
             
             if(fieldtype=='resource' || fieldtype=='relmarker'){
@@ -245,7 +243,7 @@ $.widget( "heurist.ruleBuilder", {
                         vocab_id = $Db.dty(dtyID, 'dty_JsonTermIDTree');
                     }    
                     arr_direct[dtyID] = {key:dtyID, 
-                                title: (vocab_id>0?'>> ':'> ')+name,  //source_rt_name
+                                title: (vocab_id>0?'>> ':'> ')+name, 
                                 terms:vocab_id, rectypes:constraints};
                     
                     arr_rectypes = arr_rectypes.concat(constraints);
@@ -290,7 +288,7 @@ $.widget( "heurist.ruleBuilder", {
         });
 
         }
-        this._arr_rectypes = $.unique(arr_rectypes);
+        this._arr_rectypes = $.uniqueSort(arr_rectypes);
         
         //make list of options for selector
         // relation than links
@@ -365,10 +363,10 @@ $.widget( "heurist.ruleBuilder", {
         this.select_fields.prop('disabled', false);
         
         this.select_fields.prop("selectedIndex",0);
-        //this._on( this.select_fields, { change: this._onSelectFieldtype });
+       
         this._onSelectFieldtype();
         
-        //this._on( this.select_fields, { change: this._onSelectFieldtype });
+       
         let sel = window.hWin.HEURIST4.ui.initHSelect(this.select_fields, false);
         sel.hSelect( "widget" ).css({'font-size':'0.9em','max-width':'200px'});
         let that = this;
@@ -403,7 +401,7 @@ $.widget( "heurist.ruleBuilder", {
             if(arr_field){
                 if(arr_field.terms){
                     is_not_relation = false;
-                    //this.label_3.show();
+                   
                     this.select_reltype.css({'visibility':'visible'});
                     this.select_reltype.prop('disabled', false);
                     let sel = window.hWin.HEURIST4.ui.createTermSelect(this.select_reltype.get(0),
@@ -413,21 +411,21 @@ $.widget( "heurist.ruleBuilder", {
 
                 }
                 //reduced list of constraints
-                window.hWin.HEURIST4.ui.createRectypeSelect(this.select_target_rectype.get(0), arr_field.rectypes, null, true); //arr_field.rectypes.length>1?'any':null);
+                window.hWin.HEURIST4.ui.createRectypeSelect(this.select_target_rectype.get(0), arr_field.rectypes, null, true);
                 if(arr_field.rectypes.length!=1){
                     window.hWin.HEURIST4.ui.addoption(this.select_target_rectype.get(0), '', 'Any record (entity) type');
                     this.select_target_rectype.val(0);
                     this.select_target_rectype.prop('disabled', false);
                 }else{
-                    //this.select_target_rectype.prop('disabled', true);
+                   
                     this.select_target_rectype.prop('selectedIndex',0);
                 }
-                //this._arr_rectypes_subset = arr_field.rectypes;
+               
                 is_not_selected = false;
             }
 
             if(is_not_relation){
-                //this.label_3.hide();
+               
                 this.select_reltype.css({'visibility':'visible'});
                 window.hWin.HEURIST4.ui.createSelector(this.select_reltype.get(0), [{key:'pointer', title:'pointer'}]);
                 this.select_reltype.prop('disabled', true);
@@ -437,13 +435,13 @@ $.widget( "heurist.ruleBuilder", {
         }
         if(is_not_selected){
             //show all constraints
-            window.hWin.HEURIST4.ui.createRectypeSelect(this.select_target_rectype.get(0), this._arr_rectypes , null, true); //this._arr_rectypes.length>1?'any':null);
+            window.hWin.HEURIST4.ui.createRectypeSelect(this.select_target_rectype.get(0), this._arr_rectypes , null, true);
             if(this._arr_rectypes.length>1){
                 window.hWin.HEURIST4.ui.addoption(this.select_target_rectype.get(0), '', 'Any record (entity) type');
             }
             this.select_target_rectype.prop('disabled', this.select_target_rectype.find("option").length==1);
 
-            //this._arr_rectypes_subset = this._arr_rectypes;
+           
         }
 
     },
@@ -729,14 +727,14 @@ $.widget( "heurist.ruleBuilder", {
         
         //1:2; link to/from
         //3:4; relatiom to/from
-        //codes [rt_source, dt_ID, rel_term_id, rt_target, filter, linktype];
+       
 
         //refresh query
         let codes = this._getCodes();
         if(codes==null){
             return null;
         }else{
-            //let query = this._getQuery(codes);
+           
             
             const rt_source = parseInt(codes[0]),
                 dty_ID    = parseInt(codes[1]),

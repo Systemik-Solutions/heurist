@@ -32,15 +32,13 @@ $.widget( "heurist.searchSysGroups", $.heurist.searchEntity, {
             }
         }
         
-        this.btn_add_record = this.element.find('#btn_add_record');
+        this.btn_add_record = this.element.find('.btn_AddRecord');
         
         if(this.options.edit_mode=='none'){
             this.btn_add_record.hide();
         }else{
             this.btn_add_record.css({'min-width':'9m','z-index':2})
-                    .button({label: window.hWin.HR("Add New Group"), icons: {
-                            primary: "ui-icon-plus"
-                    }})
+                    .button({label: window.hWin.HR("Add New Group"), icon:"ui-icon-plus"})
                 .on('click', function(e) {
                     that._trigger( "onadd" );
                 }); 
@@ -112,8 +110,6 @@ $.widget( "heurist.searchSysGroups", $.heurist.searchEntity, {
     //
     startSearch: function(){
         
-            this._super();
-            
             let request = {}
         
             if(this.input_search.val()!=''){
@@ -143,6 +139,9 @@ $.widget( "heurist.searchSysGroups", $.heurist.searchEntity, {
             }
             //always search for roles for current or given user            
             
+            this._super();
+            
+            
             this.input_sort_type = this.element.find('#input_sort_type');
             if(this.input_sort_type.val()=='member'){
                 request['sort:ugr_Members'] = '-1' 
@@ -152,24 +151,7 @@ $.widget( "heurist.searchSysGroups", $.heurist.searchEntity, {
                 request['sort:ugr_Name'] = '-1';   
             }
             
-            
-            this._trigger( "onstart" );
-    
-            request['a']          = 'search'; //action
-            request['entity']     = this.options.entity.entityName;
-            request['details']    = 'id'; //'id';
-            request['request_id'] = window.hWin.HEURIST4.util.random();
-            
-            let that = this;                                                
-            
-            window.hWin.HAPI4.EntityMgr.doRequest(request, 
-                function(response){
-                    if(response.status == window.hWin.ResponseStatus.OK){
-                        that._trigger( "onresult", null, 
-                            {recordset:new HRecordSet(response.data), request:request} );
-                    }else{
-                        window.hWin.HEURIST4.msg.showMsgErr(response);
-                    }
-                });
+            this._search_request = request;
+            this._super();
     }
 });

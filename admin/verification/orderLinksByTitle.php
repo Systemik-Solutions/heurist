@@ -1,43 +1,43 @@
 <?php
-    /*
-    * Copyright (C) 2005-2023 University of Sydney
-    *
-    * Licensed under the GNU License, Version 3.0 (the "License"); you may not use this file except
-    * in compliance with the License. You may obtain a copy of the License at
-    *
-    * https://www.gnu.org/licenses/gpl-3.0.txt
-    *
-    * Unless required by applicable law or agreed to in writing, software distributed under the License
-    * is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express
-    * or implied. See the License for the specific language governing permissions and limitations under
-    * the License.
-    */
+/*
+* Copyright (C) 2005-2023 University of Sydney
+*
+* Licensed under the GNU License, Version 3.0 (the "License"); you may not use this file except
+* in compliance with the License. You may obtain a copy of the License at
+*
+* https://www.gnu.org/licenses/gpl-3.0.txt
+*
+* Unless required by applicable law or agreed to in writing, software distributed under the License
+* is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express
+* or implied. See the License for the specific language governing permissions and limitations under
+* the License.
+*/
 
-    /**
-    * Order resource fields by rec_Title
-    *
-    * @author      Artem Osmakov   <osmakov@gmail.com>
-    * @copyright   (C) 2005-2023 University of Sydney
-    * @link        https://HeuristNetwork.org
-    * @version     3.1
-    * @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
-    * @package     Heurist academic knowledge management system
-    * @subpackage  !!!subpackagename for file such as Administration, Search, Edit, Application, Library
-    */
+/**
+* Order record pointer fields by rec_Title
+*
+* @author      Artem Osmakov   <osmakov@gmail.com>
+* @copyright   (C) 2005-2023 University of Sydney
+* @link        https://HeuristNetwork.org
+* @version     3.1
+* @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
+* @package     Heurist academic knowledge management system
+* @subpackage  !!!subpackagename for file such as Administration, Search, Edit, Application, Library
+*/
 
-require_once dirname(__FILE__).'/../../hserv/System.php';
+require_once dirname(__FILE__).'/../../autoload.php';
 
 $rv = array();
 
 // init main system class
-$system = new System();
+$system = new hserv\System();
 
 if(!$system->init(@$_REQUEST['db'])){
     $response = $system->getError();
     print json_encode($response);
     exit;
 }
-if (!$system->is_admin()) {
+if (!$system->isAdmin()) {
     print 'To perform this action you must be logged in  as Administrator of group \'Database Managers\'';
     exit;
 }
@@ -47,7 +47,7 @@ if(!(@$_REQUEST['rty_ID']>0 && @$_REQUEST['dty_ID']>0)){
     exit;
 }
 
-$mysqli = $system->get_mysqli();
+$mysqli = $system->getMysqli();
 
 //3, 134
 
@@ -77,7 +77,7 @@ if($res){
         }
         $ids[]  = intval($row[0]);
         $vals[] = intval($row[2]);
-        //$titles[] = $row[0].'  '.$row[2].'  '.$row[3];
+
     }
     $cnt = $cnt + updateDtlValues($mysqli, $ids, $vals, $titles);
 }
@@ -91,20 +91,18 @@ function updateDtlValues($mysqli, $ids, $vals, $titles){
         sort($ids);
         $k = 0;
         foreach ($ids as $dt) { //sorted dtl_ID
-//print $ids[$k].'  dtl_Value='.$vals[$k].'  title='.$titles[$k].'<br>';
             $query = "update recDetails set dtl_Value=".$vals[$k].' where dtl_ID='.$ids[$k];
-            //print $query.'<br>';
+
             $res = $mysqli->query($query);
             if ($mysqli->error) {
-                    print 'Error for query '.htmlspecialchars($query).' '.htmlspecialchars($mysqli->error);
-            	    exit;
+                print 'Error for query '.htmlspecialchars($query).' '.htmlspecialchars($mysqli->error);
+                exit;
             }
 
-	    $k++;
+            $k++;
         }
         return 1;
     }else{
         return 0;
     }
 }
-?>

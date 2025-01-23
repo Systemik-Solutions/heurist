@@ -73,7 +73,7 @@ $.widget( "heurist.app_timemap", {
 
         let that = this;
 
-        //???? this.element.hide();
+       
 
         this.framecontent = $('<div>').addClass('frame_container')
         //.css({position:'absolute', top:'2.5em', bottom:0, left:0, right:0,
@@ -166,7 +166,7 @@ $.widget( "heurist.app_timemap", {
                         that.recordset_changed = true;
                         that._refresh();
                     }
-                    //???? that._refresh();
+                   
 
                     // Record selection
                 }else if(e.type == window.hWin.HAPI4.Event.ON_REC_SELECT){
@@ -209,7 +209,7 @@ $.widget( "heurist.app_timemap", {
             
             });
         }
-        // (this.mapframe).load(that._initmap);
+       
         // init map on frame load
         this._on( this.mapframe, {
                 load: function(){
@@ -280,6 +280,8 @@ $.widget( "heurist.app_timemap", {
                             }
                         }
                     
+                    }else if(this.options.layout_params.controls?.indexOf('legend') !== -1){
+                        url += '&controls=legend'; // avoid destroying legend controls
                     }
 
                 }else{
@@ -336,7 +338,6 @@ $.widget( "heurist.app_timemap", {
     // called as soon as map.php is loaded into iframe and on _refresh (after search finished)
     //
     _initmap: function( cnt_call ){
-
         if( !window.hWin.HEURIST4.util.isnull(this.mapframe) && this.mapframe.length > 0){
 
             if(this.options.leaflet){
@@ -368,7 +369,6 @@ $.widget( "heurist.app_timemap", {
             //google to remove
             this.is_map_inited = true;
             this.options.init_completed = true;
-            
             mapping.load( null, //mapdataset,
                 this.options.selection,  //array of record ids
                 this.options.mapdocument,    //map document on load
@@ -574,8 +574,6 @@ $.widget( "heurist.app_timemap", {
     //
     , _setLayersVisibility: function (selection, mapdoc_ID, new_visiblity) {
 
-        //if(window.hWin.HEURIST4.util.isnull(this.options.recordset)) return;
-
         if(!this.element.is(':visible')
             || window.hWin.HEURIST4.util.isnull(this.mapframe) || this.mapframe.length < 1){
             return;
@@ -589,14 +587,6 @@ $.widget( "heurist.app_timemap", {
                 if(!(mapdoc_ID>=0)) mapdoc_ID = 0;
                 let mapManager = mapping.mapping( 'getMapManager' );
                 mapManager.setLayersVisibility(mapdoc_ID, selection, new_visiblity);
-                /*
-                //if layer is visible - select and zoom to record in search results
-                let recID = selection[0];
-                let layer_rec = mapManager.getLayer( mapdoc_ID, recID );
-                if(layer_rec && (layer_rec['layer']).isVisible()){
-                    this._doVisualizeSelection( selection );
-                }
-                */ 
 
                 //zoom to visible elements only
                 this.zoomToSelection( new_visiblity );
@@ -622,9 +612,9 @@ $.widget( "heurist.app_timemap", {
        
         if(show){
             this.mapframe.css('background','url('+window.hWin.HAPI4.baseURL+'hclient/assets/loading-animation-white.gif) no-repeat center center');
-            //this.mapframe.css('cursor', 'progress');
+           
         }else{
-            //this.framecontent.css('cursor', 'auto');
+           
             this.mapframe.css('background','none');
         }
     }

@@ -17,20 +17,23 @@
 * distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied
 * See the License for the specific language governing permissions and limitations under the License.
 */
+use hserv\utilities\USystem;
+
 if (!defined('PDIR')){
     define('PDIR','../');
-    require_once dirname(__FILE__).'/../hserv/System.php';
+    require_once dirname(__FILE__).'/../autoload.php';
 }
 
 // init main system class
-//$system = new System();
+//$system = new hserv\System();
 //$system->defineConstants();
+
 ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
 
-<title>Heurist Academic Collaborative Database (C) 2005 - 2020, University of Sydney</title>
+<title>Heurist Academic Collaborative Database (C) 2005 - 2024, University of Sydney</title>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
 
 <meta name="SKYPE_TOOLBAR" content="SKYPE_TOOLBAR_PARSER_COMPATIBLE" />
@@ -43,45 +46,25 @@ if (!defined('PDIR')){
 <link rel="shortcut icon" href="<?php echo PDIR;?>favicon.ico" type="image/x-icon">
 
 <?php
-if(($_SERVER["SERVER_NAME"]=='localhost'||$_SERVER["SERVER_NAME"]=='127.0.0.1')){
-    ?>
-    <script type="text/javascript" src="<?php echo PDIR;?>external/jquery-ui-1.12.1/jquery-1.12.4.js"></script>
-    <script type="text/javascript" src="<?php echo PDIR;?>external/jquery-ui-1.12.1/jquery-ui.js"></script>
-    <?php
-}else{
-    ?>
-    <script src="https://code.jquery.com/jquery-1.12.2.min.js" integrity="sha256-lZFHibXzMHo3GGeehn1hudTAP3Sc0uKXBXAzHX1sjtk=" crossorigin="anonymous"></script>
-    <script src="https://code.jquery.com/ui/1.12.1/jquery-ui.min.js" integrity="sha256-VazP97ZCwtekAsvgPBSUwPFKdrwD3unUfSGVYrahUqU=" crossorigin="anonymous"></script>
-<?php
-}
+    includeJQuery();
 ?>
 
 <link rel="stylesheet" type="text/css" href="<?php echo PDIR;?>external/jquery-ui-iconfont-master/jquery-ui.icon-font.css" />
-<script type="text/javascript" src="<?php echo PDIR;?>hclient/assets/localization/localization.js"></script>
-<script>
-    window.hWin = window;
-     //stub
-    window.hWin.HR = function(res){ return regional['ENG'][res]?regional['ENG'][res]:res; }
-</script>
 <script type="text/javascript" src="<?php echo PDIR;?>hclient/core/detectHeurist.js"></script>
 <script type="text/javascript" src="<?php echo PDIR;?>hclient/core/utils.js"></script>
 <script type="text/javascript" src="<?php echo PDIR;?>hclient/core/utils_msg.js"></script>
-<!--
-<script type="text/javascript" src="<?php echo PDIR;?>hclient/core/hapi.js"></script>
-<script type="text/javascript" src="<?php echo PDIR;?>hclient/core/utils_ui.js"></script>
--->
-<!-- CSS -->
-<link rel="stylesheet" type="text/css" href="<?php echo PDIR;?>external/jquery-ui-themes-1.12.1/themes/base/jquery-ui.css">
-<?php
-//https://code.jquery.com/ui/1.12.1/themes/base/jquery-ui.css
-//include_once dirname(__FILE__).'/../../hclient/framecontent/initPageCss.php';
-?>
+
+<script>
+    window.hWin = window;
+     //stub
+    window.hWin.HR = function(res){ return res; }
+</script>
 
 <script type="text/javascript">
 
-    var baseURL = '<?php echo HEURIST_BASE_URL; ?>';
-    var sysadmin_email = '<?php echo HEURIST_MAIL_TO_ADMIN; ?>';
-    var all_databases = {};
+    const baseURL = '<?php echo HEURIST_BASE_URL; ?>';
+    const sysadmin_email = '<?php echo HEURIST_MAIL_TO_ADMIN; ?>';
+    let all_databases = {};
 
 /*
     screens/steps
@@ -101,15 +84,13 @@ if(($_SERVER["SERVER_NAME"]=='localhost'||$_SERVER["SERVER_NAME"]=='127.0.0.1'))
     _doCreateDatabase - create new database (from step3)
     _showGetStarted() - getting started (step6)
     _showDatabaseList()  - all databases (step8)
-
-
 */
 
     //
     //
     //
     function _showStep(arg){
-        var step_no = 1;
+        let step_no = 1;
         if(window.hWin.HEURIST4.util.isNumber(arg)){
             step_no = arg
         }else{
@@ -125,7 +106,7 @@ if(($_SERVER["SERVER_NAME"]=='localhost'||$_SERVER["SERVER_NAME"]=='127.0.0.1'))
     //
     function _showRegistration(){
 
-        var screen = $('.center-box.screen2');
+        let screen = $('.center-box.screen2');
 
         if(screen.children().length>0){ //is(':empty')
 
@@ -134,7 +115,7 @@ if(($_SERVER["SERVER_NAME"]=='localhost'||$_SERVER["SERVER_NAME"]=='127.0.0.1'))
 
         }else{
 
-            var sForm = (document.location.pathname.indexOf('startup/')>0
+            let sForm = (document.location.pathname.indexOf('startup/')>0
                             ?'':'startup/')+'userRegistration.html';
             screen.load(sForm,
                 function(){
@@ -144,7 +125,7 @@ if(($_SERVER["SERVER_NAME"]=='localhost'||$_SERVER["SERVER_NAME"]=='127.0.0.1'))
                     $('.registration-form').find('.header').each(function(idx, item){
 
                         item = $(item);
-                        var ele = item.next('input');
+                        let ele = item.next('input');
                         if(ele.length==0) ele = item.next('textarea');
                         if(ele.length==1){
                             ele.attr('autocomplete','off')
@@ -156,7 +137,7 @@ if(($_SERVER["SERVER_NAME"]=='localhost'||$_SERVER["SERVER_NAME"]=='127.0.0.1'))
 
                     });
 
-                    var ele = $('#ugr_CaptchaCode')
+                    let ele = $('#ugr_CaptchaCode')
                     ele.parent().css({
                         display: 'inline-block', float: 'left', 'min-width': 90, width: 90});
 
@@ -168,18 +149,7 @@ if(($_SERVER["SERVER_NAME"]=='localhost'||$_SERVER["SERVER_NAME"]=='127.0.0.1'))
                         '<a style="padding-left: 60px;" href="mailto:'+sysadmin_email+'">'+sysadmin_email+'</a>');
 
                     $('#cbAgree').on({'change':function(){
-                        var ele = $('#btnRegisterDo');
-                        if(ele){
-                            if($(this).is(':checked')){
-                                ele.removeAttr("disabled");
-                                ele.removeClass("ui-button-disabled ui-state-disabled");
-                                ele.addClass('ui-button-action');
-                            } else {
-                                ele.attr("disabled", "disabled");
-                                ele.removeClass('ui-button-action');
-                                ele.addClass("ui-button-disabled ui-state-disabled");
-                            }
-                        }
+                        window.hWin.HEURIST4.util.setDisabled($('#btnRegisterDo'), !$(this).is(':checked'));
                     }});
 
                     $('#ugr_eMail').on({'blur':function(){
@@ -190,7 +160,7 @@ if(($_SERVER["SERVER_NAME"]=='localhost'||$_SERVER["SERVER_NAME"]=='127.0.0.1'))
 
                     $('#showConditions').on({click: function(){
                         if($('#divConditions').is(':empty')){
-                            $('#divConditions').load('../documentation_and_templates/terms_and_conditions.html #content');
+                            $('#divConditions').load(`${baseURL}?disclaimer=terms_and_conditions.html #content`);
                         }
                         _showStep(7);
                         return false;
@@ -212,10 +182,10 @@ if(($_SERVER["SERVER_NAME"]=='localhost'||$_SERVER["SERVER_NAME"]=='127.0.0.1'))
     function onKeyPress(event){
 
         event = event || window.event;
-        var charCode = typeof event.which == "number" ? event.which : event.keyCode;
+        let charCode = typeof event.which == "number" ? event.which : event.keyCode;
         if (charCode && charCode > 31)
         {
-            var keyChar = String.fromCharCode(charCode);
+            const keyChar = String.fromCharCode(charCode);
             if(!/^[a-zA-Z0-9$_]+$/.test(keyChar)){
                 event.cancelBubble = true;
                 event.returnValue = false;
@@ -232,12 +202,11 @@ if(($_SERVER["SERVER_NAME"]=='localhost'||$_SERVER["SERVER_NAME"]=='127.0.0.1'))
     //
     function refreshCaptcha(){
         $('#ugr_Captcha').val('');
-        var $dd = $('#imgdiv');
-        var id = window.hWin.HEURIST4.util.random();
+        const id = window.hWin.HEURIST4.util.random();
         if(true){  //simple captcha
-            var ele = $('#ugr_CaptchaCode')
-            ele.load(baseURL+'hserv/utilities/captcha.php?id='+id);
+            $('#ugr_CaptchaCode').load(baseURL+'hserv/utilities/captcha.php?id='+id);
         }else{ //image captcha
+            let $dd = $('#imgdiv');
             $dd.empty();//find("#img").remove();
             $('<img id="img" src="hserv/utilities/captcha.php?img='+id+'"/>').appendTo($dd);
         }
@@ -248,13 +217,13 @@ if(($_SERVER["SERVER_NAME"]=='localhost'||$_SERVER["SERVER_NAME"]=='127.0.0.1'))
     //
     function _validateRegistration(){
 
-        var regform = $('.registration-form');
-        var allFields = regform.find('input, textarea');
-        var err_text = '';
+        let regform = $('.registration-form');
+        let allFields = regform.find('input, textarea');
+        let err_text = '';
 
         // validate mandatory fields
         allFields.each(function(){
-            var input = $(this);
+            let input = $(this);
             if(input.hasClass('mandatory') && input.val()==''){
                 input.addClass( "ui-state-error" );
                 err_text = err_text + ', '+regform.find('label[for="' + input.attr('id') + '"]').html();
@@ -262,8 +231,8 @@ if(($_SERVER["SERVER_NAME"]=='localhost'||$_SERVER["SERVER_NAME"]=='127.0.0.1'))
         });
 
         //remove/trim spaces
-        var ele = regform.find("#ugr_Captcha");
-        var val = ele.val().trim().replace(/\s+/g,'');
+        let ele = regform.find("#ugr_Captcha");
+        let val = ele.val().trim().replace(/\s+/g,'');
         if(val!=''){
             ele.val(val);
         }else{
@@ -273,35 +242,35 @@ if(($_SERVER["SERVER_NAME"]=='localhost'||$_SERVER["SERVER_NAME"]=='127.0.0.1'))
         if(err_text==''){
             // validate email
             // From jquery.validate.js (by joern), contributed by Scott Gonzalez: http://projects.scottsplayground.com/email_address_validation/
-            var email = regform.find("#ugr_eMail");
-            var bValid = window.hWin.HEURIST4.util.checkEmail(email);
+            let email = regform.find("#ugr_eMail");
+            const bValid = window.hWin.HEURIST4.util.checkEmail(email);
             if(!bValid){
                 err_text = err_text + ', '+window.hWin.HR('Email does not appear to be valid');
             }
 
             // validate login
-            var login = regform.find("#ugr_Name");
+            let login = regform.find("#ugr_Name");
             if(!window.hWin.HEURIST4.util.checkRegexp( login, /^[a-z]([0-9a-z_@.])+$/i)){
                 err_text = err_text + ', '+window.hWin.HR('Login/user name should only contain ')
                     +'a-z, 0-9, _, @ and begin with a letter';// "Username may consist of a-z, 0-9, _, @, begin with a letter."
             }else{
-                var ss = window.hWin.HEURIST4.msg.checkLength2( login, "User name", 3, 60 );
+                const ss = window.hWin.HEURIST4.msg.checkLength2( login, "User name", 3, 60 );
                 if(ss!=''){
                     err_text = err_text + ', '+ss;
                 }
             }
             // validate passwords
-            var password = regform.find("#ugr_Password");
-            var password2 = regform.find("#password2");
+            let password = regform.find("#ugr_Password");
+            let password2 = regform.find("#password2");
             if(password.val()!=password2.val()){
                 err_text = err_text + ', '+window.hWin.HR(' Passwords do not match');
                 password.addClass( "ui-state-error" );
-            }else  if(password.val()!=''){
+            }else if(password.val()!=''){
                 /* restrict password to alphanumeric only - removed at 2016-04-29
                 if(!window.hWin.HEURIST4.util.checkRegexp( password, /^([0-9a-zA-Z])+$/)){  //allow : a-z 0-9
                     err_text = err_text + ', '+window.hWin.HR('Wrong password format');
                 }else{*/
-                var ss = window.hWin.HEURIST4.msg.checkLength2( password, "password", 3, 16 );
+                const ss = window.hWin.HEURIST4.msg.checkLength2( password, "password", 3, 16 );
                 if(ss!=''){
                     err_text = err_text + ', '+ss;
                 }
@@ -321,14 +290,17 @@ if(($_SERVER["SERVER_NAME"]=='localhost'||$_SERVER["SERVER_NAME"]=='127.0.0.1'))
         if(err_text==''){
 
 
-            var user_name = $('#ugr_Name').val();
-            var ele = document.getElementById("uname");
+            const user_name = document.getElementById("ugr_Name").value;
+            let ele = document.getElementById("uname");
             ele.value = user_name.substr(0,5).replace(/[^a-zA-Z0-9$_]/g,'');
 
             _showStep(3);
-            $("#dbname").focus();
+            document.getElementById("dbname").dispatchEvent(new Event('focus'));
         }else{
-            window.hWin.HEURIST4.msg.showMsgErr(err_text);
+            window.hWin.HEURIST4.msg.showMsgErr({
+                message: err_text,
+                error_title: 'Missing required user details'
+            });
         }
     }
 
@@ -337,18 +309,18 @@ if(($_SERVER["SERVER_NAME"]=='localhost'||$_SERVER["SERVER_NAME"]=='127.0.0.1'))
     //
     function _doCreateDatabase(){
 
-        var err_text = window.hWin.HEURIST4.msg.checkLength2( $("#dbname"), 'Database name', 1, 60 );
+        let err_text = window.hWin.HEURIST4.msg.checkLength2( $("#dbname"), 'Database name', 1, 60 );
 
         if(err_text==''){
 
-            var request = {};
+            let request = {};
 
             request['uname'] = $('#uname').val();
             request['dbname'] = $('#dbname').val();
             request['action'] = 'create';
 
             //get user registration data
-            var inputs = $(".registration-form").find('input, textarea');
+            let inputs = $(".registration-form").find('input, textarea');
             inputs.each(function(idx, inpt){
                 inpt = $(inpt);
                 if(inpt.attr('name') && inpt.val()){
@@ -356,7 +328,7 @@ if(($_SERVER["SERVER_NAME"]=='localhost'||$_SERVER["SERVER_NAME"]=='127.0.0.1'))
                 }
             });
 
-            var url = baseURL+'hserv/controller/databaseController.php';
+            const url = baseURL+'hserv/controller/databaseController.php';
 
             _showStep(4);
 
@@ -387,12 +359,12 @@ if(($_SERVER["SERVER_NAME"]=='localhost'||$_SERVER["SERVER_NAME"]=='127.0.0.1'))
                             _showStep(3);//back to db form
                         }
 
-                        window.hWin.HEURIST4.msg.showMsgErr(response.message, false);
+                        window.hWin.HEURIST4.msg.showMsgErr(response, false);
                     }
                 });
 
         }else{
-            window.hWin.HEURIST4.msg.showMsgErr(err_text);
+            window.hWin.HEURIST4.msg.showMsgErr({message: err_text, error_title: 'Invalid database name'});
         }
 
     }
@@ -401,10 +373,9 @@ if(($_SERVER["SERVER_NAME"]=='localhost'||$_SERVER["SERVER_NAME"]=='127.0.0.1'))
     // server request for db list
     //
     function _getDatabases( show_list ){
+            const url = baseURL+'startup/listDatabases.php';
 
-            var url = baseURL+'startup/listDatabases.php';
-
-            var request = {format:'json'};
+            let request = {format:'json'};
 
             window.hWin.HEURIST4.util.sendRequest(url, request, null,
                 function(response){
@@ -414,9 +385,9 @@ if(($_SERVER["SERVER_NAME"]=='localhost'||$_SERVER["SERVER_NAME"]=='127.0.0.1'))
                         all_databases = response.data;
 
                         if(Object.keys(all_databases).length>0 && show_list){
-                            _showDatabaseList();
+                            _showDatabaseList(); //show list at once
                         }else{
-                            _initControls();
+                            _initControls(); //show new database
                         }
 
                     }else{
@@ -433,10 +404,10 @@ if(($_SERVER["SERVER_NAME"]=='localhost'||$_SERVER["SERVER_NAME"]=='127.0.0.1'))
     //
     function _showGetStarted(){
 
-        var sForm = (document.location.pathname.indexOf('startup/')>0
+        let sForm = (document.location.pathname.indexOf('startup/')>0
                             ?'':'startup/')+'gettingStarted.html';
 
-        var screen = $('.center-box.screen6');
+        let screen = $('.center-box.screen6');
         screen.load(sForm,
             function(){
 
@@ -445,7 +416,7 @@ if(($_SERVER["SERVER_NAME"]=='localhost'||$_SERVER["SERVER_NAME"]=='127.0.0.1'))
                     img.attr('src',baseURL+'hclient/assets/v6/'+img.attr('data-src'));
                 });
 
-                var smsg = 'Sorry, these videos are not yet available';
+                let smsg = 'Sorry, these videos are not yet available';
                 $('.video-anchor')
                     .attr('title',smsg)
                     .on({click:function(){
@@ -453,7 +424,7 @@ if(($_SERVER["SERVER_NAME"]=='localhost'||$_SERVER["SERVER_NAME"]=='127.0.0.1'))
                     }});
 
                 $('#btnOpenHeurist').button({icon:'ui-icon-arrow-1-e',iconPosition:'end'}).on({click:function(){
-                    var url = $('#newdblink').text();
+                    const turl = $('#newdblink').text();
                     $('.ent_wrapper').effect('drop',null,500,function(){
                         location.href = url;
                     });
@@ -469,7 +440,7 @@ if(($_SERVER["SERVER_NAME"]=='localhost'||$_SERVER["SERVER_NAME"]=='127.0.0.1'))
     //
     function _initControls(){
 
-        if(!window.hWin.HR){
+        if(window.hWin.HAPI4){
             window.hWin.HR = window.hWin.HAPI4.setLocale('ENG');
         }
 
@@ -504,16 +475,16 @@ if(($_SERVER["SERVER_NAME"]=='localhost'||$_SERVER["SERVER_NAME"]=='127.0.0.1'))
                 .attr('autocapitalize','none')
                 .on({'keyup': function(event){
 
-                var list_div = $('.list_div');
+                let list_div = $('.list_div');
 
-                var inpt = $(event.target);
-                var sval = inpt.val().toLowerCase();
+                let inpt = $(event.target);
+                let sval = inpt.val().toLowerCase();
 
                 if(sval.length>1){
                     list_div.empty();
-                    var is_added = false;
-                    var len = Object.keys(all_databases).length;
-                    for (var idx=0;idx<len;idx++){
+                    let is_added = false;
+                    let len = Object.keys(all_databases).length;
+                    for (let idx=0;idx<len;idx++){
                         if(all_databases[idx].toLowerCase().indexOf(sval)>=0){
                             is_added = true; //res.push( all_databases[idx] );
                             $('<div class="truncate">'+all_databases[idx]+'</div>').appendTo(list_div);
@@ -537,12 +508,12 @@ if(($_SERVER["SERVER_NAME"]=='localhost'||$_SERVER["SERVER_NAME"]=='127.0.0.1'))
 
             $('#btnOpenDatabase').button().on({click:function(){
 
-                    var sval = $('#search_database').val().trim();
+                    let sval = $('#search_database').val().trim();
                     if(sval==''){
                         window.hWin.HEURIST4.msg.showMsgFlash('Define database name');
                     }else{
-                        var len = Object.keys(all_databases).length;
-                        for (var idx=0;idx<len;idx++){
+                        let len = Object.keys(all_databases).length;
+                        for (let idx=0;idx<len;idx++){
                             if(all_databases[idx] == sval){
                                 location.href = baseURL + '?db='+sval;
                                 return;
@@ -565,24 +536,35 @@ if(($_SERVER["SERVER_NAME"]=='localhost'||$_SERVER["SERVER_NAME"]=='127.0.0.1'))
     //
     // opens list of all databases
     //
-    function _showDatabaseList(){
+    function _showDatabaseList(event){
+        
+        window.hWin.HEURIST4.util.stopEvent(event);
 
-        var screen = $('.center-box.screen8');
-        var list_div = screen.find('.db-list');
+        let screen = $('.center-box.screen8');
+        let list_div = screen.find('.db-list');
 
         if(list_div.children().length==0){
 
             $('#filter_database').on({'keyup': function(event){
 
-                var list_div = $('.db-list');
+                let list_div = $('.db-list');
 
-                var inpt = $(event.target);
-                var sval = inpt.val().toLowerCase();
+                let inpt = $(event.target);
+                let sval = inpt.val().toLowerCase();
 
                 if(sval.length>1){
 
-                    list_div.find('li').each(function(i,li){
-                        if(li.innerHTML.toLowerCase().indexOf(sval)>=0){
+                    list_div.find('.db-info').each(function(i,li){
+                        
+                        let dbname;
+                        
+                        if(li.nodeName.toLowerCase()=='li'){
+                            dbname = li.innerHTML.toLowerCase();
+                        }else{
+                            dbname = li.firstChild.innerHTML.toLowerCase();
+                        }
+                        
+                        if(dbname.indexOf(sval)>=0){
                             li.style.display = 'block';
                         }else{
                             li.style.display = 'none';
@@ -590,15 +572,15 @@ if(($_SERVER["SERVER_NAME"]=='localhost'||$_SERVER["SERVER_NAME"]=='127.0.0.1'))
                     });
 
                 }else{
-                    list_div.find('li').show();
+                    list_div.find('.db-info').show();
                 }
             }});
 
 
             list_div.empty();
-            var len = Object.keys(all_databases).length;
-            for (var idx=0;idx<len;idx++){
-                $('<li class="truncate">'+all_databases[idx]+'</li>').appendTo(list_div);
+            let len = Object.keys(all_databases).length;
+            for (let idx=0;idx<len;idx++){
+                $('<li class=db-info truncate">'+all_databases[idx]+'</li>').appendTo(list_div);
             }
 
             // hide loading icon - show title and list
@@ -607,7 +589,7 @@ if(($_SERVER["SERVER_NAME"]=='localhost'||$_SERVER["SERVER_NAME"]=='127.0.0.1'))
             screen.find('h1').show();
 
             list_div.find('li').css('cursor','pointer').on({click:function(e){
-                    var dbname  = $(e.target).text();
+                    let dbname  = $(e.target).text();
                     location.href = baseURL + '?db='+dbname;
             }});
 
@@ -643,7 +625,7 @@ body {
     overflow:hidden;
 }
 a{
-    outline: 0;
+    outline: none;
 }
 .ui-widget {
     font-size: 0.9em;
@@ -746,7 +728,9 @@ a{
 }
 </style>
 
-
+<?php
+    USystem::insertLogScript('startup');
+?>     
 </head>
 <body>
     <div class="ent_wrapper" style="min-height:675px;">
@@ -792,8 +776,8 @@ a{
                             <button class="ui-button-action" id="btnOpenDatabase">Go</button>
                         </div>
                         <div style="font-size:smaller">You will be redirected to the Heurist database upon your selection</div>
-                        <div style="font-size:smaller"><a href="#" id="showDatabaseList" data-step="8">Browse all databases on server</a>
-                        (as <a href="../../HarvestableDatabaseDescriptions/index.html" target="_blank" rel="noopener">html pages</a>)</div>
+                        <div style="font-size:smaller"><a href="listDatabases.php" target="_blank" id="showDatabaseList" data-step="8">Browse all databases on server</a>
+                        (as <a href="../../databases/index.html" target="_blank" rel="noopener">html pages</a>)</div>
                     </div>
 
                 </div>
@@ -817,7 +801,8 @@ a{
                     <h3>Enter a name for the database</h3>
 
                     <div>
-                        hdb_<input type="text" id="uname"  name="uname" class="text ui-widget-content ui-corner-all"
+                        <?php echo HEURIST_DB_PREFIX;?>
+                        <input type="text" id="uname"  name="uname" class="text ui-widget-content ui-corner-all"
                                 maxlength="30" size="6" onkeypress="{onKeyPress(event)}"/>
                         _<input type="text" id="dbname"  name="dbname" class="text ui-widget-content ui-corner-all"
                                 maxlength="64" size="30" onkeypress="{onKeyPress(event)}"/>
@@ -894,7 +879,7 @@ a{
             </div>
 
 
-            <!-- SCREEN#8 Terms and conditions -->
+            <!-- SCREEN#8 Databases -->
             <div class="center-box screen8" style="width:1330;height:auto;margin:10px;width:auto;">
                 <h1 style="display:none">Databases</h1>
                 <span>Filter: </span>

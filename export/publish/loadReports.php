@@ -2,7 +2,7 @@
 
 /**
 *
-* loadReports.php : load the particular report or list of reports
+* loadReports.php : load the particular smarty report or list of reports
 *
 * @package     Heurist academic knowledge management system
 * @link        https://HeuristNetwork.org
@@ -21,19 +21,21 @@
 * See the License for the specific language governing permissions and limitations under the License.
 */
 
-require_once dirname(__FILE__).'/../../hserv/System.php';
+require_once dirname(__FILE__).'/../../autoload.php';
 
 
-$system = new System();
+$system = new hserv\System();
 if( !$system->init(@$_REQUEST['db']) ){
-    $system->error_exit;
+    $system->errorExit();
 }
 
-if(!$system->has_access()){
-   $system->error_exit( 'To perform this action you must be logged in',  HEURIST_REQUEST_DENIED);
+if(!$system->hasAccess()){
+   $system->errorExit( 'To perform this action you must be logged in',  HEURIST_REQUEST_DENIED);
 }
 
 header(CTYPE_JSON);
+
+global $sys_usrReportSchedule_ColumnNames;
 
 $sys_usrReportSchedule_ColumnNames = array(
     "rps_ID"=>"i",
@@ -49,7 +51,7 @@ $sys_usrReportSchedule_ColumnNames = array(
 
 $metod = @$_REQUEST['method'];
 
-$mysqli = $system->get_mysqli();
+$mysqli = $system->getMysqli();
 
     if($metod=="searchreports"){
 
@@ -86,7 +88,7 @@ $mysqli = $system->get_mysqli();
 
         $recID = @$_REQUEST['recID'];
         if ($recID==null) {
-              $system->error_exit('Invalid call to loadReports, recID is required');
+              $system->errorExit('Invalid call to loadReports, recID is required');
         }
 
         $colNames = array("rps_ID", "rps_Type", "rps_Title", "rps_FilePath", "rps_URL", "rps_FileName", "rps_HQuery", "rps_Template", "rps_IntervalMinutes");
@@ -112,12 +114,12 @@ $mysqli = $system->get_mysqli();
     }elseif($metod=="savereport"){ //-----------------
 
         $data  = @$_REQUEST['data'];
-        //$recID  = @$_REQUEST['recID'];
+
 
         if (!array_key_exists('report',$data) ||
         !array_key_exists('colNames',$data['report']) ||
         !array_key_exists('defs',$data['report'])) {
-              $system->error_exit('Invalid data structure sent with savereport method call to loadReports.php');
+              $system->errorExit('Invalid data structure sent with savereport method call to loadReports.php');
         }
 
         $colNames = $data['report']['colNames'];
@@ -136,7 +138,7 @@ $mysqli = $system->get_mysqli();
         $recID  = @$_REQUEST['recID'];
         $rv = array();
         if (!($recID>0)) {
-              $system->error_exit('Invalid  or not ID sent with deletereport method call to loadReports.php');
+              $system->errorExit('Invalid  or not ID sent with deletereport method call to loadReports.php');
         }else{
             $rv = deleteReportSchedule($mysqli, $recID);
             if(@$rv['error']){
@@ -147,7 +149,7 @@ $mysqli = $system->get_mysqli();
             print json_encode($response);
         }
     }else{
-        $system->error_exit('Invalid or no method provided to loadReports.php');
+        $system->errorExit('Invalid or no method provided to loadReports.php');
     }
 
 exit;
@@ -224,7 +226,7 @@ exit;
 
         $ret = null;
 
-        if (is_array($colNames) && is_array($values) && count($colNames)>0 && count($values)>0){
+        if (!isEmptyArray($colNames) && is_array($values)){
 
             $isInsert = ($recID<0);
 
@@ -289,12 +291,12 @@ exit;
 
                     if ($rows==0 || is_string($rows) ) {
                         $oper = (($isInsert)?"inserting":"updating");
-                        $ret = "error $oper in updateReportSchedule - ".$rows.' '.$query; //$msqli->error;
+                        $ret = "error $oper in updateReportSchedule - ".$rows.' '.$query;
                     } else {
                         if($isInsert){
                             $ret = -$mysqli->insert_id;
                         }else{
-                            $ret = $recID;;
+                            $ret = $recID;
                         }
                     }
                 }

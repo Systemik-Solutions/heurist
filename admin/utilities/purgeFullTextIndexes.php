@@ -10,7 +10,7 @@
 *
 * @package     Heurist academic knowledge management system
 * @link        https://HeuristNetwork.org
-* @copyright   (C) 2005-2022 University of Sydney
+* @copyright   (C) 2005-2023 University of Sydney
 * @author      Artem Osmakov   <osmakov@gmail.com>
 * @author      Ian Johnson     <ian.johnson.heurist@gmail.com>
 * @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
@@ -34,6 +34,8 @@ $tabs0 = '';
 
 if (@$argv) {
 
+    define('PURGE','-purge');
+
 // example:
 //  sudo php -f /var/www/html/heurist/admin/utilities/purgeFullTextIndexes.php -- -purge
 //  sudo php -f purgeFullTextIndexes.php -- -purge  -  action, otherwise only report
@@ -48,8 +50,8 @@ if (@$argv) {
                 $ARGV[$argv[$i]] = $argv[$i + 1];
                 ++$i;
             } else {
-                if(strpos($argv[$i],'-purge')===0){
-                    $ARGV['-purge'] = true;
+                if(strpos($argv[$i],PURGE)===0){
+                    $ARGV[PURGE] = true;
                 }else{
                     $ARGV[$argv[$i]] = true;
                 }
@@ -61,7 +63,7 @@ if (@$argv) {
         }
     }
 
-    if (@$ARGV['-purge']) {$arg_no_action = false;}
+    if (@$ARGV[PURGE]) {$arg_no_action = false;}
 
 }else{
 
@@ -69,22 +71,22 @@ if (@$argv) {
     $arg_no_action = true;
     $eol = "</div><br>";
     $tabs0 = '<div style="min-width:300px;display:inline-block;">';
-    $tabs = "</div>".$tabs0;
-    //exit('This function must be run from the shell');
+    $tabs = DIV_E.$tabs0;
+
 }
 
 
-require_once dirname(__FILE__).'/../../configIni.php';// read in the configuration file
-require_once dirname(__FILE__).'/../../hserv/consts.php';
-require_once dirname(__FILE__).'/../../hserv/System.php';
+use hserv\utilities\USanitize;
+
+require_once dirname(__FILE__).'/../../autoload.php';
+
 require_once dirname(__FILE__).'/../../hserv/records/search/recordFile.php';
-require_once dirname(__FILE__).'/../../hserv/utilities/dbUtils.php';
 
 //retrieve list of databases
-$system = new System();
+$system = new hserv\System();
 
 if(!$is_shell){
-    $sysadmin_pwd = System::getAdminPwd();
+    $sysadmin_pwd = USanitize::getAdminPwd();
 
     if($system->verifyActionPassword( $sysadmin_pwd, $passwordForServerFunctions) ){
         $response = $system->getError();
@@ -97,10 +99,10 @@ if( !$system->init(null, false, false) ){
     exit("Cannot establish connection to sql server\n");
 }
 
-$mysqli = $system->get_mysqli();
+$mysqli = $system->getMysqli();
 $databases = mysql__getdatabases4($mysqli, false);
 
-$exclusion_list = exclusion_list();
+$exclusion_list = exclusionList();
 
 if(!$arg_no_action){
 
@@ -122,10 +124,6 @@ foreach ($databases as $idx=>$db_name){
     if(in_array($db_name,$exclusion_list)){
         continue;
     }
-    //if(strcmp($db_name,'crvr_eglisesXX')<=0){
-    //    continue;
-    //}
-
     $res = mysql__usedatabase($mysqli, $db_name);
     if($res!==true){
         echo @$res[1]."\n";
@@ -175,44 +173,9 @@ foreach ($databases as $idx=>$db_name){
             $report .= ' ';
         }else{
 
-            $res = false;
+            purgeFtsIndex('Records','rec_Title_FullText',$report);
+            purgeFtsIndex('recDetails','dtl_Value_FullText',$report);
 
-            $query = "SHOW INDEX FROM Records WHERE Key_name='rec_Title_FullText'";
-            $has_index = mysql__select_value($mysqli, $query, null);
-            if($has_index!=null){
-                $query = 'ALTER TABLE Records DROP INDEX `rec_Title_FullText`';
-                $res = mysql__exec_param_query($mysqli, $query, null);
-                if($res===true){
-                    $query = 'OPTIMIZE TABLE Records';
-                    $res = mysql__exec_param_query($mysqli, $query, null);
-                }
-            }else{
-                $report .= ' Records index does not exist ';
-                $res = 'skip';
-            }
-            if($res===true){
-                $query = "SHOW INDEX FROM recDetails WHERE Key_name='dtl_Value_FullText'";
-                $has_index = mysql__select_value($mysqli, $query, null);
-                if($has_index!=null){
-                    $query = 'ALTER TABLE recDetails DROP INDEX `dtl_Value_FullText`';
-                    $res = mysql__exec_param_query($mysqli, $query, null);
-                    if($res===true){
-                        $query = 'OPTIMIZE TABLE recDetails';
-                        $res = mysql__exec_param_query($mysqli, $query, null);
-                    }
-                }
-            }else{
-                $report .= ' Details index does not exist ';
-                $res = 'skip';
-            }
-
-            if($res===true){
-
-                $report .= ' full text index purged ';
-                $cnt_processed++;
-            }elseif($res!='skip'){
-                $report .= ('ERROR: '.$res);
-            }
         }
     }
 
@@ -231,12 +194,38 @@ if(!$arg_no_action){
 
 echo $tabs0.'finished'.$eol;
 
-function exclusion_list(){
+function purgeFtsIndex($table, $index, &$report ){
+
+            $res = false;
+
+            $query = "SHOW INDEX FROM $table WHERE Key_name='$index'";
+            $has_index = mysql__select_value($mysqli, $query, null);
+            if($has_index!=null){
+                $query = "ALTER TABLE $table DROP INDEX `$index`";
+                $res = mysql__exec_param_query($mysqli, $query, null);
+                if($res===true){
+                    $query = "OPTIMIZE TABLE $table"; //it cleanups FTS*.ibd files
+                    $res = mysql__exec_param_query($mysqli, $query, null);
+                }
+            }else{
+                $res = 'skip';
+            }
+            if($res===true){
+                $report .= "$table FTS purged ";
+            }elseif($res=='skip'){
+                $report .= " $table index does not exist ";
+            }else{
+                $report .= ('ERROR: '.$res);
+            }
+
+}
+
+function exclusionList(){
 
     $res = array();
     $fname = realpath(dirname(__FILE__)."/../../../../databases_not_to_purge.txt");
     if($fname!==false && file_exists($fname)){
-        //ini_set('auto_detect_line_endings', 'true');
+
         $handle = @fopen($fname, "r");
         while (!feof($handle)) {
             $line = trim(fgets($handle, 100));

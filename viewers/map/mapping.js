@@ -323,8 +323,6 @@ $.widget( "heurist.mapping", {
             togglerContent_closed:  '<div class="ui-icon"></div>',
             onresize_end: function(){
                 //global 
-                //if(mapping) mapping.onWinResize();
-                //that.adjustToolbarHeight();
                 that._adjustLegendHeight();
             }
             
@@ -342,7 +340,6 @@ $.widget( "heurist.mapping", {
             layout_opts.north__spacing_open = 0;
 
             layout_opts.south__onresize_end = function() {
-                //if(mapping) mapping.setTimelineMinheight();
                 that._adjustLegendHeight();
             };
         
@@ -412,7 +409,7 @@ $.widget( "heurist.mapping", {
         
         this.updateLayout();
 
-        $(window).resize(function(){
+        $(window).on('onresize',function(){
             that.adjustToolbarHeight();    
         });
         
@@ -675,7 +672,7 @@ $.widget( "heurist.mapping", {
     //
     //
     defineCRS: function(CRS){
-        
+
         if(CRS && CRS.indexOf(':')>0){
             CRS = CRS.replace(':','');
         }
@@ -791,15 +788,16 @@ $.widget( "heurist.mapping", {
 
                     }catch(e){
                         // display error
-                        window.hWin.HEURIST4.msg.showMsgErr(
-                            'We were unable to load your selected base map.<br>'
-                          + 'If this problem persists, please report this through the bug reporter under Help at the top right of the main screen or,<br>'
-                          + 'via email directly to support@heuristnetwork.org so we can fix this quickly.<br><br>'
-                          + 'Base map values:<br>'
-                          + 'Base map id: ' + basemap_id + '<br>'
-                          + 'Base map name: ' + (provider['name'] != '' ? provider['name'] : 'missing'));
-                          //+ 'Base map url (if found): ' + provider['url'] + '<br><br>'
-                          //+ 'Error thrown: ' + e + '<br>'
+                        window.hWin.HEURIST4.msg.showMsgErr({
+                            message: 'We were unable to load your selected base map.<br>'
+                                    +'If this problem persists, please report this through the bug reporter under Help at the top right of the main screen or,<br>'
+                                    +'via email directly to support@heuristnetwork.org so we can fix this quickly.<br><br>'
+                                    +'Base map values:<br>'
+                                    +`Base map id: ${basemap_id}<br>`
+                                    +`Base map name: ${(provider['name'] != '' ? provider['name'] : 'missing')}`,
+                            error_title: 'Unable to load basemap'
+                        });
+
                         return;
                     }
                 }
@@ -1006,7 +1004,44 @@ $.widget( "heurist.mapping", {
         
         return new_layer._leaflet_id;
     },
-    
+
+
+
+    //
+    // adds geotiff image overlay to map
+    //
+    addGeoTiffImageOverlay: function(url_to_geotiff_file, callback){
+
+//        url_to_geotiff_file = 'https://s3.amazonaws.com/geotiff.io/PuertoRicoTropicalFruit.tiff';
+//        url_to_geotiff_file = "https://raw.githubusercontent.com/GeoTIFF/test-data/main/files/LisbonElevation.tif";
+      
+        fetch(url_to_geotiff_file)
+                .then(res => res.arrayBuffer())
+                .then(arrayBuffer => {
+        parseGeoraster(arrayBuffer).then(georaster => {          
+        //direct load: parseGeoraster(url_to_geotiff_file).then(georaster => {
+                console.log("georaster:", georaster);
+
+                let new_layer = new GeoRasterLayer({
+                    //attribution: "Unknown",  
+                    georaster: georaster,
+                    //opacity: 0.7,
+                    resolution: 512 // optional parameter for adjusting display resolution  256, 128
+                });
+                
+                new_layer.addTo(this.nativemap);
+
+                //this.nativemap.fitBounds(new_layer.getBounds());
+                
+                this.all_layers[new_layer._leaflet_id] = new_layer;
+                
+                this._updatePanels();
+                
+                callback.call(this, new_layer._leaflet_id);
+          })
+        });        
+    },
+
     
     // if to_pixels is true 
     // for simple crs - from latlong to pixels
@@ -1038,7 +1073,7 @@ $.widget( "heurist.mapping", {
         
             function __convert_primitive(geometry){
 
-                if(!$.isEmptyObject(geometry)) return;
+                if($.isEmptyObject(geometry)) return;
 
                 if(geometry.type=="GeometryCollection"){
                     let l;
@@ -1241,7 +1276,7 @@ $.widget( "heurist.mapping", {
             this._updatePanels();
 
             //apply layer ot default style and fill markercluster
-            this.applyStyle( new_layer._leaflet_id, layer_style ?layer_style: this.setStyleDefaultValues(), null ); //{color: "#00b0f0"}
+            this.applyStyle( new_layer._leaflet_id, layer_style ? layer_style : this.setStyleDefaultValues(), null ); //{color: "#00b0f0"}
 
             
             if(!preserveViewport){
@@ -1704,10 +1739,6 @@ $.widget( "heurist.mapping", {
                 if(nativeZoom>=0 && nativeZoom<maxZoom){
                     maxZoom = nativeZoom;
                 } 
-                //if(this.userDefinedMinZoom>=0 && maxZoom<this.userDefinedMinZoom){
-                //    maxZoom = this.userDefinedMinZoom;  
-                //}
-
                 if(window.hWin.HEURIST4.util.isObject(fly_params) && (!fly_params['maxZoom'] || fly_params['maxZoom'] > maxZoom)){
                     fly_params['maxZoom'] = maxZoom;
                 }
@@ -1912,8 +1943,9 @@ $.widget( "heurist.mapping", {
         }
 
         return !affected_layer 
-            || affected_layer instanceof L.ImageOverlay 
-            || affected_layer instanceof L.TileLayer;    
+            || affected_layer instanceof L.ImageOverlay
+            || affected_layer instanceof L.TileLayer
+            || (typeof GeoRasterLayer === 'function' && affected_layer instanceof GeoRasterLayer);
     },
     
     //
@@ -1933,23 +1965,29 @@ $.widget( "heurist.mapping", {
         let affected_layer = this.all_layers[layer_id];
         
         if(this.isImageLayer(affected_layer)){
-
+            
+            if( affected_layer instanceof GeoRasterLayer ){
+                L.setOptions(affected_layer, newStyle);
+                return;
+            }
             // Get html element (img => non-tiled)
             let element = affected_layer instanceof L.ImageOverlay ? affected_layer.getElement() : affected_layer.getContainer();
 
             // Get class list, look for class that starts with heurist-imageoverlay-
-            let classes = $(element).attr('class').split(' ');
-            let layer_class = '';
+            if($(element).attr('class')){
+                let classes = $(element).attr('class').split(' ');
+                let layer_class = '';
 
-            for(const class_name of classes){
-                if(class_name.match(/heurist-imageoverlay-/)){
-                    layer_class = class_name;
-                    break;
+                for(const class_name of classes){
+                    if(class_name.match(/heurist-imageoverlay-/)){
+                        layer_class = class_name;
+                        break;
+                    }
                 }
-            }
 
-            if(!window.hWin.HEURIST4.util.isempty(layer_class)){
-                this.applyImageMapFilter(layer_class, newStyle); // apply image filter
+                if(!window.hWin.HEURIST4.util.isempty(layer_class)){
+                    this.applyImageMapFilter(layer_class, newStyle); // apply image filter
+                }
             }
 
             return;  
@@ -1981,10 +2019,6 @@ $.widget( "heurist.mapping", {
        
         if(style || !affected_layer.options.default_style){
        
-            //update markers only if style has been changed
-            //var marker_style = null;
-            //var myIcon = new L.Icon.Default();
-            
             // set default values -------       
             style = this.setStyleDefaultValues( style );
             
@@ -2364,8 +2398,6 @@ $.widget( "heurist.mapping", {
             }else{
                 layer.setIcon(setIcon);    
                 layer.setOpacity( markerStyle.opacity );
-                //if(markerStyle.color)
-                //    layer.valueOf()._icon.style.filter = hexToFilter(markerStyle.color);
             }
 
         }else if(layer instanceof L.CircleMarker){
@@ -2554,7 +2586,8 @@ $.widget( "heurist.mapping", {
                 $content.css({
                     'max-width': maxw,
                     'max-height': maxh,
-                    'overflow': 'auto'
+                    'overflow': 'auto',
+                    'font-size': '0.75rem'
                 });
 
                 /*if(!(that.mapPopUpTemplate || layer.options.popup_template) && width == 'auto' && height == 'auto'){
@@ -2582,21 +2615,20 @@ $.widget( "heurist.mapping", {
                 }else if($popup_ele.resizable('instance') !== undefined){
                     $popup_ele.resizable('destroy');
                 }
-            } else if(that.options.map_popup_mode=='dialog'){
-                
+
+                that._on($popup_ele.find('.login-viewer'), {
+                    click: () => window.hWin.HEURIST4.ui.checkAndLogin(true, () => {location.reload();})
+                });
+
+            }else if(that.options.map_popup_mode=='dialog'){
+
                 window.hWin.HEURIST4.msg.showMsg(content);
-                
             }
         }
 
         if(layer.feature.properties.rec_ID>0){
             
-            //if(that.vistimeline) that.vistimeline.timeline('setSelection', [layer.feature.properties.rec_ID]);
-
             that.setFeatureSelection([layer.feature.properties.rec_ID], false, false, add_to_selection); //highlight without zoom
-            //if(window.hWin.HEURIST4.util.isFunction(that.options.onselect)){
-            //    that.options.onselect.call(that, [layer.feature.properties.rec_ID] );
-            //}
             
             if(!add_to_selection){
 
@@ -2619,7 +2651,7 @@ $.widget( "heurist.mapping", {
                 
                 if((that.mapPopUpTemplate && that.mapPopUpTemplate!='standard') || layer.options.popup_template){
                     
-                    popupURL = window.hWin.HAPI4.baseURL + 'viewers/smarty/showReps.php?snippet=1&publish=1&debug=0&q=ids:'
+                    popupURL = window.hWin.HAPI4.baseURL + '?snippet=1&publish=1&debug=0&q=ids:'
                             + layer.feature.properties.rec_ID
                             + '&db='+db+'&template='
                             + encodeURIComponent(layer.options.popup_template || that.mapPopUpTemplate);
@@ -2970,7 +3002,6 @@ $.widget( "heurist.mapping", {
                         (window.hWin.HEURIST4.util.findArrayIndex(layer.feature.properties.rec_ID, recIDs)>=0)) 
                     {
                         res.push(layer);
-                        //if(recIDs.length==1) return false;
                     }
                 });
             }    
@@ -2992,8 +3023,6 @@ $.widget( "heurist.mapping", {
                 $.each(layers,function(i, lyr){
                     
                     if(lyr instanceof L.Marker){
-                        //var icon = lyr._icon;
-                        //$(icon).css('opacity', opacity);
                         lyr.setOpacity( opacity );                        
                     }else{
                         lyr.setStyle({
@@ -3058,11 +3087,9 @@ $.widget( "heurist.mapping", {
                         if (_selection===true || (layer.feature &&
                          window.hWin.HEURIST4.util.findArrayIndex(layer.feature.properties.rec_ID, _selection)>=0)){
                               selected_markers.push( layer );
-                              //if(selected_markers.length==_selection.length) return false;
                          }
                     });
             }
-            //if(selected_markers.length==_selection.length) break;
         }        
         
         return selected_markers;
@@ -3141,7 +3168,7 @@ $.widget( "heurist.mapping", {
             return __extendBoundsForPoint(ll);
             
         }else{
-            let bnd = layer.getBounds();
+            let bnd = layer?.getBounds();
             if(bnd && bnd.isValid()){
                 let p1 = bnd.getSouthWest();
                 let p2 = bnd.getNorthEast();
@@ -3514,9 +3541,6 @@ $.widget( "heurist.mapping", {
                     element_timeline: this.options.element_timeline,
                     onselect: function(selected_rec_ids){
                         that.setFeatureSelection(selected_rec_ids, true, true, false); //timeline select - highlight on map and zoom
-                        //if(window.hWin.HEURIST4.util.isFunction(that.options.onselect)){ //trigger global event
-                        //    that.options.onselect.call(that, selected_rec_ids);
-                        //s}
                     },                
                     onfilter: function(show_rec_ids, hide_rec_ids){
                         
@@ -3569,7 +3593,7 @@ $.widget( "heurist.mapping", {
     
         //map controls {all,none,zoom,bookmark,geocoder,print,publish,legend}
         let controls = [];
-        if(params['controls']!='none'){
+        if(!window.hWin.HEURIST4.util.isempty(params['controls']) && params['controls']!='none'){
             controls = __splitval(params['controls']);
         }
         
@@ -3663,43 +3687,6 @@ $.widget( "heurist.mapping", {
                     }else
                     if(val=='draw') //draw plugin
                     {
-                        //var is_geofilter = (controls.indexOf('drawfilter')>=0);
-                        
-                          /*
-                        L.Edit.PolyVerticesEdit = L.Edit.PolyVerticesEdit.extend(
-                           {
-                                    icon: new L.DivIcon({
-                                      iconSize: new L.Point(8, 8),
-                                      className: 'leaflet-div-icon leaflet-editing-icon',
-                                    }),
-                                    touchIcon: new L.DivIcon({
-                                        iconSize: new L.Point(12, 12), //was 20
-                                        className: 'leaflet-div-icon leaflet-editing-icon leaflet-touch-icon'
-                                    })
-                          });            
-                        L.Edit.Poly = L.Edit.Poly.extend(
-                           {
-                                    icon: new L.DivIcon({
-                                      iconSize: new L.Point(8, 8),
-                                      className: 'leaflet-div-icon leaflet-editing-icon',
-                                    }),
-                                    touchIcon: new L.DivIcon({
-                                        iconSize: new L.Point(12, 12), //was 20
-                                        className: 'leaflet-div-icon leaflet-editing-icon leaflet-touch-icon'
-                                    })
-                          });            
-                        L.Draw.Polyline = L.Draw.Polyline.extend(
-                           {
-                                    icon: new L.DivIcon({
-                                      iconSize: new L.Point(8, 8),
-                                      className: 'leaflet-div-icon leaflet-editing-icon',
-                                    }),
-                                    touchIcon: new L.DivIcon({
-                                        iconSize: new L.Point(12, 12), //was 20
-                                        className: 'leaflet-div-icon leaflet-editing-icon leaflet-touch-icon'
-                                    })
-                          });            
-                          */
                         that.drawSetControls( that.options.drawMode );
                         
                     }//draw events
@@ -3738,8 +3725,6 @@ $.widget( "heurist.mapping", {
             
         //   legend: [basemaps,search,mapdocs|onedoc,off,width]
         this.mapManager.updatePanelVisibility(__splitval(params['legend']));
-        
-        //$('#map-settingup-message').text('EXPERIMENTAL');
         
         //show/hide available basemaps
         this.mapManager.filterListBaseMap( params['basemaps'] );  
@@ -3915,13 +3900,13 @@ $.widget( "heurist.mapping", {
         toolbar.find('#mapDocumentSel').parent().hide();
         /* Hidden since 2023-03-16
         var $mapdocSel = toolbar.find('#mapDocumentSel');
-        this._on(toolbar.find('#btn_layout_map').button({text:'Map'}),
+        this._on(toolbar.find('#btn_layout_map').button({label:'Map'}),
             {click:function(e){  
                 this.nomap = !this.nomap;
                 if(this.notimeline && this.nomap) this.notimeline = false;
                 this._updatePanels()
             }});
-        this._on(toolbar.find('#btn_layout_timeline').button({text:'Timeline'}),
+        this._on(toolbar.find('#btn_layout_timeline').button({label:'Timeline'}),
             {click:function(e){  
                 this.notimeline = !this.notimeline;
                 if(this.notimeline && this.nomap) this.nomap = false;
@@ -3946,7 +3931,7 @@ $.widget( "heurist.mapping", {
                         'You will need record types '
                         +'2-101 "Map/Image Annotation" which are available as part of Heurist_Core_Definitions.',
                             function(){
-                               this_btn.click(); //call itself again 
+                               this_btn.trigger('click'); //call itself again 
                             }
                         );
 
@@ -4074,12 +4059,6 @@ $.widget( "heurist.mapping", {
                         
                         let sMode = $dlg.find('#dlg-prompt-mode').val();
                         
-                        //var opts = {pageSize:'A4'};
-                        //margin:{right:150}, scale:1};
-                        //if(sTitle!=''){
-                        //    opts['header'] = {text:sTitle, enabled:true };
-                        //}
-                        
                         let modeToUse = L.BrowserPrint.Mode[sMode](); 
                        
                         that.map_print.browserPrint.print(modeToUse);
@@ -4118,12 +4097,12 @@ $.widget( "heurist.mapping", {
         if(this.nomap){
             toolbar.find('#btn_layout_map').removeClass('ui-state-active');
         }else{
-            toolbar.find('#btn_layout_map').addClass('ui-state-active').blur();
+            toolbar.find('#btn_layout_map').addClass('ui-state-active').trigger('blur');
         }
         if(this.notimeline){
             toolbar.find('#btn_layout_timeline').removeClass('ui-state-active');
         }else{
-            toolbar.find('#btn_layout_timeline').addClass('ui-state-active').blur();
+            toolbar.find('#btn_layout_timeline').addClass('ui-state-active').trigger('blur');
         }
 
         let is_main_ui = this.options.layout_params && this.options.layout_params['ui_main'];
@@ -4193,8 +4172,7 @@ $.widget( "heurist.mapping", {
               
         }
         
-        if(no_map_data){
-           //$('#map').hide();
+        if(no_map_data && !this.options.isPublished){
            $('#map_empty_message').show();
         }else{
            $('#map_empty_message').hide();
@@ -4384,7 +4362,7 @@ $.widget( "heurist.mapping", {
                 __addDrawItems(l2);
                 this.drawZoomTo();
             }catch(e){
-                //window.hWin.HEURIST4.msg.showMsgFlash('Invalid geojson', 2000);
+                /* continue regardless of error */
             }
     },   
     
@@ -4721,7 +4699,6 @@ $.widget( "heurist.mapping", {
         });     
         //on save event       
         that.nativemap.on(L.Draw.Event.DELETED, function (e) {
-            //let layers = e.layers;
            if(window.hWin.HEURIST4.util.isFunction(that.options.ondraw_editsave)){
                that.options.ondraw_editsave.call(that, e);
            }

@@ -739,39 +739,25 @@ if(_mapdata.limit_warning){
         
         let toolbar = $("#timeline_toolbar").css({'font-size':'0.8em', zIndex:3});
 
-        $("<button>").button({icons: {
-            primary: "ui-icon-circle-plus"
-            },text:false, label:window.hWin.HR("Zoom In")})
+        $("<button>").button({icon:"ui-icon-circle-plus",showLabel:false, label:window.hWin.HR("Zoom In")})
             .on('click', function(){ __timelineZoom(-0.25); })
             .appendTo(toolbar);
-        $("<button>").button({icons: {
-            primary: "ui-icon-circle-minus"
-            },text:false, label:window.hWin.HR("Zoom Out")})
+        $("<button>").button({icon:"ui-icon-circle-minus",showLabel:false, label:window.hWin.HR("Zoom Out")})
             .on('click', function(){ __timelineZoom(0.5); })
             .appendTo(toolbar);
-        $("<button>").button({icons: {
-            primary: "ui-icon-arrowthick-2-e-w"
-            },text:false, label:window.hWin.HR("Zoom to All")})
+        $("<button>").button({icon:"ui-icon-arrowthick-2-e-w",showLabel:false, label:window.hWin.HR("Zoom to All")})
             .on('click', function(){ _timelineZoomToAll(); })
             .appendTo(toolbar);
-        $("<button>").button({icons: {
-            primary: "ui-icon-arrowthickstop-1-s"
-            },text:false, label:window.hWin.HR("Zoom to selection")})
+        $("<button>").button({icon:"ui-icon-arrowthickstop-1-s",showLabel:false, label:window.hWin.HR("Zoom to selection")})
             .on('click', function(){ __timelineZoomToSelection(); })
             .appendTo(toolbar);
-        $("<button>").button({icons: {
-            primary: "ui-icon-arrowthickstop-1-w"
-            },text:false, label:window.hWin.HR("Move to Start")})
+        $("<button>").button({icon:"ui-icon-arrowthickstop-1-w",showLabel:false, label:window.hWin.HR("Move to Start")})
             .on('click', function(){ __timelineMoveToLeft(); })
             .appendTo(toolbar);
-        $("<button>").button({icons: {
-            primary: "ui-icon-arrowthickstop-1-e"
-            },text:false, label:window.hWin.HR("Move to End")})
+        $("<button>").button({icon:"ui-icon-arrowthickstop-1-e",showLabel:false, label:window.hWin.HR("Move to End")})
             .on('click', function(){ __timelineMoveToRight(); })
             .appendTo(toolbar);
-        $("<button>").button({icons: {
-            primary: "ui-icon-gear"
-            },text:false, label:window.hWin.HR("Timeline options")})
+        $("<button>").button({icon:"ui-icon-gear",showLabel:false, label:window.hWin.HR("Timeline options")})
             .on('click', function(){ __timelineEditProperties(); })
             .appendTo(toolbar);
         $("<label>").attr('id','lbl_timeline_filter')
@@ -858,27 +844,6 @@ if(_mapdata.limit_warning){
             $('#timeline-edit-dialog').find('input[type="checkbox"][name="time-filter-map"]').prop('checked',true);
         }
        
-            
-            
-        /*
-        $("<input id='btn_timeline_labels' type='checkbox' checked>").appendTo(toolbar);
-        $("<label for='btn_timeline_labels'>Show labels2</label>").appendTo(toolbar);
-        $("#btn_timeline_labels").button({icons: {
-            primary: "ui-icon-tag"
-            },text:false, label:window.hWin.HR("Show labels")})
-            .on('click', function(){ __timelineShowLabels(); })
-            .appendTo(toolbar);
-        */
-        
-        /*
-        let el = $('<label style="padding:3px 4px;background:#DDDDDD"><input type="checkbox" checked>Stack</label>').appendTo(toolbar);
-        el.find('input').on('change', function(event){ 
-              _current_stack_setting = $(event.target).is(':checked');
-              vis_timeline.setOptions({'stack':_current_stack_setting}); //(mode!=4)
-//              vis_timeline.redraw();
-        });
-        */
-
     }
     
     //  mode 
@@ -1338,7 +1303,7 @@ if(_mapdata.limit_warning){
 
             /*let shift_draw = false;
 
-            $(document).bind('keydown', function(e) {
+            $(document).on('keydown', function(e) {
             if(e.keyCode==16 && shift_draw == false){
             map.setOptions({draggable: false, disableDoubleClickZoom: true});
             shift_draw = true; // enable drawing
@@ -1347,7 +1312,7 @@ if(_mapdata.limit_warning){
 
             });
 
-            $(document).bind('keyup', function(e) {
+            $(document).on('keyup', function(e) {
             if(e.keyCode==16){
             map.setOptions({draggable: true, disableDoubleClickZoom: true});
             shift_draw = false // disable drawing
@@ -1689,8 +1654,6 @@ if(_mapdata.limit_warning){
 
                             items_to_update_data.push(itemdata);
 
-                            //if(idx == selection.length-1) lastSelectedItem = item;
-
                         }else{ //clear selection
                             //item.opts.theme
                             //item.changeTheme(customTheme, true); - dont work
@@ -1873,22 +1836,13 @@ if(_mapdata.limit_warning){
             //              - this is main customization way for Digital Harlem
             // 4. html content is created from item.opts values
             
-            //Since 2016-11-17 use common renderRecordData !window.hWin.HEURIST4.util.isnull(item.opts.info)){
-
-                //if(!item.opts.info){
-                //    return;   //supress popup
-                //}else 
 
                 let mapdocument = null;
-                /*                
-                let mapdocument = that.map_control.getMapDocumentDataById(); //get current map document
-                mapdocument = {popup_template:'Person connected to Place via Events.tpl'};
-                mapdocument = {popup_template:'BoroPlaceOnMap.tpl'};
-                */
+
                     
                 if(mapdocument && mapdocument.popup_template){ //1. as smarty output 
                                                
-                    popupURL = window.hWin.HAPI4.baseURL + 'viewers/smarty/showReps.php?snippet=1&h4=1&w=a&db='+window.hWin.HAPI4.database
+                    popupURL = window.hWin.HAPI4.baseURL + '?snippet=1&h4=1&w=a&db='+window.hWin.HAPI4.database
                             +'&q=ids:'+item.opts.recid+'&template='+encodeURIComponent(mapdocument.popup_template);
 
             
@@ -2021,9 +1975,7 @@ if(_mapdata.limit_warning){
 
             if(window.hWin.HAPI4.currentUser.ugr_ID>0){
                 $("#btnEditRecordFromBubble")
-                    .button({icons: {
-                        primary: "ui-icon-pencil"
-                        }, text:false})
+                    .button({icon:"ui-icon-pencil",showLabel:false})
                      .on('click', function( event ) {
                 event.preventDefault();
                 //@todo replce with new method => window.hWin.HEURIST4.ui.openRecordInPopup(recID, null, true, null)

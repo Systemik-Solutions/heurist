@@ -28,13 +28,14 @@ define('PDIR','../../');//need for proper path to js and css
 
 require_once dirname(__FILE__).'/../../hclient/framecontent/initPageMin.php';
 
-$mysqli = $system->get_mysqli();
+$mysqli = $system->getMysqli();
 ?>
 <!DOCTYPE html>
 <html lang="en">
     <head>
         <title>Check for missing and orphaned files and incorrect paths</title>
         <meta http-equiv="content-type" content="text/html; charset=utf-8">
+        <meta name="robots" content="noindex,nofollow">
 
         <link rel="stylesheet" type="text/css" href="<?php echo PDIR;?>h4styles.css" />
         <style type="text/css">
@@ -75,7 +76,6 @@ $mysqli = $system->get_mysqli();
     $dbs = mysql__getdatabases4($mysqli, true);
     foreach ($dbs as $db){
 
-        //if($counter>50) {break;}
         $counter++;
 
         print "<h2>".htmlspecialchars($db)."</h2>";
@@ -131,8 +131,7 @@ $mysqli = $system->get_mysqli();
 
                 if($currentRecID==null){
                     $files_orphaned[$res['ulf_ID']]['isfound'] = file_exists($res['res_fullpath'])?1:0;
-                }else
-                if ( !file_exists($res['res_fullpath']) ){
+                }elseif ( !file_exists($res['res_fullpath']) ){
                     //file not found
                     $files_notfound[$res['ulf_ID']] = array(
                                     'ulf_ID'=>$res['ulf_ID'],
@@ -159,8 +158,7 @@ $mysqli = $system->get_mysqli();
                         //realpath gives real path on remote file server
                         if(strpos($fpath, '/srv/HEURIST_FILESTORE/')===0){
                             $fpath = str_replace('/srv/HEURIST_FILESTORE/', HEURIST_FILESTORE_ROOT, $fpath);
-                        }else
-                        if(strpos($fpath, '/misc/heur-filestore/')===0){
+                        }elseif(strpos($fpath, '/misc/heur-filestore/')===0){
                             $fpath = str_replace('/misc/heur-filestore/', HEURIST_FILESTORE_ROOT, $fpath);
                         }
 
@@ -193,7 +191,7 @@ $mysqli = $system->get_mysqli();
 
             if (count(@$files_orphaned)>0 || count(@$files_notfound)>0 || count(@$files_path_to_correct)>0){
 
-                if(count($files_orphaned)>0){
+                if(!empty($files_orphaned)){
                 ?>
                     <h3>Orphaned files</h3>
                     <div><?php echo count($files_orphaned);?> entries</div>
@@ -214,7 +212,7 @@ $mysqli = $system->get_mysqli();
                 }//for
                 print '<hr>';
                 }
-                if(count($files_notfound)>0){
+                if(!empty($files_notfound)){
                 ?>
                     <h3>Files not found</h3>
                     <div><?php echo count($files_notfound);?> entries</div>
@@ -245,7 +243,7 @@ $mysqli = $system->get_mysqli();
                     file_put_contents($log_filename, $log_data, FILE_APPEND);
 
                 }
-                if(count($files_path_to_correct)>0){
+                if(!empty($files_path_to_correct)){
                 ?>
                     <h3>Paths to be corrected</h3>
                     <div><?php echo count($files_path_to_correct);?> entries</div>

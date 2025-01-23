@@ -5,14 +5,12 @@ set_time_limit(0);
 
 $fix = false;
 
-if (!is_array($argv) || count($argv) == 0){
+if (!is_array($argv) || empty($argv)){
     $fix = (@$_GET['fix']==1);
-    //print 'fix='.@$_GET['fix'];
     $iscmd = false;
 }else{
     $iscmd = true;
     foreach ($argv as $arg){
-        //echo "\n".$arg.';';
         if($arg=='fix=1'){
             $fix = true;
         }
@@ -69,7 +67,7 @@ foreach ($iterator as $filepath => $info) {
 }
 print $lnbr.'total: '.$total;
 print $lnbr.'with dos line delimeter:'.count($dosed);
-if(is_array($dosed) && count($dosed)>0){
+if(!isEmptyArray($dosed)){
 /*
     foreach ($dosed as $filename){
         print $lnbr.$filename;

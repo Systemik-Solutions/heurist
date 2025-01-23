@@ -20,14 +20,13 @@
     * See the License for the specific language governing permissions and limitations under the License.
     */
 
-    require_once dirname(__FILE__).'/../System.php';
+    require_once dirname(__FILE__).'/../../autoload.php';
     require_once dirname(__FILE__).'/../records/edit/recordsBatch.php';
-    require_once dirname(__FILE__).'/../dbaccess/utils_db.php';
 
     $response = array();
     $res = false;
 
-    $system = new System();
+    $system = new hserv\System();
     if( ! $system->init(@$_REQUEST['db']) ){
         //get error and response
         $response = $system->getError();
@@ -43,8 +42,7 @@
 
             $res = $dbRecDetails->multiAction();
 
-        }else
-        if(@$_REQUEST['a'] == 'add'){
+        }elseif(@$_REQUEST['a'] == 'add'){
 
             $res = $dbRecDetails->detailsAdd();
 
@@ -101,6 +99,10 @@
         }elseif(@$_REQUEST['a'] == 'case_conversion'){
 
             $res = $dbRecDetails->caseConversion();
+
+        }elseif(@$_REQUEST['a'] == 'nl2br'){
+
+            $res = $dbRecDetails->nl2brConversion();
 
         }elseif(@$_REQUEST['a'] == 'translation'){
 

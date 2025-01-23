@@ -68,7 +68,9 @@ $.widget( "heurist.searchBuilderItem", {
         
         onselect_field: null,  //callback to select field from treeview
 
-        language: null // selected language (3 character ISO639-2 code)
+        language: null, // selected language (3 character ISO639-2 code)
+        
+        reverse_RtyID: 0  // rectord type for reverse links
     },
 
     _current_field_type:null, // type of input field
@@ -127,7 +129,7 @@ $.widget( "heurist.searchBuilderItem", {
             if(window.hWin.HEURIST4.util.isFunction(this.options.onselect_field)){
                 window.hWin.HEURIST4.util.stopEvent(event);
                 this.options.onselect_field.call(this);
-                //this._onSelectField();
+               
             }
         }});
 
@@ -177,11 +179,13 @@ $.widget( "heurist.searchBuilderItem", {
             .appendTo( this.sel_container );
         
 
-        this.sel_container.hover(function(){
-                   that.remove_token.css({visibility:'visible'});  },
-        function(){
+        this.sel_container
+        .on( 'mouseenter', function(event){ 
+            that.remove_token.css({visibility:'visible'});
+        } )
+        .on( 'mouseleave', function(event){
                    that.remove_token.css({visibility:'hidden'});
-        });
+        } );
         
         this._refresh();
         
@@ -299,6 +303,12 @@ $.widget( "heurist.searchBuilderItem", {
                     this.label_token.hide();
                 }
                 
+            }else if(this.options.reverse_RtyID>0){
+                let lbl_text = '< '+$Db.rty(this.options.reverse_RtyID, 'rty_Name');
+                    this.element
+                        .find('span.ui-selectmenu-button>span.ui-selectmenu-text')
+                        .text(lbl_text);
+                
             }else{
                 this.label_token.text('broken!');
             }
@@ -342,7 +352,7 @@ $.widget( "heurist.searchBuilderItem", {
         };
 
         let dty_ID = this.options.dty_ID;
-        
+
         if(dty_ID.indexOf('r.')==0){
             dty_ID = dty_ID.substr(2);    
         }else if(dty_ID.indexOf('lt')==0 || dty_ID.indexOf('lf')==0){
@@ -406,7 +416,7 @@ $.widget( "heurist.searchBuilderItem", {
                 }else  if (dty_ID=='access' || 
                            dty_ID=='tag'){
                         
-                        field_type = 'enum';//dty_ID;
+                        field_type = 'enum';
                         ed_options['dtID'] = dty_ID;
                 }
             }
@@ -415,6 +425,10 @@ $.widget( "heurist.searchBuilderItem", {
 
             if(field_type=="rectype"){
                 dtFields['cst_EmptyValue'] = window.hWin.HR('Any record type');
+            }else if(field_type == 'user'){
+                dtFields['rst_FieldConfig'] = {
+                    mode: 'all_users_and_groups'
+                };
             }
 
             ed_options['dtFields'] = dtFields;
@@ -437,7 +451,6 @@ $.widget( "heurist.searchBuilderItem", {
                 eqopts[0].key = '=';
                 eqopts.unshift({key:'',title:'like'}); //string match
             }
-                      
 
         } else if(field_type=='float' || field_type=='integer'){
 
@@ -477,6 +490,8 @@ $.widget( "heurist.searchBuilderItem", {
             
         }else if(dty_ID == 'exists'){
             eqopts = [{key: 'any', title: 'exists'}];
+                      //{key:'NULL', title:'no data (missing)'},
+                      //{key:'count', title:'count of values'}];
         }else{
 
 /*        
@@ -566,7 +581,7 @@ Whole value = EQUAL
                 this._predicate_input_ele.css('visibility', 'visible');
                 this._predicate_input_ele.find('.editint-inout-repeat-button').parent().css('visibility', 'visible');
                 this._manageConjunction();
-                //this.cb_negate.show();
+               
             }
             if(cval=='@' 
                 || field_type=='geo' || field_type=='float' || field_type=='integer'){
@@ -592,7 +607,7 @@ Whole value = EQUAL
                     need_select && this._predicate_input_ele.find('.input-div > select').length == 0){ 
                     // check that input is correct version (text input or dropdown)
 
-                    this._onSelectField(); //this._refresh();
+                    this._onSelectField();
                 }
             }
             
@@ -629,7 +644,7 @@ Whole value = EQUAL
         
         if(field_type=='relmarker'){
             // for this type we create two elements 
-            // relation type selector and resource record selector
+            // relation type selector and resource (record pointer) record selector
             ed_options['detailtype'] = 'relationtype';
             ed_options['dtID'] = 'r';
             let dtFields = {dty_Type:'relationtype', 
@@ -650,20 +665,32 @@ Whole value = EQUAL
             ed_options['dtFields'] = null;
             
         }else if(field_type=='resource'){ 
-
-            if(ed_options['rectypeID']){
-                ed_options.dtFields = window.hWin.HEURIST4.util.cloneJSON($Db.rst(ed_options['rectypeID'], ed_options['dtID']));
-            }else{
-                ed_options.dtFields = window.hWin.HEURIST4.util.cloneJSON($Db.dty(ed_options['dtID']));
+            
+            if(this.options.reverse_RtyID>0){
+                ed_options.dtFields = {dty_Type:'resource', 
+                            rst_DisplayName: 'AAAAA',
+                            rst_PtrFilteredIDs: ''+this.options.reverse_RtyID};
+                
+            }else {
+                let ptr_field = null;
+                if(ed_options['rectypeID']){
+                    ptr_field = $Db.rst(ed_options['rectypeID'], ed_options['dtID']);
+                }
+                if(ptr_field){
+                    ed_options.dtFields = window.hWin.HEURIST4.util.cloneJSON(ptr_field);
+                }else{
+                    ed_options.dtFields = window.hWin.HEURIST4.util.cloneJSON($Db.dty(ed_options['dtID']));
+                }
+                ed_options.dtFields['rst_PtrFilteredIDs'] = $Db.dty(ed_options['dtID'], 'dty_PtrTargetRectypeIDs');
             }
-            ed_options.dtFields['rst_PtrFilteredIDs'] = $Db.dty(ed_options['dtID'], 'dty_PtrTargetRectypeIDs');
+            
             ed_options.dtFields['rst_CreateChildIfRecPtr'] = 0;
             ed_options.dtFields['rst_DefaultValue'] = '';
             ed_options.dtFields['rst_PointerMode'] = 'browseonly';
         }else if(field_type=='freetext' || field_type=='blocktext' || field_type==prev_type){
             ed_options.values = prev_value;
         }
-        
+
         //init input elements
         this._predicate_input_ele = $("<div>")
             .editing_input(ed_options).appendTo(this.values_container);
@@ -686,10 +713,6 @@ Whole value = EQUAL
     getCodes: function(){
         let codes = this.options.code.split(':');
         codes[codes.length-1] = this.options.dty_ID
-        
-        if(this.options.enum_field!=null){
-            //codes.push(this.options.enum_field);
-        }
         
         return codes.join(':');
     },
@@ -780,9 +803,6 @@ Whole value = EQUAL
                     op = '-';
                 }
                 
-                //if(isnegate){
-                //    op = '-'+op;
-                //}
                 if(this._current_field_type=='enum'
                     && (this.options.enum_field == 'term' || this.options.enum_field == 'desc') 
                     && lang_code != ''){

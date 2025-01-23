@@ -20,24 +20,27 @@
 * See the License for the specific language governing permissions and limitations under the License.
 */
 
-require_once dirname(__FILE__).'/../../../hserv/System.php';
-require_once dirname(__FILE__).'/../../../hserv/utilities/dbUtils.php';
+use hserv\utilities\USanitize;
+use hserv\utilities\DbUtils;
+
+require_once dirname(__FILE__).'/../../../autoload.php';
+
 require_once 'welcomeEmail.php';
 
 set_time_limit(0);
 
 $res = false;
 
-$system = new System();
+$system = new hserv\System();
 
-$sysadmin_pwd = System::getAdminPwd();
+$sysadmin_pwd = USanitize::getAdminPwd();
 
 if($sysadmin_pwd==null){
-    $system->addError(HEURIST_INVALID_REQUEST, 'Password parameter is not defined');
+    $system->addError(HEURIST_INVALID_REQUEST, errorWrongParam('Password'));
 }else{
 
     $database_to_delete = filter_var(@$_REQUEST['database'], FILTER_SANITIZE_STRING);
-    //database validation - code duplicates System::dbname_check. However security reports does not recognize it
+
     $sErrorMsg = DbUtils::databaseValidateName($database_to_delete, 2);
 
     if ($sErrorMsg!=null) {
@@ -66,10 +69,6 @@ if($sysadmin_pwd==null){
             /** Db check */
             if($isSystemInited){
 
-//if(!$database_to_delete){
-//    $system->addError(HEURIST_INVALID_REQUEST, 'Database parameter is not defined');
-//}
-
                     $allow_deletion = true;
 
 
@@ -77,17 +76,17 @@ if($sysadmin_pwd==null){
 
                     if($is_delete_current_db){
 
-                        $user = user_getById($system->get_mysqli(), $system->get_user_id());//user in current db
+                        $user = user_getById($system->getMysqli(), $system->getUserId());//user in current db
 
                         $allow_deletion = false;
                         //find the same user in database to be deleted
                         //find user by email
-                        $usr = user_getByField($system->get_mysqli(), 'ugr_eMail', $user['ugr_eMail'], $dbname_full);
+                        $usr = user_getByField($system->getMysqli(), 'ugr_eMail', $user['ugr_eMail'], $dbname_full);
                         if(@$usr['ugr_ID']==2){ //database owner
                             $allow_deletion = true;
                         }else{
                             //allowed if user is database admnistrator
-                            $groups = user_getWorkgroups($system->get_mysqli(), $usr['ugr_ID'], false, $dbname_full);
+                            $groups = user_getWorkgroups($system->getMysqli(), $usr['ugr_ID'], false, $dbname_full);
                             $allow_deletion = (@$groups[1]=='admin');
                         }
                     }
@@ -99,7 +98,7 @@ if($sysadmin_pwd==null){
                 }else{
                     list($dbname_full, $dbname ) = mysql__get_names( $_REQUEST['database'] );
                     //find user by email
-                    $usr = user_getByField($system->get_mysqli(), 'ugr_eMail', $user['ugr_eMail'], $dbname_full);
+                    $usr = user_getByField($system->getMysqli(), 'ugr_eMail', $user['ugr_eMail'], $dbname_full);
                     if(@$usr['ugr_ID']==2){ //database owner
                         $allow_deletion = true;
                     }
@@ -108,7 +107,7 @@ if($sysadmin_pwd==null){
                     if($allow_deletion)
                     {
                         //find owner of database
-                        $usr_owner = user_getByField($system->get_mysqli(), 'ugr_ID', 2, $dbname_full);
+                        $usr_owner = user_getByField($system->getMysqli(), 'ugr_ID', 2, $dbname_full);
 
                         //not verbose
                         $res = DbUtils::databaseDrop(false, $database_to_delete, $create_arc);
@@ -116,7 +115,7 @@ if($sysadmin_pwd==null){
                         // in case deletion by sysadmin - send email to onwer of deleted database
                         if($res && !$is_delete_current_db)
                         {
-                            sendEmail_DatabaseDelete($usr_owner, $dbname, 1);
+                            sendEmailDatabaseDelete($usr_owner, $dbname);
                         }
 
                     }else{
@@ -142,6 +141,5 @@ if(is_bool($res) && !$res){
     $response = array("status"=>HEURIST_OK, "data"=> $res);
 }
 
-header('Content-type: text/javascript');
+header(CTYPE_JS);
 print json_encode($response);
-?>

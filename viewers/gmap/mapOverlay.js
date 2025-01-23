@@ -180,12 +180,11 @@ function HMappingControls( mapping, startup_mapdocument_id ) {
                         map_data[0].bookmarks.push([window.hWin.HR('World'),-80,90,-30,50,1800,2050]); //default
                         _loadMapDocumentById_continue();
                     }else{
-                        window.hWin.HEURIST4.msg.showMsgErr(
-                        'Map document (ID '
-                        + current_map_document_id
-                        + ') does not exist in the database. '
-                        + 'Please email the database owner ('
-                        +window.hWin.HAPI4.sysinfo['dbowner_email']+') and ask them to correct the URL');
+                        window.hWin.HEURIST4.msg.showMsgErr({
+                            message:  `Map document (ID ${current_map_document_id}) does not exist in the database. `
+                                    + `Please email the database owner (${window.hWin.HAPI4.sysinfo['dbowner_email']}) and ask them to correct the URL`,
+                            error_title: 'Invalid map document provided'
+                        });
                     }
                 
                 }else{
@@ -524,7 +523,7 @@ function HMappingControls( mapping, startup_mapdocument_id ) {
             ? ('<img src="'+window.hWin.HAPI4.baseURL+'hclient/assets/16x16.gif"'
                 + ' align="top" class="rt-icon" ' + icon_bg     
                 + '>')
-            : ('<div style="display:inline-block;vertical-align:-3px;border:6px solid '+bg_color+'" />')
+            : ('<div style="display:inline-block;vertical-align:-3px;border:6px solid '+bg_color+'" ></div>')
         )
         + '<label for="chbox-'+legendid+'" style="padding-left:1em">' + title
         + '</label>'
@@ -554,7 +553,7 @@ function HMappingControls( mapping, startup_mapdocument_id ) {
             legend_content.append(legenditem);
         };
 
-        legenditem.find(".overlay-legend").change(_showHideOverlay);
+        legenditem.find(".overlay-legend").on('change',_showHideOverlay);
 
             $('<div class="svs-contextmenu ui-icon ui-icon-close" layerid="'+overlay_idx+'"></div>')
             .on('click', function(event){ 
@@ -600,7 +599,7 @@ function HMappingControls( mapping, startup_mapdocument_id ) {
                     + ' data-mapdataid="'+mapdata_id+'" class="overlay-legend-depend" '+(overlay.visible?'checked="checked">':'>')
                     + mapdata_title + '</label></div>').appendTo(legenditem);        
             }            
-            legenditem.find(".overlay-legend-depend").change(_showHideLayer);
+            legenditem.find(".overlay-legend-depend").on('change',_showHideLayer);
         }
 
         _adjustLegendHeight();
@@ -834,7 +833,7 @@ function HMappingControls( mapping, startup_mapdocument_id ) {
         if(msg=='') {
             let imageURL = source.files[0];
 
-            let image_bounds = window.hWin.HEURIST4.geo.parseCoordinates('rect', source.bounds, 1, google);
+            let image_bounds = window.hWin.HEURIST4.geo.parseWKTCoordinates('rect', source.bounds, 1, google);
 
             let overlay = new HeuristOverlay(image_bounds.bounds, imageURL, map);
 
@@ -842,8 +841,11 @@ function HMappingControls( mapping, startup_mapdocument_id ) {
         }else{
             overlays[index] = _getStubOverlay();
 
-            window.hWin.HEURIST4.msg.showMsgErr('Map layer: '+source.title
-                +'<br>Unable to add image layer. '+msg);
+            window.hWin.HEURIST4.msg.showMsgErr({
+                message: `Map layer: ${source.title}<br>`
+                        +`Unable to add image layer. ${msg}`,
+                error_title: 'Unable to add image layer'
+            });
             //Please check that the file or service specified is in one of the supported formats. 
         }
     }
@@ -1849,7 +1851,7 @@ map.data.addListener('mouseover', function(event) {
 
         let btn_mapdocs = $("#mapSelectorBtn").button({showLabel:true, label:'Select...',
                 icon:"ui-icon-triangle-1-s", iconPosition:'end'}).css('max-height',22)
-                .click( function(e) {
+                .on('click', function(e) {
                 $('.menu-or-popup').hide(); //hide other
                 
                 if(loading_mapdoc_list) return;

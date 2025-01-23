@@ -19,13 +19,13 @@
     * See the License for the specific language governing permissions and limitations under the License.
     */
 
-    require_once dirname(__FILE__).'/../System.php';
+    require_once dirname(__FILE__).'/../../autoload.php';
 
     if(isset($_REQUEST['db'])) {
         $dbName = $_REQUEST['db'];
 
         // Initialize a System object that uses the requested database
-        $system = new System();
+        $system = new hserv\System();
         if( $system->init($dbName) ){
             // Result object
             $result = new stdClass();
@@ -45,7 +45,7 @@
             $system->dbclose();
 
             // Returning result as JSON
-            header('Content-type: application/json');
+            header(CTYPE_JSON);
             print json_encode($result);
         }else {
             // Show construction error
@@ -65,7 +65,7 @@
 
         // Select all rectype ids, names and count the occurence in the Record table. The defRectypes table is used to retrieve all record types in a certain database an the Records table is used to determine the occurence.
         $query = "SELECT d.rty_ID as id, d.rty_Name as name, sum(if(r.rec_FlagTemporary!=1, 1, 0)) as count FROM defRecTypes d LEFT JOIN Records r ON d.rty_ID=r.rec_RecTypeID GROUP BY id";
-        $res = $system->get_mysqli()->query($query);
+        $res = $system->getMysqli()->query($query);
         while($row = $res->fetch_assoc()) {
             $rectype = new stdClass();
             $rectype->id = intval($row["id"]);
@@ -73,7 +73,6 @@
             $rectype->count = intval($row["count"]);
             $rectype->image = HEURIST_RTY_ICON.$row["id"];
 
-            //print_r($rectype);
             array_push($rectypes, $rectype);
         }
 
@@ -83,7 +82,7 @@
     /**
     * Retrieve all detail types of a record type that point to other records
     *
-    * Find all constrined resource and relmarker fields
+    * Find all constrained resource (record pointer) and relmarker fields
     *
     * @param mixed $system   System reference
     * @param mixed $rectype  Record type
@@ -100,16 +99,15 @@
         ."GROUP BY rst.rst_DetailTypeID;";
 
 
-        $res = $system->get_mysqli()->query($query);
+        $res = $system->getMysqli()->query($query);
         while($row = $res->fetch_assoc()) {
             $relation = new stdClass();
             $relation->id = intval($row["id"]);//detail type id
             $relation->name = $row["name"];
-            $relation->count = 0;//intval($row["count"]);
+            $relation->count = 0;
             $relation->type = $row["reltype"];
             $relation->ids = $row["ids"];
 
-            //print_r($relation);
             array_push($relations, $relation);
         }
 
@@ -153,13 +151,12 @@
                 . " AND r1.rec_RecTypeID=" .$rectype->id. " AND r2.rec_RecTypeID=".$id;
             }
 
-            if($res = $system->get_mysqli()->query($query)) {
+            if($res = $system->getMysqli()->query($query)) {
                 if($row = $res->fetch_assoc()) {
                     $target = new stdClass();
                     $target->id = intval($id);
                     $target->count = intval($row["count"]);
 
-                    //print_r($target);
                     array_push($targets, $target);
                 }
             }
@@ -232,7 +229,6 @@ targetcount:0
                     $link->targetcount = $target->count;
                     $link->relation->count = $target->count;
 
-                    //print_r($link);
                     array_push($links, $link);
                 }
             }

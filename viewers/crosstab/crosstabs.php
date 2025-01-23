@@ -32,7 +32,8 @@ require_once dirname(__FILE__) . '/../../hclient/framecontent/initPage.php';
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0-beta3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-eOJMYsd53ii+scO/bJGFsiCZc+5NDVN2yr8+0RDqr0Ql0h+rP48ckxlpbzKgwra6" crossorigin="anonymous">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.4.1/font/bootstrap-icons.css">
 <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/responsive/2.2.7/css/responsive.dataTables.min.css"/>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.2.0/chart.min.js"></script>
+<!-- script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.2.0/chart.min.js"></script> -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="<?php echo PDIR; ?>hclient/widgets/entity/configEntity.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0-beta3/dist/js/bootstrap.bundle.min.js" integrity="sha384-JEW9xMcG8R+pH31jmWH6WWP0WintQrMb4s7ZOdauHnUtxwoG2vI5DkLtS3qm9Ekf" crossorigin="anonymous"></script>
 <script src="https://cdn.datatables.net/1.10.24/js/jquery.dataTables.js"></script>
@@ -60,7 +61,7 @@ require_once dirname(__FILE__) . '/../../hclient/framecontent/initPage.php';
         }
 
         //database, query q, domain w
-        crosstabsAnalysis = CrosstabsAnalysis(query_main, '');
+        window.crosstabsAnalysis = CrosstabsAnalysis(query_main, '');
         //
     }
         //Used to open the crosstabs section to the full width on the initial load.
@@ -75,11 +76,11 @@ require_once dirname(__FILE__) . '/../../hclient/framecontent/initPage.php';
 <link rel=stylesheet href="crosstabs.css" media="all">
 </head>
 
-<body style="padding:5px;overflow-x:auto;" class="popup selectmenu-parent">
+<body style="padding:5px;overflow:auto;" class="popup selectmenu-parent">
 
     <script src="crosstabs.js"></script>
 
-    <div style="margin:0px auto; padding: 0.5em; height: 100%;overflow: auto;">
+    <div style="padding: 0.5em; height: 100%;"> <!-- margin:0px auto; overflow: auto; -->
         <div class="container-fluid">
             <!-- Page container -->
             <div class="row">

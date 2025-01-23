@@ -22,38 +22,6 @@
     * distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied
     * See the License for the specific language governing permissions and limitations under the License.
     */
-
-    require_once dirname(__FILE__).'/../System.php';
-
-    require_once dirname(__FILE__).'/../entity/dbUsrTags.php';
-    require_once dirname(__FILE__).'/../entity/dbSysDatabases.php';
-    require_once dirname(__FILE__).'/../entity/dbSysIdentification.php';
-    require_once dirname(__FILE__).'/../entity/dbSysGroups.php';
-    require_once dirname(__FILE__).'/../entity/dbSysUsers.php';
-    require_once dirname(__FILE__).'/../entity/dbDefDetailTypeGroups.php';
-    require_once dirname(__FILE__).'/../entity/dbDefFileExtToMimetype.php';
-    require_once dirname(__FILE__).'/../entity/dbDefTerms.php';
-    require_once dirname(__FILE__).'/../entity/dbDefVocabularyGroups.php';
-    require_once dirname(__FILE__).'/../entity/dbDefRecTypeGroups.php';
-    require_once dirname(__FILE__).'/../entity/dbDefDetailTypes.php';
-    require_once dirname(__FILE__).'/../entity/dbDefRecTypes.php';
-    require_once dirname(__FILE__).'/../entity/dbDefRecStructure.php';
-    require_once dirname(__FILE__).'/../entity/dbDefCalcFunctions.php';
-    require_once dirname(__FILE__).'/../entity/dbSysArchive.php';
-    require_once dirname(__FILE__).'/../entity/dbSysBugreport.php';
-    require_once dirname(__FILE__).'/../entity/dbSysDashboard.php';
-    require_once dirname(__FILE__).'/../entity/dbSysImportFiles.php';
-    require_once dirname(__FILE__).'/../entity/dbSysWorkflowRules.php';
-    require_once dirname(__FILE__).'/../entity/dbRecThreadedComments.php';
-    require_once dirname(__FILE__).'/../entity/dbRecUploadedFiles.php';
-    require_once dirname(__FILE__).'/../entity/dbUsrBookmarks.php';
-    require_once dirname(__FILE__).'/../entity/dbUsrReminders.php';
-    require_once dirname(__FILE__).'/../entity/dbUsrSavedSearches.php';
-    require_once dirname(__FILE__).'/../entity/dbAnnotations.php';
-
-    require_once dirname(__FILE__).'/../dbaccess/utils_db.php';
-
-
     //
     // $params
     //  entity
@@ -67,7 +35,8 @@
         $entity_name = entityResolveName(@$params['entity']);
 
         if($entity_name!=null){
-            $classname = 'Db'.ucfirst($entity_name);
+            $classname = 'hserv\entity\Db'.ucfirst($entity_name);
+            $params['entity'] = $entity_name;
             $entity = new $classname($system, $params);
         }
 
@@ -93,7 +62,7 @@
             }
 
             //load definitions for particular record type only
-            $mysqli = $system->get_mysqli();
+            $mysqli = $system->getMysqli();
             if(@$search_params['recID']>0 || @$search_params['rty_ID']){
                 $rec_ID = @$search_params['recID'];
 
@@ -118,10 +87,8 @@
                 $search_criteria = $search_params;
             }
 
-        }else
-        if($entities=='all' || $entities==null){
+        }elseif($entities=='all' || $entities==null){
 
-            //set_time_limit(120);
             $entities = array('rty','dty','rst','trm','rtg','dtg','vcg','swf');
 
         }elseif(!is_array($entities)){
@@ -145,7 +112,7 @@
                 $params = array_merge($params, $search_criteria[$entity_name]);
             }
 
-            $classname = 'Db'.ucfirst($entity_name);
+            $classname = 'hserv\entity\Db'.ucfirst($entity_name);
             $entity = new $classname($system, $params);
 
             $res[$entity_name] = $entity->search();
@@ -157,6 +124,7 @@
                 }
                 if($entity_name == 'defTerms'){
                     $res[$entity_name]['trm_Links'] = $entity->getTermLinks();
+                    $res[$entity_name]['trm_Icons'] = $entity->getTermIcons();
                 }
             }
         }
@@ -172,7 +140,7 @@
             elseif($entity_name=='dtg') {$entity_name = 'defDetailTypeGroups';}
             elseif($entity_name=='rty') {$entity_name = 'defRecTypes';}
             elseif($entity_name=='dty') {$entity_name = 'defDetailTypes';}
-            elseif($entity_name=='trm' || $entity_name=='term') {$entity_name = 'defTerms';}
+            elseif($entity_name=='trm' || $entity_name=='term' || $entity_name=='vocabulary') {$entity_name = 'defTerms';}
             elseif($entity_name=='vcg') {$entity_name = 'defVocabularyGroups';}
             elseif($entity_name=='rst') {$entity_name = 'defRecStructure';}
             elseif($entity_name=='rem') {$entity_name = 'dbUsrReminders';}
@@ -196,8 +164,8 @@
         if($entity_name=='sysDatabases' && $rec_id){
 
             $db_name = $rec_id;
-            if(strpos($rec_id, 'hdb_')===0){
-                $db_name = substr($rec_id,4);
+            if(strpos($rec_id, HEURIST_DB_PREFIX)===0){
+                $db_name = substr($rec_id,strlen(HEURIST_DB_PREFIX));
             }
             $rec_id = 1;
             $path = '/entity/sysIdentification/';
@@ -236,7 +204,7 @@
         $content_type = null;
         $url = null;
 
-        if(intval($rec_id)>0 && !System::dbname_check($db_name)){
+        if(intval($rec_id)>0 && mysql__check_dbname($db_name)==null){
 
             $fname = HEURIST_FILESTORE_ROOT.$db_name.$path.intval($rec_id);
 

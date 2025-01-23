@@ -31,12 +31,14 @@ define('PDIR', '../../');//need for proper path to js and css
 require_once dirname(__FILE__).'/../../hclient/framecontent/initPageMin.php';
 require_once dirname(__FILE__).'/../../hserv/records/search/recordSearch.php';// for recordSearch()
 
-$mysqli = $system->get_mysqli();
+$mysqli = $system->getMysqli();
 
 $databases = mysql__getdatabases4($mysqli);
 
 // Generic record fields
 $rec_meta = array('title','typeid','typename','added','modified','addedby','url','notes','owner','access','tag');
+
+$databases = array_map('htmlentities', $databases);
 
 $results = array_fill_keys(array_values($databases), array());
 
@@ -189,13 +191,10 @@ foreach($databases as $db){
                     $res = $mysqli->query(str_replace(array('dtyID', 'rtyID'), array(intval($dty_id), intval($rty_id)), $field_in_rst));
 
                     if($res){
-
                         if($res->num_rows == 0){
                             $results[$db][$svs_ID][] = "Field #$dty_id does not exist within record type #$rty_id code => $code";
                         }
                         $res->close();
-
-                        continue;
                     }
                 }
             }
@@ -209,7 +208,7 @@ foreach($databases as $db){
                                         . "ID: <strong style='padding-right: 15px;'>$svs_ID</strong> "
                                         . "Name: <strong>" . $svs_Details['svs_Name'] . "</strong><br>"
                                         . implode("<br>", $results[$db][$svs_ID])
-                                    ."</div>";
+                                    .DIV_E;
         }elseif(array_key_exists($svs_ID, $results[$db])){
             unset($results[$db][$svs_ID]);
         }
@@ -238,6 +237,7 @@ foreach($databases as $db){
     <head>
 
         <meta http-equiv="content-type" content="text/html; charset=utf-8">
+        <meta name="robots" content="noindex,nofollow">
         <title>Check saved searches</title>
 
         <?php include_once dirname(__FILE__).'/../../hclient/framecontent/initPageCss.php';?>

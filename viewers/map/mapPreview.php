@@ -21,11 +21,10 @@
 
 define('PDIR','../../');//need for proper path to js and css
 require_once dirname(__FILE__).'/../../hclient/framecontent/initPage.php';
-if($_SERVER["SERVER_NAME"]=='localhost'||$_SERVER["SERVER_NAME"]=='127.0.0.1'){
+if(isLocalHost()){
 ?>
     <link rel="stylesheet" href="<?php echo PDIR;?>external/leaflet/leaflet.css"/>
     <script type="text/javascript" src="<?php echo PDIR;?>external/leaflet/leaflet.js"></script>
-    <script type="text/javascript" src="<?php echo PDIR;?>external/jquery.fancytree/jquery.fancytree-all.min.js"></script>
 <?php
 }else{
 ?>
@@ -33,14 +32,12 @@ if($_SERVER["SERVER_NAME"]=='localhost'||$_SERVER["SERVER_NAME"]=='127.0.0.1'){
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 
     <!-- link rel="stylesheet" href="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.css" /-->
-    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/jquery.fancytree/2.16.1/jquery.fancytree-all.min.js"></script>
 <?php
 }
 ?>
 <!-- leaflet plugins -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/dom-to-image/2.6.0/dom-to-image.js"></script>
-<script src="<?php echo PDIR;?>external/leaflet/leaflet-providers.js"></script>
-<link rel="stylesheet" type="text/css" href="<?php echo PDIR;?>external/jquery.fancytree/skin-themeroller/ui.fancytree.css" />
+<script src="<?php echo PDIR;?>external/leaflet.plugins/leaflet-providers.js"></script>
 
 <script type="text/javascript" src="<?php echo PDIR;?>hclient/core/accessTokens.php"></script>
 <script type="text/javascript" src="<?php echo PDIR;?>viewers/map/mapping.js"></script>
@@ -61,7 +58,7 @@ if($_SERVER["SERVER_NAME"]=='localhost'||$_SERVER["SERVER_NAME"]=='127.0.0.1'){
         /* init helper (see utils.js)
         window.hWin.HEURIST4.ui.initHelper( $('#btn_help'),
                     'Mapping Drawing Overview',
-                    '../../context_help/mapping_drawing.html #content');
+                    window.hWin.HRes('mapping_drawing #content'));
         */
 
         handleApiReady();
@@ -125,8 +122,10 @@ if($_SERVER["SERVER_NAME"]=='localhost'||$_SERVER["SERVER_NAME"]=='127.0.0.1'){
     function onMapInit(){
 
         if(!target_database){
-            window.hWin.HEURIST4.msg.showMsgErr('Target database not defined. '
-                +'It is not possiblle to perform this operation');
+            window.hWin.HEURIST4.msg.showMsgErr({
+                message: 'Target database not defined. It is not possiblle to perform this operation',
+                error_title: 'Target database missing'
+            });
             window.close();
         }
 
@@ -221,7 +220,7 @@ if($_SERVER["SERVER_NAME"]=='localhost'||$_SERVER["SERVER_NAME"]=='127.0.0.1'){
 
             if(target_database==window.hWin.HAPI4.database && !window.hWin.HAPI4.has_access()){
                 showLoginDialog(false, function(){_exportMapSpace();});
-                //window.hWin.HAPI4.SystemMgr.verify_credentials(function(){_exportMapSpace();}, 0);
+
                 return;
             }
 
@@ -281,10 +280,10 @@ if($_SERVER["SERVER_NAME"]=='localhost'||$_SERVER["SERVER_NAME"]=='127.0.0.1'){
 
                 var is_sglr = (not_public.length==1);
 
-                var sMsg = '<p>The following '
-                +((cnt_dt>0)?('dataset registration'+(cnt_dt>1?'s':'')):'')
-                + ((cnt_dt>0 && cnt_ds>0)?' and ':'')
-                +((cnt_ds>0)?('data source record'+(cnt_ds>1?'s':'')):'')
+                var sMsg = '<p>The following'
+                +((cnt_dt>0)?(' dataset registration'+(cnt_dt>1?'s':'')):'')
+                + ((cnt_dt>0 && cnt_ds>0)?'and':'')
+                +((cnt_ds>0)?(' data source record'+(cnt_ds>1?'s':'')):'')
                 +(is_sglr?' is ':' are ')
 +' not marked as publicly visible and cannot therefore be included in your saved map. '
 +(is_sglr?'It is':'They are')+' visible to you as either the owner or because the owner has made '
@@ -296,7 +295,7 @@ if($_SERVER["SERVER_NAME"]=='localhost'||$_SERVER["SERVER_NAME"]=='127.0.0.1'){
 +'If you do not know the owner, please advise the system administrator ('
 +'<a href="mailto:'+window.hWin.HAPI4.sysinfo.dbowner_email+'">'+window.hWin.HAPI4.sysinfo.dbowner_email+'</a>)</p>';
 
-                window.hWin.HEURIST4.msg.showMsgErr( sMsg );
+                window.hWin.HEURIST4.msg.showMsgErr({message: sMsg, error_title: 'Required records not publicly visible'});
                 $('#save-button').show();
                 return;
             }

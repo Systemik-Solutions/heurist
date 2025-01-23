@@ -75,15 +75,13 @@
 <html lang="en">
 <head>
     <title><?php print htmlspecialchars(strip_tags($website_title_translated));?></title>
+    <meta name="robots" content="all">
     <meta http-equiv="content-type" content="text/html; charset=utf-8">
-    <meta name="keywords" content="Heurist, Digital Humanities, Humanities Data, Research Data, Database Management, Academic data, Open Source, Free software, FOSS, University of Sydney,<?php echo $meta_keywords;?>">
+    <meta name="keywords" content="<?php echo $meta_keywords;?>,Heurist, Digital Humanities, Humanities Data, Research Data, Database Management, Academic data, Open Source, Free software, FOSS, University of Sydney">
     <meta name="description" content="<?php echo $meta_description;?>">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <link rel="icon" href="<?php echo $image_icon;?>"> <!--  type="image/x-icon" -->
     <link rel="shortcut icon" href="<?php echo $image_icon;?>">
-    <?php
-        include_once $websiteScriptAndStyles_php;  //include heurist scripts and styles
-    ?>
 
 <style>
 /* page (menu) title it is added to main-pagetitle */
@@ -156,6 +154,11 @@
     text-decoration: none;
 }
 </style>
+
+    <?php
+        include_once $websiteScriptAndStyles_php;  //include heurist scripts and styles
+    ?>
+
 </head>
 <body>
 <?php
@@ -174,13 +177,13 @@ if($isWebPage){ //set in websiteRecord.php
     if($showWarnAboutPublic){
         print '<div style="top:0;height:20px;position:absolute;text-align:center;width:100%;color:red;">Web page record is not public. It will not be visible to the public</div>';
     }
-    if(!$edit_OldEditor && $system->is_member(1)){
+    if(!$edit_OldEditor && $system->hasAccess()){
         print '<a href="'.HEURIST_BASE_URL.'?db='.$system->dbname().'" id="btn_editor" target="_blank" '
         .'style="position:absolute;left:95px; top:5px;color:blue !important;z-index:1;" class="cms-button">database</a>'
         .'<a href="#" id="btnOpenCMSeditor" onclick="_openCMSeditor(event); return false;" '
         .'style="position:absolute;left:5px;top:5px;color:blue !important;z-index:1;" class="cms-button">website editor</a>';
     }
-    if(!$edit_OldEditor && $system->get_user_id() == 0 && $show_login_button){
+    if(!$edit_OldEditor && $system->getUserId() == 0 && $show_login_button){
         print '<a href="#" id="btn_signin" style="position:absolute;right:5px; top:5px;color:blue !important;" class="cms-button">login</a>';// login link
     }
 ?>
@@ -217,20 +220,20 @@ if($isWebPage){ //set in websiteRecord.php
 
         <div id="main-languages" class="mceNonEditable header-element" style="position:absolute;top:10px;right:40px;max-height:90px;"></div>
 
-        <div id="main-menu" class="mceNonEditable header-element" style="position:absolute;top:110px;width:100%;min-height:40px;border:2px none yellow;color:black;font-size:1.1em;" data-heurist-app-id="heurist_Navigation" data-generated="1">
+        <div id="main-menu" class="mceNonEditable header-element" style="position:absolute;bottom:0px;width:100%;min-height:40px;border:2px none yellow;color:black;font-size:1.1em;" data-heurist-app-id="heurist_Navigation" data-generated="1">
             <?php print $page_header_menu; ?>
         </div>
 
 <?php
     }//header
 
-    if(!$edit_OldEditor && $system->is_member(1)){
+    if(!$edit_OldEditor && $system->hasAccess()){
         print '<a href="'.HEURIST_BASE_URL.'?db='.$system->dbname().'" id="btn_editor" target="_blank" '
         .'style="position:absolute;left:95px; top:5px;color:blue !important;" class="cms-button">database</a>'
         .'<a href="#" id="btnOpenCMSeditor" onclick="_openCMSeditor(event); return false;" '
         .'style="position:absolute;left:5px;top:5px;color:blue !important;" class="cms-button">website editor</a>';
     }
-    if(!$edit_OldEditor && $system->get_user_id() == 0 && $show_login_button){
+    if(!$edit_OldEditor && $system->getUserId() == 0 && $show_login_button){
         print '<a href="#" id="btn_signin" style="position:absolute;right:5px; top:5px;color:blue !important;font-weight: normal;" class="cms-button">login</a>';// login link
     }
     ?>

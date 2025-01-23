@@ -151,15 +151,19 @@
 #menu-import-kml-hint#Import KML files (geographic data in WKT can be imported from CSV &amp; tab delimited files)
 #menu-import-get-template-hint#Get a template for creating an XML or JSon data file which can be imported into Heurist
 #Media Files#
-#menu-files-upload#Upload media files
-#menu-files-index#Index media files
+#menu-files-upload#Upload media files/images
+#menu-files-index#Index external transfers
+#menu-files-index-and-records#Create media records
+#menu-files-annotations#Import Annotations
 #menu-files-csv#Upload media from URLs
 #menu-files-upload-hint#Upload multiple files and/or large files to scratch space or image directories, delete and rename uploaded files
 #menu-files-index-hint#Index files on the server and create multimedia records for them (reads and creates FieldHelper manifests)
+#menu-files-data#Import file data from CSV
 #Website#
 #menu-cms-create#Create
 #menu-cms-edit#Edit
 #menu-cms-view#View
+#menu-statistics-cms#Statistics
 #menu-cms-embed#Standalone web page
 #menu-cms-create-hint#Create a new CMS website, stored in this database, with widgets to access data in the database
 #menu-cms-edit-hint#Edit a CMS website defined in this database
@@ -200,6 +204,7 @@
 #HELP#
 #menu-help-roadmap#Roadmap
 #menu-help-devhist#Feature history
+#menu-help-issues#Current issues
 #menu-help-quick-tips#Understanding Heurist
 #menu-help-online#Documentation
 #menu-help-website#Heurist Network website
@@ -277,6 +282,7 @@
 #menu-selected-local-to-repository#Local files to remote repository
 #menu-selected-reset-thumbs#Reset thumbnails
 #menu-selected-case-conversion#Case conversion
+#menu-selected-nl2br#Multiline text to HTML
 #menu-selected-translation#Translation
 #Share#
 #menu-selected-notify#Notify (email)
@@ -295,6 +301,8 @@
 #resultList_noresult#No results found. Please modify search/filter to return at least one result record.
 #resultList_empty_remark#No entries match the filter criteria (entries may exist but may not have been made visible to the public or to your user profile)
 #resultList_private_record#This record is not publicly visible - user must be logged in to see it
+#resultListExt_empty_remark#No default
+#resultListExt_placeholder_text#Please select a record on the left to view it here...
 #private - hidden from non-owners#
 #visible to any logged-in user#
 #pending (viewable by anyone, changes pending)#
@@ -469,6 +477,7 @@
 #local_to_repository#Upload local files to repository
 #reset_thumbs#Reset thumbnails
 #case_conversion#Correct field capitalisations
+#nl2br#Multiline text to HTML
 #translation#Translate text field
 #record_action_add_record# 
 #record_action_add_detail#This function adds a new value for a specific field to the set of records selected in the dropdown. Existing values are unaffected. Addition will add values even if this exceeds the valid repeat count (eg. more than one value for single-value fields) - check the database afterwards for validity using Verify > Verify integrity.
@@ -482,6 +491,7 @@
 #record_action_reset_thumbs#This function removes thumbnail for files and external resources for selected scope of records. Thumbnails will be recreated on next demand
 #record_action_case_conversion#This function converts the chosen field for the records selected in the dropdown to the indicated upper / lower case,<br>format while applying specific rules to a list of words/phases with defined capitalisation.
 #case_conversion_add#Paste a list of exception words / phrases below, one per line (may include punctuation including spaces)<br>These words / phrases will be converted to the upper/lower case form indicated. Applies to whole words / phrases only.
+#record_action_nl2br#This function converts new lines to &lt;br&gt; and &lt;p&gt; html tags for the chosen field for the records selected in the dropdown.
 #record_action_passed#Records passed to process
 #record_action_noaccess#Non-editable records found (may be due to permissions)
 #record_action_processed#Records processed
@@ -497,6 +507,7 @@
 #record_action_fails_url_to_file#Records with URL that failed to download
 #record_action_fails_local_to_repository#Files that failed to upload to the selected repository
 #record_action_undefined_case_conversion#Records with no values to convert
+#record_action_undefined_nl2br#Records with unchanged or no values to convert
 #record_action_translation#Translate values for seleceted field
 #record_action_undefined_translation#Records with undefined fields
 #record_action_translated_translation#Records with already translated fields

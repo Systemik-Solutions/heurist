@@ -65,7 +65,6 @@ function hMappingDraw(_mapdiv_id, _initial_wkt) {
             sPrompt = (type==google.maps.drawing.OverlayType.POLYGON?'Polygon':'Polyline')
                 +': enter coordinates as sequence of lat long separated by space';
         }
-        //if(sPrompt) sPrompt += '(for UTM first easting then northing)';
         $('#coords_hint').html(sPrompt);
     }
 
@@ -1044,10 +1043,8 @@ function hMappingDraw(_mapdiv_id, _initial_wkt) {
 
         //geocoding ------------------------------------------------------               
         $('#btn_search_start')
-        .button({label: window.hWin.HR("Start search"), text:false, icons: {
-            secondary: "ui-icon-search"
-        }})
-        .click(_startGeocodingSearch);
+        .button({label: window.hWin.HR("Start search"), showLabel:false, iconPosition:'end', icon:'ui-icon-search'})
+        .on('click',_startGeocodingSearch);
 
         $('#input_search')
         .on('keypress',
@@ -1061,14 +1058,14 @@ function hMappingDraw(_mapdiv_id, _initial_wkt) {
         });          
 
         //clear/delete buttons --------------------------------------------
-        $('#delete-button').button().click(_deleteSelectedShape);
-        $('#delete-all-button').button().click(_deleteAllShapes);
+        $('#delete-button').button().on('click',_deleteSelectedShape);
+        $('#delete-all-button').button().on('click',_deleteAllShapes);
 
         
         //get overlay layers (image,tiled,kml) ------------------------------------
         let $sel_overlays = $('#sel_overlays');
 
-        $sel_overlays.change(function(){
+        $sel_overlays.on('change',function(){
             let rec_ID = $sel_overlays.val();
             _addOverlay(rec_ID);
             window.hWin.HAPI4.save_pref('map_overlay_sel', rec_ID);                
@@ -1092,7 +1089,7 @@ function hMappingDraw(_mapdiv_id, _initial_wkt) {
         $sel_viepoints.empty();
         window.hWin.HEURIST4.ui.createSelector( $sel_viepoints.get(0), map_viewpoints);
 
-        $sel_viepoints.click(function(){
+        $sel_viepoints.on('click',function(){
             let bounds = $(this).val();
             if(bounds!=''){
                 //get LatLngBounds from urlvalue lat_lo,lng_lo,lat_hi,lng_hi
@@ -1159,14 +1156,14 @@ function hMappingDraw(_mapdiv_id, _initial_wkt) {
                     // and add to selector
                     $sel_viepoints.empty();
                     window.hWin.HEURIST4.ui.createSelector( $sel_viepoints.get(0), map_viewpoints);
-                    //window.hWin.HEURIST4.ui.addoption( $sel_viepoints.get(0), gmap.getBounds().toUrlValue(), location_name);
+                    
 
                 }
             }, {title:'Save map extent',yes:'Save',no:"Cancel"});
         });
 
         // apply coordinates
-        $('#apply-coords-button').button().click(_applyCoordsForSelectedShape);
+        $('#apply-coords-button').button().on('click',_applyCoordsForSelectedShape);
 
         $('#load-geometry-button').button().on('click', function(){
 
@@ -1379,7 +1376,7 @@ function hMappingDraw(_mapdiv_id, _initial_wkt) {
             if(not_found){
                 $sel_viepoints.find('option:last-child').attr('selected', 'selected');
             }
-            $sel_viepoints.change();
+            $sel_viepoints.trigger('change');
             */
         }    
         
@@ -1434,7 +1431,7 @@ function hMappingDraw(_mapdiv_id, _initial_wkt) {
                        let map_overlay_sel = window.hWin.HAPI4.get_prefs('map_overlay_sel');     
                        if(map_overlay_sel>0) {
                            $sel_overlays.val(map_overlay_sel);   
-                           $sel_overlays.change();
+                           $sel_overlays.trigger('change');
                        }
                             
                     }else{

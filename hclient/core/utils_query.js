@@ -251,10 +251,10 @@ window.hWin.HEURIST4.query = {
 
 /*        
         var sPlain1 = false, sPlain2 = false;
-        if(jQuery.type(query2) === "string"){
+        if(typeof query2 === "string"){
             var notJson = true;
             try{
-                //query2 = JSON.parse(query2);
+               
                 var query2a = window.hWin.HEURIST4.util.isJSON(query2);
                 if( query2a ){
                     if(query2a['q']){
@@ -342,7 +342,7 @@ window.hWin.HEURIST4.query = {
                 if(r!==false){
                     
                     if(Array.isArray(r.rectypes)){
-                        r.type = 3; //'faceted';
+                        r.type = 3; // faceted
                         r.w = (r.domain=='b' || r.domain=='bookmark')?'bookmark':'all';
                         r.domain = r.w;
                         return r;
@@ -409,7 +409,7 @@ window.hWin.HEURIST4.query = {
             let r = window.hWin.HEURIST4.util.isJSON(request.q);
             if(r!==false){
                 if(r.facets) return ''; //faceted search not allowed for map queries
-                res['q'] = r; //JSON.stringify(r);
+                res['q'] = r;
             }else{
                 res['q'] = request.q;
             }
@@ -424,7 +424,7 @@ window.hWin.HEURIST4.query = {
                 let r = window.hWin.HEURIST4.util.isJSON(request.rules);
                 if(r!==false){
                     if(r.facets) return ''; //faceted search not allowed for map queries
-                    res['rules'] = r; //JSON.stringify(r);
+                    res['rules'] = r;
                 }else{
                     res['rules'] = request.rules;
                 }
@@ -462,16 +462,14 @@ window.hWin.HEURIST4.query = {
             
             let $dlg = window.hWin.HEURIST4.msg.getMsgDlg();            
             let target = $dlg.find('#dlg-prompt-value')[0];
-            target.focus();
+            target.trigger('focus');
             target.setSelectionRange(0, target.value.length);
             let succeed;
             try {
-                succeed = document.execCommand("copy");
-                
+                document.execCommand("copy");
                 $dlg.dialog( "close" );
             } catch(e) {
-                succeed = false;
-                alert('Not supported by browser');
+               alert('Not supported by browser');
             }                            
             
         }; 
@@ -526,7 +524,7 @@ window.hWin.HEURIST4.query = {
         if(need_query===true){  //not direct input
 
             //create query to search facet values
-            function __crt( idx ){
+            function __crt( idx, depth ){
                 let res = null;
                 if(idx>0){  //this is relation or link
 
@@ -540,6 +538,7 @@ window.hWin.HEURIST4.query = {
                         res.push(qp);
                     }
 
+                    //for facet queries direction will be reverted
                     let fld = code[idx-1]; //link field
                     if(fld.indexOf('lf')==0){
                         pref = 'linked_to';    
@@ -550,12 +549,16 @@ window.hWin.HEURIST4.query = {
                     }else if(fld.indexOf('rt')==0){
                         pref = respect_relation_direction?'relatedfrom':'related';
                     }
+                     
+                    if(depth==0){
+                        result['relation_direction'] = pref;
+                    }
 
                     qp = {};
-                    qp[pref+':'+fld.substr(2)] = __crt(idx-2);    
+                    qp[pref+':'+fld.substr(2)] = __crt(idx-2, depth+1);    
                     res.push(qp);
                 }else{ //this is simple field
-                    res = '$IDS'; //{'ids':'$IDS}'};
+                    res = '$IDS';
                 }
                 return res;
             }
@@ -563,13 +566,327 @@ window.hWin.HEURIST4.query = {
             /*if(code.length-2 == 0){
             res['facet'] = {ids:'$IDS'};
             }else{}*/
-            result['facet'] = __crt( code.length-2 );
+            result['facet'] = __crt( code.length-2, 0 );
         }
 
         code.pop();
         result['code'] = code.join(':');  //qcode without last dty_ID
         
         return result;
+    },
+
+    jsonQueryToPlainText: function(query, is_sub_query = false, use_or = false){
+
+        let plain_text = '';
+        if(window.hWin.HEURIST4.util.isempty(query) || !window.hWin.HEURIST4.util.isJSON(query)){
+            return plain_text;
+        }
+
+        query = window.hWin.HEURIST4.util.isJSON(query);
+        query = Array.isArray(query) ? query : Object.entries(query).map((part) => { return {[part[0]]: part[1]}; });
+        let rty_ID = null;
+        let deconstructed = [];
+        let sortby = [];
+
+        function handleRectype(rty_IDs){
+
+            if(rty_IDs.match(/\d, ?\d/)){
+                rty_IDs = window.hWin.HEURIST4.util.isPositiveInt(rty_IDs) ? [rty_IDs] : rty_IDs.split(',').filter((id) => window.hWin.HEURIST4.util.isPositiveInt(id) && id > 0);
+            }else{
+                rty_IDs = [rty_IDs];
+            }
+
+            let labels = [];
+            for(const id of rty_IDs){
+                labels.push($Db.rty(id, 'rty_Name') ?? id);
+            }
+            rty_ID = rty_IDs.join(',');
+
+            deconstructed.unshift(`Searching for <em>${window.hWin.HEURIST4.util.stripTags(labels.join(', '))}</em> records`);
+        }
+
+        function handleDefault(key, field, value){
+
+            let type = '';
+            let conditional = '';
+
+            if(field.indexOf(':') > 0){
+                field = field.split(':');
+                field = field[field.length-1];
+            }
+
+            if(window.hWin.HEURIST4.util.isPositiveInt(field)){
+                type = $Db.dty(field, 'dty_Type');
+                let field_name = $Db.rst(rty_ID, field, 'rst_DisplayName');
+                field_name = field_name ?? $Db.dty(field, 'dty_Name');
+                field = field_name;
+            }
+
+            if(key === 'r' && !field){ // Relation type field handling
+
+                let cond = value.startsWith('-') ? 'not' : '';
+                if(window.hWin.HEURIST4.util.isPositiveInt(value) || value.match(/\d, ?\d/)){
+                    value = value.split(',');
+                    value = value.filter((id) => window.hWin.HEURIST4.util.isPositiveInt(id));
+                    value = value.map((id) => $Db.trm(id, 'trm_Label'));
+                    value = value.filter((trm) => !window.hWin.HEURIST4.util.isempty(trm)).join(', ');
+                }
+
+                conditional = `<em>Relationship type</em> that is ${cond} a match or is ${cond} a child of "${value}"`;
+            }else if(key === 'r' || key === 'relf' || key === 'rf'){ // Relation field
+                field = `Relationship ${field}`;
+            } // other
+
+            if(key.startsWith('link') || key.startsWith('related')){ // linked_to,linkedfrom,related_to,relatedfrom,links
+
+                let sub_query = window.hWin.HEURIST4.query.jsonQueryToPlainText(value, true) ?? 'Missing sub query';
+                let linking = key.indexOf('link') >= 0 ? 'Linked' : 'Related';
+                let direction = key.indexOf('from') >= 0 ? 'from' : 'to';
+                conditional = `<br>Search ${linking} Records ${direction} ${field}:<br><div style="padding:5px;">${sub_query}</div>`;
+                field = '';
+            }
+
+            return [field, conditional, type];
+        }
+
+        function handleAnyAll(type, value){
+            let is_any = type === 'any';
+            let sub_text = window.hWin.HEURIST4.query.jsonQueryToPlainText(value, true, is_any) ?? 'Missing sub query';
+            deconstructed.push(`${is_any ? 'Meets one of the following filters:<div style="margin-left:5px;">' : ''}${sub_text}${is_any ? '</div>' : ''}`);
+        }
+
+        let idx = query.findIndex((obj) => Object.hasOwn(obj, 't'));
+        if(idx > 0){
+            query.unshift(query.splice(idx, 1)[0]);
+        }
+
+        for(const idx in query){
+
+            let part = query[idx];
+            let key = Object.keys(part)[0];
+            let field_key = key;
+            let value = part[key];
+            let cond = '';
+
+            let parts = null;
+            try{                
+                parts = key.split(':');
+            }catch{
+                continue;
+            }
+
+            key = parts.shift();
+
+            let field = '';
+            let type = 'freetext';
+
+            switch(field_key){
+                case 'ids':
+                case 'id':
+                    field = 'Record IDs';
+                    break;
+                case 'title':
+                    field = 'Record Titles';
+                    break;
+                case 'url':
+                case 'u':
+                    field = 'Record URLs';
+                    break;
+                case 'notes':
+                case 'n':
+                    field = 'Record Notes';
+                    break;
+                case 'added':
+                    field = 'Record Creation date';
+                    break;
+                case 'date':
+                case 'modified':
+                    field = 'Record Last Modification';
+                    break;
+                case 'addedby':
+                    field = 'Record Creator';
+                    break;
+                case 'owner':
+                case 'workgroup':
+                case 'wg':
+                    field = 'Record Owner';
+                    break;
+                case 'tag':
+                case 'keyword':
+                case 'kwd':
+                    field = 'Record Tags';
+                    break;
+                case 'visibility':
+                case 'access':
+                    field = 'Record Accessibility';
+                    break;
+                case 'user':
+                    cond = `Records Bookmarked by user(s) in "${value}"`;
+                    break;
+                case 'before':
+                case 'after':
+                    cond = `Records last modified ${field_key} the ${value}`;
+                    break;
+                case 'sortby':
+                    value = window.hWin.HEURIST4.query.sortbyValue(value, rty_ID);
+                    !value || sortby.push(value);
+                    break;
+                case 't':
+                case 'type':
+                    handleRectype(value);
+                    break;
+                case 'all':
+                case 'any':
+                    handleAnyAll(field_key, value);
+                    break;
+
+                default:
+
+                    // key === 'f' || key === 'field' || key === 'fc' || key === 'count'
+                    [field, cond, type] = handleDefault(key, parts.join(':'), value);
+                    break;
+            }
+
+            if(window.hWin.HEURIST4.util.isempty(field) && window.hWin.HEURIST4.util.isempty(cond)){
+                continue;
+            }
+
+            cond = window.hWin.HEURIST4.util.isempty(cond) ? window.hWin.HEURIST4.query.extractCondition(value, type) : cond;
+            if(window.hWin.HEURIST4.util.isempty(cond)){
+                continue;
+            }
+
+            deconstructed.push(cond.replace('__FIELD__', field));
+        }
+
+        if(rty_ID){
+            plain_text = `${deconstructed.shift()}${deconstructed.length > 0 ? ', refined by:<br>' : ''}`;
+        }else if(!is_sub_query){
+            plain_text = `Searching all records${deconstructed.length > 0 ? ', refined by:<br>' : ''}`;
+        }
+
+        plain_text += deconstructed.join(`, ${use_or ? 'OR' : 'AND'} <br>`);
+
+        return window.hWin.HEURIST4.util.stripTags(plain_text, 'br, em, b, strong, u, i, div');
+    },
+
+    extractCondition: function(value, type){
+
+        let res = 'Filter by ';
+        let ext = '<em>__FIELD__</em> values';
+
+        if(typeof value !== 'string' && typeof value !== 'number'){
+            res = '';
+        }
+
+        if(type === 'enum' && (window.hWin.HEURIST4.util.isPositiveInt(value) || value.match(/\d, ?\d/))){
+            value = value.split(',');
+            value = value.filter((id) => window.hWin.HEURIST4.util.isPositiveInt(id));
+            value = value.map((id) => $Db.trm(id, 'trm_Label'));
+            value = value.filter((trm) => !window.hWin.HEURIST4.util.isempty(trm)).join(', ');
+        }
+
+        let val = '';
+        if(value === 'NULL'){
+            res += 'records that do not have any <em>__FIELD__</em>';
+        }else if(window.hWin.HEURIST4.util.isempty(value)){
+            res += 'records that have a <em>__FIELD__</em> value';
+        }else if(value.startsWith('=') || value.startsWith('-')){
+            val = value.substring(1);
+            res += `${ext} that ${value.startsWith('-') ? 'do not' : ''} extactly match "<em>${val}</em>"`;
+        }else if(value.startsWith('@++') || value.startsWith('@--')){
+            val = value.substring(3);
+            res = `${ext} that contain ${value.startsWith('@++') ? 'all' : 'none'} of the words in "<em>${val}</em>"`;
+        }else if(value.startsWith('@')){
+            val = value.substring(1);
+            res = `${ext} that contain all of the words in "<em>${val}</em>"`;
+        }else if(value[0] === '%' || value.endsWith('%')){
+            val = value[0] === '%' ? value.substring(1) : value.slice(0, -1);
+            res = `${ext} that ${value[0] === '%' ? 'start' : 'end'} with "<em>${val}</em>"`;
+        }else if(value.startsWith('<=') || value.startsWith('>=')){
+            val = value.substring(2);
+            let compare = '';
+            if(value.startsWith('<')){
+                compare = type == 'date' ? 'before' : 'less than';
+            }else{
+                compare = type == 'date' ? 'after' : 'greater than';
+            }
+            res = `${ext} that are ${compare} ${val}`;
+        }else if(value.indexOf('<>') > 0 || value.indexOf('><') > 0){
+            let compare = '';
+            if(value.indexOf('<>') > 0){
+                compare = type == 'date' ? 'overlaps within' : 'between';
+                value = value.split('<>');
+            }else{
+                compare = type == 'date' ? 'falls between' : '???';
+                value = value.split('><');
+            }
+            res = `${ext} that ${compare} ${value[0]} and ${value[1]}`;
+        }else{
+            res = `${ext} that contains "<em>${value}</em>"`;
+        }
+
+        return res;
+    },
+
+    sortbyValue: function(value, rty_ID){
+
+        let res = '';
+        const is_negate = value[0] === '-';
+        value = is_negate ? value.substring(1) : value;
+
+        switch(value){
+            case 'id':
+                res = 'Record ID';
+                break;
+            case 'url':
+                res = 'Record URL';
+                break;
+            case 'm':
+            case 'modified':
+                res = 'Last Modified';
+                break;
+            case 'a':
+            case 'added':
+                res = 'Created Date';
+                break;
+            case 't':
+            case 'title':
+                res = 'Record Title';
+                break;
+            case 'rt':
+            case 'record type':
+                res = 'Record Type';
+                break;
+            case 'r':
+            case 'rating':
+                res = 'Your Ratings';
+                break;
+            case 'p':
+            case 'popularity':
+                res = 'Your Bookmarks';
+                break;
+            default:
+                if(value.startsWith('f:') || value.startsWith('field:')){
+
+                    let parts = value.split(':');
+                    parts.shift();
+                    value = parts.join(':');
+
+                    res = value;
+                    if(window.hWin.HEURIST4.util.isPositiveInt(value)){
+                        if(rty_ID>0){
+                            res = $Db.rst(rty_ID, value, 'rst_DisplayName');    
+                        }else{
+                            res = null;
+                        }
+                        res = res ?? $Db.dty(value, 'dty_Name');
+                    }
+                }
+                break;
+        }
+
+        return res;
     }
     
 }

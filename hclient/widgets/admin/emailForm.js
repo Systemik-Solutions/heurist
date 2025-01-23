@@ -74,7 +74,7 @@ $.widget( "heurist.emailForm", {
     // the widget's constructor
     _create: function() {
         // prevent double click to select text
-        //it prevents inputs in FF this.element.disableSelection();
+       
     }, //end _create
     
     //
@@ -100,13 +100,11 @@ $.widget( "heurist.emailForm", {
         if(this.options.isdialog){  //show this widget as popup dialog
             
             this._open_button = $('<button>').button(
-                {label:window.hWin.HR('Email Us')}) //, icons:options.icons})
+                {label:window.hWin.HR('Email Us')}) //, icon:options.icon})
             .appendTo(this.element);
             
             this._element_form.hide()
             this._initDialog();
-        }else{
-            //this.element.addClass('ui-heurist-bg-light');
         }
         
         //init layout
@@ -161,8 +159,6 @@ $.widget( "heurist.emailForm", {
     //
     _initControls:function(){
         
-        let that = this;
-        
         //verify that form has all required elements
         let missed = [];
         if(!this._element_form.find('#letter_name')) missed.push('letter_name');
@@ -209,14 +205,13 @@ $.widget( "heurist.emailForm", {
         let that = this;        
         return [
                  {text:window.hWin.HR('Cancel'), 
-                    id:'btnCancel',
+                    class:'btnCancel',
                     css:{'float':'right','margin-left':'30px','margin-right':'20px'}, 
                     click: function() { 
                         that.closeDialog();
                     }},
                  {text:window.hWin.HR('Send'),
-                    id:'btnDoAction',
-                    class:'ui-button-action',
+                    class:'ui-button-action btnDoAction',
                     //disabled:'disabled',
                     css:{'float':'right'},  
                     click: function() { 
@@ -226,14 +221,15 @@ $.widget( "heurist.emailForm", {
     },
 
     //
-    // define action buttons (if isdialog is false)
+    // define action buttons (if isdialog is false) NOT USED
     //
     _defineActionButton2: function(options, container){        
         
-        let btn_opts = {label:options.text, icons:options.icons, title:options.title};
+        //for dialog buttons jquery still uses "text"
+        let btn_opts = {label:options.label || options.text, icon:options.icon, title:options.title};
         
         let btn = $('<button>').button(btn_opts)
-                    .click(options.click)
+                    .on('click',options.click)
                     .appendTo(container);
         if(options.id){
             btn.attr('id', options.id);
@@ -472,8 +468,6 @@ $.widget( "heurist.emailForm", {
             
             const url = window.hWin.HAPI4.baseURL+'hserv/utilities/captcha.php?json&id='+id;
             
-            //var request = {json:1,id:id};
-            //window.hWin.HEURIST4.util.sendRequest(url, request, null, 
             $.getJSON(url,
                 function(captcha){
                         that._element_form.find('#captcha_img').text(captcha.value)
@@ -482,8 +476,8 @@ $.widget( "heurist.emailForm", {
 
         
         // }else if(false){
-        //    const url = window.hWin.HAPI4.baseURL+'hserv/utilities/captcha.php?id='+id;
-        //    $dd.load(url);
+       
+       
         }else{ //image captcha
             $dd.empty();
             $('<img alt src="'+window.hWin.HAPI4.baseURL+'hserv/utilities/captcha.php?img='+id+'"/>').appendTo($dd);

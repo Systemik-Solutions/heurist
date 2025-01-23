@@ -24,20 +24,19 @@
     * @package     Heurist academic knowledge management system
     * @subpackage  !!!subpackagename for file such as Administration, Search, Edit, Application, Library
     */
-require_once dirname(__FILE__).'/../../hserv/System.php';
 
-header('Content-type: text/javascript');
+use hserv\utilities\USanitize;
+
+require_once dirname(__FILE__).'/../../autoload.php';
+
+header(CTYPE_JSON);
 
 $rv = array();
 
 // init main system class
-$system = new System();
+$system = new hserv\System();
 
-if(@$_SERVER['REQUEST_METHOD']=='POST'){
-    $req_params = filter_input_array(INPUT_POST);
-}else{
-    $req_params = filter_input_array(INPUT_GET);
-}
+$req_params = USanitize::sanitizeInputArray();
 
 if(!$system->init(@$req_params['db'])){
     $response = $system->getError();
@@ -45,16 +44,15 @@ if(!$system->init(@$req_params['db'])){
     return;
 }
 
-//$response = array("status"=>HEURIST_OK, "data"=> $res);
 
-if (!$system->is_dbowner()) {
+if (!$system->isDbOwner()) {
     $response = $system->addError(HEURIST_REQUEST_DENIED,
                  'To perform this action you must be logged in as Database Owner');
     print json_encode($response);
     return;
 }
 
-$mysqli = $system->get_mysqli();
+$mysqli = $system->getMysqli();
 
 
 $data = null;
@@ -77,8 +75,9 @@ if(@$req_params['data']){
 
             $realpath_file = isPathInHeuristUploadFolder($file);//snyk SSRF
 
-            if($realpath_file!==false && file_exists($realpath_file)){
-                if(unlink($realpath_file)) {array_push($res, $file);}
+            if($realpath_file && file_exists($realpath_file) && unlink($realpath_file)) 
+            {
+                array_push($res, $file);
             }
         }
         $response = array("status"=>HEURIST_OK, "data"=> $res);
@@ -92,7 +91,7 @@ if(@$req_params['data']){
     if(!is_array($regs_to_remove)){
         $regs_to_remove = @$data['unused_file_remote'];
     }
-    if(is_array($regs_to_remove) && count($regs_to_remove)>0){
+    if(!isEmptyArray($regs_to_remove)){
 
         $mysqli->query('delete from recUploadedFiles where ulf_ID in ('.implode(',',$regs_to_remove).')');
         if ( $mysqli->error ) {
@@ -106,21 +105,10 @@ if(@$req_params['data']){
         exit;
     }
 
-    /*
-    foreach ($files as $file) {
-        $ulf_ID = $file[0];
-        $isfound = $file[1];//if true - find and delete file if in db root or uploaded files
-        if($isfound==1){
-            deleteUploadedFiles($ulf_ID);
-        }
-        $ids[] = $ulf_ID;
-    }
-    */
-
     //------------------------------------------------------
     // remove missed files
     $file_ids = @$data['files_notfound'];
-    if(is_array($file_ids) && count($file_ids)>0){
+    if(!isEmptyArray($file_ids)){
 
         $mysqli->query('delete from recDetails where dtl_UploadedFileID in ('.implode(',',$file_ids).')');
         if ($mysqli->error) {
@@ -144,4 +132,3 @@ if(@$req_params['data']){
     $response = $system->addError(HEURIST_INVALID_REQUEST,
                                 'Wrong parameters. No data defined');
     print json_encode($response);
-?>

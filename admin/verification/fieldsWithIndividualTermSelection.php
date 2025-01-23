@@ -30,22 +30,12 @@ define('PDIR','../../');//need for proper path to js and css
 require_once dirname(__FILE__).'/../../hclient/framecontent/initPageMin.php';
 require_once dirname(__FILE__).'/../../hserv/structure/search/dbsData.php';
 
-$mysqli = $system->get_mysqli();
+$mysqli = $system->getMysqli();
 
 $is_csv = (@$_REQUEST['html']!=1);
 
     //1. find all database
-    $query = 'show databases';
-
-    $res = $mysqli->query($query);
-    if (!$res) {  print $query.'  '.$mysqli->error;  return; }
-    $databases = array();
-    while (($row = $res->fetch_row())) {
-        if( strpos($row[0], 'hdb_')===0 ){
-            //if($row[0]>'hdb_Masterclass_Cookbook')
-                $databases[] = htmlspecialchars($row[0]);
-        }
-    }
+    $databases = mysql__getdatabases4($mysqli, true);
 
     if(!$is_csv){
 
@@ -53,7 +43,7 @@ $is_csv = (@$_REQUEST['html']!=1);
         print '<table border=1>';
         print '<tr><td>Field</td><td>ID</td><td>Type</td><td>Vocab Cnt</td><td>Terms count</td><td>Exclusions Count</td><td>Records</td></tr>';
     }else{
-        $fd = fopen('php://temp/maxmemory:1048576', 'w');//less than 1MB in memory otherwise as temp file
+        $fd = fopen(TEMP_MEMORY, 'w');//less than 1MB in memory otherwise as temp file
         if (false === $fd) {
             die('Failed to create temporary file');
         }
@@ -87,18 +77,7 @@ $is_csv = (@$_REQUEST['html']!=1);
             print '<tr><td colspan=7><i>'.substr($db_name,4).'</i></td></tr>';
         }
 
-        while (($row = $res->fetch_row())) {
-
-            /*
-            $key = intval(@$row[1]);
-            $is_vocab = ($key>0);
-            if($is_vocab){
-                $cnt1++;
-            }else{
-                $cnt2++;
-            }
-            if($is_vocab) {continue;}
-            */
+        while ($row = $res->fetch_row()) {
 
             //parse
             $terms = getTermsFromFormat(@$row[1]);//see dbsData.php
@@ -116,9 +95,6 @@ $is_csv = (@$_REQUEST['html']!=1);
                     $vocabs[$vocabid] = 1;
                 }
             }
-            /*if($row[3]==197){
-                print '<tr><td colspan=5>'.print_r($vocabs,true).'</td></tr>';
-            }*/
 
             $vocab_count = count(array_keys($vocabs));
 
@@ -133,27 +109,25 @@ $is_csv = (@$_REQUEST['html']!=1);
 
 
             $nonTerms = getTermsFromFormat(@$row[2]);
-            $is_idis = (is_array($nonTerms) && count($nonTerms)>0);
+            $is_idis = (!isEmptyArray($nonTerms));
             if($is_idis){
                 $cnt3++;
             }
 
             if(!$is_csv){
-                print '<tr><td>'.htmlspecialchars($row[0]).'</td><td>'.htmlspecialchars($row[3]).'</td><td>'.htmlspecialchars($row[4]).'</td>'
-                    .'<td>'.$vocab_count.'</td><td>'.count($terms).'</td><td>'.($is_idis?count($nonTerms):'').'</td><td>'.intval($rec_usage).'</td></tr>';
+                print TR_S.htmlspecialchars($row[0]).TD.htmlspecialchars($row[3]).TD.htmlspecialchars($row[4]).'</td>'
+                    .'<td>'.$vocab_count.TD.count($terms).TD.($is_idis?count($nonTerms):'').TD.intval($rec_usage).TR_E;
             }else {
                 //'",'.$row[3]. ($is_vocab?'1':'').','.($is_vocab?'':'1').
-                //print $db_name.',"'.$row[0].'",'.$row[3].','.($is_idis?'1':'').PHP_EOL;
+
 
                 $record_row = array($db_name, $row[0], $row[3], $row[4], $vocab_count, count($terms), ($is_idis?count($nonTerms):''), $rec_usage);
                 fputcsv($fd, $record_row, ',', '"');
             }
         }
         $cnt4++;
-        //if($cnt4>20) {break;}
     }//while  databases
     if(!$is_csv){
-        //  print '<tr><td colspan="2"></td><td>'.$cnt2.'</td><td>'.$cnt3.'</td></tr>';
         print '</table>';
         print '[end report]';
     }else{
@@ -185,23 +159,9 @@ $is_csv = (@$_REQUEST['html']!=1);
             return null;
         }
 
-      /*
-        $parentId = mysql__select_value($mysqli, $query);
-        if($termId==3329){
-print $query.' '.$termId.' parent '.$parentId.'<br>';
+        if($parentId>0 && !in_array($parentId, $terms)){ //avoid recursion
+            array_push($terms, $parentId);
+            $termId = getTermTopMostParent22($db_name, $mysqli, $parentId, $terms);
         }
-      */
-        if($parentId>0){
-
-            if(in_array($parentId, $terms)){ //avoid recursion
-                return $termId;
-            }else{
-                array_push($terms, $parentId);
-                return getTermTopMostParent22($db_name, $mysqli, $parentId, $terms);
-            }
-        }else{
-            return $termId;
-        }
+        return $termId;
     }
-
-?>

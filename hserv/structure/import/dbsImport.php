@@ -19,14 +19,13 @@
 * @version     4
 */
 
-require_once dirname(__FILE__).'/../../System.php';
+use hserv\utilities\DbRegis;
+use hserv\structure\ConceptCode;
+
 require_once dirname(__FILE__).'/../search/dbsData.php';
 require_once dirname(__FILE__).'/../edit/saveStructureLib.php';
 require_once dirname(__FILE__).'/../../controller/entityScrudSrv.php';
 require_once dirname(__FILE__).'/../dbsTerms.php';
-
-//require_once dirname(__FILE__).'/../../utilities/dbRegis.php';
-require_once dirname(__FILE__).'/../../utilities/uFile.php';
 
 define('IS_DBG', false);//debug log output
 
@@ -40,6 +39,7 @@ class DbsImport {
 
     private $imp_fieldtypes;
     private $fields_correspondence;
+    private $fields_not_found; //defintion not found
 
     private $imp_terms;  //ids of source vocabularies to be imported
     private $terms_correspondence;
@@ -75,9 +75,12 @@ class DbsImport {
     private $broken_terms_reason;
 
     private $rename_target_entities = false;
+    private $conservative = false; //import new linked rectord types ONLY
 
     private $def_translations;
     private $translations_report;
+
+    private $url_from_reference = false;
 
     //  $data =
     public function __construct( $system ) {
@@ -150,6 +153,7 @@ class DbsImport {
     public function doPrepare( $data ){
 
         $this->rename_target_entities = (@$data['is_rename_target'] == 1);
+        $this->conservative = (@$data['conservative'] == 1);
 
         $this->prime_defType = $data['defType'];//'rectype','detailtype','term'
         $this->cloning_template = $this->prime_defType == 'all' && @$data['definitionID'] == 'all';
@@ -199,12 +203,10 @@ class DbsImport {
             }
 
             if (!($db_reg_id>0)) {
-                //@todo - check missed definitions
-                //return true;
                 $this->system->addError(HEURIST_ERROR, "Not possible to determine an origin database id (source of import)");
                 return false;
             }
-            if(!(count($local_ids)>0 || $cCode)){
+            if(!(!empty($local_ids) || $cCode)){
                 $this->system->addError(HEURIST_ERROR, "Neither concept code nor local id is defined");
                 return false;
             }
@@ -212,11 +214,12 @@ class DbsImport {
             $this->source_db_reg_id = $db_reg_id;
 
             // 1. get database url by database id
-            require_once dirname(__FILE__).'/../../utilities/dbRegis.php';
             $database_url = DbRegis::registrationGet(array('dbID'=>$db_reg_id));
             if(!$database_url){
-                $this->system->addErrorMsg('Can not obtain database url. ');
+                $this->system->addErrorMsg("Registration of database #{$db_reg_id} not found in Heurist Reference Index, failed to retrieve database URL.");
             }
+            
+            $this->url_from_reference = true;
 
         }else{
             $this->source_db_reg_id = $db_reg_id;
@@ -264,7 +267,7 @@ class DbsImport {
             $def_ids[] = 'all';
         }elseif($this->prime_defType=='term'){
 
-            if(is_array($local_ids) && count($local_ids)>0){
+            if(!isEmptyArray($local_ids)){
                 foreach($local_ids as $local_id){
                     $rt = $this->sourceTerms->getTerm($local_id);
                     if($rt!=null){
@@ -279,7 +282,7 @@ class DbsImport {
             }
         }else{
 
-            if(is_array($local_ids) && count($local_ids)>0){
+            if(!isEmptyArray($local_ids)){
                 foreach($local_ids as $local_id){ //$local_id either id in source db or concept code
 
                     if($this->prime_defType=='rt' || $this->prime_defType=='rectypes' || $this->prime_defType=='rectype'){
@@ -304,7 +307,7 @@ class DbsImport {
             }
         }
 
-        if (count($def_ids)==0 || $wrong_id>0) { //definition not found in source database
+        if (empty($def_ids) || $wrong_id>0) { //definition not found in source database
             $smsg = ($wrong_id!=null) ?$wrong_id :'concept code '.$cCode;
             $this->system->addError(HEURIST_ERROR, 'Unable to get '.$this->prime_defType. ' definition with '.$smsg.' from registered database #'.$db_reg_id);
             return false; //see $system->getError
@@ -382,7 +385,6 @@ class DbsImport {
 
             foreach($def_ids as $def_id){
                 $this->_getTopMostVocabulary($def_id, 'enum');
-                //if(count($this->imp_terms['enum'])==0)
                 $this->_getTopMostVocabulary($def_id, 'relation');
             }
 
@@ -396,7 +398,7 @@ class DbsImport {
                     $this->_findDependentRecordTypes($def_id, 0);
                 }
 
-                if(count($this->imp_recordtypes)==0 && count($this->imp_fieldtypes)==0 && count($this->imp_terms)==0){
+                if(empty($this->imp_recordtypes) && empty($this->imp_fieldtypes) && empty($this->imp_terms)){
                     $this->system->addError(HEURIST_NOT_FOUND, 'No one entity to be imported found');
                     return false;
                 }
@@ -408,7 +410,7 @@ class DbsImport {
                     $this->_findDependentRecordTypesByFieldId($def_id);
                 }
 
-                if(count($this->imp_fieldtypes)==0 && count($this->imp_terms)==0){
+                if(empty($this->imp_fieldtypes) && empty($this->imp_terms)){
                     $this->system->addError(HEURIST_NOT_FOUND, 'No one field or vocabulary to be imported found');
                     return false;
                 }
@@ -460,11 +462,27 @@ class DbsImport {
                 }
             }//for
 
+            
+            $this->fields_not_found = array();
             //5. some field types may not belong to recordtypes, they should be imported too
             // {id: '1', name: 'Titre', code: '2-1'}
             $all_fieldtypes = @$data['fieldtypes'];//[$local_id]['name']
-            if(is_array($all_fieldtypes) && count($all_fieldtypes)>0){
+            if(!isEmptyArray($all_fieldtypes)){
                 foreach ($all_fieldtypes as $ftId => $field){
+                    
+                    $local_src_ftId = $ftId; 
+                    
+                    if(is_string($ftId) && strpos($ftId, '-')>0){ //concept code
+                        $local_src_ftId = $this->_getLocalCode('detailtype', $this->source_defs, $ftId);
+                    }
+
+                    if($local_src_ftId>0 && @$def_dts[$local_src_ftId]){
+                        $ftId = intval($local_src_ftId);
+                    }else{
+                        $this->fields_not_found[] = $ftId;
+                        continue;
+                    }
+                    
                     if(!(@$this->fields_correspondence[$ftId] || in_array($ftId, $this->imp_fieldtypes) )){
 
                             $ccode = $def_dts[$ftId]['commonFields'][$idx_ccode];
@@ -500,7 +518,7 @@ class DbsImport {
 
         $this->system->addError(HEURIST_ERROR, $msg);
 
-        $mysqli = $this->system->get_mysqli();
+        $mysqli = $this->system->getMysqli();
         $mysqli->rollback();
         $mysqli->close();
 
@@ -513,8 +531,8 @@ class DbsImport {
     public function doImport( ){
 
         global $mysqli;
-        $mysqli = $this->system->get_mysqli();
-        $mysqli->autocommit(FALSE);
+        $mysqli = $this->system->getMysqli();
+        $mysqli->autocommit(false);
 
         $this->broken_terms = array();
         $this->broken_terms_reason = array();
@@ -539,7 +557,8 @@ class DbsImport {
             return false;
         }
 
-        if(count($this->imp_recordtypes)==0 && count($this->imp_fieldtypes)==0){
+        if(empty($this->imp_recordtypes) && empty($this->imp_fieldtypes)){
+            //only terms we can exit
             $mysqli->commit();
             $this->system->cleanDefCache();
             return true;
@@ -564,9 +583,9 @@ foreach ($this->imp_recordtypes as $recId){
     $rt_name = @$this->source_defs['rectypes']['names'][$recId];//get rectype in source
     if(!@$def_rts[$recId]){
         if(!$rt_name){
-            $this->error_exit2("Can't find record type #'".$recId."'. in source database");
+            $this->error_exit2("Can't find record type #'$recId' in source database");
         }else{
-            $this->error_exit2("Can't find definitions for record type #'".$recId."'. \"$rt_name\" in source database");
+            $this->error_exit2("Can't find definitions for record type #'$recId'. \"$rt_name\" in source database");
         }
         return false;
     }
@@ -575,7 +594,7 @@ foreach ($this->imp_recordtypes as $recId){
     $grp_name = null;
 
     if(!$grp_id){
-        $this->error_exit2("Group ID is not defined for record type #'".$recId."'. \"$rt_name\" in source database");
+        $this->error_exit2("Group ID is not defined for record type #'$recId'. \"$rt_name\" in source database");
         return false;
     }
 
@@ -595,11 +614,11 @@ foreach ($this->imp_recordtypes as $recId){
     }
 
     if($src_group==null){
-        $this->error_exit2("Can't find group #".$grp_id." for record type #'".$recId."'. \"$rt_name\" in source database");
+        $this->error_exit2("Can't find group #$grp_id for record type #'$recId'. \"$rt_name\" in source database");
         return false;
     }
     if(!$grp_name){
-        $this->error_exit2("Name of group is empty. Can't add group #".$grp_id." for record type #'"
+        $this->error_exit2("Name of group is empty. Can't add group #$grp_id for record type #'"
                                     .$recId."'. \"$rt_name\" in source database");
         return false;
     }
@@ -645,10 +664,9 @@ $idx_origin_id   = $def_rts['commonNamesToIndex']['rty_IDInOriginatingDB'];
 $idx_origin_name  = $def_rts['commonNamesToIndex']['rty_NameInOriginatingDB'];
 $idx_ccode       = $def_rts['commonNamesToIndex']['rty_ConceptID'];
 $idx_titlemask   = $def_rts['commonNamesToIndex']['rty_TitleMask'];
-$idx_titlemask_canonical = $def_rts['commonNamesToIndex']['rty_CanonicalTitleMask'];
+$idx_titlemask_canonical = $def_rts['commonNamesToIndex']['rty_CanonicalTitleMask']; //not used
 
 $cfn_tobeimported = array();
-
 
 foreach ($this->imp_recordtypes as $rtyID){
 
@@ -676,28 +694,14 @@ foreach ($this->imp_recordtypes as $rtyID){
         //disambiguate rectype name
         $def_rectype[$idx_name] = $this->doDisambiguate($def_rectype[$idx_name], $trg_rectypes['names']);
 
-        //assign canonical to title mask (since in DB we store only rty_TitleMask)
+        //assign title mask (in DB we store only rty_TitleMask)
         $def_rectype[$idx_titlemask] = $def_rectype[$idx_titlemask_canonical];
 
         //converts 0000 origin db to 9999            TT1
         $def_rectype[$idx_ccode] = DbsImport::convertUnregisteredCode($def_rectype[$idx_ccode],$rtyID);
 
-        //fill original ids if missed
-        if(!$def_rectype[$idx_origin_dbid] || !$def_rectype[$idx_origin_id]){
-            if($def_rectype[$idx_ccode]){
-                $codes = explode("-",$def_rectype[$idx_ccode]);
-                if(is_array($codes) && count($codes)==2){
-                    $def_rectype[$idx_origin_dbid] = $codes[0];
-                    $def_rectype[$idx_origin_id] = $codes[1];
-                }
-            }else{
-                $def_rectype[$idx_origin_dbid] = $this->source_db_reg_id;
-                $def_rectype[$idx_origin_id] = $rtyID;
-            }
-        }
-        if(!$def_rectype[$idx_origin_name]){
-            $def_rectype[$idx_origin_name] = $def_rectype[$idx_name];
-        }
+        // Fill in missing original values
+        DbsImport::_setConceptValues($def_rectype, [$this->source_db_reg_id, $rtyID, $def_rectype[$idx_name]], [$idx_ccode, $idx_origin_dbid, $idx_origin_id, $idx_origin_name]);
 
         //from saveStructureLib.php
         $res = createRectypes($columnNames, array("0"=>array("common"=>$def_rectype)), false, false, null);
@@ -736,7 +740,7 @@ $idx_dt_grp = $def_dts['fieldNamesToIndex']['dty_DetailTypeGroupID'];
 
 foreach ($this->imp_fieldtypes as $ftId){
     $src_group = [];
-    $grp_id = $def_dts[$ftId]['commonFields'][$idx_dt_grp];
+    $grp_id = $def_dts[$ftId]['commonFields'][$idx_dt_grp];//get from source
     $grp_name = "";
     if(@$group_ft_ids[$grp_id]){ //already found
         continue;
@@ -837,24 +841,8 @@ foreach ($this->imp_fieldtypes as $ftId){
 
     $def_field[$idx_ccode] = DbsImport::convertUnregisteredCode($def_field[$idx_ccode],$ftId);
 
-    //fill original ids if missed
-    if(!$def_field[$idx_origin_dbid] || !$def_field[$idx_origin_id]){
-        if($def_field[$idx_ccode]){
-            $codes = explode("-",$def_field[$idx_ccode]);
-            if(is_array($codes) && count($codes)==2){
-                $def_field[$idx_origin_dbid] = $codes[0];
-                $def_field[$idx_origin_id] = $codes[1];
-            }
-        }else{
-                $def_field[$idx_origin_dbid] = $this->source_db_reg_id;
-                $def_field[$idx_origin_id] = $ftId;
-        }
-    }
-
-
-    if(!$def_field[$idx_origin_name]){
-        $def_field[$idx_origin_name] = $def_field[$idx_name];
-    }
+    // Fill in missing original values
+    DbsImport::_setConceptValues($def_field, [$this->source_db_reg_id, $ftId, $def_field[$idx_name]], [$idx_ccode, $idx_origin_dbid, $idx_origin_id, $idx_origin_name]);
 
     array_shift($def_field);//remove dty_ID
     $res = createDetailTypes($columnNames, array("common"=>$def_field));
@@ -875,8 +863,8 @@ foreach ($this->imp_fieldtypes as $ftId){
         //$ftId
         $this->error_exit2('Can\'t add base field "'.$def_field[$idx_name-1]
             .'" (global code '.$def_field[$idx_ccode-1]
-            .') defined in  template. This may be due to a name conflict caused by unrecognised accents on similar names. '
-            .'<br><br>Please '.CONTACT_HEURIST_TEAM.' for advice'
+            .') defined in  template. This may be due to a name conflict caused by unrecognised accents on similar names. <br><br>'
+            .CONTACT_HEURIST_TEAM_PLEASE.' for advice'
             .'<br><br>MySQL message:'.$res);
         return false;
     }
@@ -922,7 +910,7 @@ foreach ($this->imp_recordtypes as $rtyID){
                 //add
                 $fields[ $trg_dty_id ] = $def_field;
 
-            }else  if($this->rename_target_entities){
+            }elseif($this->rename_target_entities){
 
                 $fields[$trg_dty_id][$idx_name] = $def_field[$idx_name];
                 $fields[$trg_dty_id][$idx_desc] = $def_field[$idx_desc];
@@ -987,27 +975,31 @@ foreach ($this->imp_recordtypes as $rtyID){
 
 // ------------------------------------------------------------------------------------------------
 
-// VII. Update titlemasks with new ids
+// VII. Update titlemasks with new ids - ONLY FOR NEW RECORD TYPES
+//          title mask for existing record types remains unchanged
 
 //$mysqli->commit();
 
 TitleMask::set_fields_correspondence($this->fields_correspondence);
 
 foreach ($this->imp_recordtypes as $rtyID){
-    if(@$this->rectypes_correspondence[$rtyID]){
-
-        $mask = $def_rts[$rtyID]['commonFields'][$idx_titlemask_canonical];
-//echo $mask;
-        // note we use special global array $this->fields_correspondence - for proper conversion of remote id to concept code
-        $res = updateTitleMask( $this->rectypes_correspondence[$rtyID], $mask);//see saveStructureLib
-        if(!is_numeric($res)){
-            //$this->error_exit2($res);
-            $mysqli = $this->system->get_mysqli();
-            $mysqli->rollback();
-            $mysqli->close();
-            return true;
-        }
+    $target_ID = @$this->rectypes_correspondence[$rtyID];
+    if($target_ID==null || !in_array($target_ID, $this->rectypes_added) ){
+        continue;
     }
+
+    $mask = $def_rts[$rtyID]['commonFields'][$idx_titlemask_canonical];
+//echo $mask;
+    // note we use special global array $this->fields_correspondence - for proper conversion of remote id to concept code
+    $res = updateTitleMask( $target_ID, $mask);//see saveStructureLib
+    if(!is_numeric($res)){
+        //$this->error_exit2($res);
+        $mysqli = $this->system->getMysqli();
+        $mysqli->rollback();
+        $mysqli->close();
+        return true;
+    }
+
 }
 
 TitleMask::set_fields_correspondence(null);
@@ -1015,7 +1007,7 @@ TitleMask::set_fields_correspondence(null);
 // ------------------------------------------------------------------------------------------------
 
 // VII. Import calculated fields
-if(is_array($cfn_tobeimported) && count($cfn_tobeimported)>0){
+if(!isEmptyArray($cfn_tobeimported)){
 
 $cfn_entity = new DbDefCalcFunctions($this->system);
 
@@ -1152,17 +1144,17 @@ $mysqli->commit();
         $remote_dbname = $match[1];
 
         if(!$remote_dbname || !$remote_url){
+            $url_part = $this->url_from_reference ? 'location from reference record: ' : 'location shown in file: ';
             $this->system->addError(HEURIST_ERROR,
-                "Heurist Reference Index returns incorrect data for registered database # ".$database_id."<br>"
-                ."The page may contain an invalid database reference<br>"
-                ."URL requested: ".$database_url."<br><br>");
+                "Registration of database #{$database_id} not found in Heurist Reference Index,<br>"
+                ."{$url_part}{$database_url} <br><br>");
             return false;
         }
 
         $message = '<p>Unable to contact the selected source database (ID # '.$database_id
             .'). This might indicate one of the following:</p>'
             .'<ol><li>the database is no longer online;</li>'
-            .'<li>the registration in the Heurist reference index is missing or points to the wrong URL '
+            .'<li>Database reference in Heurist Reference Index points to an invalid address: '
             .$remote_url
             .'<br>(check registration in Heurist Reference Index);</li>'
             .((strpos($remote_url, HEURIST_SERVER_URL)===0)
@@ -1176,7 +1168,7 @@ $mysqli->commit();
 
           $defs = array();
 
-          $system2 = new System();
+          $system2 = new hserv\System();
           if(!$system2->init($remote_dbname, true, false)){ //init without paths and consts
             $this->system->addError(HEURIST_ERROR, $message);
             return false;
@@ -1201,9 +1193,10 @@ $mysqli->commit();
                 global $glb_curl_error;
                 $error_code = (!empty($glb_curl_error)) ? $glb_curl_error : 'Error code: 500 Heurist Error';
 
-                $this->system->addError(HEURIST_ERROR, "Unable to connect Heurist Reference Index, possibly due to timeout or proxy setting<br>"
+                $url_part = $this->url_from_reference ? 'Heurist Reference Index' : 'provided file';
+                $this->system->addError(HEURIST_ERROR, "Database reference in {$url_part} points to an invalid address: <br>"
                     . $error_code . "<br>"
-                    ."a) URL requested: " . $remoteURL . "<br><br>");//$database_url
+                    ."a) URL requested: $remoteURL<br><br>");//$database_url
             }
 
             $defs = json_decode(gzdecode($defs), true);
@@ -1214,8 +1207,8 @@ $mysqli->commit();
             $defs = $defs['data'];
         }
         if (!($defs['terms']  &&  ($only_terms || ($defs['rectypes'] && $defs['detailtypes'])))) {
-            $this->system->addError(HEURIST_ERROR, "Structure definitions read from source database # $database_id are invalid. Please "
-                .CONTACT_HEURIST_TEAM);
+            $this->system->addError(HEURIST_ERROR, "Structure definitions read from source database # $database_id are invalid."
+                .CONTACT_HEURIST_TEAM_PLEASE);
             return false;
         }
 
@@ -1469,52 +1462,59 @@ $mysqli->commit();
         }
     }
 
+    //
+    // fills  $this->inverse_term_pairs
+    //
     private function _getInverseTerms($vocab_ids = null){
 
         $domain = 'relation';
 
-        $inverse_idx = $this->source_defs['terms']['fieldNamesToIndex']["trm_InverseTermID"];
         $inverse_idx = $this->source_defs['terms']['fieldNamesToIndex']["trm_InverseTermID"];
 
         if(empty($vocab_ids)){
             $vocab_ids = $this->imp_terms[$domain];// retrieve existing vocabs
         }
 
-        $added_vcb_ids = array();
-
         //array of valid ids
-        if(is_array($vocab_ids) && !empty($vocab_ids)){
-            foreach ($vocab_ids as $vocab_id){
-
-                $child_terms = $this->sourceTerms->treeData($vocab_id, 3);
-                if(!empty($child_terms)){
-
-                    foreach($child_terms as $term_id){
-
-                        $term = $this->sourceTerms->getTerm($term_id, $domain);
-                        $inverse_id = $term[$inverse_idx];
-                        $inverse_parent = $this->sourceTerms->getTopMostTermParent($inverse_id, $domain);
-
-                        if(!empty($inverse_id) && $inverse_id > 0
-                            && !in_array($inverse_id, $this->imp_terms[$domain]) && !in_array($inverse_parent, $this->imp_terms[$domain])){
-
-                            array_push($this->imp_terms[$domain], $inverse_parent);// import vocab, avoid importing partial vocabs
-                            $this->inverse_term_pairs[$term_id] = $inverse_id; // for correcting later
-
-                            array_push($added_vcb_ids, $inverse_parent);
-
-                        }
-                    }
-                }
-            }
+        if(isEmptyArray($vocab_ids)){
+            return;
         }
 
-        if(!empty($added_vcb_ids)){
+        $added_vcb_ids = array();
+
+        foreach ($vocab_ids as $vocab_id){
+
+            $child_terms = $this->sourceTerms->treeData($vocab_id, 3);
+            if(isEmptyArray($child_terms)){
+                continue;
+            }
+
+            foreach($child_terms as $term_id){
+
+                $term = $this->sourceTerms->getTerm($term_id, $domain);
+                $inverse_id = $term[$inverse_idx];
+                $inverse_parent = $this->sourceTerms->getTopMostTermParent($inverse_id, $domain);
+
+                if( isPositiveInt($inverse_id)
+                    && !in_array($inverse_id, $this->imp_terms[$domain])
+                    && !in_array($inverse_parent, $this->imp_terms[$domain]))
+                {
+
+                    array_push($this->imp_terms[$domain], $inverse_parent);// import vocab, avoid importing partial vocabs
+                    $this->inverse_term_pairs[$term_id] = $inverse_id; // for correcting later
+
+                    array_push($added_vcb_ids, $inverse_parent);
+                }
+            }
+
+        }
+
+        if(!isEmptyArray($added_vcb_ids)){
             $this->_getInverseTerms($added_vcb_ids);// get possible inverse terms for new terms
         }
     }
 
-    // @todo move to dbsRectypes
+    // @to_review move to dbsRectypes
     //
     //
     private function _findDependentRecordTypesByFieldId($field_id){
@@ -1568,18 +1568,17 @@ $mysqli->commit();
         return $res;
     }
 
-    // @todo move to dbsRectypes
+    // @to_review move to dbsRectypes
     //
     // search source defintions
     // find all dependend record types in pointer constraints
     // 1) returns rt tree 2) fills $this->imp_recordtypes, $this->rectypes_correspondence
     //
+    // if $this->conservative is true and dependednt record type already exists in target database, it will not be imported
+    //
     private function _findDependentRecordTypes($rectype_id, $depth){
 
-        $excludeDuplication = false;
-
         $trg_rectypes = $this->target_defs['rectypes'];
-
 
         if(!($rectype_id>0) || in_array($rectype_id, $this->imp_recordtypes) || $depth>9){
             //already in array
@@ -1604,15 +1603,14 @@ $mysqli->commit();
 
         if($local_recid>0){  //already exist in destination
             $this->rectypes_correspondence[$rectype_id] = $local_recid;
-            if($excludeDuplication){
-                    return false; //rectype with the same concept code is already in database
+            if($this->conservative && $depth>0){
+                return false; //rectype with the same concept code is already in database
             }
-            //$correspondence = array($local_recid);
         }
         array_push($this->imp_recordtypes, $rectype_id);
 
         $res = array('correspondence'=>$local_recid, 'dependence'=>array());
-
+        
         $fields = $def_rts[$rectype_id]['dtFields'];
 
         if(is_array($fields)){
@@ -1638,7 +1636,6 @@ $mysqli->commit();
             }
         }
         return $res;
-
     }
 
     /*
@@ -1702,15 +1699,8 @@ $mysqli->commit();
             $term_import = $this->sourceTerms->getTerm($term_id, $domain);
             //$term_import = $terms['termsByDomainLookup'][$domain][$term_id];//6256 returns wrong!!
 
-            if(!$term_import[$idx_ccode]){
-                if($term_import[$idx_origin_dbid]>0 && $term_import[$idx_origin_id]>0){
-
-                }elseif($term_id<999999){
-                    $term_import[$idx_origin_dbid] = $this->source_db_reg_id;
-                    $term_import[$idx_origin_id] = $term_id;
-                }
-                $term_import[$idx_ccode] = $term_import[$idx_origin_dbid].'-'.$term_import[$idx_origin_id];
-            }
+            // Fill in missing original values
+            DbsImport::_setConceptValues($term_import, [$this->source_db_reg_id, $term_id, $term_import[$idx_label]], [$idx_ccode, $idx_origin_dbid, $idx_origin_id, $idx_origin_name]);
 
             //find term by concept code among local terms
             $new_term_id = $this->targetTerms->findTermByConceptCode($term_import[$idx_ccode], $domain);
@@ -1727,7 +1717,7 @@ $mysqli->commit();
                             array_push($all_terms_in_vocab, $new_term_id);
                         }else{
                             //add as reference
-                            $res = addTermReference($parent_id, $new_term_id, $this->system->get_mysqli());//see saveStructureLib
+                            $res = addTermReference($parent_id, $new_term_id, $this->system->getMysqli());//see saveStructureLib
                             if($res!==false){
                                 array_push($all_terms_in_vocab, $new_term_id);
                                 $this->targetTerms->addNewTermRef($parent_id, $new_term_id);//add in memory
@@ -1754,7 +1744,7 @@ $mysqli->commit();
 
                 //change trm_InverseTermID, trm_ParentTermID  to new id from target
                 $term_import[$idx_parentid] = $parent_id;//@$this->terms_correspondence[$term_import[$idx_parentid]];
-                $term_import[$idx_inverseid] = @$this->terms_correspondence[$term_import[$idx_inverseid]];//@todo - after all terms addition?
+                $term_import[$idx_inverseid] = @$this->terms_correspondence[$term_import[$idx_inverseid]];
 
                 //get level - all terms of the same level - to search same name and codes
                 //1317-3790 Org type selection
@@ -1783,24 +1773,7 @@ $mysqli->commit();
                     $term_import[$idx_vocab_group_id] = 0;
                 }
 
-                // fill original ids (concept codes) if missed
-                if(!$term_import[$idx_origin_dbid] || !$term_import[$idx_origin_id]){
-                    if($term_import[$idx_ccode]){
-                        $codes = explode("-",$term_import[$idx_ccode]);
-                        if(is_array($codes) && count($codes)==2){
-                            $term_import[$idx_origin_dbid] = $codes[0];
-                            $term_import[$idx_origin_id] = $codes[1];
-                        }
-                    }else{
-                        $term_import[$idx_origin_dbid] = $this->source_db_reg_id;
-                        $term_import[$idx_origin_id] = $term_id;
-                    }
-                }
-                if(!@$term_import[$idx_origin_name]){
-                    $term_import[$idx_origin_name] = $term_import[$idx_label];
-                }
-
-                $res = updateTerms($columnNames, null, $term_import, $this->system->get_mysqli());//see saveStructureLib
+                $res = updateTerms($columnNames, null, $term_import, $this->system->getMysqli());//see saveStructureLib
 
                 if(is_numeric($res)){
                     $new_term_id = $res;
@@ -1875,7 +1848,7 @@ $mysqli->commit();
         $idx_vcg_grp = @$this->source_defs['terms']['fieldNamesToIndex']['trm_VocabularyGroupID'];
         $idx_parent = $this->source_defs['terms']['fieldNamesToIndex']['trm_ParentTermID'];
 
-        $mysqli = $this->system->get_mysqli();
+        $mysqli = $this->system->getMysqli();
 
         $is_old_db_version = false;
         if(!($idx_vcg_grp>0) || @$this->source_defs['terms']['groups']==null){
@@ -1907,7 +1880,7 @@ $mysqli->commit();
             $grp_id = @$rt[$idx_vcg_grp];
 
             if(!$grp_id){
-                $this->error_exit2("Vocabulary Group ID is not defined for vocabulary #'".$term_id."'. in source database");
+                $this->error_exit2("Vocabulary Group ID is not defined for vocabulary #'$term_id'. in source database");
                 return false;
             }
 
@@ -1921,13 +1894,12 @@ $mysqli->commit();
             $src_group = @$this->source_defs['terms']['groups'][$grp_id];
 
             if($src_group==null){
-                $this->error_exit2("Can't find vocabulary group #".$grp_id." for vocabulary #'".$term_id."'. in source database");
+                $this->error_exit2("Can't find vocabulary group #$grp_id for vocabulary #'$term_id'. in source database");
                 return false;
             }
             $grp_name = @$src_group['vcg_Name'];
             if(!$grp_name){
-                $this->error_exit2("Name of group is empty. Can't add group #".$grp_id." for vocabulary #'"
-                    .$term_id."'. in source database");
+                $this->error_exit2("Name of group is empty. Can't add group #$grp_id for vocabulary #'$term_id'. in source database");
                 return false;
             }
 
@@ -1959,7 +1931,7 @@ $mysqli->commit();
     }
 
 
-    // @todo
+    // 
     // Copy record type icon and thumbnail from source to destination database
     //
     private function copyRectypeIcon($source_RtyID, $target_RtyID, $is_thumb=false){
@@ -2064,6 +2036,7 @@ $mysqli->commit();
         if (strpos($sterms,"{")!== false) {
             foreach ($this->terms_correspondence as $imp_id=>$trg_id) {
                 //replace termID in string
+                $imp_id = intval($imp_id);
                 $sterms = preg_replace("/\"".$imp_id."\"/","\"".$trg_id."\"",$sterms);
             }
         }else{
@@ -2112,7 +2085,7 @@ $mysqli->commit();
                     }
 
                     $sRectypes = $sRectypes."<tr><td>$imp_id</td><td>".$def_rts[$imp_id]['commonFields'][$idx_name]
-                    ."</td><td>"
+                    .TD
                     .$def_rts[$imp_id]['commonFields'][$idx_ccode]
                     ."</td><td>$trg_id</td><td>"
                     .@$trg_rectypes['names'][$trg_id]
@@ -2136,11 +2109,11 @@ $mysqli->commit();
                 }
 
                 $sFields = $sFields."<tr><td>$imp_id</td><td>".$def_dts[$imp_id]['commonFields'][$idx_name]
-                ."</td><td>"
+                .TD
                 .$def_dts[$imp_id]['commonFields'][$idx_ccode]
                 ."</td><td>$trg_id</td><td>"
-                .@$trg_detailtypes['names'][$trg_id]."</td></tr>";
-                //.$trg_detailtypes['typedefs'][$trg_id]['commonFields'][$idx_name]."</td></tr>";
+                .@$trg_detailtypes['names'][$trg_id].TR_E;
+                //.$trg_detailtypes['typedefs'][$trg_id]['commonFields'][$idx_name].TR_E;
             }
         }
 
@@ -2162,10 +2135,10 @@ $mysqli->commit();
             }
 
             $sTerms = $sTerms . "<tr><td>$imp_id</td><td>".$def_terms['termsByDomainLookup'][$domain][$imp_id][$idx_name]
-            ."</td><td>"
+            .TD
             .$def_terms['termsByDomainLookup'][$domain][$imp_id][$idx_ccode]
             ."</td><td>$trg_id</td><td>"
-            .$trg_terms['termsByDomainLookup'][$domain][$trg_id][$idx_name]."</td></tr>";
+            .$trg_terms['termsByDomainLookup'][$domain][$trg_id][$idx_name].TR_E;
         }
 
         $resp =  array( 'report'=>array('rectypes'=>$sRectypes,'detailtypes'=>$sFields,'terms'=>$sTerms,'translations'=>$this->translations_report) );
@@ -2197,7 +2170,7 @@ $mysqli->commit();
             ];
         }
 
-        if(count($this->broken_terms_reason)>0){
+        if(!empty($this->broken_terms_reason)){
             $resp['report']['broken_terms'] = $this->broken_terms;
             $resp['report']['broken_terms_reason'] = $this->broken_terms_reason;
         }
@@ -2338,6 +2311,9 @@ $mysqli->commit();
         $this->source_defs['terms']['trm_Links'] = $links;
     }
 
+    //
+    //
+    //
     private function _importTranslations($def){
 
         if(count($this->def_translations[$def]) == 0){ // no definitions to retrieve
@@ -2362,7 +2338,7 @@ $mysqli->commit();
 
             $defs = array();
 
-            $system2 = new System();
+            $system2 = new hserv\System();
             if(!$system2->init($remote_dbname, true, false)){ //init without paths and consts
                 // Invalid source, unable to retrieve translations
                 $this->translations_report = 'We were unable to connect to the registered database located on this server.';
@@ -2379,6 +2355,25 @@ $mysqli->commit();
                 .'hserv/controller/sys_structure.php?db='.$remote_dbname.'&'
                 . http_build_query(array('translations' => $this->def_translations[$def]));
 
+            $translations = $this->_getRemoteTranslations($remoteURL);
+
+            if(!$translations){
+                return;
+            }
+
+        }
+
+        if(isEmptyArray(@$translations['translations'])){
+            $this->translations_report[$def] = 'No translations found';
+        }else{
+            $this->_handleTranslations($def, $translations);
+        }
+
+        return true;
+    }
+
+    private function _getRemoteTranslations($remoteURL){
+
             $defs = loadRemoteURLContent($remoteURL);
             if(!$defs){ // unable to connect to remote server
                 global $glb_curl_error;
@@ -2386,9 +2381,9 @@ $mysqli->commit();
 
                 $this->translations_report = "Unable to connect remote server containing the registered database, possibly due to timeout or proxy setting<br>"
                     . $error_code . "<br>"
-                    ."URL requested: " . $remoteURL . "<br><br>";
+                    ."URL requested: $remoteURL<br><br>";
 
-                return;
+                return false;
             }
 
             $translations = json_decode(gzdecode($defs), true);
@@ -2397,23 +2392,16 @@ $mysqli->commit();
                 $this->translations_report = 'Invalid translation data was retrieved from remote registered database.';
                 $this->def_translations = array();
 
-                return;
+                return false;
             }
-            $translations = $translations['data'];
-        }
 
-        if(is_array(@$translations['translations']) && count($translations['translations']) > 0){
-            $this->_handleTranslations($def, $translations);
-        }else{
-            $this->translations_report[$def] = 'No translations found';
-        }
-
-        return true;
+            return $translations['data'];
     }
+
 
     private function _handleTranslations($def, $translations){
 
-        $mysqli = $this->system->get_mysqli();
+        $mysqli = $this->system->getMysqli();
 
         $delete_stmt = $mysqli->prepare('DELETE FROM defTranslations where trn_Source=? AND trn_Code=?');
 
@@ -2453,7 +2441,7 @@ $mysqli->commit();
             return true;
         }
 
-        $mysqli = $this->system->get_mysqli();
+        $mysqli = $this->system->getMysqli();
         $idx_inverseid = intval($this->target_defs['terms']['fieldNamesToIndex']["trm_InverseTermID"]);
 
         foreach($this->inverse_term_pairs as $org_trm_id => $org_inv_id){
@@ -2486,5 +2474,73 @@ $mysqli->commit();
 
         return true;
     }
+
+    /**
+     * Assigns concept values [concept ID, original DB ID, original ID, and original Name] to current definition
+     *  Set these here to avoid situations were the definitions are missing these values, causing potential issues later on
+     *
+     * @param array $definition - row representing the concept being imported
+     * @param array $concept_values - [original database ID, original ID, original name]
+     * @param array $indexes - array of indexes to access values from $definition [conceptCode, originDBID, originID, originName]
+     * @return void
+     */
+    private function _setConceptValues($definition, $concept_values, $indexes){
+
+        $source_DBID = @$concept_values[0];
+        $source_ID = @$concept_values[1];
+        $source_Name = @$concept_values[2];
+
+        if(!ctype_digit($source_DBID) || intval($source_DBID) < 0
+        || !ctype_digit($source_ID) || intval($source_ID) <= 0){
+            return;
+        }
+
+        $missing_conceptID = empty($definition[$indexes[0]]);
+        // Use the existing concept codes for source IDs
+        if(!$missing_conceptID){
+            $parts = explode('-', $definition[$indexes[0]]);
+            if(count($parts) == 2 && ctype_digit($parts[0]) && ctype_digit($parts[1])){
+                $source_DBID = intval($parts[0]);
+                $source_ID = intval($parts[1]);
+            }
+        }
+
+        // Check if either original ID is missing
+        $update_conceptID = false;
+        if(empty($definition[$indexes[1]]) || empty($definition[$indexes[2]])){
+            $definition[$indexes[1]] = $source_DBID;
+            $definition[$indexes[2]] = $source_ID;
+            $update_conceptID = true;
+        }
+
+        // Update concept code, if missing or other original IDs were updated
+        if($missing_conceptID || $update_conceptID){
+            $definition[$indexes[0]] = "{$source_DBID}-{$source_ID}";
+        }
+
+        // Update original name
+        if(empty($definition[$indexes[3]]) && !empty($source_Name)){
+            $definition[$indexes[3]] = $source_Name;
+        }
+    }
+    
+    //
+    // Check and download missed record type 
+    //
+    public function checkAndImportRty($rty_ID){
+        
+        //import missed record type
+        $isOK = false;
+        if($this->doPrepare(  array(
+        'defType'=>'rectype',
+        'databaseID'=>2,
+        'conceptCode'=>array($rty_ID))))
+        {
+            $isOK = $this->doImport();
+        }
+        
+        return $isOK;
+    }
+    
 }
 ?>

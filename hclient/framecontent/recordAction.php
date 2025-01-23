@@ -80,22 +80,15 @@ require_once 'initPage.php';
 $action_type = @$_REQUEST['action'];
 $allowed_actions = array('add_detail','replace_detail','delete_detail','rectype_change',
             'extract_pdf','url_to_file','local_to_repository','reset_thumbs',
-            'case_conversion','translation');
+            'case_conversion','nl2br','translation');
 if(!in_array($action_type, $allowed_actions)){
     //@todo - it does not work since initPage already produces some output
     // need to call this piece of code with callback function in initPage after system itit
-    header('Location: '.ERROR_REDIR.'?msg=Action is not defined or not allowed');
+    redirectURL(ERROR_REDIR.'?msg=Action is not defined or not allowed');
     exit;
 }
 
 ?>
-<!-- date picker
-<script type="text/javascript" src="<?php echo PDIR;?>external/js/jquery.calendars-1.2.1/jquery.calendars.js"></script>
-<script type="text/javascript" src="<?php echo PDIR;?>external/js/jquery.calendars-1.2.1/jquery.calendars.plus.js"></script>
-<script type="text/javascript" src="<?php echo PDIR;?>external/js/jquery.calendars-1.2.1/jquery.calendars.picker.js"></script>
-<link rel="stylesheet" type="text/css" href="<?php echo PDIR;?>external/js/jquery.calendars-1.2.1/jquery.calendars.picker.css">
--->
-
 <script type="text/javascript" src="recordAction.js"></script>
 <script type="text/javascript" src="<?php echo PDIR;?>hclient/core/temporalObjectLibrary.js"></script>
 <script type="text/javascript" src="<?php echo PDIR;?>hclient/widgets/editing/editing_input.js"></script>
@@ -141,7 +134,7 @@ if(!in_array($action_type, $allowed_actions)){
 <!-- HTML -->
 <body style="overflow:hidden;" class="ui-heurist-explore">
 
-    <div id="div_parameters" class="popup_content_div" style="overflow:auto;bottom:3.5em;">
+    <div id="div_parameters" class="popup_content_div" style="overflow-y:auto;overflow-x:hidden;bottom:3.5em;">
 
         <div id="div_header" style="padding: 0.2em; min-width: 600px;">
 

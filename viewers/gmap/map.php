@@ -27,7 +27,9 @@ require_once dirname(__FILE__).'/../../hclient/framecontent/initPage.php';
 
 $system->defineConstants();
 ?>
-<script type="text/javascript" src="<?php echo PDIR;?>external/jquery.layout/jquery.layout-latest.js"></script>
+<script type="text/javascript" src="<?php echo PDIR;?>external/jquery.widgets/jquery.layout.js"></script>
+<script type="text/javascript" src="<?php echo PDIR;?>external/jquery.widgets/evol.colorpicker.js" charset="utf-8"></script>
+<link type="text/css" href="<?php echo PDIR;?>external/jquery.widgets/evol.colorpicker.css" rel="stylesheet"/>
 
 <!--
 <script src="https://developers.google.com/maps/documentation/javascript/examples/markerclusterer/markerclusterer.js"></script>
@@ -43,8 +45,6 @@ $system->defineConstants();
 -->
 
 <!-- Timemap -->
-<!-- <script type="text/javascript">Timeline_urlPrefix = RelBrowser.baseURL+"js/timemap.js/2.0.1/lib/";</script -->
-
 <script type="text/javascript" src="<?php echo PDIR;?>external/timemap.js/2.0.1/lib/mxn/mxn.js?(googlev3)"></script>
 
 <script type="text/javascript" src="<?php echo PDIR;?>external/timemap.js/2.0.1/markerclusterer.js"></script>
@@ -76,9 +76,6 @@ $system->defineConstants();
 <script type="text/javascript" src="<?php echo PDIR;?>external/js/shapefile/stream.js"></script>
 <script type="text/javascript" src="<?php echo PDIR;?>external/js/shapefile/shapefile.js"></script>
 <script type="text/javascript" src="<?php echo PDIR;?>external/js/shapefile/dbf.js"></script>
-
-<script type="text/javascript" src="<?php echo PDIR;?>external/js/evol.colorpicker.js" charset="utf-8"></script>
-<link href="<?php echo PDIR;?>external/js/evol.colorpicker.css" rel="stylesheet" type="text/css">
 
 <!-- Mapping -->
 <script type="text/javascript" src="<?php echo PDIR;?>viewers/gmap/map.js"></script>
@@ -154,7 +151,7 @@ $system->defineConstants();
 
         // Layout options
         var layout_opts =  {
-            applyDefaultStyles: true,
+                    applyDemoStyles: false,
             togglerContent_open:    '<div class="ui-icon"></div>',
             togglerContent_closed:  '<div class="ui-icon"></div>',
             onresize_end: function(){
@@ -248,9 +245,6 @@ $system->defineConstants();
                             // Show info on map    @todo reimplement as map init callback IMPORTANT!!!!
                             var recset = new HRecordSet(response.data);
 
-                            //var mapdataset = recset.toTimemap();
-                            //mapping.load([mapdataset]);
-
                             mapping.load( null, //mapdataset,
                                 null,  //array of record ids
                                 mapdocument,    //map document on load
@@ -287,7 +281,7 @@ $system->defineConstants();
             items: ".vis-item,.vis-item-overflow"
         });
 
-        $( window ).resize(function() {
+        $( window ).on('onresize',function() {
             var w = $(this).width();
             if (w < 400) {
                 $("#mapSelectorBtn").button({showLabel:false}).width(20);
@@ -298,20 +292,20 @@ $system->defineConstants();
             mapping.onWinResize();
         });
 
-        $( "#timeline" ).mousedown(function(){
+        $( "#timeline" ).on('mousedown', function(){
             $( document ).bubble("closeAll");
         });
 
         //init buttons
         $("#mapToolbarDiv").css('background','none');
 
-        $("#btnExportKML").button().click(exportKML);
+        $("#btnExportKML").button().on('click',exportKML);
 
         $("#btnPrint").button({showLabel:false, icon: "ui-icon-print"})
-        .click(mapping.printMap);
+        .on('click',mapping.printMap);
 
         $("#btnEmbed").button({showLabel:false, icon: "ui-icon-globe-b"})
-        .click(showEmbedDialog);
+        .on('click',showEmbedDialog);
 
         $('#btn_help').button({icon: "ui-icon-help", showLabel:false}).on('click', 3, function(){
             var $helper = $("#helper");
@@ -321,7 +315,7 @@ $system->defineConstants();
                 $helper.dialog( "open" );
             }
         });
-        $( "#helper" ).load(window.hWin.HAPI4.baseURL+'context_help/mapping_overview.html #content');
+        $( "#helper" ).load(window.hWin.HRes('mapping_overview. #content'));
         //$( "#helper" ).find('p').css('padding','10px');
         $( "#helper" ).dialog({
             autoOpen: false, //(window.hWin.HAPI4.get_prefs('help_on')=='1'),
@@ -381,20 +375,22 @@ $system->defineConstants();
             }
 
 
+            $pref_li = '<li rtid="';
+
             $items = '';
-            $items = $items.'<li rtid="'.checkRt('RT_KML_SOURCE').'"><a href="#">KML</a></li>';
-            $items = $items.'<li rtid="'.checkRt('RT_SHP_SOURCE').'"><a href="#">SHP</a></li>';
-            $items = $items.'<li rtid="'.checkRt('RT_GEOTIFF_SOURCE').'"><a href="#">GeoTiff</a></li>';
-            $items = $items.'<li rtid="'.checkRt('RT_TILED_IMAGE_SOURCE').'"><a href="#">Tiled image</a></li>';
-            $items = $items.'<li rtid="'.checkRt('RT_QUERY_SOURCE').'"><a href="#">Query layer</a></li>';
+            $items = $items.$pref_li.checkRt('RT_KML_SOURCE').'"><a href="#">KML</a></li>';
+            $items = $items.$pref_li.checkRt('RT_SHP_SOURCE').'"><a href="#">SHP</a></li>';
+            $items = $items.$pref_li.checkRt('RT_GEOTIFF_SOURCE').'"><a href="#">GeoTiff</a></li>';
+            $items = $items.$pref_li.checkRt('RT_TILED_IMAGE_SOURCE').'"><a href="#">Tiled image</a></li>';
+            $items = $items.$pref_li.checkRt('RT_QUERY_SOURCE').'"><a href="#">Query layer</a></li>';
         ?>
             $("#btnMapRefresh").button({ showLabel:false, icon:"ui-icon-arrowrefresh-1-e" })
-            .click( refreshMapDocument );
+            .on('click', refreshMapDocument );
             $("#btnMapNew").button({ showLabel:false, icon: "ui-map-document" })
-            .click( function(){ addNewRecord('<?=checkRt('RT_MAP_DOCUMENT')?>');} )
+            .on('click', function(){ addNewRecord('<?=checkRt('RT_MAP_DOCUMENT')?>');} )
             .append('<span class="ui-icon ui-icon-plus" style="margin-left:0px;margin-top:-2px" />');
             $("#btnMapEdit").button({showLabel:false, icon: "ui-icon-pencil"})
-            .click( mapEdit );
+            .on('click', mapEdit );
             $("#btnMapLayer").button({showLabel:false, icon: "ui-map-layer"})
             .on('click', function(){ addNewRecord('<?=checkRt('RT_MAP_LAYER')?>');})
             .append('<span class="ui-icon ui-icon-plus" style="margin-left:0px;margin-top:-2px" />');
@@ -422,8 +418,8 @@ $system->defineConstants();
 
             btn_datasets = $("#btnMapDataSourceArrow").button({showLabel:false, icon: 'ui-icon-triangle-1-s'})
                 .css({'padding':'0.4em', 'max-width':'12px'})
-                .click(__drodown_mapDataSources);
-            $("#btnMapDataSource").button({showLabel:false,icon: "ui-icon-bars"}).click(__drodown_mapDataSources);
+                .on('click',__drodown_mapDataSources);
+            $("#btnMapDataSource").button({showLabel:false,icon: "ui-icon-bars"}).on('click',__drodown_mapDataSources);
 
 
             $("#mapToolbar").controlgroup();
@@ -439,7 +435,6 @@ $system->defineConstants();
 
             var nt = parseInt(legend.css('bottom'), 10);
             nt = 30; //bottom
-            //var mh = $('#map').height();
             var mh = $("#mapping").find('.ui-layout-center').height();
 
             var is_collapsed = (legend.find('#collapse').text() == "+");

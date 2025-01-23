@@ -33,7 +33,7 @@
     action
 
     set_primary_rectype
-        set main rectype for given session and returns list of dependencies (resource field->rectype)
+        set main rectype for given session and returns list of dependencies (resource/record pointer field->rectype)
 
 
     1) step0
@@ -87,35 +87,34 @@
         import_records
 
     */
-require_once dirname(__FILE__).'/../System.php';
-require_once dirname(__FILE__).'/../entity/dbSysImportFiles.php';
+
+use hserv\utilities\USanitize;
+use hserv\entity\DbSysImportFiles;
+
+require_once dirname(__FILE__).'/../../autoload.php';
+
 require_once dirname(__FILE__).'/../structure/search/dbsData.php';
 require_once dirname(__FILE__).'/../structure/search/dbsDataTree.php';
+require_once dirname(__FILE__).'/../structure/dbsUsersGroups.php';
 
 require_once dirname(__FILE__).'/../records/import/importParser.php';//parse CSV, KML and save into import table
 require_once dirname(__FILE__).'/../records/import/importSession.php';//work work with import session
 require_once dirname(__FILE__).'/../records/import/importAction.php';//work with import table: matching, assign id, performs validation and import
 require_once dirname(__FILE__).'/../records/import/importHeurist.php';//work with Heurist exchange format
 
-require_once dirname(__FILE__).'/../utilities/uArchive.php';
-
-
 set_time_limit(0);
 
 $response = null;
 $need_compress = false;
 
-$system = new System();
+$system = new hserv\System();
 
 if(!$system->init(@$_REQUEST['db'])){
     //get error and response
     $response = $system->getError();
 }else{
 
-   if(!$system->is_admin()){
-        $response = $system->addError(HEURIST_REQUEST_DENIED, 'Administrator permissions are required');
-
-   }elseif(!checkUserPermissions($system, 'add')){ // Check that the user is allowed to edit records
+    if(!userCheckPermissions($system, 'add', 1)){ // Check that the user is allowed to edit records
 
         $response = $system->getError();
 
@@ -173,11 +172,10 @@ if(!$system->init(@$_REQUEST['db'])){
             $table_name = filter_var(@$_REQUEST['table'],FILTER_SANITIZE_STRING);
 
             if($table_name==null || $table_name==''){
-                $system->addError(HEURIST_INVALID_REQUEST, '"table" parameter is not defined');
+                $system->addError(HEURIST_INVALID_REQUEST, errorWrongParam('"table"'));
                 $res = false;
 
-            }else
-            if(@$_REQUEST['imp_ID']){
+            }elseif(@$_REQUEST['imp_ID']){
                 $res = ImportSession::getRecordsFromImportTable1($table_name, intval($_REQUEST['imp_ID']));
             }else{
                 $res = ImportSession::getRecordsFromImportTable2($table_name,
@@ -202,9 +200,8 @@ if(!$system->init(@$_REQUEST['db'])){
                 $header_flds = @$_REQUEST['header_flds'];
                 if($header_flds!=null && !is_array($header_flds)){
                     $header_flds = json_decode($header_flds, true);
-                    //$header_flds = explode(',',$header_flds);
                 }
-                if(is_array($header_flds) && count($header_flds)>0){
+                if(!isEmptyArray($header_flds)){
                     $sz = $sz + fputcsv($fp, $header_flds, ',', '"');
                 }
 
@@ -212,8 +209,6 @@ if(!$system->init(@$_REQUEST['db'])){
 
                     $sz = $sz + fputcsv($fp, $row, ',', '"');
                     $cnt++;
-
-                    //if($cnt>2) {break;}
                 }
                 rewind($fp);
                 // read the entire line into a variable...
@@ -236,7 +231,6 @@ if(!$system->init(@$_REQUEST['db'])){
             $filename = filter_var(basename(@$_REQUEST['filename']),FILTER_SANITIZE_STRING);
 
             $res = ImportHeurist::importDefintions($filename, @$_REQUEST['session']);
-            //$need_compress = true;
 
         }elseif($action=='import_records'){
 
@@ -251,6 +245,14 @@ if(!$system->init(@$_REQUEST['db'])){
                 //direct import from another database (the same server)
                 $res = ImportHeurist::importRecordsFromDatabase(@$_REQUEST);
             }
+
+        }elseif($action=='import_terms'){
+
+            $res = ImportAction::importTerms(@$_REQUEST);
+
+        }elseif($action=='insert_column'){
+
+            $res = ImportAction::insertNewColumns(@$_REQUEST);
 
         }else{
             $system->addError(HEURIST_INVALID_REQUEST, "Action parameter is missing or incorrect");
@@ -306,7 +308,7 @@ elseif($need_compress){ //importDefintions returns complete set of new defintion
     unset($output);
 }else{
 
-    header('Content-type: application/json');
+    header(CTYPE_JSON);
     print json_encode($response);
 }
 ?>

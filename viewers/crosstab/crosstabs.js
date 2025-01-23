@@ -28,11 +28,7 @@
 /*
 * Global variables
 */
-var crosstabsAnalysis;
-var intervalsNumeric;
-var intervalsValues;
-var minMax = [];
-var originalOutliers = [];
+window.crosstabsAnalysis = null;
 
 /**
 *  CrosstabsAnalysis - class for crosstab analysis
@@ -47,6 +43,10 @@ function CrosstabsAnalysis(_query, _query_domain) {
     const _controllerURL = window.hWin.HAPI4.baseURL + 'viewers/crosstab/crosstabsController.php';
 
     const MAX_FOR_AUTO_RETRIEVE = 6000;
+    
+    let intervalsNumeric;
+    let minMax = [];
+    let originalOutliers = [];
 
     let fields3 = {column:{field:0, type:'', values:[], intervals:[]}, row:{}, page:{}};
     //     intervals:{name: , description:, values:[  ] }
@@ -98,7 +98,7 @@ function CrosstabsAnalysis(_query, _query_domain) {
 
         //hide left panel(saved searches) and maximize analysis
         //let _kept_width = window.hWin.HAPI4.LayoutMgr.cardinalPanel('getSize', ['east','outerWidth'] );
-        //window.hWin.HAPI4.LayoutMgr.cardinalPanel('close', 'west');
+        
         //window.hWin.HAPI4.LayoutMgr.cardinalPanel('sizePane', ['east', (top?top.innerWidth:window.innerWidth)-300 ]);  //maximize width
 
       configEntityWidget = $('#divLoadSettings').configEntity({
@@ -769,7 +769,7 @@ function CrosstabsAnalysis(_query, _query_domain) {
                         //.css({'width':'160px','display':'inline-block'})
                         .html(interval.name)
                         .css({'font-weight':'bold'} )
-                        .dblclick(function(event){
+                        .on('dblclick', function(event){
                             //Collect the interval number of the clicked row
                             let intervalElement = $(this).parent();
                             let intervalPosition = intervalElement.attr('id').replace(name, '');
@@ -779,7 +779,7 @@ function CrosstabsAnalysis(_query, _query_domain) {
                             //Create input box to change name
                             $(this).html('<input class="w-100" id="changeNameBox" value="'+fields3[name].intervals[intervalPosition].name+'">');
                             //When user clicks out of input box edit name
-                            $('#changeNameBox').blur(function(){
+                            $('#changeNameBox').on('blur', function(){
                                 let nameChanged = $('#changeNameBox').val();
                                 $(this).parent().html(nameChanged);
 
@@ -826,7 +826,7 @@ function CrosstabsAnalysis(_query, _query_domain) {
                     .appendTo($rightColDiv);
 
                 $addIntervalBtn = $('<button>',{class: "btn btn-success w-100"})
-                    //.button({icons: {primary: "ui-icon-plus"}} )
+                    //.button({icon:"ui-icon-plus"} )
                     .on('click', function( event ) {
                         editInterval( name, -1);
                     })
@@ -1092,7 +1092,7 @@ function CrosstabsAnalysis(_query, _query_domain) {
                         selectBox.append('<option value="'+decimalPlaces[j]+'">'+decimalPlaces[j]+'</option>');
                     }
 
-                    selectBox.change(function(){
+                    selectBox.on('change',function(){
                         changeIntervalDecimal(name,$(this).val());
                         let changedIntervals = fields3[name].intervals
                         generateNumericIntervalsRows(name, changedIntervals, $intervalColumn, $(this).val())
@@ -1158,13 +1158,13 @@ function CrosstabsAnalysis(_query, _query_domain) {
                 $('<div class="col-4">').html(betweenText).appendTo($intRows);
 
                 $('<div class="col-4 pointer">').html(int[i].values[1].toFixed(decimalPlace))
-                .dblclick(function(){
+                .on('dblclick', function(){
                     let intervalId = parseInt($(this).parent().attr('id').replace(name,''));
                     let intervalValue = fields3[name].intervals[intervalId].values[1];
 
                     $(this).html('<input type="number" class="w-100" id="changeValueBox" value="'+intervalValue+'">');
                     //When user clicks out of input box change the intervals value min and max
-                    $('#changeValueBox').blur(function(){                    
+                    $('#changeValueBox').on('blur', function(){                    
                         //Change the max value for the intervals based on what the user has entered.
                         let k=0;
                         while(k<fields3[name].intervals.length){
@@ -1516,7 +1516,7 @@ function CrosstabsAnalysis(_query, _query_domain) {
         $($newInterval.find("#applyButton")).appendTo('#'+name+idx+'ArrowPlacement'); //Places arrow at the begining of the edited or newly added interval.
 
 
-            //window.hWin.HEURIST4.msg.showMsgDlg('There are no more terms available');
+            
     }
 
     function __addeditInterval( name, idx, notSaved){
@@ -1599,7 +1599,7 @@ function CrosstabsAnalysis(_query, _query_domain) {
             //.css({'width':'160px','display':'inline-block'})
             .html(interval.name)
             .css({'font-weight':'bold'} )
-            .dblclick(function(event){
+            .on('dblclick', function(event){
                 //Collect the interval number of the clicked row
                 let intervalElement = $(this).parent();
                 let intervalPosition = intervalElement.attr('id').replace(name, '');
@@ -1608,7 +1608,7 @@ function CrosstabsAnalysis(_query, _query_domain) {
 
                 $(this).html('<input class="w-100" id="changeNameBox" value="'+interval.name+'">');
                 //When user clicks out of input box edit name
-                $('#changeNameBox').blur(function(){
+                $('#changeNameBox').on('blur', function(){
                     let nameChanged = $('#changeNameBox').val();
                     $(this).parent().html(nameChanged);
 
@@ -1981,19 +1981,19 @@ function CrosstabsAnalysis(_query, _query_domain) {
 
             if(!_selectedRtyID || _selectedRtyID<1){
                 window.hWin.HEURIST4.msg.showMsgFlash('Record type is not defined',1000);
-                $recTypeSelector.focus();
+                $recTypeSelector.trigger('focus');
 
                 return;
             }
             if(fields3.row.field<1){
                 window.hWin.HEURIST4.msg.showMsgDlg('Row field is not defined');
-                $('#cbRows').focus();
+                $('#cbRows').trigger('focus');
                 return;
             }
             if(fields3.row.intervals.length<1){
                 window.hWin.HEURIST4.msg.showMsgDlg('There are no values for the "'+fields3.row.fieldname+'" field. '
                             +'Please check the set of records you are analysing ');
-                $('#cbRows').focus();
+                $('#cbRows').trigger('focus');
                 return;
             }
 
@@ -2022,7 +2022,7 @@ function CrosstabsAnalysis(_query, _query_domain) {
                 if(fields3.page.intervals.length<1){
                     window.hWin.HEURIST4.msg.showMsgDlg('There are no values for the "'+fields3.page.fieldname+'" field. '
                             +'Please check the set of records you are analysing ');
-                    $('#cbPages').focus();
+                    $('#cbPages').trigger('focus');
                     _setMode(2); //results
                     return;
                 }
@@ -2038,7 +2038,7 @@ function CrosstabsAnalysis(_query, _query_domain) {
                 if(fields3.column.intervals.length<1){
                     window.hWin.HEURIST4.msg.showMsgDlg('There are no values for the "'+fields3.column.fieldname+'" field. '
                             +'Please check the set of records you are analysing ');
-                    $('#cbColumn').focus();
+                    $('#cbColumn').trigger('focus');
                     _setMode(2); //results
                     return;
                 }
@@ -2216,15 +2216,15 @@ function CrosstabsAnalysis(_query, _query_domain) {
             tableTitle += ' ' + aggregationMode;
             //Append text box for user to enter table title.
             $divres.append('<div id="titleInput" style="margin-top: 10px;"><input type="text" class="text form-control rounded-0" style="display: inline-block;width: 75%;" id="tableTitle">'
-                    + '<button class="btn btn-success ms-2 mb-2 p-1" style="font-size: 13px;" id="titleSubmit"><i class="ui-icon ui-icon-circle-check" /> Apply</button></div>');
+                    + '<button class="btn btn-success ms-2 mb-2 p-1" style="font-size: 13px;" id="titleSubmit"><span class="ui-icon ui-icon-circle-check" ></span> Apply</button></div>');
 
             $divres.append('<div id="titleDisplay" style="margin-top: 10px;"><h2 class="crosstab-page" style="display: inline-block;" id="tableHeader">'+tableTitle+'</h2>'
-                    + '<button class="btn btn-warning ms-2" id="titleEdit"><i class="ui-button-icon ui-icon ui-icon-pencil" /></button></div>');
+                    + '<button class="btn btn-warning ms-2" id="titleEdit"><span class="ui-button-icon ui-icon ui-icon-pencil" ></span></button></div>');
             
-            $('#titleSubmit').on('click', function(){
+            $('#titleSubmit').on('click', function(event){
                 let title = $('#tableTitle').val();
 
-                if($('#tableTitle').val().length <=0 || $.trim($('#tableTitle').val()) == ''){
+                if($('#tableTitle').val().length <=0 || String($('#tableTitle').val()).trim() == ''){
                     $('#tableHeader').html(tableTitle);
                 }
                 else{
@@ -2258,7 +2258,6 @@ function CrosstabsAnalysis(_query, _query_domain) {
             for (idx=0; idx<rlen; idx++) {
                 if(idx){
 
-                    //if(typeof curpage_val==="undefined" ||
                     if(curpage_val!=records_resp[idx][3])
                     {
 

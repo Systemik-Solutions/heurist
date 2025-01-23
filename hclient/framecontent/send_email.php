@@ -18,15 +18,16 @@
 * @package     Heurist academic knowledge management system
 * @subpackage  !!!subpackagename for file such as Administration, Search, Edit, Application, Library
 */
+use hserv\utilities\USanitize;
+
 define('PDIR','../../');//need for proper path to js and css
 define('MANAGER_REQUIRED', 1);
 
 require_once 'initPageMin.php';
-require_once dirname(__FILE__).'/../../hserv/utilities/uMail.php';
 
 // POST request
 if(isset($_POST['data'])) {
-    $params = filter_input_array(INPUT_POST);
+    $params = USanitize::sanitizeInputArray();
 
     $data = json_decode($params['data']);
     $response = "";
@@ -66,12 +67,17 @@ if(isset($_POST['data'])) {
 <html lang="en">
 <head>
     <meta http-equiv="content-type" content="text/html; charset=utf-8">
+    <meta name="robots" content="noindex,nofollow">
     <title>Bulk email sender</title>
 
     <!-- CSS -->
-    <?php include_once dirname(__FILE__).'/initPageCss.php';?>
+    <?php
 
-    <script type="text/javascript" src="<?php echo PDIR;?>external/jquery-ui-1.12.1/jquery-1.12.4.js"></script>
+    include_once dirname(__FILE__).'/initPageCss.php';
+    includeJQuery();
+
+    ?>
+
     <script type="text/javascript" src="<?php echo PDIR;?>hclient/core/detectHeurist.js"></script>
     <script type="text/javascript" src="<?php echo PDIR;?>hclient/core/utils_dbs.js"></script>
 
@@ -226,8 +232,8 @@ if(isset($_POST['data'])) {
 
             // Listen to dropdown hanges
             $(dropdowns[i]).on('change', function(e) {
-                var id = $(this).attr("id");// Dropdown ID
-                var value = $(this).prop("selectedIndex");// Selected dropdown index
+                let id = $(this).attr("id");// Dropdown ID
+                let value = $(this).prop("selectedIndex");// Selected dropdown index
                 putItem("#"+id, value);// Store data
                 redo();// Message needs to be re-done
             });
@@ -239,7 +245,7 @@ if(isset($_POST['data'])) {
             $("#selected-records").html("# of records selected: " + ids.length);
 
             // Determine record type of first record
-            //this.record = records.getFirstRecord();// Reference to first record;
+
             var rectype = recordset.fld(first_record, 'rec_RecTypeID');// Record type of first record
             definitions = $Db.rst(rectype);
 
@@ -400,6 +406,7 @@ if(isset($_POST['data'])) {
                     }else{
                         window.hWin.HEURIST4.msg.showMsgErr({
                             message: "Define email field. It is mandatory",
+                            error_title: 'Missing email',
                             status: window.hWin.ResponseStatus.ACTION_BLOCKED
                         });
                         return;

@@ -36,12 +36,13 @@
     * distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied
     * See the License for the specific language governing permissions and limitations under the License.
     */
+    use hserv\utilities\USanitize;
+    use hserv\utilities\UArchive;
 
-    require_once dirname(__FILE__).'/../System.php';
+    require_once dirname(__FILE__).'/../../autoload.php';
+
     require_once dirname(__FILE__).'/../records/search/recordSearch.php';
-    require_once dirname(__FILE__).'/../dbaccess/utils_db.php';
     require_once dirname(__FILE__).'/../utilities/geo/mapSimplify.php';
-    require_once dirname(__FILE__).'/../utilities/uArchive.php';
     //require_once dirname(__FILE__).'/../../vendor/autoload.php';//for ShapeFile
 
 // Register autoloader
@@ -53,19 +54,21 @@ use Shapefile\Shapefile;
 use Shapefile\ShapefileException;
 use Shapefile\ShapefileReader;
 
+global $is_api;
+
     $response = array();
 
-    $system = new System();
+    $system = new hserv\System();
 
     $params = $_REQUEST;
     $is_api = (@$_REQUEST['api']!=0);
 
     if( ! $system->init(@$params['db']) ){
         //get error and response
-        $system->error_exit_api(null, null, $is_api);//exit from script
+        $system->errorExitApi(null, null, $is_api);//exit from script
     }
-    if(!(@$params['recID']>0)){
-        $system->error_exit_api('recID parameter value is missing or invalid', null, $is_api);//exit from script
+    if(!isPositiveInt(@$params['recID'])){
+        $system->errorExitApi('recID parameter value is missing or invalid', null, $is_api);//exit from script
     }
 
     $need_simplify = (true || @$params['simplify']=='yes' || @$params['simplify']==1);
@@ -96,8 +99,8 @@ use Shapefile\ShapefileReader;
     }
 
 
-    if( count($fields) == 0 ){
-        $system->error_exit_api('Database '.$params['db']
+    if( empty($fields) ){
+        $system->errorExitApi('Database '.$params['db']
                     .' does not have field definitions for shp, zip or simple resource file'
                     , HEURIST_SYSTEM_CONFIG, $is_api);//exit from script
     }
@@ -142,7 +145,7 @@ use Shapefile\ShapefileReader;
                 $file_zip_full = tempnam(HEURIST_SCRATCHSPACE_DIR, "arc");
                 $zip = new ZipArchive();
                 if (!$zip->open($file_zip_full, ZIPARCHIVE::CREATE)) {
-                    $system->error_exit_api("Cannot create zip $file_zip_full", null, $is_api);
+                    $system->errorExitApi("Cannot create zip $file_zip_full", null, $is_api);
                 }else{
                     if(!$dbf_file){
                         $dbf_file = substr($shp_file,0,strlen($shp_file)-3).'dbf';
@@ -195,10 +198,9 @@ use Shapefile\ShapefileReader;
                         //if provide only shapefile, it finds other automatically
                         $shapeFile = new ShapefileReader($shp_file, array(Shapefile::OPTION_IGNORE_FILE_SHX=>true, Shapefile::OPTION_IGNORE_FILE_DBF=>true));
                     }else{
-                        $system->error_exit_api('Cannot process shp file', HEURIST_ERROR, null);
+                        $system->errorExitApi('Cannot process shp file', HEURIST_ERROR, null);
                     }
 
-                    //$json = array();
                     $tmp_destination = tempnam(HEURIST_SCRATCHSPACE_DIR, "exp");
                     $fd = fopen($tmp_destination, 'w');//less than 1MB in memory otherwise as temp file
                     fwrite($fd, '[');
@@ -224,7 +226,7 @@ use Shapefile\ShapefileReader;
 
 
                         $geo = @$feature['geometry'];
-                        if(is_array(@$geo['coordinates']) && count(@$geo['coordinates'])>0){
+                        if(!isEmptyArray(@$geo['coordinates'])){
 
                             if($geo['type']=='LineString'){
 
@@ -250,8 +252,6 @@ use Shapefile\ShapefileReader;
                         }
 
 
-                        //$json[] = $feature;
-
                         if($rec_cnt>0) {fwrite($fd, ',');}
                         fwrite($fd, json_encode($feature));
                         $rec_cnt++;
@@ -272,7 +272,6 @@ use Shapefile\ShapefileReader;
                     fclose($fd);
 
                     header( CTYPE_JSON);
-                    //header(CONTENT_LENGTH . strlen($output));
                     unlink($tmp_destination);
 
                     echo $output;
@@ -281,14 +280,14 @@ use Shapefile\ShapefileReader;
 
                 } catch (ShapeFileException $e) {
                     // Print detailed error information
-                    $system->error_exit_api('Cannot process shp file: '.$e->getMessage(), HEURIST_ERROR, $is_api);
+                    $system->errorExitApi('Cannot process shp file: '.$e->getMessage(), HEURIST_ERROR, $is_api);
                 } catch (Exception $e) {
-                    $system->error_exit_api('Cannot init ShapeFile library: '.$e->getMessage(), HEURIST_ERROR, $is_api);
+                    $system->errorExitApi('Cannot init ShapeFile library: '.$e->getMessage(), HEURIST_ERROR, $is_api);
                 }
 
             }
     }else{
-        $system->error_exit_api(
+        $system->errorExitApi(
 'Cannot process shp file. Please ask the owner of the layer data source record (id:'
 .$params['recID']
 .') to check that the file exists, is readable and has not been corrupted.',
@@ -309,7 +308,7 @@ function checkWGS($system, $orig_points, $check_number_or_all=3){
         //if not integer and less than 180/90 this is wgs
         //!(($point[1]!=round($point[1])) || ($point[0]!=round($point[0]))
         if (!((abs($point[0])<200) && (abs($point[1])<90))){
-                $system->error_exit_api(
+                $system->errorExitApi(
 'Cannot process shp file. Heurist uses WGS84 (World Geographic System) '
 .'to support the plotting of maps worldwide. This shapefile is not in this format '
 .'and will not therefore display on maps. '
@@ -355,7 +354,7 @@ function fileRetrievePath($fileinfo, $need_ext=null, $isArchive=false){
     if(file_exists($filepath)){
 
         if($isArchive){ //$need_ext!==null){
-            $destination = HEURIST_SCRATCH_DIR;//.$system->get_user_id().'/';
+            $destination = HEURIST_SCRATCH_DIR;
 
             $files = UArchive::unzipFlat($filepath, $destination);
 

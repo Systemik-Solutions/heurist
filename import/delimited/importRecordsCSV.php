@@ -19,12 +19,12 @@
     * distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied
     * See the License for the specific language governing permissions and limitations under the License.
     */
+use hserv\utilities\USystem;
 
 define('MANAGER_REQUIRED',1);
 define('PDIR','../../');
 
 require_once dirname(__FILE__).'/../../hclient/framecontent/initPage.php';
-require_once dirname(__FILE__).'/../../hserv/utilities/uFile.php';
 
 $post_max_size = USystem::getConfigBytes('post_max_size');
 $file_max_size = USystem::getConfigBytes('upload_max_filesize');
@@ -141,7 +141,7 @@ if(!$format){ $format='csv';}
     </head>
 
     <!-- HTML -->
-    <body class="ui-heurist-bg-light ui-heurist-populate" style="overflow:hidden;min-height:400px;font-size:0.7em;">
+    <body class="ui-heurist-bg-light ui-heurist-populate" style="overflow-x:hidden;min-height:400px;font-size:0.7em;">
 
 <!-- STEP 1 upload data/select session -->
 <div style="width:100%; height:100%;padding:20px;min-width:670px;" id="divStep1">
@@ -252,12 +252,12 @@ if(!$format){ $format='csv';}
                         </select>
                     </div>
                 </div>
-                <div>
+                <div style="display:none">
                     <div class="header" style="min-width: 50px;">Line separator:</div>
                     <div class="input-cell">
                         <select id="csv_linebreak" class="text ui-widget-content ui-corner-all" style="width:120px;">
-                            <option value="auto">auto detect</option>
-                            <option selected value="win">Windows</option>
+                            <option selected value="auto">auto detect</option>
+                            <option value="win">Windows</option>
                             <option value="nix">Unix</option>
                             <option value="mac">Mac</option>
                         </select>
@@ -380,7 +380,7 @@ if(!$format){ $format='csv';}
 
         </div>
 
-        <div style="position: absolute;right: 81px;top: 50px;padding-left:50px;font-size:0.8em">
+        <div style="padding-left:50px;font-size:0.8em">
                 <input type="checkbox" name="ignore_rectype" id="ignore_rectype" value="1" class="text"
                             onchange="{importRecordsCSV.onIgnoreRectype();}">&nbsp;
                 <label for="ignore_rectype" style="display:inline-flex;">
@@ -551,7 +551,7 @@ if(!$format){ $format='csv';}
                 <tbody>
                                     <tr>
                                         <td rowspan="3" width="250">
-                                            <h2 id="mrr_big">Existing: 586  New: 100</h2>
+                                            <h2 id="mrr_big">Existing: 0&nbsp;&nbsp;&nbsp;New: 0</h2>
                                         </td>
                                         <td rowspan="3">
                                             <div id="prepareWarnings"
@@ -564,7 +564,7 @@ if(!$format){ $format='csv';}
                                         <td rowspan="3">
                                             <div id="prepareErrors"
                                                 style="display:none;padding:2px;background-color:#ffaaaa;border-color:red;margin-left:2em">
-                                                <h2 id="mrr_error" style="display:inline-block;margin:0 10px;">Unrecognised terms: 0</h2>
+                                                <h2 id="mrr_error" style="display:inline-block;margin:0 10px;">Rows with unrecognised terms: 0</h2>
                                                 <div id="btnShowErrors"></div>
                                             </div>
                                         </td>
@@ -604,11 +604,11 @@ if(!$format){ $format='csv';}
                 <th style="width:300px;" id="mapping_column_header">Column to Field Mapping</th>
                 <!-- last column allows step through imported data records-->
                 <th style="text-align: left;padding-left: 16px;">
-                    <a href="#" class="navigation" style="display: inline-block;"><span data-dest="0" class="ui-icon ui-icon-seek-first"/></a>
-                    <a href="#" class="navigation" style="display:inline-block;"><span data-dest="-1" class="ui-icon ui-icon-triangle-1-w"/></a>
+                    <a href="#" class="navigation" style="display: inline-block;"><span data-dest="0" class="ui-icon ui-icon-seek-first"></span></a>
+                    <a href="#" class="navigation" style="display:inline-block;"><span data-dest="-1" class="ui-icon ui-icon-triangle-1-w"></span></a>
                     <div style="display: inline-block;">Values in row <span id="current_row"></span></div>
-                    <a href="#" class="navigation" style="display: inline-block;"><span data-dest="1" class="ui-icon ui-icon-triangle-1-e"/></a>
-                    <a href="#" class="navigation" style="display: inline-block;"><span data-dest="last" class="ui-icon ui-icon-seek-end"/></a>
+                    <a href="#" class="navigation" style="display: inline-block;"><span data-dest="1" class="ui-icon ui-icon-triangle-1-e"></span></a>
+                    <a href="#" class="navigation" style="display: inline-block;"><span data-dest="last" class="ui-icon ui-icon-seek-end"></span></a>
                 </th></tr>
             </thead>
         </table>

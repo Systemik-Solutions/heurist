@@ -87,7 +87,7 @@ function HintDiv(_id, _width, _height, _initcontent) {
 			//tooltip div mouse out
 			function __hideToolTip2() {
 				needHideTip = true;
-				hideTimer = window.setTimeout(_hideToolTip, 500); //_hideToolTip();
+				hideTimer = window.setTimeout(_hideToolTip, 500);
 			}
 			//tooltip div mouse over
 			function __clearHideTimer2() {
@@ -95,8 +95,7 @@ function HintDiv(_id, _width, _height, _initcontent) {
 				_clearHideTimer();
 			}
 
-			popup_div.mouseover(__clearHideTimer2);
-			popup_div.mouseout(__hideToolTip2);
+			popup_div.on( 'mouseenter', __clearHideTimer2 ).on( 'mouseleave', __hideToolTip2 );
 		}
 	}
 
@@ -141,14 +140,12 @@ function HintDiv(_id, _width, _height, _initcontent) {
 
 		let div_height =  popup_div.height();
 		let div_width =  popup_div.width();
-		let pageHeight = popup_div.parents().height();
-		let scrollValue = popup_div.parents().scrollTop();
 		if(!offset) {
 			offset = 5;
 		}
-		//var lft = popup_div.css('left');
+
 		let left_pos=Math.max(0,Math.min(xy[0]+offset, border_right - div_width));
-		let top_pos=Math.max(xy[1]-(div_height/2)+offset,0);//-scrollValue;
+		let top_pos=Math.max(xy[1]-(div_height/2)+offset,0);
 
 		popup_div.css( {left:left_pos+'px',
 					top:top_pos+'px',
@@ -168,10 +165,6 @@ function HintDiv(_id, _width, _height, _initcontent) {
 	function _showAtXY(xy){
 
 		_init();
-		//xy = [posx = event.target.x,posy = event.target.y];
-
-		//var _map_popup = $("#mapPopup");
-		//_map_popup.html(xy[0]+",  "+xy[1]+"<br>");
 
 		let border_top = $(window).scrollTop();
 		let border_right = $(window).width();
@@ -196,7 +189,7 @@ function HintDiv(_id, _width, _height, _initcontent) {
 	//
 	function _hideToolTip(){
 		if(needHideTip && popup_div){
-			//!!! currentTipId = null;
+		
 			_clearHideTimer();
 			popup_div.css( {visibility:"hidden",opacity:"0"});
 		}

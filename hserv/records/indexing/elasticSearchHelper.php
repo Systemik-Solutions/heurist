@@ -26,7 +26,7 @@
     // ElasticSearch index helpers
     //****************************************************************************************************************
 
-    $isElasticUp = NULL; // Global variable whether or not Elastic indexing is enabled & operational
+    $isElasticUp = null; // Global variable whether or not Elastic indexing is enabled & operational
 
     /**
      * Checks if ElasticSearch indexing is enabled in configIni.php
@@ -87,7 +87,7 @@
      */
     function isElasticAddressCreated($address) {
         $handle = curl_init($address);
-        curl_setopt($handle, CURLOPT_RETURNTRANSFER, TRUE);
+        curl_setopt($handle, CURLOPT_RETURNTRANSFER, true);
 
         curl_exec($handle);
         $httpCode = curl_getinfo($handle, CURLINFO_HTTP_CODE);
@@ -121,7 +121,7 @@
      */
     function isElasticUp() {
         global $isElasticUp;
-        if($isElasticUp == NULL) {
+        if($isElasticUp == null) {
             $isElasticUp = isElasticEnabled() && isElasticRunning();
         }
         return $isElasticUp;
@@ -194,7 +194,7 @@
      * @return bool True if $property exists and is true.
      */
     function checkElasticResponse($json, $property) {
-        if ($json != NULL) {
+        if ($json != null) {
             $response = json_decode($json);
             return property_exists($response, $property) && $response->$property;
         }

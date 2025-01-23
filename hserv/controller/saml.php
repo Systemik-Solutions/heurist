@@ -24,17 +24,17 @@
 * See the License for the specific language governing permissions and limitations under the License.
 */
 
-require_once dirname(__FILE__).'/../System.php';
-require_once dirname(__FILE__).'/../utilities/uSaml.php';
+require_once dirname(__FILE__).'/../../autoload.php';
+require_once dirname(__FILE__).'/../utilities/USaml.php';
 
-$action = @$_REQUEST['a'];//$system->getError();
+$action = @$_REQUEST['a'];
 
-$system = new System();
+$system = new hserv\System();
 $dbname = @$_REQUEST['db'];
-$error = System::dbname_check($dbname);
+$error = mysql__check_dbname($dbname);
 $msg = null;
 
-if($error){
+if($error!=null){
     $system->addError(HEURIST_INVALID_REQUEST, $error);
 }else{
 
@@ -43,10 +43,9 @@ if($error){
 
     if(!$sp){
         $system->addError(HEURIST_INVALID_REQUEST, 'Database '.$dbname.' does not support SAML authorisation');
-    }else
-    if ($action == "logout"){ //save preferences into session
+    }elseif ($action == "logout"){ //save preferences into session
 
-        if($system->set_dbname_full($dbname)){
+        if($system->setDbnameFull($dbname)){
 
             $system->initPathConstants($dbname);
 
@@ -68,7 +67,7 @@ if($error){
                     $res2 = json_encode($res);
                     //pass to window.close('echo $res;');
                     ?>
-                    <!DOCTYPE>
+                    <!DOCTYPE HTML>
                     <html lang="en">
                     <head>
                     <title>Heurist external authentification</title>
@@ -113,10 +112,11 @@ if($msg==null){
     }
 }
 ?>
-<!DOCTYPE>
+<!DOCTYPE HTML>
 <html lang="en">
 <head>
 <title>Heurist external authentification</title>
+<meta name="robots" content="noindex,nofollow">
 <script>
     window.onload = function(){
 console.log('Authentification completed ','<?php echo htmlspecialchars($msg);?>');

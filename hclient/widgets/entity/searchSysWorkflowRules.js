@@ -29,7 +29,7 @@ $.widget( "heurist.searchSysWorkflowRules", $.heurist.searchEntity, {
         
         //this.btn_search_start.css('float','right');   
         
-        this.btn_add_record = this.element.find('#btn_add_record');
+        this.btn_add_record = this.element.find('.btn_AddRecord');
         this.btn_add_record
                     .button({label: window.hWin.HR('Add set of Rules'), showLabel:true, 
                             icon:"ui-icon-plus"})
@@ -86,8 +86,6 @@ $.widget( "heurist.searchSysWorkflowRules", $.heurist.searchEntity, {
     //
     startSearch: function(){
         
-            this._super();
-            
             let request = {};
         
             if(this.input_search_rectype.val() && this.input_search_rectype.val()!='any'){

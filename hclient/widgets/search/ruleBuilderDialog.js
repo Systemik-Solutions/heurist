@@ -48,13 +48,9 @@ function onPageInit(success) //callback function of hAPI initialization
 
         $('#btn_save').addClass('ui-button-action').attr('title', 'explanatory rollover' ).button().on('click', 3, saveRules);
 
-        //$('#btn_apply').button().on('click', 3, applyRules);
+       
         
-        let ishelp_on = window.hWin.HAPI4.get_prefs('help_on');
-        ishelp_on = (ishelp_on==1 || ishelp_on==true || ishelp_on=='true');
-        
-        //@todo - use common helper/competency level functionality
-        $('#btn_help').button({icons: { primary: "ui-icon-help" }, text:false}).on('click', 3, showHelp);
+        $('#btn_help').button({icon:"ui-icon-help", showLabel:false}).on('click', 3, showHelp);
         $( "#helper" ).dialog({
             autoOpen: false, width:800,
             position: { my: "right bottom", at: "right top", of: $('#btn_help') },
@@ -74,7 +70,6 @@ function onPageInit(success) //callback function of hAPI initialization
         if(!window.hWin.HEURIST4.util.isempty(rules)){
 
             rules = window.hWin.HEURIST4.util.isJSON(rules);
-            //if(!Array.isArray(rules)) rules = JSON.parse(rules);
 
             if(rules!==false && rules.length>0){
                 let i;
@@ -126,10 +121,10 @@ function showHelp(){
     let $helper = $("#helper");
     if($helper.dialog( "isOpen" )){
         $helper.dialog( "close" );
-        //$helper.hide( 'explode', {}, 1000 );
+       
     }else{
         $helper.dialog( "open" );
-        //$helper.show( 'drop', {}, 1000 );
+       
     }
 }
 

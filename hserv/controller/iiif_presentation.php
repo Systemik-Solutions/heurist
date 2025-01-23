@@ -24,29 +24,31 @@
     * distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied
     * See the License for the specific language governing permissions and limitations under the License.
     */
-
-    require_once dirname(__FILE__).'/../System.php';
-    require_once dirname(__FILE__).'/../dbaccess/utils_db.php';
-    require_once dirname(__FILE__).'/../records/export/recordsExport.php';
+    require_once dirname(__FILE__).'/../../autoload.php';
 
     $response = array();
 
-    $params = $_REQUEST;
+    if(isset($req_params)){
+        $params = $req_params; //from api.php
+    }else{
+        $params = $_REQUEST;
+    }
+
 
     if(!isset($system) || $system==null){
 
-        $system = new System();
+        $system = new hserv\System();
 
         if( ! $system->init(@$params['db']) ){
             //get error and response
-            $system->error_exit_api();//exit from script
+            $system->errorExitApi();//exit from script
         }
     }
 
     if(!(array_key_exists('id',$params)
         && $params['id']!='' && $params['id']!=null)){
 
-        $system->error_exit_api('Resource id is not defined');//exit from script
+        $system->errorExitApi('Resource id is not defined');//exit from script
     }
 
     if(!(array_key_exists('resource',$params)
@@ -55,8 +57,7 @@
 
     }
 
-    RecordsExport::setSession($system);
-    $res = RecordsExport::getIiifResource(null, $params['id'], $params['resource']);
+    $res = hserv\records\export\ExportRecordsIIIF::getIiifResource($system, null, 3, $params['id'], @$params['resource']);
 
     $system->dbclose();
 
@@ -65,6 +66,6 @@
         $system->setResponseHeader();
         print $res;
     }else{
-        $system->error_exit_api();
+        $system->errorExitApi();
     }
 ?>

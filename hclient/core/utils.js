@@ -77,11 +77,14 @@ window.hWin.HEURIST4.util = {
     byteLength: function(str) {
       // returns the byte length of an utf8 string
       let s = str.length;
-      for (let i=str.length-1; i>=0; i--) {
+      let i=str.length-1;
+      while (i>=0)
+      {
         let code = str.charCodeAt(i);
         if (code > 0x7f && code <= 0x7ff) s++;
         else if (code > 0x7ff && code <= 0xffff) s+=2;
         if (code >= 0xDC00 && code <= 0xDFFF) i--; //trail surrogate
+        i--;
       }
       return s;
     },    
@@ -104,10 +107,21 @@ window.hWin.HEURIST4.util = {
     },
     
     isNumber: function (n) {
-        //return typeof n === 'number' && isFinite(n);
+       
         return !isNaN(parseFloat(n)) && isFinite(n);
     },
     
+    isPositiveInt: function (n) {
+        if(window.hWin.HEURIST4.util.isempty(n) || !(typeof n === 'string' || typeof n === 'number')){
+            return false;
+        }
+
+        if(typeof n === 'string'){
+            n = parseInt(n);    
+        }
+        
+        return !isNaN(n) && n>0;
+    },
 
     //
     //
@@ -156,7 +170,7 @@ window.hWin.HEURIST4.util = {
             ele = $("body");   
         }
         //else {
-            //ele = ele.parent();
+           
         //}
         const fs = ele.css('font-size');
         /*
@@ -178,37 +192,46 @@ window.hWin.HEURIST4.util = {
     //
     // enable or disable element
     //
-    setDisabled: function(element, mode){
-        if(element){
-            if(!Array.isArray(element)){
-                element = [element];
-            }
-            $.each(element, function(idx, ele){
-                ele = $(ele);
-                
-                //if(mode !== (ele.prop('disabled')=='disabled')){
-                
-                if( ($.heurist.hSelect !=="undefined") && window.hWin.HEURIST4.util.isFunction($.heurist.hSelect) && ele.hSelect("instance")!=undefined){              
-
-                    if (mode) {
-                        ele.hSelect( "disable" );
-                    }else{
-                        ele.hSelect( "enable" );    
-                    }
-
-                }else{
-                    if (mode) {
-                        ele.prop('disabled', 'disabled');
-                        ele.addClass('ui-state-disabled');
-                    }else{
-                        ele.removeProp('disabled');
-                        ele.removeClass('ui-state-disabled ui-button-disabled');
-                    }
-                }
-                
-                //}
-            });
+    setDisabled: function(element, is_disabled){
+        if(!element){
+            return;    
         }
+        
+        if(!Array.isArray(element) && !element.jquery){
+            element = [element];
+        }
+        
+        $.each(element, function(idx, ele){
+            
+            if (!ele.jquery) {
+                ele = $(ele);    
+            }
+               
+            // ($.heurist.hSelect !=='undefined') && window.hWin.HEURIST4.util.isFunction($.heurist.hSelect)    
+                                                                                                             
+            if(window.hWin.HEURIST4.util.isFunction(ele?.hSelect) && ele.hSelect('instance')!=undefined){              
+
+                if (is_disabled) {
+                    ele.hSelect( 'disable' );
+                }else{
+                    ele.hSelect( 'enable' );    
+                }
+
+            }else if (ele.length>0){
+                
+                ele = ele[0];
+                
+                if (is_disabled) {
+                    ele.setAttribute('disabled', 'disabled'); // Disable the element
+                    ele.classList.add('ui-state-disabled');   // Add the 'ui-state-disabled' class
+                } else {
+                    ele.removeAttribute('disabled');      // Enable the element
+                    ele.classList.remove('ui-state-disabled', 'ui-button-disabled'); // Remove specified classes
+                }                    
+                
+            }
+        });
+        
     },
     
     isIE: function () {
@@ -232,13 +255,12 @@ window.hWin.HEURIST4.util = {
             }
                 
             try {
-                let flash = new ActiveXObject("Plugin.mailto");
+                new ActiveXObject("Plugin.mailto");
             } catch (e) {
                 //not installed
             }
         } else { //firefox,chrome,opera
-            //navigator.plugins.refresh(true);
-            let mimeTypes = navigator.mimeTypes;
+           
             let mime = navigator.mimeTypes['application/x-mailto'];
             if(mime) {
                 //installed
@@ -266,7 +288,7 @@ window.hWin.HEURIST4.util = {
             
             if(need_encode==2 || need_encode==1){
                 f_encode = encodeURIComponent;
-                //f_encode = window.hWin.HEURIST4.util.encodeSuspectedSequences;
+               
             }else if(need_encode==3){
                 f_encode = JSON.stringify;
             }
@@ -299,19 +321,21 @@ window.hWin.HEURIST4.util = {
     //
     isJSON: function(value){
         
+            let res = false;
             try {
                 if(typeof value === 'string'){
                     value = value.replace(/[\n\r]+/g, '');
                     value = JSON.parse(value);    
                 }
                 if(Array.isArray(value) || $.isPlainObject(value)){
-                    return value;
+                    res = value;
                 }
             }
             catch (err) {
+                res = false;
             } 
             
-            return false;       
+            return res;       
     },
     
     //
@@ -392,7 +416,7 @@ window.hWin.HEURIST4.util = {
 
     isArray: function (a)
     {
-        return Array.isArray(a); //Object.prototype.toString.apply(a) === '[object Array]';
+        return Array.isArray(a);
     },
     
     isGeoJSON: function(a, allowempty){
@@ -590,10 +614,6 @@ window.hWin.HEURIST4.util = {
             error: function(jqXHR, textStatus, errorThrown ) {
                 if(callback){
                     
-                    //var UNKNOWN_ERROR = (window.hWin)
-                    //        ?window.hWin.ResponseStatus.UNKNOWN_ERROR:'unknown';
-                    //if(textStatus=='timeout'){}
-                    
                     let response = window.hWin.HEURIST4.util.interpretServerError(jqXHR, url, request_code);
                     
                     if(caller){
@@ -657,8 +677,6 @@ window.hWin.HEURIST4.util = {
         mapForm.action = actionUrl;
         
         for (const key in params){
-        //if (keyParams && valueParams && (keyParams.length == valueParams.length)){
-            //for (var i = 0; i < keyParams.length; i++){
             let mapInput = document.createElement("input");
                 mapInput.type = "hidden";
                 mapInput.name = key;
@@ -705,13 +723,6 @@ window.hWin.HEURIST4.util = {
                     }
 
                     let res = dt.toString('yyyy-MM-ddTHH:mm:ssz');
-                    /*
-                    if(res.indexOf('-')==0){ //BCE
-                        res = res.substring(1);
-                        //for proper parsing need 6 digit year
-                        res = '-00'+res;//.substring(res.length));
-                    }
-                    */
                     return res;
                 }else{
                     return '';
@@ -722,7 +733,7 @@ window.hWin.HEURIST4.util = {
 
             try{
                 let temporal;
-                if(start!="" && $.type( start ) === "string"){
+                if(start!='' && typeof start === 'string'){
 
                     if(start.search(/VER=/)!==-1){
                         temporal = new Temporal(start);
@@ -749,7 +760,7 @@ window.hWin.HEURIST4.util = {
                     }
                 }
 
-                if(end!="" && $.type( end ) === "string") {
+                if(end!='' && typeof end === 'string') {
                     if(end.search(/VER=/)!==-1){
                         temporal = new Temporal(end);
                         if(temporal){
@@ -794,19 +805,18 @@ window.hWin.HEURIST4.util = {
 
             let styles = css.split(';'),
             i= styles.length,
-            style, k, v;
-
+            k, v;
 
             while (i--)
             {
                 let pos = styles[i].indexOf(':');
                 if(pos>1){
-                    k = $.trim(styles[i].substr(0,pos));
-                    v = $.trim(styles[i].substr(pos+1));
+                    k = String(styles[i].substr(0,pos)).trim();
+                    v = String(styles[i].substr(pos+1)).trim();
                 }
                 /*style = styles[i].split(':');
-                k = $.trim(style[0]);
-                v = $.trim(style[1]);*/
+                k = String(style[0]).trim();
+                v = String(style[1]).trim();*/
                 if (k && v && k.length > 0 && v.length > 0)
                 {
                     if(v==='true')v=true;
@@ -895,17 +905,17 @@ window.hWin.HEURIST4.util = {
         {
             // Chrome allows the link to be clicked
             // without actually adding it to the DOM.
-            link.click();        
+            link.click();
             link = null;
         }
         else
         {
             // Firefox requires the link to be added to the DOM
             // before it can be clicked.
-            link.onclick = function(){ document.body.removeChild(link); link=null;} //destroy link;
+            link.onclick = function(){ document.body.removeChild(link); link=null;} //destroy link
             link.style.display = "none";
             document.body.appendChild(link);
-            link.click();        
+            link.click();
         }
 
     },    
@@ -916,15 +926,15 @@ window.hWin.HEURIST4.util = {
     },
 
     random: function(){
-        //Math.round(new Date().getTime() + (Math.random() * 100));
-        //return Math.floor((Math.random() * 10000) + 1);
+       
+       
         if(window.crypto){
             const typedArray = new Uint8Array(10);
             const randomValues = window.crypto.getRandomValues(typedArray);
             return randomValues.join('').substr(0,15);        
         }else{
             return ''+Math.floor(Date.now() * Math.random())
-            //const arng = new alea(new Date().getTime());
+           
             //return Math.ceil( arng.quick() * 99999999 ); //1~87  
         }
         
@@ -958,9 +968,9 @@ window.hWin.HEURIST4.util = {
     },
 
     getFileExtension:function(filename){
-        // (/[.]/.exec(filename)) ? /[^.]+$/.exec(filename)[0] : undefined;
-        // filename.split('.').pop();
-        //filename.slice((filename.lastIndexOf(".") - 1 >>> 0) + 2);
+       
+       
+       
         if(filename){
             let res = filename.match(/\.([^\./\?]+)($|\?)/);
             return (res && res.length>1)?res[1]:'';
@@ -1223,7 +1233,7 @@ window.hWin.HEURIST4.util = {
     _GRPID: 2
 }//end util
 
-var Hul = window.hWin.HEURIST4.util;
+window.Hul = window.hWin.HEURIST4.util;
 
 //-------------------------------------------------------------
 
@@ -1281,8 +1291,8 @@ if (!Array.prototype.unique){
     {
         
         //return $.grep(this, function(el, index) {
-        //    return index === $.inArray(el, this);
-        //});
+       
+       
         
         
             var n = {},r=[];
@@ -1313,6 +1323,7 @@ $.getMultiScripts2 = function(arr, path) {
           _resolve();
         })()
         .catch((err) => {
+            //console.log(err);            
             // Something went wrong
             _reject(err);
         });
@@ -1337,11 +1348,11 @@ function tinymceURLConverter(url, node, on_save, name)
 {
     if(url.indexOf(window.hWin.HAPI4.baseURL_pro)===0)
     {
-        url = url.replace(window.hWin.HAPI4.baseURL_pro, './'); //'../heurist/');
+        url = url.replace(window.hWin.HAPI4.baseURL_pro, './');
         
     }else if(url.indexOf(window.hWin.HAPI4.baseURL)===0)
     {
-        url = url.replace(window.hWin.HAPI4.baseURL, './'); //../heurist/');
+        url = url.replace(window.hWin.HAPI4.baseURL, './');
     }
 
     // Return URL

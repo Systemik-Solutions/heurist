@@ -31,7 +31,6 @@ $.widget( "heurist.recordTemplate", $.heurist.recordAction, {
         currentAccessGroups: null,
         
         htmlContent: 'recordTemplate.html',
-        helpContent: 'recordTemplate.html', //in context_help folder
         
         recordType: 0
     },
@@ -41,18 +40,8 @@ $.widget( "heurist.recordTemplate", $.heurist.recordAction, {
     //
     _getActionButtons: function(){
         let res = this._super();
-        let that = this;
         res[1].text = window.hWin.HR('Download');
         res[0].text = window.hWin.HR('Close');
-        /*
-        res.push({text:window.hWin.HR('Export'),
-                    id:'btnDoAction2',
-                    disabled:'disabled',
-                    css:{'float':'right'},  
-                    click: function() { 
-                            that.doAction( 1 ); 
-                    }});
-       */ 
         return res;
     },    
         
@@ -93,14 +82,14 @@ $.widget( "heurist.recordTemplate", $.heurist.recordAction, {
                     
                     selectedFields[rtid].push(dtid);    
                     
-                    //add resource field for parent recordtype
+                    //add resource (record pointer) field for parent recordtype
                     __addSelectedField(ids, lvl+2, rtid);
                 }
             }
             
             //get selected fields from treeview
             let selectedFields = {};
-            let tree = this.element.find('.rtt-tree').fancytree("getTree");
+            let tree = $.ui.fancytree.getTree( this._$('.rtt-tree') );
             let fieldIds = tree.getSelectedNodes(false);
             const len = fieldIds.length;
             
@@ -143,41 +132,9 @@ $.widget( "heurist.recordTemplate", $.heurist.recordAction, {
             
             let url = window.hWin.HAPI4.baseURL + 'hserv/controller/record_output.php'
             
-            this.element.find('#postdata').val( JSON.stringify(request) );
-            this.element.find('#postform').attr('action', url);
-            this.element.find('#postform').submit();
-                
-            //if(mode==1){ //open in new window
-            //}else{ //download
-            //}     
-            
-            /*
-                var that = this;                                                
-                
-                window.hWin.HAPI4.RecordMgr.access(request, 
-                    function(response){
-                        if(response.status == window.hWin.ResponseStatus.OK){
-
-                            that._context_on_close = (response.data.updated>0);
-                            
-                            that.closeDialog();
-                            
-                            var msg = 'Processed : '+response.data.processed + ' record'
-                                + (response.data.processed>1?'s':'') +'. Updated: '
-                                + response.data.updated  + ' record'
-                                + (response.data.updated>1?'s':'');
-                           if(response.data.noaccess>0){
-                               msg += ('<br><br>Not enough rights (logout/in to refresh) for '+response.data.noaccess+
-                                        ' record' + (response.data.noaccess>1?'s':''));
-                           }     
-                            
-                            window.hWin.HEURIST4.msg.showMsgFlash(msg, 2000);
-                            
-                        }else{
-                            window.hWin.HEURIST4.msg.showMsgErr(response);
-                        }
-                    });
-      */  
+            this._$('#postdata').val( JSON.stringify(request) );
+            this._$('#postform').attr('action', url);
+            this._$('#postform').trigger('submit');
     },
     
     _initControls: function(){
@@ -192,15 +149,15 @@ $.widget( "heurist.recordTemplate", $.heurist.recordAction, {
         
         let that = this;
 
-        this.element.find('#selectAll').on("click", function(e){
+        this._$('#selectAll').on("click", function(e){
             let treediv = that.element.find('.rtt-tree');
 
             let check_status = $(e.target).is(":checked");
 
             if(!treediv.is(':empty') && treediv.fancytree("instance")){
-                let tree = treediv.fancytree("getTree");
+                let tree = $.ui.fancytree.getTree(treediv);
                 tree.visit(function(node){
-                    if(!node.hasChildren() && node.data.type != "relmarker" && node.data.type != "resource" 
+                    if(!node.hasChildren() && node.type != "relmarker" && node.type != "resource" 
                         && (node.getLevel()==2 || (!window.hWin.HEURIST4.util.isempty(node.span) && $(node.span.parentNode.parentNode).is(":visible")))
                     ){    
                         node.setSelected(check_status);
@@ -208,6 +165,8 @@ $.widget( "heurist.recordTemplate", $.heurist.recordAction, {
                 });
             }
         });
+        
+        return true;
     },
     
     //
@@ -226,7 +185,7 @@ $.widget( "heurist.recordTemplate", $.heurist.recordAction, {
             treedata[0].expanded = true; //first expanded
             
             //load treeview
-            let treediv = this.element.find('.rtt-tree');
+            let treediv = this._$('.rtt-tree');
             if(!treediv.is(':empty') && treediv.fancytree("instance")){
                 treediv.fancytree("destroy");
             }
@@ -254,10 +213,10 @@ $.widget( "heurist.recordTemplate", $.heurist.recordAction, {
                 },
                 renderNode: function(event, data){
 
-                    if(data.node.parent && data.node.parent.data.type == 'resource' || data.node.parent.data.type == 'relmarker'){ // add left border+margin
+                    if(data.node.parent && data.node.parent.type == 'resource' || data.node.parent.type == 'relmarker'){ // add left border+margin
                         $(data.node.li).attr('style', 'border-left: black solid 1px !important;margin-left: 9px;');
                     }
-                    if(data.node.data.type == 'separator'){
+                    if(data.node.type == 'separator'){
                         $(data.node.span).attr('style', 'background: none !important;color: black !important;'); //stop highlighting
                         $(data.node.span.childNodes[1]).hide(); //checkbox for separators
                     }
@@ -281,11 +240,11 @@ $.widget( "heurist.recordTemplate", $.heurist.recordAction, {
                     let node = data.node;
                     let fieldIds = node.tree.getSelectedNodes(false);
                     let isdisabled = fieldIds.length<1;
-                    window.hWin.HEURIST4.util.setDisabled( that.element.parents('.ui-dialog').find('#btnDoAction'), isdisabled );
+                    window.hWin.HEURIST4.util.setDisabled( that.element.parents('.ui-dialog').find('.btnDoAction'), isdisabled );
                 },
                 click: function(e, data){
 
-                    if(data.node.data.type == 'separator'){
+                    if(data.node.type == 'separator'){
                         return false;
                     }
 
@@ -307,7 +266,7 @@ $.widget( "heurist.recordTemplate", $.heurist.recordAction, {
                     }
                 },
                 dblclick: function(e, data) {
-                    if(data.node.data.type == 'separator'){
+                    if(data.node.type == 'separator'){
                         return false;
                     }
                     data.node.toggleSelected();

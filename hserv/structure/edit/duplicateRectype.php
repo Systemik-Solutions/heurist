@@ -18,14 +18,14 @@
 * @package     Heurist academic knowledge management system
 * @subpackage
 */
-require_once dirname(__FILE__).'/../../System.php';
+require_once dirname(__FILE__).'/../../../autoload.php';
 
 $res = false;
 
-$system = new System();
+$system = new hserv\System();
 if( $system->init(@$_REQUEST['db']) ){
 
-    if(!$system->is_admin()){
+    if(!$system->isAdmin()){
         $system->addError(HEURIST_REQUEST_DENIED,
             'To perform this action you must be logged in as Administrator of group \'Database Managers\'');
     }elseif(!@$_REQUEST['rtyID']){
@@ -34,7 +34,7 @@ if( $system->init(@$_REQUEST['db']) ){
 
         $rv = array();
 
-        $old_rt_id = $_REQUEST['rtyID'];
+        $old_rt_id = intval($_REQUEST['rtyID']);
 
     $query= "INSERT into defRecTypes (rty_Name, rty_OrderInGroup, rty_Description, rty_TitleMask, rty_CanonicalTitleMask, rty_Plural, rty_Status, "
     ."rty_NonOwnerVisibility, rty_ShowInLists, rty_RecTypeGroupID, rty_RecTypeModelIDs, rty_FlagAsFieldset,"
@@ -42,11 +42,11 @@ if( $system->init(@$_REQUEST['db']) ){
     ." SELECT CONCAT('Duplication of ', rty_Name), rty_OrderInGroup, rty_Description, rty_TitleMask, rty_CanonicalTitleMask, rty_Plural, 'open', "
     ."rty_NonOwnerVisibility, rty_ShowInLists, rty_RecTypeGroupID, rty_RecTypeModelIDs, rty_FlagAsFieldset,"
     ."rty_ReferenceURL, rty_AlternativeRecEditor, rty_Type, rty_ShowURLOnEditForm, rty_ShowDescriptionOnEditForm, rty_Modified, IFNULL(rty_LocallyModified,0) "
-    ."FROM defRecTypes where rty_ID=".$old_rt_id;
+    ."FROM defRecTypes where rty_ID=$old_rt_id";
 
-        define('HEURIST_DBID', $system->get_system('sys_dbRegisteredID'));
+        define('HEURIST_DBID', $system->settings->get('sys_dbRegisteredID'));
 
-        $mysqli = $system->get_mysqli();
+        $mysqli = $system->getMysqli();
         $res = $mysqli->query($query);
         $new_rt_id = $mysqli->insert_id;
 
@@ -87,6 +87,6 @@ if($res){
     $response = $system->getError();
 }
 
-header('Content-type: text/javascript; charset=utf-8');
+header(CTYPE_JSON);
 print json_encode( $response );
 ?>

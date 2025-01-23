@@ -144,7 +144,7 @@ function editCMS_ElementCfg( element_cfg, _layout_content, _layout_container, $c
                     if(val.length==3 && val[2]) item.find('input[data-type="flex-basis"]').val(val[2]);
 
                     item.find('input').on('change', function(e){
-                        let item = $(e.target).parent();//('div[data-flexitem]');
+                        let item = $(e.target).parent();
                         let k = item.attr('data-flexitem');
 
                         if(!l_cfg.children[k].css) l_cfg.children[k].css = {};
@@ -211,22 +211,18 @@ function editCMS_ElementCfg( element_cfg, _layout_content, _layout_container, $c
             }
             _getCss();
             
-            //var css = 
-            //element.removeAttr('style');
-            //element.css(css);
-            
             _enableSave();
         }});
 
 
         //4b. listeners for styles (border,bg,margin)
-        cont.find('input[data-type="css"]').change(_getCss);
-        cont.find('input[data-type="css"]').on('keyup', _getCss);
-        cont.find('input[name="background"]').change(_getCss);
+        cont.find('input[data-type="css"]').on('change',_getCss);
+        cont.find('input[data-type="css"]').on('keyup',_getCss);
+        cont.find('input[name="background"]').on('change',_getCss);
         /*
             var css = _getCss();
-            //element.removeAttr('style');
-            //element.css(css);
+           
+           
         });*/
         
         //4c. button listeners
@@ -239,9 +235,9 @@ function editCMS_ElementCfg( element_cfg, _layout_content, _layout_container, $c
         });
         
         cont.find('.cb_sync').parent().css({'font-size':'0.8em'});
-        cont.find('.cb_sync').change(_onMarginSync);
-        cont.find('input[name="padding-left"]').change(_onMarginSyncVal);
-        cont.find('input[name="margin-left"]').change(_onMarginSyncVal);
+        cont.find('.cb_sync').on('change',_onMarginSync);
+        cont.find('input[name="padding-left"]').on('change',_onMarginSyncVal);
+        cont.find('input[name="margin-left"]').on('change',_onMarginSyncVal);
 
         function __saveWidgetConfig(){
             if(widget_cfg){
@@ -285,10 +281,10 @@ function editCMS_ElementCfg( element_cfg, _layout_content, _layout_container, $c
         
         _assignCssTextArea();
         
-        textAreaCss.change(function(){
+        textAreaCss.on('change',function(){
 
             let vals = textAreaCss.val();
-            //vals = vals.replace(/;/g, ";\n");
+           
             vals = vals.replace(/"/g, ' ');
             
             vals = vals.split(';')
@@ -306,8 +302,8 @@ function editCMS_ElementCfg( element_cfg, _layout_content, _layout_container, $c
             element.css(new_css);
             l_cfg.css = new_css;
 
-            //element.attr('style',textAreaCss.val());
-            //l_cfg.css = element.css();
+           
+           
 
             _assignCssToUI();
            
@@ -317,7 +313,7 @@ function editCMS_ElementCfg( element_cfg, _layout_content, _layout_container, $c
         let btnDirectEdit = cont.find('div.btn-html-edit');
         if(etype=='text'){
              btnDirectEdit.parent().show();               
-             btnDirectEdit.button().click(_initCodeEditor);
+             btnDirectEdit.button().on('click',_initCodeEditor);
         }else{
              btnDirectEdit.parent().hide();               
         }
@@ -509,8 +505,8 @@ function editCMS_ElementCfg( element_cfg, _layout_content, _layout_container, $c
         if($(event.target).is(':checked')){
             
             //disable
-            //window.hWin.HEURIST4.util.setDisabled($container.find('input[name^="'+type+'-"]'), true);
-            //window.hWin.HEURIST4.util.setDisabled($container.find('input[name^="'+type+'-left"]'), false);
+            
+            
 
             $container.find('input[name^="'+type+'-"]').prop('readonly',true);
             $container.find('input[name^="'+type+'-left"]').removeProp('readonly');
@@ -519,7 +515,7 @@ function editCMS_ElementCfg( element_cfg, _layout_content, _layout_container, $c
             
         }else{
             $container.find('input[name^="'+type+'-"]').removeProp('readonly');
-            //window.hWin.HEURIST4.util.setDisabled($container.find('input[name^="'+type+'-"]'), false);
+            
         }       
     }
     
@@ -696,18 +692,18 @@ function editCMS_ElementCfg( element_cfg, _layout_content, _layout_container, $c
                     }
                 }
             });
-            margin_mode_full = true; //no_margin_values || mode_full;
+            margin_mode_full = true;
             //init file picker
             cont.find('input[name="bg-image"]')
-                    .click(_selecHeuristMedia);
+                    .on('click',_selecHeuristMedia);
             cont.find('#btn-background-image').button()
                     .css({'font-size':'0.7em'})
-                    .click(_selecHeuristMedia);
+                    .on('click',_selecHeuristMedia);
 
             cont.find('#btn-background-image-clear')
                     .button() //{icon:'ui-icon-close',showLabel:false})
                     .css({'font-size':'0.7em'})
-                    .click(_clearBgImage);
+                    .on('click',_clearBgImage);
             
             //init color pickers
             cont.find('input[name$="-color"]').colorpicker({
@@ -744,18 +740,16 @@ function editCMS_ElementCfg( element_cfg, _layout_content, _layout_container, $c
 
     
    
-    //
+    // NOT USED
     // from UI to element properties/css
     //
     function _getValues(){
-        
-
-        //return opts;
+        return '';
     }//_getValues
 
 
     //
-    // init codemirror editor
+    // init codemirror editor - direct html editor
     //
     function _initCodeEditor() {
         
@@ -788,14 +782,13 @@ function editCMS_ElementCfg( element_cfg, _layout_content, _layout_container, $c
                 
         let codeEditorBtns = [
                     {text:window.hWin.HR('Cancel'), 
-                        id:'btnCancel',
+                        class:'btnCancel',
                         css:{'float':'right','margin-left':'30px','margin-right':'20px'}, 
                         click: function() { 
                             codeEditorDlg.dialog( "close" );
                     }},
                     {text:window.hWin.HR('Apply'), 
-                        id:'btnDoAction',
-                        class:'ui-button-action',
+                        class:'ui-button-action btnDoAction',
                         //disabled:'disabled',
                         css:{'float':'right'}, 
                         click: function() { 
@@ -817,6 +810,7 @@ function editCMS_ElementCfg( element_cfg, _layout_content, _layout_container, $c
                                         lang_key = 'content';
                                     }
                                     if(l_cfg[lang_key] != contents[langs[i]]){
+                                        
                                         l_cfg[lang_key] = contents[langs[i]];
                                         _enableSave();
                                         if(current_language.toUpperCase()==langs[i]){
@@ -937,7 +931,7 @@ function editCMS_ElementCfg( element_cfg, _layout_content, _layout_container, $c
 
         //autoformat
         setTimeout(function(){
-                    //codeEditorDlg.find('div.CodeMirror').css('height','100%').show();
+                   
                     
                     let totalLines = codeEditor.lineCount();  
                     codeEditor.autoFormatRange({line:0, ch:0}, {line:totalLines});                    
@@ -945,7 +939,7 @@ function editCMS_ElementCfg( element_cfg, _layout_content, _layout_container, $c
                     codeEditor.setCursor(0,0); //clear selection
                     
                     codeEditor.focus()
-                    //setTimeout(function(){;},200);
+                   
                 },500);
     }
     
@@ -1010,7 +1004,7 @@ function editCMS_ElementCfg( element_cfg, _layout_content, _layout_container, $c
     //    
     function _warningOnExit( callback ){
         
-        if(!$container.find('.btn-save-element').prop('disabled')){
+        if($container.find('.btn-save-element').attr('disabled')!='disabled'){
             
             let $dlg;
             let _buttons = [
@@ -1063,7 +1057,12 @@ function editCMS_ElementCfg( element_cfg, _layout_content, _layout_container, $c
         },
         
         isModified: function(){
-            return !$container.find('.btn-save-element').prop('disabled');
+            return $container.find('.btn-save-element').attr('disabled')!='disabled';
+        },
+        
+        //update from main editor
+        updateContent: function(new_content, lang){
+            l_cfg['content'+lang] = new_content;            
         },
         
         onContentChange: function(){

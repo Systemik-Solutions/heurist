@@ -5,7 +5,7 @@
 * @returns {Object}
 * @see  hclient/framecontent/record for widgets
 * @see  migrated/search/actions
-* @see  record_action_help_xxxx in localization.js for description and help
+* @see  record_action_help_xxxx in localization.txt for description and help
 
 IT USES
     window.hWin.HAPI4.currentRecordset
@@ -79,7 +79,7 @@ function hRecordAction(_action_type, _scope_type, _field_type, _field_value) {
                 _onRecordScopeChange();
             }
         );
-        btn_start_action.addClass('ui-state-disabled'); //.click(_startAction);        
+        btn_start_action.addClass('ui-state-disabled'); //.on('click',_startAction);        
         
         _fillSelectRecordScope();
         
@@ -126,7 +126,7 @@ function hRecordAction(_action_type, _scope_type, _field_type, _field_value) {
             }else{
                 window.hWin.HEURIST4.msg.showMsgErr({
                     message: 'An unknown error has occurred while attempting to retrieve the licenses for Nakala records.',
-                    error_title: 'Failed to retrieve Nakala licenses',
+                    error_title: 'Unable to retrieve Nakala licenses',
                     status: window.hWin.ResponseStatus.UNKNOWN_ERROR
                 });
                 window.close();
@@ -168,11 +168,18 @@ function hRecordAction(_action_type, _scope_type, _field_type, _field_value) {
                 opt = new Option("Current results set (count="+ window.hWin.HAPI4.currentRecordset.length()+")", "Current");
                 selScope.appendChild(opt);
                 inititally_selected = 'Current';
-            }            
+            }
+            //collected count option
+            if((action_type=='rectype_change' || is_initscope_empty || init_scope_type=='collected') &&
+                window.hWin.HAPI4?.currentRecordsetCollected?.length > 0)
+            {
+                opt = new Option("Collected results set (count=" + window.hWin.HAPI4.currentRecordsetCollected.length+")", "Collected");
+                selScope.appendChild(opt);
+                inititally_selected = 'Collected';
+            }
             //selected count option
-            if( (action_type=='rectype_change') || 
-               ((is_initscope_empty || init_scope_type=='selected') &&
-               (window.hWin.HAPI4.currentRecordsetSelection &&  window.hWin.HAPI4.currentRecordsetSelection.length > 0))) 
+            if((action_type=='rectype_change' || is_initscope_empty || init_scope_type=='selected') &&
+                window.hWin.HAPI4?.currentRecordsetSelection?.length > 0)
             {
                 opt = new Option("Selected results set (count=" + window.hWin.HAPI4.currentRecordsetSelection.length+")", "Selected");
                 selScope.appendChild(opt);
@@ -188,6 +195,7 @@ function hRecordAction(_action_type, _scope_type, _field_type, _field_value) {
                 });
             }
         }
+
         //$(selScope)
         selectRecordScope.val(inititally_selected);
         
@@ -207,14 +215,14 @@ function hRecordAction(_action_type, _scope_type, _field_type, _field_value) {
     function _onRecordScopeChange() {
         
         let isdisabled = (selectRecordScope.val()=='');
-        //window.hWin.HEURIST4.util.setDisabled($('#btn-ok'), isdisabled);
+        
         let ele = $('#btn-ok');
         ele.off('click');
         if(isdisabled){
             ele.addClass('ui-state-disabled');
         }else{
             ele.removeClass('ui-state-disabled');
-            ele.click(_startAction);
+            ele.on('click',_startAction);
         }
         switch(action_type) {
             case 'add_detail':
@@ -224,6 +232,7 @@ function hRecordAction(_action_type, _scope_type, _field_type, _field_value) {
             case 'url_to_file':
             case 'local_to_repository':
             case 'case_conversion':
+            case 'nl2br':
             case 'translation':
                 $('#div_sel_fieldtype').show();
                 _fillSelectFieldTypes();
@@ -270,14 +279,15 @@ function hRecordAction(_action_type, _scope_type, _field_type, _field_value) {
                 rtyIDs = null; //show all details
             }else if(scope_type=="Current"){
                 rtyIDs = window.hWin.HAPI4.currentRecordset.getRectypes();
-            }else if(scope_type=="Selected"){
+            }else if(scope_type=="Selected" || scope_type=="Collected"){
                 rtyIDs = [];
 
+                let rec_IDs = scope_type == 'Selected' ? window.hWin.HAPI4.currentRecordsetSelection : window.hWin.HAPI4.currentRecordsetCollected;
+
                 //loop all selected records
-                for(let i in window.hWin.HAPI4.currentRecordsetSelection){
+                for(const recID of rec_IDs){
 
                     let rty_total_count = window.hWin.HAPI4.currentRecordset.getRectypes().length;
-                    const recID = window.hWin.HAPI4.currentRecordsetSelection[i];
                     const record  = window.hWin.HAPI4.currentRecordset.getById(recID) ;
                     let rty = window.hWin.HAPI4.currentRecordset.fld(record, 'rec_RecTypeID');
 
@@ -297,10 +307,10 @@ function hRecordAction(_action_type, _scope_type, _field_type, _field_value) {
             let allowed = Object.keys($Db.baseFieldType);
             allowed.splice(allowed.indexOf("separator"),1);
             allowed.splice(allowed.indexOf("relmarker"),1);
-            //allowed.splice(allowed.indexOf("geo"),1);
+           
             allowed.splice(allowed.indexOf("file"),1);
             
-            if(action_type=='extract_pdf'){
+            if(action_type=='extract_pdf' || action_type=='nl2br'){
                 allowed = ['blocktext'];    
             }else if(action_type=='url_to_file' || action_type=='local_to_repository'){
                 allowed = ['file'];    
@@ -327,29 +337,41 @@ function hRecordAction(_action_type, _scope_type, _field_type, _field_value) {
         if(action_type=='add_detail'){
             _createInputElement('fld-1', window.hWin.HR('Value to be added'));
         }else if(action_type=='replace_detail'){                              
-            
-            $('<div style="padding: 0.2em; width: 100%;" class="input">'
-                +'<div class="header">'  // style="padding-left: 16px;"
-                +'<label for="cb_replace_all">Replace all values</label></div>'
-                +'<input id="cb_replace_all" type="checkbox" class="text ui-widget-content ui-corner-all" style="margin:0 0 10px 24px">'
-                +'</div>').on('change', function(){
 
-                    if ($(this).find('input').is(':checked')){
-                        $('#cb_whole_value').parent().hide();   
-                        $('#fld-1').hide();
-                    }else{
-                        $('#cb_whole_value').parent().show();
-                        $('#fld-1').show();    
-                    }
-                                                            
-                }).appendTo($fieldset);
-                
             $('<div style="padding: 0.2em; width: 100%;" class="input">'
-                +'<div class="header">'  // style="padding-left: 16px;"
-                +'<label for="cb_whole_value">Replace substring</label></div>'
-                +'<input id="cb_whole_value" type="checkbox" class="text ui-widget-content ui-corner-all" style="margin:0 0 10px 24px">'
+                +'<div class="header">'
+                +'<label for="cb_replace_all">Replace all values</label></div>'
+                +'<input id="cb_replace_all" name="replace_type" type="radio" class="text ui-widget-content ui-corner-all" style="margin:0 0 10px 24px">'
                 +'</div>').appendTo($fieldset);
-                
+
+            $('<div style="padding: 0.2em; width: 100%;" class="input">'
+                +'<div class="header">'
+                +'<label for="cb_whole_value">Replace complete value</label></div>'
+                +'<input id="cb_whole_value" name="replace_type" type="radio" class="text ui-widget-content ui-corner-all" style="margin:0 0 10px 24px">'
+                +'</div>').appendTo($fieldset);
+
+            $('<div style="padding: 0.2em; width: 100%;" class="input">'
+                +'<div class="header">'
+                +'<label for="cb_sub_string">Replace substring</label></div>'
+                +'<input id="cb_sub_string" name="replace_type" type="radio" class="text ui-widget-content ui-corner-all" style="margin:0 0 10px 24px" checked="checked">'
+                +'</div>').appendTo($fieldset);
+
+            $('input[name="replace_type"]').on('change', () => {
+
+                if ($('#cb_replace_all').is(':checked')){
+                    $('#cb_add_value').parent().show();
+                    $('#fld-1').hide();
+                }else{
+                    $('#cb_add_value').parent().hide();
+                    $('#fld-1').show();    
+                }
+            });
+
+            $('<div style="padding: 0.2em; width: 100%; display: none;" class="input">'
+                +'<div class="header" style="padding-bottom: 10px;">'
+                +'<label for="cb_add_value">Insert as new value,<br><span style="font-size: smaller;">if none exist</span></label></div>'
+                +'<input id="cb_add_value" type="checkbox" class="text ui-widget-content ui-corner-all" style="margin:0 0 10px 24px">'
+                +'</div>').appendTo($fieldset);
             
             _createInputElement('fld-1', window.hWin.HR('Value to find'));
             _createInputElement('fld-2', window.hWin.HR('Replace with'));
@@ -357,31 +379,26 @@ function hRecordAction(_action_type, _scope_type, _field_type, _field_value) {
         }else if(action_type=='delete_detail'){
 
             $('<div style="padding: 0.2em; width: 100%;" class="input">'
-                +'<div class="header">'  // style="padding-left: 16px;"
-                +'<label for="cb_remove_all">Remove all occurrences</label></div>'
-                +'<input id="cb_remove_all" type="checkbox" class="text ui-widget-content ui-corner-all" style="margin:0 0 10px 24px">'
+                +'<div class="header">'
+                +'<label for="cb_sub_string">Remove search string only</label></div>'
+                +'<input id="cb_sub_string" name="delete_type" type="radio" class="text ui-widget-content ui-corner-all" style="margin:0 0 10px 24px" checked="checked">'
+                +'</div>').appendTo($fieldset);
+                
+            $('<div style="padding: 0.2em; width: 100%;" class="input">'
+                +'<div class="header">'
+                +'<label for="cb_whole_value">Remove complete value</label></div>'
+                +'<input id="cb_whole_value" name="delete_type" type="radio" class="text ui-widget-content ui-corner-all" style="margin:0 0 10px 24px">'
                 +'</div>').appendTo($fieldset);
 
-            $('<div style="padding: 0.2em; width: 100%;" class="input">'
-                +'<div class="header">'  // style="padding-left: 16px;"
-                +'<label for="cb_whole_value">Remove substring</label></div>'
-                +'<input id="cb_whole_value" type="checkbox" class="text ui-widget-content ui-corner-all" style="margin:0 0 10px 24px">'
-                +'</div>').appendTo($fieldset);
-            
-                
             _createInputElement('fld-1', window.hWin.HR('Remove value matching'));
 
-            
-            $('#cb_remove_all').on('change', function(){ 
-                    if ($(this).is(':checked')){
-                        $('#cb_whole_value').parent().hide();   
-                        $('#fld-1').hide();
-                    }else{
-                        $('#cb_whole_value').parent().show();
-                        $('#fld-1').show();    
-                    }
+            $('#delete_type').on('change', function(){ 
+                if ($('#cb_delete_all').is(':checked')){
+                    $('#fld-1').hide();
+                }else{
+                    $('#fld-1').show();    
+                }
             });
-            //$('.editint-inout-repeat-button').hide();
 
         }else if(action_type=='url_to_file'){
 
@@ -600,18 +617,18 @@ function hRecordAction(_action_type, _scope_type, _field_type, _field_value) {
             $('#cb_remove_all').prop('checked',true).addClass('ui-state-disabled');;
             $('#cb_replace_all').prop('checked',true).addClass('ui-state-disabled');;
             $('#fld-1').hide();
-           //window.hWin.HEURIST4.util.setDisabled($('#cb_replace_all'), true);
+           
            if(action_type=='delete_detail') return;
         }else{
             $('#cb_remove_all').removeClass('ui-state-disabled');;
             $('#cb_replace_all').removeClass('ui-state-disabled');;
-            //window.hWin.HEURIST4.util.setDisabled($('#cb_replace_all'), false);
+            
         }
         
         if(field_type=='freetext' || field_type=='blocktext'){
-            $('#cb_whole_value').parent().show();
+            $('#cb_sub_string').parent().show();
         }else{
-            $('#cb_whole_value').parent().hide();
+            $('#cb_sub_string').parent().hide();
         }
         
 
@@ -755,16 +772,17 @@ function hRecordAction(_action_type, _scope_type, _field_type, _field_value) {
                         alert('Define value to search');
                         return;
                     }
-                    
-                    if($('#cb_whole_value').is(':checked')){
-                        request['subs'] = 1;
-                    }
+
+                    $('#cb_sub_string').is(':checked') ? request['substr'] = 1 : request['wholeval'] = 1;
+                }else{
+                    request['insert_new_values'] = $('#cb_add_value').is(':checked') ? 1 : 0;
                 }
                 request['rVal'] = getFieldValue('fld-2');
                 if(!_allow_empty_replace && window.hWin.HEURIST4.util.isempty(request['rVal'])){
-                    
+
+                    let msg_part = request['substr'] == 1 ? '(only the search string is deleted)' : '(the whole value is deleted)';
                     let msg = 'You have not defined a replacement value<br><br>'
-                            + `Click "${window.hWin.HR('OK')}" to delete the search string<br>`
+                            + `Click "${window.hWin.HR('OK')}" to delete the search string ${msg_part}<br>`
                             + `Click "${window.hWin.HR('Cancel')}" if you want to replace the search string with a new string`;
 
                     window.hWin.HEURIST4.msg.showMsgDlg(msg, 
@@ -825,11 +843,10 @@ function hRecordAction(_action_type, _scope_type, _field_type, _field_value) {
                         alert('Define value to delete');
                         return;
                     }
-                    if($('#cb_whole_value').is(':checked')){
-                        request['subs'] = 1;
-                    }
+
+                    $('#cb_sub_string').is(':checked') ? request['substr'] = 1 : request['wholeval'] = 1;
                 }
-            }else if(action_type=='extract_pdf'){
+            }else if(action_type=='extract_pdf' || action_type=='nl2br'){
                 
                 request['a'] = action_type;
             }else if(action_type=='case_conversion'){
@@ -868,8 +885,8 @@ function hRecordAction(_action_type, _scope_type, _field_type, _field_value) {
         let scope_type = selectRecordScope.val();
         let scope;
 
-        if(scope_type=="Selected"){
-            scope = window.hWin.HAPI4.currentRecordsetSelection;
+        if(scope_type=="Selected" || scope_type=="Collected"){
+            scope = scope_type == 'Selected' ? window.hWin.HAPI4.currentRecordsetSelection : window.hWin.HAPI4.currentRecordsetCollected;
         }else{
             scope = window.hWin.HAPI4.currentRecordset.getIds();
             if(scope_type!="Current"){
@@ -925,7 +942,7 @@ function hRecordAction(_action_type, _scope_type, _field_type, _field_value) {
         $('body > div:not(.loading)').hide();
         $('.loading').show();
         
-        //request['DBGSESSID'] = '425944380594800002;d=1,p=0,c=07';
+       
 
         window.hWin.HAPI4.RecordMgr.batch_details(request, function(response){
 
@@ -992,6 +1009,11 @@ function hRecordAction(_action_type, _scope_type, _field_type, _field_value) {
                             encodeURI(window.hWin.HAPI4.baseURL+'?db='+window.hWin.HAPI4.database
                                 +'&q=ids:'+response['fails_list'].join(','))+
                             '&nometadatadisplay=true" target="_blank">view</a></span>';
+                        }else if(key == 'limited' && action_type == 'add_detail' && response[key] > 0){
+                            tag_link = `<span style="display: block; font-size: 0.9em; padding: 5px 5px;">
+                                            For single value fields which were skipped because they already have a value,<br>
+                                            use "Recode > Replace field value" to replace all, or selected, existing values with the new value.
+                                        </span>`;
                         }
                         
                         sResult = sResult + '<div style="padding:4px"><span>'+lbl+'</span><span>&nbsp;&nbsp;'

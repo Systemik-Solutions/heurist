@@ -54,7 +54,7 @@ function hImportRecords(_max_upload_size) {
         //buttons
         btnUploadData = $('#btn_UploadData').on('click', function(e) {
                             if( window.hWin.HAPI4.is_admin() ){
-                                uploadWidget.click();    
+                                uploadWidget.trigger('click');    
                             }else{
                                 window.hWin.HEURIST4.msg.showMsgErr({
                                     status:window.hWin.ResponseStatus.REQUEST_DENIED,
@@ -62,12 +62,12 @@ function hImportRecords(_max_upload_size) {
                             }
                         });
                     
-        $('#btn_ImportRt').click(_importDefinitions);
+        $('#btn_ImportRt').on('click',_importDefinitions);
 
-        $('#btn_ImportRecords').click(_importRecords);
+        $('#btn_ImportRecords').on('click',_importRecords);
         
-        $('#sa_insert').click(_onUpdateModeSet);
-        $('#sa_update').click(_onUpdateModeSet);
+        $('#sa_insert').on('click',_onUpdateModeSet);
+        $('#sa_update').on('click',_onUpdateModeSet);
 
         $('#btn_Close').on('click', function(){window.close()});
         
@@ -629,7 +629,7 @@ function hImportRecords(_max_upload_size) {
                         window.hWin.HAPI4.SystemMgr.get_defs_all( false, window.hWin.document);    
                         //window.hWin.HAPI4.EntityMgr.refreshEntityData('trm');    
                         
-                        //window.hWin.HEURIST4.msg.showMsgDlg('Imported '+response.data+' records');
+                        
                     }else{
                         _hideProgress(2);
                         window.hWin.HEURIST4.msg.showMsgErr(response);
@@ -645,7 +645,7 @@ function hImportRecords(_max_upload_size) {
     function _showProgress( session_id, currentStep ){
 
         let progressCounter = 0;        
-        let progress_url = window.hWin.HAPI4.baseURL + "viewers/smarty/reportProgress.php";
+        let progress_url = window.hWin.HAPI4.baseURL + "hserv/controller/progress.php";
 
         $('body > div:not(.loading)').hide();//hide all except loading
         $('.loading').show();

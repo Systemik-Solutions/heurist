@@ -41,7 +41,7 @@ $.widget( "heurist.editTranslations", {
         let that = this;
 
         
-        this._container = $('<div class="ent_content_full" style="top:0;padding:10px"/>')
+        this._container = $('<div class="ent_content_full" style="top:0;padding:10px"></div>')
                     .appendTo( $('<div class="ent_wrapper">').appendTo(this.element) );
 
         if(this.options.is_dialog){
@@ -269,7 +269,7 @@ $.widget( "heurist.editTranslations", {
         {
             input_ele = $( "<textarea>",{rows:4}) //min number of lines
                     .css({'overflow-x':'hidden'})
-                    .keydown(function(e){
+                    .on('keydown', function(e){
                         if (e.keyCode == 65 && e.ctrlKey) {
                             e.target.select()
                         }    
@@ -284,7 +284,7 @@ $.widget( "heurist.editTranslations", {
                     .addClass('text ui-widget-content ui-corner-all')
                     .css({width:'680px'})
                     .val(value)
-                    .keyup(function(){
+                    .on('keyup', function(){
                         that._was_changed=true;
                         if(!window.hWin.HEURIST4.util.isempty($(this).val()) && window.hWin.HAPI4.sysinfo.api_Translator){
                             that._btn_translate.show();
@@ -319,7 +319,7 @@ $.widget( "heurist.editTranslations", {
 
             //find last seleted
             if(!check_default){
-                let ele = this.element.find('select:last');
+                let ele = this.element.find('select').last();
                 if(ele.length>0){
                     ind = ele[0].selectedIndex;
                     if(ind<0) ind = 0;

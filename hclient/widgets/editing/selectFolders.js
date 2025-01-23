@@ -38,14 +38,14 @@ $.widget( "heurist.selectFolders", $.heurist.selectMultiValues, {
 
         let ent_header = this.element.find('.ent_header');        
 
-        $('<div>').button({label:window.hWin.HR('New folder')}).click(
+        $('<div>').button({label:window.hWin.HR('New folder')}).on('click',
             function() {
                 let node = that._treeview.fancytree('getRootNode');
                 node.editCreateNode("child", "new folder");                    
             }        
         ).appendTo(ent_header);
 
-        $('<div>').button({label:window.hWin.HR('New subfolder')}).click(
+        $('<div>').button({label:window.hWin.HR('New subfolder')}).on('click',
             function() {
 
                 let node = that._treeview.fancytree("getActiveNode");
@@ -61,7 +61,7 @@ $.widget( "heurist.selectFolders", $.heurist.selectMultiValues, {
             }        
         ).appendTo(ent_header);
 
-        $('<div>').button({label:window.hWin.HR('Delete')}).click(
+        $('<div>').button({label:window.hWin.HR('Delete')}).on('click',
             function() {
 
                 let node = that._treeview.fancytree("getActiveNode");
@@ -91,11 +91,11 @@ $.widget( "heurist.selectFolders", $.heurist.selectMultiValues, {
 
         /*
         $('<label><input type="checkbox">Show system folders</label>').css({'margin-left':'20px'}).appendTo(ent_header);
-        ent_header.find('input').click(
+        ent_header.find('input').on('click',
         function(event){
         that._show_system_folders = $(event.target).is(':checked');
 
-        var wtrr = that._treeview.fancytree("getTree");
+        var wtrr = $.ui.fancytree.getTree(that._treeview);
         wtrr.filterBranches(function(node){
         return that._show_system_folders || !node.data.issystem;
         }, {mode: "hide"});

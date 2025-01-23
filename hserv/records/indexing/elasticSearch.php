@@ -80,7 +80,7 @@ class ElasticSearch {
         if (self::$initialized)  {return;}
 
         global $system;
-        self::$mysqli = $system->get_mysqli();
+        self::$mysqli = $system->getMysqli();
         self::$initialized = true;
     }
 
@@ -144,7 +144,7 @@ class ElasticSearch {
             // Check if query has succeeded
             if ($res) {
                 // Append detail level data to record
-                while (($row = $res->fetch_row())) {
+                while ($row = $res->fetch_row()) {
                     // Detail ID is used as key, together with dtl_Value, dtl_UploadedFileID and dtl_Geo
                     // TODO: should use dtl_Value OR dtl_UploadedFileID OT dtl_Geo according to detail type
                     $record->$row[0] = $row[1].$row[2].$row[3];
@@ -171,7 +171,7 @@ class ElasticSearch {
 
 
     // ****************************************************************************************************************
-    // Note: Reported bug in PHP @ 18/11/13: must reset to NULL to obtain internal default.
+    // Note: Reported bug in PHP @ 18/11/13: must reset to null to obtain internal default.
     //       Resetting directly to eg. PUT or GET will not reset, it will remain set as DELETE
     // ****************************************************************************************************************
 
@@ -268,7 +268,7 @@ class ElasticSearch {
             $res = self::$mysqli->query($query);
 
             if ($res) {
-                while (($row = $res->fetch_row())) { // fetch records
+                while ($row = $res->fetch_row()) { // fetch records
                     // Update all records while successful
                     if(!self::updateRecordIndexEntry ($dbName, $recTypeID, $row[0]/*recID*/)) {
                         return false;
@@ -291,7 +291,11 @@ class ElasticSearch {
     * @return bool True if OK, false if Error
     */
     public static function buildAllIndices ($dbName, $print=true) {
-        if(isElasticUp()) {
+        if(!isElasticUp()) {
+            print "ElasticSearch service not detected";
+            return false;
+        }
+
             if ($print){
                 print "Building all Elasticsearch indices for: $dbName<br>";
             }
@@ -315,12 +319,10 @@ class ElasticSearch {
                 }
                 $res->close();
                 return true;
-            }else{
-                error_log("[elasticSearch.php] buildAllIndices --> invalid query: $query");
             }
-        }else{
-           print "ElasticSearch service not detected";
-        }
+
+
+        error_log("[elasticSearch.php] buildAllIndices --> invalid query: $query");
         return false;
     } // buildAllIndices
 
@@ -337,7 +339,7 @@ class ElasticSearch {
         $elasticTimestamp = self::getHighestElasticTimestamp($dbName);
 
         // 3. Compare timestamps
-        if($mysqlTimestamp != NULL && $elasticTimestamp != NULL) {
+        if($mysqlTimestamp != null && $elasticTimestamp != null) {
             if(strcmp($mysqlTimestamp, $elasticTimestamp) !== 0) {
                 // The timestamps are not equal. Note that ElasticSearch indexing takes ~100ms.
                 //error_log("[elasticSearchHelper.php] mysqlTimestamp: $mysqlTimestamp & elasticTimestamp: $elasticTimestamp are not equal.");
@@ -359,7 +361,7 @@ class ElasticSearch {
         } else {
             error_log("[elasticSearchHelper.php] getHighestMySqlTimestamp failed - query: $query");
         }
-        return NULL;
+        return null;
     }
 
     /**
@@ -380,14 +382,14 @@ class ElasticSearch {
                   }';
         $json = postElastic($address, json_decode($query));
 
-        if ($json != NULL) {
+        if ($json != null) {
             $response = json_decode($json);
             return $response->hits->hits[0]->_source->Modified; // Gets the Modified value from the first hit.
         }else{
             error_log("[elasticSearchHelper.php] getHighestElasticTimestamp failed - query: $query");
         }
 
-        return NULL;
+        return null;
     }
 
 }

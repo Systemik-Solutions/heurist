@@ -1,4 +1,4 @@
-/**
+/** 
 *  Wizard to define new faceted search
 *    1. Options
 *    2. [removed]
@@ -105,7 +105,7 @@ $.widget( "heurist.search_faceted_wiz", {
     //params:
     // domain
     // rectype_as_facets
-    // fieldtypes:[] //allowed field types besides enum amd resource
+    // fieldtypes:[] //allowed field types besides enum (terms) amd resource (record pointer)
     //  rectypes:[]                                                                                                                                     //for enums     //for other
     //  facets:[[{ title:node.title, type: freetext|enum|integer|relmarker, query: "t:id f:id", fieldid: "f:id",
     //                                    currentvalue:{text:label, query:value, termid:termid}, history:[currentvalue] }, ]
@@ -145,17 +145,17 @@ $.widget( "heurist.search_faceted_wiz", {
         let that = this;
 
         // prevent double click to select text
-        //this.element.disableSelection();
+       
 
         // Sets up element to apply the ui-state-focus class on focus.
-        //this._focusable($element);
+       
 
         this.element.css({overflow: 'hidden !important'}).addClass('ui-heurist-bg-light');
 
         let ht = $(window).height();
         if(ht>700) ht = 700;
 
-        //this.options.is_h6style = (window.hWin.HAPI4.sysinfo['layout']=='H6Default');
+       
 
         this._dialog = this.element.dialog({
             autoOpen: false,
@@ -197,7 +197,7 @@ $.widget( "heurist.search_faceted_wiz", {
                     class:'ui-button-action', 
                     click: function() {
                         that._doSaveSearch()
-                        //that.navigateWizard(1);
+                       
                 }},
             ],
             show: {
@@ -214,7 +214,7 @@ $.widget( "heurist.search_faceted_wiz", {
         this.step0 = $("<div>")
         .css({width:'100% !important', 'display':'block'})
         .appendTo(this.element);
-        //$("<div>").append($("<h4>").html(window.hWin.HR("Options"))).appendTo(this.step0);
+       
         $("<div>",{id:'facets_options'}).appendTo(this.step0);
         this.step_panels.push(this.step0);
 
@@ -302,9 +302,9 @@ $.widget( "heurist.search_faceted_wiz", {
                 let check_status = $(e.target).is(":checked");
 
                 if(!treediv.is(':empty') && treediv.fancytree("instance")){
-                    let tree = treediv.fancytree("getTree");
+                    let tree = $.ui.fancytree.getTree(treediv);
                     tree.visit(function(node){
-                        if(!node.hasChildren() && node.data.type != "relmarker" && node.data.type != "resource" && node.data.type != "separator"
+                        if(!node.hasChildren() && node.type != "relmarker" && node.type != "resource" && node.type != "separator"
                             && (node.getLevel()==2 || (!window.hWin.HEURIST4.util.isempty(node.span) && $(node.span.parentNode.parentNode).is(":visible")))
                         ){    
                             node.setSelected(check_status);
@@ -394,7 +394,6 @@ $.widget( "heurist.search_faceted_wiz", {
             if(ch<400) ch = 400;
             
         }
-        //if(width<minw) 
         this._dialog.dialog( 'option', 'width', minw);
         
         let topPos = 0;
@@ -409,16 +408,6 @@ $.widget( "heurist.search_faceted_wiz", {
         let ht = Math.min(ch, window.innerHeight-topPos);
         this._dialog.dialog('option', 'height', ht);    
         
-        /*
-        if(this.options.is_h6style){
-            //let dialog_height = window.innerHeight - this.element.parent().position().top - 5;
-            //this.element.dialog( 'option', 'height', dialog_height);
-        }else{
-            let ht = window.innerHeight; //$(window).height();
-            if(ht>700) ht = 700;
-            this.element.dialog( 'option', 'height',  ht );
-        }
-        */
     }
 
     ,show: function( ){
@@ -456,7 +445,7 @@ $.widget( "heurist.search_faceted_wiz", {
                         mouseover:function(){ this.options.menu_locked.call( this, false, false );},  //just prevent close
                         mouseleave: function(e){ 
                             this.options.menu_locked.call( this, false, true ); //close after delay
-                        }}); //that.closeEditDialog();
+                        }});
             
         }else{
             
@@ -485,7 +474,7 @@ $.widget( "heurist.search_faceted_wiz", {
             }
             newstep = 3; //was 4
         } else{
-            //$("#btnNext").button('option', 'label', window.hWin.HR('Next'));
+           
             $("#btnNext").button({icon:'ui-icon-carat-1-e', iconPosition:'end', label:window.hWin.HR('Next')});
         }
         $("#btnBack").button('option','icon','ui-icon-carat-1-w').css('margin-right','20px');
@@ -513,7 +502,7 @@ $.widget( "heurist.search_faceted_wiz", {
                         */
                                 
                         $dlg.find("#svs_Rules_edit")
-                        .button({icons: {primary: "ui-icon-pencil"}, text:false})
+                        .button({icon:"ui-icon-pencil", showLabel:false})
                         .attr('title', window.hWin.HR('Edit RuleSet'))
                         .css({'height':'16px', 'width':'16px'})
                         .on('click', function( event ) {
@@ -522,7 +511,7 @@ $.widget( "heurist.search_faceted_wiz", {
                         });
 
                         $dlg.find("#svs_Rules_clear")
-                        .button({icons: {primary: "ui-icon-close"}, text:false})
+                        .button({icon:"ui-icon-close", showLabel:false})
                         .attr('title', window.hWin.HR('Clear RuleSet'))
                         .css({'height':'16px', 'width':'16px'})
                         .on('click', function( event ) {
@@ -537,7 +526,7 @@ $.widget( "heurist.search_faceted_wiz", {
                         */
 
                         $dlg.find("#svs_getCurrentFilter")
-                        .button({'label':window.hWin.HR('Get current query')}) //{icons: {primary: "ui-icon-search"}, text:false}
+                        .button({'label':window.hWin.HR('Get current query')}) //{icon: "ui-icon-search", showLabel:false}
                         .css({'height':'16px','font-size':'0.8em',width:'45px'})
                         .on('click', function( event ) {
                             let res = window.hWin.HEURIST4.query.hQueryStringify(window.hWin.HEURIST4.current_query_request, true);
@@ -566,12 +555,12 @@ $.widget( "heurist.search_faceted_wiz", {
                 //MAIN RECORD TYPE
                 if(!(this.select_main_rectype.val()>0)){
                     window.hWin.HEURIST4.msg.showMsgFlash('You have to select record type',1000);
-                    this.select_main_rectype.focus();  
+                    this.select_main_rectype.trigger('focus');  
                     /*
                     if(this.select_main_rectype.hSelect("instance")!=undefined){
                         this.select_main_rectype.hSelect("focus"); 
                     }else{
-                        this.select_main_rectype.focus();  
+                        this.select_main_rectype.trigger('focus');  
                     }*/
                     return;
                 }
@@ -580,9 +569,7 @@ $.widget( "heurist.search_faceted_wiz", {
                 let message = this.step0.find('.messages');
                 let bValid = window.hWin.HEURIST4.msg.checkLength( svs_name, "Name", null, 3, 64 );
                 if(!bValid){
-                    svs_name.focus();
-                    //window.hWin.HEURIST4.msg.showMsgFlash(window.hWin.HR("Define Saved search name"), 2000, "Required", svs_name);
-                    //setTimeout(function(){svs_name.focus();},2200);
+                    svs_name.trigger('focus');
                     return;
                 }else{
                     message.empty();
@@ -592,7 +579,7 @@ $.widget( "heurist.search_faceted_wiz", {
                 let svs_title = this.step0.find('#svs_Title');
                 bValid = window.hWin.HEURIST4.msg.checkLength( svs_title, 'Title', null, 0, 64 );
                 if(!bValid){
-                    svs_title.focus();                
+                    svs_title.trigger('focus');                
                     return;
                 }else{
                     message.empty();
@@ -625,7 +612,7 @@ $.widget( "heurist.search_faceted_wiz", {
                         if(is_reduced){
                             this.select_additional_rectypes.editing_input('setValue',vals.join(','));    
                         }
-                        //rectypeIds = rectypeIds.concat(val);
+                       
                     }
                 }
                 
@@ -653,8 +640,6 @@ $.widget( "heurist.search_faceted_wiz", {
             }else if(this.step==2 && newstep==1){
                 //skip step
                 newstep = 0;
-            }else if(this.step==4 && newstep==3){
-                //newstep=2;
             }
 
             this._showStep(newstep);
@@ -663,12 +648,7 @@ $.widget( "heurist.search_faceted_wiz", {
                 if(newstep>0)  //increase delay on mouse exit 
                     this.options.menu_locked.call( this, 'delay');
             }
-            
-            //if(newstep==3)               //skip step - define ranges
-            //this.navigateWizard(1);
         }
-
-        //window.hWin.HEURIST4.ui.applyCompetencyLevel(-1, $dlg); 
     }
 
     //
@@ -699,7 +679,7 @@ $.widget( "heurist.search_faceted_wiz", {
                             $.each(val,function(i,item){ names.push( $Db.rty(item,'rty_Name') ) });
                             svs_name.val( names.join(', ') );
                         }
-                        svs_name.focus();
+                        svs_name.trigger('focus');
                     }
                     that._resetFacets();
             }    
@@ -757,16 +737,16 @@ $.widget( "heurist.search_faceted_wiz", {
 
             this.facetPreview_reccount = 0; //first time it always refresh preview
             this._refresh_FacetsPreview();
-            //this._refresh_FacetsPreviewReal();
+           
             btns.find("#btnNext").button({icon:'ui-icon-check', label:window.hWin.HR('Save')});
         }
 
         if(newstep==0 && this.options.svsID>0 && 
             this.options.params.rectypes && this.options.params.rectypes[0]==this.originalRectypeID)
         {
-            btns.find("#btnSave").css({'visibility':'visible','margin-left':'20px'});//show();
+            btns.find("#btnSave").css({'visibility':'visible','margin-left':'20px'});
         }else{
-            btns.find("#btnSave").css('visibility','hidden');//$("#btnSave").hide();
+            btns.find("#btnSave").css('visibility','hidden');
         }
         
         
@@ -776,7 +756,7 @@ $.widget( "heurist.search_faceted_wiz", {
         
         if(newstep==0){
             let that = this;
-            setTimeout(function(){that.step0.find('#svs_Name').focus();},500);
+            setTimeout(function(){that.step0.find('#svs_Name').trigger('focus');},500);
             btns.find("#btnBack").hide();
             
         }else{
@@ -830,7 +810,7 @@ $.widget( "heurist.search_faceted_wiz", {
                             let opt = that.select_main_rectype.find('option[value="'+selval+'"]');
                             svs_name.val(opt.text().trim()+'s');
                         }
-                        svs_name.focus();
+                        svs_name.trigger('focus');
                     }
                     that._createOrderSelect();
                     
@@ -900,7 +880,7 @@ $.widget( "heurist.search_faceted_wiz", {
                 this.options.domain = this.options.params.domain;
 
                 svs_ugrid.val(svs[2]==window.hWin.HAPI4.currentUser.ugr_ID ?this.options.params.domain:svs[2]);
-                //svs_ugrid.parent().hide();
+               
                 svs_ugrid.attr('disabled','disabled');
                 
                 if(this.options.params.rectypes) {
@@ -929,7 +909,7 @@ $.widget( "heurist.search_faceted_wiz", {
                     }
                     
                     
-                    //$(opt_rectypes).on('change', function(){});
+                   
                     
                     if(this.originalRectypeID==null){//init flag
                         this.originalRectypeID = this.options.params.rectypes[0];    
@@ -993,8 +973,8 @@ $.widget( "heurist.search_faceted_wiz", {
 
 
                 svs_ugrid.val(this.options.domain);
-                svs_ugrid.removeAttr('disabled');;
-                //svs_ugrid.parent().show();
+                svs_ugrid[0].removeAttribute('disabled');
+               
                 $dlg.find('#svs_Title').val('');
                 $dlg.find('#svs_SearchOnReset').prop('checked', false);
                 
@@ -1046,7 +1026,7 @@ $.widget( "heurist.search_faceted_wiz", {
             this._on(svs_rules_only,{change:function(e){
                 $dlg.find('#divRulesOnly').css('display',$(e.target).is(':checked')?'block':'none');    
             }});
-            svs_rules_only.change();
+            svs_rules_only.trigger('change');
             
             this._on($dlg.find('#svs_PrelimFilterToggle'), {change:function( event ){
                 if($(event.target).is(':checked') && svs_filter.val()!=''){
@@ -1055,7 +1035,7 @@ $.widget( "heurist.search_faceted_wiz", {
                     $dlg.find('#svs_PrelimFilterToggleSettings').hide();
                 }
             }});
-            $dlg.find('#svs_PrelimFilterToggle').change()
+            $dlg.find('#svs_PrelimFilterToggle').trigger('change')
             
 
             this._on($dlg.find('#svs_AdditionalFilter'), {change:function( event ){
@@ -1065,7 +1045,7 @@ $.widget( "heurist.search_faceted_wiz", {
                     $dlg.find('.svs_AdditionalFilter').hide();
                 }
             }});
-            $dlg.find('#svs_AdditionalFilter').change()
+            $dlg.find('#svs_AdditionalFilter').trigger('change')
             
             this._on($dlg.find('#svs_SpatialFilter'), {change:function( event ){
                 if($(event.target).is(':checked')){
@@ -1118,9 +1098,9 @@ $.widget( "heurist.search_faceted_wiz", {
             
             if(isEdit && this.options.params.rectypes[0]==this.originalRectypeID)
             {
-                $("#btnSave").css({'visibility':'visible','margin-left':'20px'});//$("#btnSave").show();
+                $("#btnSave").css({'visibility':'visible','margin-left':'20px'});
             }else{
-                $("#btnSave").css('visibility','hidden');//$("#btnSave").hide();
+                $("#btnSave").css('visibility','hidden');
             }
         
         }
@@ -1225,7 +1205,7 @@ $.widget( "heurist.search_faceted_wiz", {
 
             if(dtys_to_keep !== 'all'){ // remove fields not in dtys_to_keep, also replace labels with dty_Name
 
-                //treedata[0]['children'][2]['children'] = treedata[0]['children'][2]['children'].filter(field => dtys_to_keep.includes(field.dtyID_local));
+               
                 let fields = treedata[0]['children'][2]['children'];
 
                 let idx = 0;
@@ -1274,23 +1254,23 @@ $.widget( "heurist.search_faceted_wiz", {
 
                     let order = $(that.step2).find('[name="tree_order"]:checked').val();
 
-                    if(data.node.data.dtyID_local && data.node.data.code.includes(rectype+':')!==false && data.node.data.type != 'separator'){ // top level only, add usage container
+                    if(data.node.data.dtyID_local && data.node.data.code.includes(rectype+':')!==false && data.node.type != 'separator'){ // top level only, add usage container
                         $(data.node.span.childNodes[3]).append(
                             '<span style="display:inline-block;margin-left: 10px;" data-dtid="'+ data.node.data.dtyID_local +'" class="usage_count">&nbsp;</span>');
                     }
 
                     if(data.node.data.is_generic_fields) { // hide blue arrow for generic fields
                         $(data.node.span.childNodes[1]).hide();
-                    }else if(data.node.data.type == 'separator'){
+                    }else if(data.node.type == 'separator'){
                         $(data.node.span).attr('style', 'background: none !important;color: black !important;'); //stop highlighting
                         $(data.node.span.childNodes[1]).hide(); //checkbox for separators
 
                         if(order == 1){
                             $(data.node.li).addClass('fancytree-hidden');
                         }
-                    }else if(data.node.data.type == 'enum'){ // TODO - Move to CSS for general use when field colours are set out
+                    }else if(data.node.type == 'enum'){ // TODO - Move to CSS for general use when field colours are set out
                         $(data.node.span.childNodes[3]).css('color', '#871F78');
-                    }else if(data.node.data.type == 'date'){ // TODO - Move to CSS for general use when field colours are set out
+                    }else if(data.node.type == 'date'){ // TODO - Move to CSS for general use when field colours are set out
                         $(data.node.span.childNodes[3]).css('color', 'darkgreen');
                     }
                 },
@@ -1341,7 +1321,7 @@ $.widget( "heurist.search_faceted_wiz", {
                     },500);
                 },
                 select: function(e, data) {
-                    let is_disabled = treediv.fancytree('getTree').getSelectedNodes().length > 0;
+                    let is_disabled = $.ui.fancytree.getTree(treediv).getSelectedNodes().length > 0;
 
                     window.hWin.HEURIST4.util.setDisabled(that.step2.find('#sharedFieldsOnly'), is_disabled);
 
@@ -1350,7 +1330,7 @@ $.widget( "heurist.search_faceted_wiz", {
                 },
                 click: function(e, data){
 
-                    if(data.node.data.type == 'separator'){
+                    if(data.node.type == 'separator'){
                         return false;
                     }
 
@@ -1367,7 +1347,7 @@ $.widget( "heurist.search_faceted_wiz", {
                     }
                 },
                 dblclick: function(e, data) {
-                    if(data.node.data.type == 'separator'){
+                    if(data.node.type == 'separator'){
                         return false;
                     }
                     data.node.toggleSelected();
@@ -1383,7 +1363,7 @@ $.widget( "heurist.search_faceted_wiz", {
                 //cookieId: "fancytree-Cb3",
                 //idPrefix: "fancytree-Cb3-"
             });
-            //},1000);
+           
 
             //restore selection
             let facets;
@@ -1410,7 +1390,7 @@ $.widget( "heurist.search_faceted_wiz", {
             that._assignSelectedFacets();
 
             //hide all folder triangles
-            //treediv.find('.fancytree-expander').hide();
+           
 
             that.current_tree_rectype_ids = rectypeIds.join(',');
             that.current_tree_mode = tree_mode;
@@ -1456,7 +1436,7 @@ $.widget( "heurist.search_faceted_wiz", {
             });
 
             ele.attr('checked', false);
-            ele.change();
+            ele.trigger('change');
         }
     }
     
@@ -1466,7 +1446,7 @@ $.widget( "heurist.search_faceted_wiz", {
 
         if(treediv.fancytree('instance')){
         
-            let tree = treediv.fancytree("getTree");
+            let tree = $.ui.fancytree.getTree(treediv);
             let showrev = this.element.find('#fsw_showreverse').is(":checked");
 
             tree.visit(function(node){
@@ -1555,8 +1535,8 @@ $.widget( "heurist.search_faceted_wiz", {
         let treediv = $(this.step2).find('#field_treeview');
         let facets = this.options.params.facets;
 
-        let tree = treediv.fancytree("getTree");
-
+        let tree = $.ui.fancytree.getTree(treediv);
+        
         if(facets && facets.length>0){
             tree.visit(function(node){
                 if(!window.hWin.HEURIST4.util.isArrayNotEmpty(node.children)){ //this is leaf
@@ -1598,7 +1578,7 @@ $.widget( "heurist.search_faceted_wiz", {
         let sharedFields = this.step2.find('#sharedFieldsOnly').is(':checked');
 
         // ------------------------------------------------------
-        let tree = $(this.step2).find('#field_treeview').fancytree("getTree");
+        let tree = $.ui.fancytree.getTree( $(this.step2).find('#field_treeview') );
         let fieldIds = tree.getSelectedNodes(false);
         len = fieldIds.length;
 
@@ -1610,10 +1590,13 @@ $.widget( "heurist.search_faceted_wiz", {
 
             let rectypes = this.options.params.rectypes;
             let idx_replace = rectypes[0]?.length ? rectypes[0].length : rectypes[0].toString().length;
-            let final_list = [...fieldIds];
+            let final_list = [];//[...fieldIds]; //clone
+
+            let allRectypesIds = rectypes.join(',');
 
             for(let i = 1; i < rectypes.length; i++){
-
+            }
+            
                 for(let j = 0; j < fieldIds.length; j++){
 
                     if(window.hWin.HEURIST4.util.isArrayNotEmpty(fieldIds[j].children)){ // skip
@@ -1621,11 +1604,12 @@ $.widget( "heurist.search_faceted_wiz", {
                     }
 
                     let node = fieldIds[j].toDict();
-                    node.data.code = rectypes[i] + node.data.code.slice(idx_replace);
+                    node.data.code = allRectypesIds + node.data.code.slice(idx_replace); //was rectypes[i] 
 
+                    //final_list.push(node);
                     final_list.push(node);
                 }
-            }
+            
 
             fieldIds = final_list;
             len = fieldIds.length;
@@ -1682,8 +1666,6 @@ $.widget( "heurist.search_faceted_wiz", {
                 if(!window.hWin.HEURIST4.util.isArrayNotEmpty(node.children)){  //ignore top levels selection
 
                     let ids = node.data.code.split(":");
-                    //rtid: ids[ids.length-2],
-                    //id:  ids[ids.length-1],
 
                     //if facets are already defined try to restore title,help and type from previous
                     let old_facet = this._findFacetByCode(node.data.code);
@@ -1699,7 +1681,7 @@ $.widget( "heurist.search_faceted_wiz", {
                             groupby: old_facet.groupby,
                             orderby: old_facet.orderby,
                             srange: old_facet.srange,
-                            type: node.data.type,
+                            type: node.type,
                             order: old_facet.order>=0?old_facet.order:order_for_new,
                             trm_tree: (old_facet.trm_tree && old_facet.trm_tree === true)
                         };
@@ -1724,7 +1706,7 @@ $.widget( "heurist.search_faceted_wiz", {
                             groupby: null,
                             orderby: null,
                             srange: null,
-                            type:node.data.type,
+                            type:node.type,
                             order: order_for_new
                         } );
                         
@@ -1735,7 +1717,11 @@ $.widget( "heurist.search_faceted_wiz", {
 
             if(facets.length == 0){
                 if(fieldIds.length > 0){
-                    window.hWin.HEURIST4.msg.showMsgErr('An error occurred while preparing your selected facets.<br>Please report this bug to the Heurist team.');
+                    window.hWin.HEURIST4.msg.showMsgErr({
+                        message: 'An error occurred while preparing your selected facets.',
+                        error_title: 'Invalid facets selected',
+                        status: window.hWin.ResponseStatus.UNKNOWN_ERROR
+                    });
                 }
                 return;
             }
@@ -1743,10 +1729,6 @@ $.widget( "heurist.search_faceted_wiz", {
             facets.sort(function(a,b){
                 return a.order<b.order?-1:1;
             });
-
-            if(len>0){
-                //facets[0].isfacet = true;
-            }
 
             //-----------------------------------------------------------
             $(this.step3).find("#cbShowHierarchy").attr('checked', this.options.params.title_hierarchy==true);
@@ -1791,7 +1773,6 @@ $.widget( "heurist.search_faceted_wiz", {
                 
                 + '<div class="ent_search_cb" style="font-style:italic;padding-top:10px">'
                 + '<span id="buttonset'+idd+'">';
-                
                 
                 let sMultiSel = '';
                 let sGroupBy = '';
@@ -1855,6 +1836,13 @@ $.widget( "heurist.search_faceted_wiz", {
                                 + '<input type="checkbox" name="facet_MultiSel'
                                 + idd+'" value="1"/>multi-select</label>';
                     
+                }
+                
+                if(facets[k].code.indexOf(':rt')>0 || facets[k].code.indexOf(':rf')>0){
+                    sGroupBy = sGroupBy
+                        +'<label><input type="checkbox" data-direction="1" data-id="'
+                        + idd+'" style="vertical-align: middle;margin-left:16px">'
+                        + window.hWin.HR("Respect relation direction")+"</label>";
                 }
                 
                 if(includeDropdown){
@@ -1949,8 +1937,8 @@ $.widget( "heurist.search_faceted_wiz", {
                 listdiv.find('input[data-sort="desc"][data-id="'+idd+'"]').prop('checked', (facets[k].orderby=='desc'));
                 listdiv.find('input[data-search="between"][data-id="'+idd+'"]').prop('checked', (facets[k].srange=='between'));
                 listdiv.find('input[data-search="text"][data-id="'+idd+'"]').prop('checked', (facets[k].srange=='text'));
-
-                //listdiv.find('input:radio[name="facet_Type'+idd+'"][value="'+facets[k].isfacet+'"]').attr('checked', true);
+                listdiv.find('input[data-direction][data-id="'+idd+'"]').prop('checked', (facets[k].relation=='directed'));
+               
                 listdiv.find('button.btnset_radio[data-idx="'+idd+'"]').removeClass('ui-heurist-btn-header1');
 
                 let def_facet = facets[k].isfacet;
@@ -1973,7 +1961,7 @@ $.widget( "heurist.search_faceted_wiz", {
                                 if(facets[idx].type=='date' || facets[idx].type=='year'){
                                     let cur_mode = listdiv.find('button.ui-heurist-btn-header1[data-idx="'+idd+'"]').attr('data-value');
                                     let is_allowed = (cur_mode>1);
-                                                    //(listdiv.find('input:radio[name="facet_Type'+idd+'"]:checked').val()>1);
+                                                   
                                     listdiv.find('#facet_DateGroup'+idd).css({'display':is_allowed?'inline':'none'});        
                                     listdiv.find('input:checkbox[name="facet_HideHistogram'+idd+'"]').css({'display': cur_mode==1?'inline':'none'});
                                     if(is_allowed){
@@ -2044,7 +2032,7 @@ $.widget( "heurist.search_faceted_wiz", {
             listdiv.find('button[data-type="dropdown"]').button({icon: "ui-icon-input-dropdown",iconPosition:'end',showLabel:true,label:'dropdown'});
             listdiv.find('button[data-type="tree"]').button({icon: "ui-icon-structure",iconPosition:'end',showLabel:true,label:'tree'});
             listdiv.find('.ui-button-text').css({"min-width":"60px","font-size":'0.9em'});
-            //move to while? listdiv.find('button.btnset_radio[data-idx="'+idd+'"]').controlgroup();
+           
                                       
             $(this.step3).find('#cbShowAdvanced').attr('checked',true).on('change', function(event){
                 if($(event.target).is(':checked')){
@@ -2096,7 +2084,6 @@ $.widget( "heurist.search_faceted_wiz", {
             }});
             
             this._on( listdiv.find('input[data-search]'), {change: function(e){
-                this._assignFacetParams();
                 this._refresh_FacetsPreview();
             }});
             
@@ -2139,8 +2126,14 @@ $.widget( "heurist.search_faceted_wiz", {
                     this.options.params.facets[k].trm_tree = false;
                 }
                 this.options.params.facets[k].isfacet = facet;
-
                 this.options.params.facets[k].orderby = null;    
+                
+                if(listdiv.find('input[data-direction][data-id="'+idd+'"]').is(':checked')){
+                    this.options.params.facets[k].relation = 'directed';    
+                }else{
+                    this.options.params.facets[k].relation = null;    
+                }
+                
                 if(listdiv.find('input[data-sort="count"][data-id="'+idd+'"]').is(':checked'))
                 {
                     this.options.params.facets[k].orderby = 'count';    
@@ -2188,13 +2181,7 @@ $.widget( "heurist.search_faceted_wiz", {
     // old version it updates parms only (from UI to options.params)
     //
     ,_refresh_FacetsPreview: function(){
-        
-        this._assignFacetParams();
-        this._defineDomain();
 
-        //if( (window.hWin.HAPI4.sysinfo['db_workset_count']>0 && window.hWin.HAPI4.sysinfo['db_workset_count']<10000) 
-        //    || window.hWin.HAPI4.sysinfo['db_total_records']<10000 )
-        
         if( this.facetPreview_reccount < 10000 ){
             this._refresh_FacetsPreviewReal();
             $(this.step3).find('#btnUpdatePreview').hide();
@@ -2208,6 +2195,9 @@ $.widget( "heurist.search_faceted_wiz", {
     //
     ,_refresh_FacetsPreviewReal: function(){
 
+        this._assignFacetParams();
+        this._defineDomain();
+        
         let listdiv = $(this.step3).find("#facets_preview2");
 
         let noptions = { query_name:"test", params: JSON.parse(JSON.stringify(this.options.params)), ispreview: true}
@@ -2314,7 +2304,7 @@ $.widget( "heurist.search_faceted_wiz", {
         this.options.params.ui_separate_line = $dlg.find('#svs_FacetSeparator').is(':checked');
         
         //localized paramerers
-        //this.options.params.ui_title =  $dlg.find('#svs_Title').val();
+       
         translationFromUI(this.options.params, $dlg, 'ui_name', 'svs_Name', false);
         translationFromUI(this.options.params, $dlg, 'ui_title', 'svs_Title', false);
         translationFromUI(this.options.params, $dlg, 'ui_additional_filter_label', 'svs_AdditionalFilterLabel', false);
@@ -2340,7 +2330,7 @@ $.widget( "heurist.search_faceted_wiz", {
         
         if(prevent_real_save===true || this._save_in_porgress===true) return;
         this._save_in_porgress = true;
-        //window.hWin.HEURIST4.util.setDisabled(this.element.parent().find('.ui-dialog-buttonset').find("#btnSave"), true);
+        
 
         let request = {svs_Name: svs_name.val(),
             svs_Query: JSON.stringify(this.options.params),   //$.toJSON
@@ -2394,7 +2384,7 @@ $.widget( "heurist.search_faceted_wiz", {
         $(this.step3).find("div[data-fid='facets_list_container'] #fv_"+facetID).remove();
 
         let treediv = $(this.step2).find('#field_treeview');
-        let tree = treediv.fancytree("getTree");
+        let tree = $.ui.fancytree.getTree(treediv);
 
         // Uncheck node in fancytree
         $.each(this.options.params.facets, (idx, facet) => {
@@ -2456,13 +2446,6 @@ $.widget( "heurist.search_faceted_wiz", {
 
 function showSearchFacetedWizard( params ){
 
-    if(!window.hWin.HEURIST4.util.isFunction($('body').fancytree)){
-
-        $.getScript(window.hWin.HAPI4.baseURL+'external/jquery.fancytree/jquery.fancytree-all.min.js', 
-                function(){ showSearchFacetedWizard(params); } );
-
-    }else{
-
         let manage_dlg = $('#heurist-search-faceted-dialog');
 
         let need_create = (manage_dlg.length<1);
@@ -2484,5 +2467,5 @@ function showSearchFacetedWizard( params ){
         manage_dlg.search_faceted_wiz( 'show' );
         
         return manage_dlg;
-    }
+
 }

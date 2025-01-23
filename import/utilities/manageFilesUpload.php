@@ -23,6 +23,7 @@
     * distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied
     * See the License for the specific language governing permissions and limitations under the License.
     */
+use hserv\utilities\USystem;
 
 define('MANAGER_REQUIRED',1);
 define('PDIR','../../');//need for proper path to js and css
@@ -35,7 +36,7 @@ $max_size = min($file_max_size,$post_max_size);
 if(!($max_size>0)) {$max_size = 0;}
 
 ?>
-<!DOCTYPE>
+<!DOCTYPE html>
 <html lang="en">
     <head>
 
@@ -44,6 +45,8 @@ if(!($max_size>0)) {$max_size = 0;}
         <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
         <![endif]-->
         <meta http-equiv="content-type" content="text/html; charset=utf-8">
+        <meta name="robots" content="noindex,nofollow">
+        
         <title>File upload manager</title>
 
         <script type="text/javascript" src="<?php echo PDIR;?>external/jquery-ui-1.12.1/jquery-1.12.4.js"></script>
@@ -109,13 +112,13 @@ if(!($max_size>0)) {$max_size = 0;}
 
                 // Find out which folders are allowable - the default scratch space plus any
                 // specified for FieldHelper indexing in Advanced Properties
-                $mediaFolders = $system->get_system('sys_MediaFolders');
+                $mediaFolders = $system->settings->get('sys_MediaFolders');
                 if($mediaFolders==null || $mediaFolders == ''){ //not defined
                     $mediaFolders = HEURIST_FILESTORE_DIR.'uploaded_files/';
                     folderCreate( $mediaFolders, true );
                     $mediaFolders = 'uploaded_files';
                 }
-                $mediaExts = $system->get_system('sys_MediaExtensions');//from preferences
+                $mediaExts = $system->settings->get('sys_MediaExtensions');//from preferences
                 if(!$mediaExts) {$mediaExts = '';}
 
                 // Get the set of directories defined in Advanced Properties as FieldHelper indexing directories
@@ -150,18 +153,16 @@ if(!($max_size>0)) {$max_size = 0;}
                             //realpath gives real path on remote file server
                             if(strpos($dir, '/srv/HEURIST_FILESTORE/')===0){
                                 $dir = str_replace('/srv/HEURIST_FILESTORE/', HEURIST_FILESTORE_ROOT, $dir);
-                            }else
-                            if(strpos($dir, '/misc/heur-filestore/')===0){
+                            }elseif(strpos($dir, '/misc/heur-filestore/')===0){
                                 $dir = str_replace('/misc/heur-filestore/', HEURIST_FILESTORE_ROOT, $dir);
-                            }else
-                            if(strpos($dir, '/data/HEURIST_FILESTORE/')===0){  //for huma-num
+                            }elseif(strpos($dir, '/data/HEURIST_FILESTORE/')===0){  //for huma-num
                                 $dir = str_replace('/data/HEURIST_FILESTORE/', HEURIST_FILESTORE_ROOT, $dir);
                             }
                             $dir = str_replace('\\','/',$dir);
                             if(!( substr($dir, 0, strlen(HEURIST_FILESTORE_DIR)) === HEURIST_FILESTORE_DIR )){
                                 // Folder must be in heurist filestore directory
 
-                                print 'Folder "'.$dir.'" is not in heurist filestore directory<br>';
+                                print "Folder '$dir' is not in heurist filestore directory<br>";
 
                                 continue;
                             }
@@ -172,9 +173,9 @@ if(!($max_size>0)) {$max_size = 0;}
                             array_push($dirs_checked, $dir_original);
                         }else{
                             if(in_array($dir, $system_folders)){
-                                print 'Folder "'.$dir.'" is system one and cannot be used for file upload<br>';
+                                print "Folder '$dir' is system one and cannot be used for file upload<br>";
                             }else{
-                                print 'Folder "'.$dir.'" does not exist<br>';
+                                print "Folder '$dir' does not exist<br>";
                                 if (!mkdir($dir, 0777, true)) {
                                     print 'Unable to create or wtite into folder '.$dir;
                                 }else{
@@ -191,13 +192,13 @@ if(!($max_size>0)) {$max_size = 0;}
                 $dirs = $dirs_checked; //$dirs2;
 
                 // add the scratch directory, which will be the default for upload of material for import
-                //array_push($dirs, HEURIST_FILESTORE_DIR.'scratch/');
+                //array_push($dirs, HEURIST_FILESTORE_DIR.DIR_SCRATCH);
                 //array_push($dirs, HEURIST_FILES_DIR);
 
                 // The defined list of file extensions for FieldHelper indexing.
                 // For the moment keep this in as a restriction on file types which can be uploaded
                 // Unlike indexing, we add the user-defined set to the default set
-                $allowed_exts = mysql__select_list2($system->get_mysqli(), 'select fxm_Extension from defFileExtToMimetype');
+                $allowed_exts = mysql__select_list2($system->getMysqli(), 'select fxm_Extension from defFileExtToMimetype');
 
                 //$mediaExts = HEURIST_ALLOWED_EXT.','.$mediaExts; // default set to allow
                // $mediaExts = implode(',',array_unique(explode(',',$mediaExts)));
@@ -209,15 +210,10 @@ if(!($max_size>0)) {$max_size = 0;}
                 }else{
                     print '<p><b>Allowable extensions for upload:</b>'.htmlspecialchars( implode(', ',$allowed_exts) ).'</p>';
                 }
-
-//@todo change to entity dialog
                 ?>
 
                  <p><a href='#' onclick="{window.hWin.HEURIST4.ui.showEntityDialog('sysIdentification',
                     {onClose:function(){
-
-                        //var mediaFolders = window.hWin.HAPI4.sysinfo['sys_MediaFolders'];
-                        //var mediaExts = window.hWin.HAPI4.sysinfo['sys_MediaExtensions'];
                         location.reload();
 
                     }}); return false;}"
@@ -266,8 +262,8 @@ if(!($max_size>0)) {$max_size = 0;}
 
                 <br>
 
-                <label><input type="checkbox" checked=checked name="registerFiles">
-                    Register file after upload (missed indexed files can be registered in Admin > Manage files)
+                <label style="margin-left:25px"> <!-- <input type="checkbox" checked=checked name="registerFiles"> -->
+                    If files do not appear in Admin > Manage files, click on the Refresh Index button
                 </label>
 
                 <br><br>
@@ -340,8 +336,9 @@ if(!($max_size>0)) {$max_size = 0;}
                 <p class="size">Processing...</p>
                 </td>
                 <td>
+                <!--  disable upload one file - otherwise mass upload may fail -->
                 {% if (!i && !o.options.autoUpload) { %}
-                <button class="start" disabled>Upload</button>
+                <button class="start" style="visibility:hidden" disabled>Upload</button>
                 {% } %}
             {% if (!i) { %}
                 <button class="cancel">Cancel</button>
@@ -361,7 +358,7 @@ if(!($max_size>0)) {$max_size = 0;}
                 {% if (file.thumbnailUrl) { %}
                 <a href="{%=file.url%}" title="{%=file.name%}" download="{%=file.name%}" data-gallery><img src="{%=file.thumbnailUrl%}"></a>
                 {% } %}
-            </span>
+                </span>
             </td>
             <td style="{% if (file.error) { %}padding: 10px 0 10px 0; {% } %}">
             <p class="name" style="{% if (file.error) { %}margin-bottom: 5px; {% } %}">
@@ -373,12 +370,14 @@ if(!($max_size>0)) {$max_size = 0;}
               {% } %}
                 </td>
                 <td>
-                <span class="size">{%=o.formatFileSize(file.size)%}</span>
+                <span class="size" file-size="{%=file.deleteUrl?0:file.size%}">{%=o.formatFileSize(file.size)%}</span>
                 </td>
                 <td>
+                <!-- disable delete for already uploaded files - since they are auto-indexed
                 <button class="delete" data-type="{%=file.deleteType%}"
                 data-url="{%=file.deleteUrl%}"{% if (file.deleteWithCredentials) { %}
                 data-xhr-fields='{"withCredentials":true}'{% } %}>{%=file.error?'Clear':'Remove'%}</button>
+                -->
                 <!-- another confuising control - presumably meant to be a selection checkbox for multiple removals
                 <input type="checkbox" name="delete" value="1" class="toggle">
                 -->
@@ -433,10 +432,10 @@ if(!($max_size>0)) {$max_size = 0;}
                 if(files.length > 0){
 
                     var msg = "You have uploaded " + (files.length/2) + " new media files.<br><br>"
-                            + "They will not be visible as records in the database until you create media<br>records using Index media files.";
+                            + "They will not be visible as records in the database until you create media<br>records using Create media records.";
 
                     var btns = {};
-                    btns[window.hWin.HR('Index Media Files')] = function(){
+                    btns[window.hWin.HR('Create Media Records')] = function(){
 
                         // Close popup
                         var $dlg = window.hWin.HEURIST4.msg.getMsgDlg();
@@ -452,8 +451,8 @@ if(!($max_size>0)) {$max_size = 0;}
                             setTimeout(function(){ window.close();}, 100);
                         }
 
-                        // Open Index media files window
-                        setTimeout(function(){ $(parent.document).find('li[data-action="menu-files-index"]').trigger('click');}, 500);
+                        // Open Create media records window
+                        setTimeout(function(){ $(parent.document).find('li[data-action="menu-files-index-and-records"]').trigger('click');}, 500);
                     };
                     btns[window.hWin.HR('Exit without Indexing')] = function(){
 
@@ -472,8 +471,8 @@ if(!($max_size>0)) {$max_size = 0;}
                     }
 
                     window.hWin.HEURIST4.msg.showMsgDlg(msg, btns, {title:'Indexing Uploaded Media Files',
-                        yes:window.hWin.HR('Index Media Files'), no:window.hWin.HR('Exit without Indexing')});
-                } else 
+                        yes:window.hWin.HR('Create Media Records'), no:window.hWin.HR('Exit without Indexing')});
+                } else
                 if ($(event.target).is('button')){
                         $('#btnCancel').trigger('click');
                         setTimeout(function(){ window.close();}, 100);
@@ -489,7 +488,7 @@ if(!($max_size>0)) {$max_size = 0;}
 
             function registerFile(files, do_register){
 
-                let prepare_file = $('input[name="registerFiles"]').is(':checked');
+                let prepare_file = true; //$('input[name="registerFiles"]').is(':checked');
 
                 if(!prepare_file){
                     to_reg_count = 1;
@@ -497,8 +496,9 @@ if(!($max_size>0)) {$max_size = 0;}
                 }
 
                 const base_path = $('#upload_folder').val();
-                let base_folder = base_path.split('/');
-                base_folder = base_folder[base_folder.length-1];
+                //let base_folder = base_path.split('/');
+                //base_folder = base_folder[base_folder.length-1];
+                let base_folder = base_path;
 
                 if(files && files.length > 0){
 
@@ -523,7 +523,7 @@ if(!($max_size>0)) {$max_size = 0;}
 
                 if(do_register && files_to_register.length == to_reg_count && files_to_register.length > 0){
 
-                    var request = {
+                    const request = {
                         'a'          : 'batch',
                         'entity'     : 'recUploadedFiles',
                         'request_id' : window.hWin.HEURIST4.util.random(),
@@ -555,15 +555,7 @@ if(!($max_size>0)) {$max_size = 0;}
 
                 //ART 2021-09-17 $(document).on("mouseleave", closeCheck);
 
-                // Initialize the jQuery File Upload widget:
-                $('#fileupload').fileupload({
-                    // Uncomment the following to send cross-domain cookies:
-                    //xhrFields: {withCredentials: true},
-                    //formData: {name: 'acceptFileTypes', value:"echo implode('|',$allowed_exts)" },
-                    //upload_thumb_dir: '<?=HEURIST_THUMB_DIR?>',
-                    url: '<?=HEURIST_BASE_URL?>hserv/utilities/UploadHandlerInit.php', //was external/jquery-file-upload/server/php/
-                    added: function(e, data){
-
+                function __calculateTotalSizeToBeUploaded(){
                         //verify that all files are processed and show total size to be uploaded
                         var ele = $('tbody.files');
                         var size = 0;
@@ -574,20 +566,22 @@ if(!($max_size>0)) {$max_size = 0;}
                                 return false;
                             }else{
                                 var filesize = Number($(item).attr('file-size'));
-                                if(max_file_size>0 && filesize > max_file_size){
-                                    var template = $(item).parents('tr');
-                                    template.find('button.start').prop('disabled',true).css('color','lightgray');
-                                    $(item).text(window.hWin.HEURIST4.util.formatFileSize(filesize)+' !')
-                                        .attr('title', max_file_size_msg)
-                                        .css('color', 'red');
+                                if(!isNaN(filesize)){
+                                    if(max_file_size>0 && filesize > max_file_size){
+                                        var template = $(item).parents('tr');
+                                        template.find('button.start').prop('disabled',true).css('color','lightgray');
+                                        $(item).text(window.hWin.HEURIST4.util.formatFileSize(filesize)+' !')
+                                            .attr('title', max_file_size_msg)
+                                            .css('color', 'red');
 
-                                    var data = template.data('data') || {};
-                                    if(data.files){ //prevent upload
-                                        data.files[0].error = max_file_size_msg;
+                                        var data = template.data('data') || {};
+                                        if(data.files){ //prevent upload
+                                            data.files[0].error = max_file_size_msg;
+                                        }
+
+                                    }else{
+                                        size = size + filesize;
                                     }
-
-                                }else{
-                                    size = size + filesize;
                                 }
                             }
                         });
@@ -606,9 +600,20 @@ if(!($max_size>0)) {$max_size = 0;}
                             $('#btnStart').button('option','label','Start uploads')
                                           .removeClass('ui-button-action');
                         }
+                }
 
+                // Initialize the jQuery File Upload widget:
+                $('#fileupload').fileupload({
+                    // Uncomment the following to send cross-domain cookies:
+                    //xhrFields: {withCredentials: true},
+                    //formData: {name: 'acceptFileTypes', value:"echo implode('|',$allowed_exts)" },
+                    //upload_thumb_dir: '<?=HEURIST_THUMB_DIR?>',
+                    url: '<?=HEURIST_BASE_URL?>hserv/utilities/UploadHandlerInit.php', //was external/jquery-file-upload/server/php/
+                    added: function(e, data){
+                        __calculateTotalSizeToBeUploaded();
                     },
                     finished: function(e, data){
+                        __calculateTotalSizeToBeUploaded();
 
                         var ele = $('tbody.files');
                         var cnt = ele.find('.template-download').length;
@@ -680,7 +685,10 @@ if(!($max_size>0)) {$max_size = 0;}
                             }}, {'yes': 'OK', 'title': 'File upload warnings'});
 
                         }else if (swarns!='') {
-                            window.hWin.HEURIST4.msg.showMsgErr(swarns);
+                            window.hWin.HEURIST4.msg.showMsgErr({
+                                message: swarns,
+                                error_title: 'File upload warnings'
+                            });
                         }
 
                         if(e.originalEvent.type != 'done' && data.result?.files){
@@ -690,7 +698,7 @@ if(!($max_size>0)) {$max_size = 0;}
                     }
                 });
 
-                $('#btnCancel').on('click', function(e){
+                $('#btnCancel').on('click', function(e){ //clear list
 
                     if($('#btnCancel').button('option','label')=='Clear list'){
                         $('tbody.files').find('.template-download').remove();
@@ -723,7 +731,7 @@ if(!($max_size>0)) {$max_size = 0;}
                                   .removeClass('ui-button-action');
                     $('#btnCancel').button('option','label','Cancel uploads');
 
-                    to_reg_count = $('input[name="registerFiles"]').is(':checked') ? $('.template-upload').length : 1;
+                    to_reg_count = $('.template-upload').length; //$('input[name="registerFiles"]').is(':checked') ? $('.template-upload').length : 1;
 
                     // add coverall
                     window.hWin.HEURIST4.msg.bringCoverallToFront($('table[role="presentation"]'), {'font-size': '16px', color: 'white', position: 'relative'}, 'Uploading all files...');
@@ -731,8 +739,8 @@ if(!($max_size>0)) {$max_size = 0;}
 
                 //cancel and close window
                 $('#btnFinished')
-                        .button({icons:{primary: 'ui-icon-check'}})
-                        .click( function(e){
+                        .button({icon: 'ui-icon-check'})
+                        .on('click', function(e){
                             e.preventDefault();
                             closeCheck(e);
                             return false;
@@ -797,7 +805,7 @@ if(!($max_size>0)) {$max_size = 0;}
 
                             var buttons = {};
                             buttons[window.hWin.HR('OK')] = function(){
-                                    ele.click();
+                                    ele.trigger('click');
                                     $dlg.dialog('close');
                                 };
                             buttons[window.hWin.HR('Cancel')] = function(){
@@ -807,7 +815,7 @@ if(!($max_size>0)) {$max_size = 0;}
                             $dlg = window.hWin.HEURIST4.msg.showMsgDlg(msg, buttons,
                             'Uploading FOLDER and sub-folders', { default_palette_class: 'ui-heurist-populate' });
                         }else{
-                            ele.click();
+                            ele.trigger('click');
                         }
                     }
                 });

@@ -298,8 +298,7 @@ window.hWin.HEURIST4.dbs = {
 
     createRectypeStructureTree_new: function( options )
     {
-        let db_structure = options.db_structure,
-            $mode = options.mode,
+        let $mode = options.mode,
             rectypeids = options.rectypeids,
             fieldtypes = options.fieldtypes,
             parentcode = options.parentcode,
@@ -335,12 +334,11 @@ window.hWin.HEURIST4.dbs = {
      */    
         
 
-    function __getRecordTypeTree($recTypeId, $recursion_depth, $mode, $fieldtypes, $pointer_fields, $is_parent_relmarker){
+    function __getRecordTypeTree($recTypeId, $recursion_depth, $mode, $fieldtypes, $pointer_fields, $is_parent_relmarker, is_multi_constrained){
             
             let $res = {};
             let $children = [];
             let $dtl_fields = [];
-            let headerFields = [];
             
             //add default fields - RECORD TYPE HEADER
             if($mode==3){
@@ -358,7 +356,8 @@ window.hWin.HEURIST4.dbs = {
                 }
             }else
             if($recursion_depth==0 && $fieldtypes.length>0){    
-                 //include record header fields
+                
+                //include record header fields
                 let all_header_fields = $fieldtypes.indexOf('header_ext')>=0;
                 if($fieldtypes.indexOf('header')>=0){
                     $fieldtypes.push('title');
@@ -374,7 +373,7 @@ window.hWin.HEURIST4.dbs = {
                 }
 
                 if(all_header_fields || $fieldtypes.indexOf('title')>=0 || $fieldtypes.indexOf('rec_Title')>=0){
-                    //$children.push();
+                   
                     recTitle_item = {key:'rec_Title', type:'freetext',
                         title:('Title'+($mode!=7?' <span style="font-size:0.7em">(Constructed Text)</span>':'')), 
                         code:($recTypeId+_separator+'title'), name:'Record title'};
@@ -442,28 +441,47 @@ window.hWin.HEURIST4.dbs = {
                         let dc = window.hWin.HAPI4.sysinfo['dbconst'];
                         
                         let $rl_children = [];
-                        $rl_children.push({type:'reltype',
-                            title:'Relationship type', 
-                            code:(rt_id+_separator+'r.'+dc['DT_RELATION_TYPE']), name:'Relationship type'}); 
-                        $rl_children.push({type:'date',
-                            title:'Relationship Start Date', 
-                            code:(rt_id+_separator+'r.'+dc['DT_START_DATE']), name:'Start Date'});
-                            
-                        $rl_children.push({type:'date',
-                            title:'Relationship End Date', 
-                            code:(rt_id+_separator+'r.'+dc['DT_END_DATE']), name:'End Date'});
-                        $rl_children.push({type:'freetext',
-                            title:'Relationship Name', 
-                            code:(rt_id+_separator+'r.'+dc['DT_NAME']), name:'Name'});
-                        $rl_children.push({type:'freetext',
-                            title:'Relationship Description', 
-                            code:(rt_id+_separator+'r.'+dc['DT_SHORT_SUMMARY']), name:'Description'});
-                        $rl_children.push({type:'enum',
-                            title:'Relationship interpretation reference', 
-                            code:(rt_id+_separator+'r.'+dc['DT_INTERPRETATION_REFERENCE']), name:'Interpretation Reference'});
                         
+                        let $details = $Db.rst(rt_id);
+                        $details.each2(function($dtID, $dtValue){
+                            
+                            let $dt_type = $Db.dty($dtID,'dty_Type');
+                            if( $dtValue['rst_RequirementType']=='forbidden' ||
+                                $dt_type == 'separator' ||
+                                $dtID == dc['DT_TARGET_RESOURCE'] ||
+                                $dtID == dc['DT_PRIMARY_RESOURCE'] 
+                                ){
+                                return;    
+                            }
+                            
+                            if($dtID == dc['DT_RELATION_TYPE']){
+                                $dt_type = 'reltype';
+                            }    
+                            
+                            let titleR = $dtValue['rst_DisplayName'];
+                            if(titleR.indexOf('Relationship ')<0){
+                                titleR = 'Relationship '+titleR;
+                            }
+                                
+                            $rl_children.push({type:$dt_type,
+                                title: titleR, 
+                                code:(rt_id+_separator+'r.'+$dtID), name:$dtValue['rst_DisplayName']});
+                            
+                        });
+
                         $grouped.push(
-                            {title:'<span style="font-style:italic">Relationship Fields</span>', folder:true, is_generic_fields:true, children:$rl_children});
+                            {title:'<span style="font-style:italic">Relationship Fields</span>', folder:true, 
+                                        is_generic_fields:true, children:$rl_children});
+                            
+                    }else if($mode==5 && $recTypeId>0){ //for search builder
+                        
+                        const rty_Name = $Db.rty($recTypeId, 'rty_Name');
+
+                        $grouped.push( {code:`${$recTypeId}:exists`,
+                            key: 'exists',
+                            name: rty_Name,
+                            title: `${rty_Name} records`,
+                            type: 'freetext'} );
                     }
 
                     if(recTitle_item){
@@ -479,14 +497,15 @@ window.hWin.HEURIST4.dbs = {
 
             if($recTypeId>0 && $Db.rty($recTypeId,'rty_Name')){//---------------
 
+                const rty_Name = $Db.rty($recTypeId,'rty_Name');
+            
                 $res['key'] = $recTypeId;
-                $res['title'] = $Db.rty($recTypeId,'rty_Name');
+                $res['title'] = rty_Name;
                 $res['type'] = 'rectype';
                 
                 $res['conceptCode'] = $Db.getConceptID('rty', $recTypeId);
                 $res['rtyID_local'] = $recTypeId; //$Db.getLocalID('rty', $rt_conceptcode); //for import structure
-                                
-                                                                                                                  
+                
                 if(($mode<5 || $recursion_depth==0)){
 
 
@@ -504,7 +523,7 @@ window.hWin.HEURIST4.dbs = {
                             let $ffr = {};
                             $ffr['rst_DisplayName'] = 'Parent entity';
                             $ffr['rst_PtrFilteredIDs'] = $parent_Rts.join(',');
-                            //$ffr['dty_Type'] = 'resource';
+                           
                             $ffr['rst_DisplayHelpText'] = 'Reverse pointer to parent record';
                             $ffr['rst_RequirementType'] = 'optional';
                             $ffr['rst_DisplayOrder'] = '0'; // place at top
@@ -560,7 +579,7 @@ window.hWin.HEURIST4.dbs = {
 
                                             if(separate_meta_fields){
                                                 // remove constructed title and metadata, keep fields node
-                                                //$res_dt['children'][i]['children'] = $res_dt['children'][i]['children'].slice(0, 2);
+                                               
 
                                                 // move fields out of sub-heading
                                                 let fields = $res_dt['children'][i]['children'].pop();
@@ -598,7 +617,7 @@ window.hWin.HEURIST4.dbs = {
 
                     }
                     
-                    //add resource and relation at the end of result array
+                    //add record pointer and relation at the end of result array
                     $dtl_fields = $dtl_fields.concat($children_links);
 
                     $dtl_fields.sort(function(a,b){
@@ -670,7 +689,24 @@ window.hWin.HEURIST4.dbs = {
                 $children.push({code:'recRelationNotes', title:'Relation Notes'});
                 $children.push({code:'recRelationStartDate', title:'Relation StartDate'});
                 $children.push({code:'recRelationEndDate', title:'Relation EndDate'});
-                
+
+                if($mode == 7){
+
+                    let skip = [
+                        window.hWin.HAPI4.sysinfo.dbconst.DT_PRIMARY_RESOURCE, window.hWin.HAPI4.sysinfo.dbconst.DT_TARGET_RESOURCE,
+                        window.hWin.HAPI4.sysinfo.dbconst.DT_RELATION_TYPE, window.hWin.HAPI4.sysinfo.dbconst.DT_SHORT_SUMMARY,
+                        window.hWin.HAPI4.sysinfo.dbconst.DT_START_DATE, window.hWin.HAPI4.sysinfo.dbconst.DT_END_DATE
+                    ];
+                    $Db.rst(window.hWin.HAPI4.sysinfo.dbconst.RT_RELATION).each2((dty_ID, rst_Fields) => {
+
+                        if(skip.indexOf(dty_ID) >= 0){
+                            return;
+                        }
+
+                        $children.push({code: dty_ID, title: `Relation ${rst_Fields.rst_DisplayName}`})
+                    });
+                }
+
                 $res['children'] = $children;
                 
             }else if($mode==5 || $mode==6) //----------------------------------- for query builder and facet search tree
@@ -724,7 +760,7 @@ window.hWin.HEURIST4.dbs = {
                         return (a['display_order']<b['display_order'])?-1:1;
                     });
                     
-                    //add resource and relation at the end of result array
+                    //add record pointer and relation at the end of result array
                     $children = $children.concat($children_links);                    
                     
                 }*/
@@ -779,7 +815,6 @@ window.hWin.HEURIST4.dbs = {
         
         let $dt_label   = $dtValue['rst_DisplayName'];
         let $dt_title   = $dtValue['rst_DisplayName'];
-        let $dt_tooltip = $dtValue['rst_DisplayHelpText']; //help text
         let $dt_conceptcode   = $Db.getConceptID('dty', $dtID);
         let $dt_display_order = $dtValue['rst_DisplayOrder'];
         
@@ -844,7 +879,7 @@ window.hWin.HEURIST4.dbs = {
                             $res = __getRecordTypeTree($recTypeId, $recursion_depth+1, $mode, $fieldtypes, $pointer_fields);
                             if($res){
                                 $res['rt_ids'] = $recTypeId; //list of rectype - constraint
-                                //$res['reverse'] = "yes";
+                               
                                 $pref = ($detailType=="resource")?"lf":"rf";
 
                                 $dt_title = "<span>&lt;&lt; <span style='font-weight:bold'>" 
@@ -862,7 +897,8 @@ window.hWin.HEURIST4.dbs = {
 
                                 $res['isreverse'] = 1;
                             }
-                    }else{
+                    }
+                    else{
 
                             $pref = ($detailType=="resource")?"lt":"rt";
 
@@ -884,7 +920,7 @@ window.hWin.HEURIST4.dbs = {
                             
                             if($pointerRecTypeId=="" || $rectype_ids.length==0){ //unconstrainded
                                                     //
-                                //$res['constraint'] = 0;
+                               
                                 if($mode==5){
                                     $res['rt_ids'] = '';
                                     $res['lazy'] = true;
@@ -957,7 +993,7 @@ window.hWin.HEURIST4.dbs = {
                     
                 let $stype = ($detailType=='resource' || $detailType=='relmarker' || $detailType=='separator')?'':$Db.baseFieldType[$detailType];
                 if($reverseRecTypeId!=null){
-                    //before 2017-06-20  $stype = $stype."linked from";
+                   
                     $res['isreverse'] = 1;
                 }
                 if($stype!=''){
@@ -1019,23 +1055,39 @@ window.hWin.HEURIST4.dbs = {
 
         rectypeids = (!Array.isArray(rectypeids)?rectypeids.split(','):rectypeids);    
 
+        let is_multi_constrained = parentcode?rectypeids?.length:0;
+        let pointer_field_id = null;
+            
+        let is_parent_relmarker = false;
+        if(parentcode!=null){
+            let codes = parentcode.split(_separator);
+            if(codes.length>0){
+                let lastcode = codes[codes.length-1];
+                is_parent_relmarker = (lastcode.indexOf('rt')==0 || lastcode.indexOf('rf')==0);
+                
+                if(lastcode.indexOf('lt')==0 && is_multi_constrained==1){
+                   pointer_field_id =  lastcode.substr(2); 
+                }else{
+                   is_multi_constrained = 0;
+                }
+            }
+        }
+        
         //create hierarchy tree 
         for (let k=0; k<rectypeids.length; k++) {
             let rectypeID = rectypeids[k];
             
-            let $is_parent_relmarker = false;
-            if(parentcode!=null){
-                let codes = parentcode.split(_separator);
-                if(codes.length>0){
-                    let lastcode = codes[codes.length-1];
-                    $is_parent_relmarker = (lastcode.indexOf('rt')==0 || lastcode.indexOf('rf')==0);
-                }
-            }
-            
-            let def = __getRecordTypeTree(rectypeID, 0, $mode, fieldtypes, null, $is_parent_relmarker);
+            let def = __getRecordTypeTree(rectypeID, 0, $mode, fieldtypes, null, is_parent_relmarker, is_multi_constrained);
             
                 if(def!==null) {
                     if(parentcode!=null){
+                        
+                        /*if(pointer_field_id && def['code']==''){
+                            //special case: search existance or count for single constrained pointer
+                            let codes = parentcode.split(_separator);
+                            codes[codes.length-1] = pointer_field_id; 
+                            def['code'] = codes.join(_separator);
+                        }else   */
                         if(def['code']){
                             def['code'] = parentcode+_separator+def['code'];
                         }else{
@@ -1044,7 +1096,7 @@ window.hWin.HEURIST4.dbs = {
                     }
                     //asign codes
                     if(Array.isArray(def['children'])){
-                        //def['children'].unshift({});
+                       
                         def = __assignCodes(def);
                         res.push( def );
                     }                    
@@ -1486,12 +1538,6 @@ window.hWin.HEURIST4.dbs = {
      */
     rst: function(rec_ID, dty_ID, fieldName, newValue){
         
-        //fieldnames for backward capability
-        let dfname = null;
-        if(fieldName) dfname = $Db.rst_to_dtyField( fieldName );
-        if(dfname){
-            return $Db.dty(dty_ID, dfname);
-        }else{
             //direct access (without check and reload)
             let rectype_structure = window.hWin.HAPI4.EntityMgr.getEntityData2('rst_Index');
             
@@ -1502,7 +1548,6 @@ window.hWin.HEURIST4.dbs = {
                     return rectype_structure[rec_ID];            
                 }
             }
-        }
         return null
         
     },
@@ -1580,24 +1625,6 @@ window.hWin.HEURIST4.dbs = {
             }
             
         }
-    },
-    
-    //
-    // Some fields in rectype structure are taken from basefield (dty) directly
-    //
-    rst_to_dtyField: function(fieldName)
-    {
-        let dfname = null;
-        if(fieldName=='rst_FilteredJsonTermIDTree') dfname='dty_JsonTermIDTree'
-        else if(fieldName=='rst_PtrFilteredIDs') dfname='dty_PtrTargetRectypeIDs'
-        //else if(fieldName=='rst_TermIDTreeNonSelectableIDs') dfname='dty_TermIDTreeNonSelectableIDs' //not used anymore
-        else if( //fieldName=='dty_TermIDTreeNonSelectableIDs' || fieldName=='dty_FieldSetRectypeID' || 
-                fieldName=='dty_Type')
-        {
-            dfname = fieldName; 
-        } 
-        
-        return null;
     },
     
 /*    
@@ -1782,6 +1809,12 @@ window.hWin.HEURIST4.dbs = {
         }
         return null;
     },
+    
+    trmHasIcon: function(term_id){
+        let ids = window.hWin.HAPI4.EntityMgr.getEntityData2('trm_Icons');
+        return window.hWin.HEURIST4.util.isempty(ids)   //temp - remove later
+            || window.hWin.HEURIST4.util.findArrayIndex(term_id, ids)>=0; //ids.indexOf(term_id)>=0;
+    },
 
     
     //
@@ -1799,8 +1832,6 @@ window.hWin.HEURIST4.dbs = {
     // Sort by 'Order in branch' then 'Term label'
     //
     trm_SortingById: function(a, b){
-
-        //var recset = window.hWin.HAPI4.EntityMgr.getEntityData('defTerms');
 
         let a_name = $Db.trm(a,'trm_Label').toLocaleUpperCase();
         let b_name = $Db.trm(b,'trm_Label').toLocaleUpperCase();
@@ -1846,16 +1877,10 @@ window.hWin.HEURIST4.dbs = {
             else mode='flat';
         }
         
-        //if(mode == 'tree' || mode == 'select'){ // get translated labels for particular language
-        //    translated_labels = $Db.trm_getTranslatedLabels(vocab_id, language);
-        //}        
-
         function __addChilds(recID, lvl_parents, include_vocab){
         
             let label = $Db.trm_getLabel(recID, language);
-            //translated_labels ? translated_labels[recID] : recset.fld(recID, 'trm_Label');
-        
-            //recID = parseInt(recID);
+
             let node = {title: label, key: recID};
             
             if(include_vocab && lvl_parents==0){
@@ -1879,7 +1904,7 @@ window.hWin.HEURIST4.dbs = {
                 }
 
                 //sort children by name
-                //children = window.hWin.HEURIST4.util.merge_sort(children, $Db.trm_SortingById);
+               
                 children.sort($Db.trm_SortingById);
                 
                 if(mode=='tree'){
@@ -2056,7 +2081,7 @@ window.hWin.HEURIST4.dbs = {
             }else{
                 t_idx[new_parent_id] = children;
             }
-           //window.hWin.HAPI4.EntityMgr.setEntityData('trm_Links',t_idx);
+           
         }
     },
     
@@ -2302,7 +2327,7 @@ window.hWin.HEURIST4.dbs = {
         if(new_parent_id>0){
             if(!t_idx[new_parent_id]) t_idx[new_parent_id] = []; 
             if(Array.isArray(term_ID)){
-                //t_idx[new_parent_id] = t_idx[new_parent_id].concat( term_ID );
+               
 
                 for(let i=0; i<term_ID.length; i++)
                     if(window.hWin.HEURIST4.util.findArrayIndex(term_ID[i], t_idx[new_parent_id])<0){
@@ -2451,24 +2476,18 @@ window.hWin.HEURIST4.dbs = {
                 rtid = rtid.split(',')[0];
             }
             
-            if(rtid==''){
-
-                if(dtid=='typeid' || dtid=='typename'){
-                    //dtid = null;
-                    //harchy.push(' . '+rec_header);
-                    //harchy_fields.push(rec_header);
+            if(rtid!=''){
+                if(rtid=='any'){
+                    harchy.push('');    
+                    if(top_rty_ID>0) rtid = top_rty_ID;
+                    
+                }else if($Db.rty(rtid)==null){
+                    //record type was removed - remove facet
+                    removeFacet = true;
+                    break;
+                }else{
+                    harchy.push('<b>'+$Db.rty(rtid,'rty_Name')+'</b>');    
                 }
-            
-            }else if(rtid=='any'){
-                harchy.push('');    
-                if(top_rty_ID>0) rtid = top_rty_ID;
-                
-            }else if($Db.rty(rtid)==null){
-                //record type was removed - remove facet
-                removeFacet = true;
-                break;
-            }else{
-                harchy.push('<b>'+$Db.rty(rtid,'rty_Name')+'</b>');    
             }
 
             let rec_header = null;
@@ -2534,7 +2553,7 @@ window.hWin.HEURIST4.dbs = {
                                 break;
                             }
 
-                            harchy.push(' . '+sFieldName+' > '); //&gt;
+                            harchy.push(' . '+sFieldName+' > ');
                             harchy_fields.push(sFieldName);
                         }else{
                             let from_rtid = codes[j+2];
@@ -2628,7 +2647,6 @@ window.hWin.HEURIST4.dbs = {
 
                         let cfn_record = recset.getFirstRecord();
                         let cfn_Content = recset.fld(cfn_record, 'cfn_FunctionSpecification');
-                        let cfn_Name = recset.fld(cfn_record, 'cfn_Name');
 
                         //find affected record types
                         //finds all fields with rst_CalcFunctionID = cfn_ID
@@ -2651,49 +2669,52 @@ window.hWin.HEURIST4.dbs = {
                                         });
                                     }
                                     
-                                    let surl = window.hWin.HAPI4.baseURL + 'viewers/smarty/showReps.html?db=' + window.hWin.HAPI4.database;
+                                    let popup_dialog_options = {path: 'widgets/report/', 
+                                                default_palette_class: 'ui-heurist-design',
+                                                title: 'Edit calculation field',
+                                                keep_instance:false, 
+                                                
+                                                is_snippet_editor: true, 
+                                                rty_ID:rectypes, 
+                                                rec_ID:0,
+                                                template_body:cfn_Content,
+                                                
+                                                onClose: function(context){
+                                                    if(!context) return;
 
-                                    window.hWin.HEURIST4.msg.showDialog( 
-                                        surl,
-                                        {width:900, height:700, 
-                                            title: 'Edit calculation field', 
-                                            default_palette_class: 'ui-heurist-design', 
-                                            params:{content: cfn_Content, rty_IDs:rectypes, rec_ID:0}, 
-                                            callback: function(context){
-                                                if(!context) return;
+                                                    //save new formula
+                                                    let request = {
+                                                        'a'          : 'save',
+                                                        'entity'     : 'defCalcFunctions',
+                                                        'request_id' : window.hWin.HEURIST4.util.random(),
+                                                        'fields'     : {cfn_ID:cfn_ID, cfn_FunctionSpecification:context}
+                                                    };
+                                                    window.hWin.HAPI4.EntityMgr.doRequest(request, 
+                                                        function(response){
+                                                            if(response.status == window.hWin.ResponseStatus.OK){
+                                                                //update caclulated fields
+                                                                if(rectypes && rectypes.length>0){
 
-                                                //save new formula
-                                                let request = {
-                                                    'a'          : 'save',
-                                                    'entity'     : 'defCalcFunctions',
-                                                    'request_id' : window.hWin.HEURIST4.util.random(),
-                                                    'fields'     : {cfn_ID:cfn_ID, cfn_FunctionSpecification:context}
-                                                };
-                                                window.hWin.HAPI4.EntityMgr.doRequest(request, 
-                                                    function(response){
-                                                        if(response.status == window.hWin.ResponseStatus.OK){
-                                                            //update caclulated fields
-                                                            if(rectypes && rectypes.length>0){
+                                                                    let sURL = window.hWin.HAPI4.baseURL + 'admin/verification/longOperationInit.php?type=calcfields&db='
+                                                                    +window.hWin.HAPI4.database+"&recTypeIDs="+rectypes.join(',');
 
-                                                                let sURL = window.hWin.HAPI4.baseURL + 'admin/verification/longOperationInit.php?type=calcfields&db='
-                                                                +window.hWin.HAPI4.database+"&recTypeIDs="+rectypes.join(',');
+                                                                    window.hWin.HEURIST4.msg.showDialog(sURL, {
 
-                                                                window.hWin.HEURIST4.msg.showDialog(sURL, {
+                                                                        "close-on-blur": false,
+                                                                        "no-resize": true,
+                                                                        height: 400,
+                                                                        width: 550,
+                                                                        afterclose: main_callback
+                                                                    });                                                            
 
-                                                                    "close-on-blur": false,
-                                                                    "no-resize": true,
-                                                                    height: 400,
-                                                                    width: 550,
-                                                                    afterclose: main_callback
-                                                                });                                                            
-
+                                                                }
+                                                            }else{
+                                                                window.hWin.HEURIST4.msg.showMsgErr(response);
                                                             }
-                                                        }else{
-                                                            window.hWin.HEURIST4.msg.showMsgErr(response);
-                                                        }
-                                                });
-
-                                    }})
+                                                    });
+                                                }
+                                    };
+                                    window.hWin.HEURIST4.ui.showRecordActionDialog('reportEditor', popup_dialog_options);
 
                                 }else{
                                     window.hWin.HEURIST4.msg.showMsgErr(response);
@@ -2860,7 +2881,7 @@ window.hWin.HEURIST4.dbs = {
         let arr_idx = {}; // id to array idx
         for(const rty_id of rty_IDs){ // Get base fields and instances for each rectype
 
-			//const rty_id = rty_IDs[idx];
+		
 			const rty_name = $Db.rty(rty_id, 'rty_Name');
 
 			const recset = $Db.rst(rty_id);
@@ -2917,7 +2938,7 @@ window.hWin.HEURIST4.dbs = {
             const show_in_list = field[3];
 
             if(mode == 1){
-                //let title = dty_title + '<div style="padding-left: 10px;">' + rst_titles.join('<br>') + '</div>';
+               
                 processed_fields.push({key: dty_id, title: dty_title, hidden: show_in_list});
 
                 for(const rst_title of rst_titles){
@@ -3005,4 +3026,4 @@ window.hWin.HEURIST4.dbs = {
 
 }
 //alias
-var $Db = window.hWin.HEURIST4.dbs;
+window.$Db = window.hWin.HEURIST4.dbs;

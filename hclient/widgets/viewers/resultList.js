@@ -209,37 +209,35 @@ $.widget( "heurist.resultList", {
         if(this.options.widget_id){ //outdated
             this.element.attr('data-widgetid', this.options.widget_id);
         }
+        
+        this.element.css('overflow','hidden');
 
-        if(this.options.pagesize<50 || this.options.pagesize>5000){
-            if(this.options.blog_result_list==true){
-                this.options.pagesize = 10;
-            }
-            else{
-                this.options.pagesize = window.hWin.HAPI4.get_prefs('search_result_pagesize');
-                if(!this.options.pagesize) this.options.pagesize = 50;
-            }
+        if(this.options.blog_result_list==true){
+            this.options.pagesize = 10;
+        }else if(this.options.pagesize<50 || this.options.pagesize>5000){
+            this.options.pagesize = window.hWin.HAPI4.get_prefs('search_result_pagesize');
         }
 
         this.options.empty_remark = this.options.empty_remark=='def' ? window.hWin.HR('resultList_empty_remark') : this.options.empty_remark;
         this.options.placeholder_text = this.options.placeholder_text=='def' ? '' : this.options.placeholder_text;
 
-        this._is_publication  = this.element.parent().attr('data-heurist-app-id') || this.element.hasClass('cms-element');
-        
-        //this.element.css({'font-size':'0.9em'});
+        this._is_publication = window.hWin.HAPI4.is_publish_mode;
 
         // Auto select record(s), retrieved from url
         let rec_ids = window.hWin.HEURIST4.util.getUrlParameter('rec_id', location.href);
         if(!rec_ids && window.hWin.HAPI4.sysinfo.use_redirect){
 
-            let url = location.href;
+            let url = location.pathname;
 
             rec_ids = url.indexOf('/website/') > 0 ? url.substring(url.indexOf('/website/')+9) : url.substring(url.indexOf('/web/')+5);
             rec_ids = rec_ids.split('/');
+            rec_ids.pop(); // last entry is empty
             rec_ids = rec_ids.length > 2 ? rec_ids.splice(0, 2) : null;
         }
 
         if(!window.hWin.HEURIST4.util.isempty(rec_ids)){
             this._auto_select_record = Array.isArray(rec_ids) ? rec_ids : rec_ids.split(',');
+            this._auto_select_record = this._auto_select_record.filter((rec_ID) => !window.hWin.HEURIST4.util.isempty(rec_ID) && rec_ID > 0);
         }
 
         this._initControls();
@@ -273,7 +271,6 @@ $.widget( "heurist.resultList", {
                 }else 
                 if(e.type == window.hWin.HAPI4.Event.ON_REC_COLLECT){
                 
-                    //if(!that._isSameRealm(data)) return;
                     that.setCollected( data.collection );
                 
                 }else 
@@ -306,7 +303,7 @@ $.widget( "heurist.resultList", {
                         
                         //fake restart
                         that.clearAllRecordDivs('');
-                        //that.loadanimation(true);
+                       
                         that._renderStartupMessageComposedFromRecord();
                         
                     }else{
@@ -352,7 +349,7 @@ $.widget( "heurist.resultList", {
                             
                             if(that.search_save_hint){
                                 that.search_save_hint.attr('show_hint', data.qname?0:1);
-                                //that.search_save_hint.show('slide', {}, 1000); //.animate({left: '250px'});
+                               
                             }
                             
 
@@ -374,7 +371,7 @@ $.widget( "heurist.resultList", {
                 }else if(e.type == window.hWin.HAPI4.Event.ON_REC_SEARCH_FINISH){
 
                     //accept events from the same realm only
-                    if(!that._isSameRealm(data)) return;
+                    if(!that._isSameRealm(data) || data?.showing_subset) return;
 
                     that._currentSubset = null; // override current subset
                     that._isCollectionUsed = false;
@@ -447,7 +444,6 @@ $.widget( "heurist.resultList", {
 
                     //this selection is triggered by some other app - we have to redraw selection
                     if(data && data.source!=that.element.attr('id')) {
-                        
                         if(!that._isSameRealm(data)){
                             that.setSelected(null);
                         }else if(data.reset){ //clear selection
@@ -455,6 +451,15 @@ $.widget( "heurist.resultList", {
                         }else if(data.subset_only){
                             that._currentSubset = that._currentRecordset.getSubSetByIds(data.selection);
                             that._renderPage(0);
+
+                            const query = that._currentSubset.length() > 0 ? `ids:${that._currentSubset.getIds().join(',')}` : '';
+
+                            $(that.document).trigger(window.hWin.HAPI4.Event.ON_REC_SEARCH_FINISH, {
+                                recordset: that._currentSubset,
+                                showing_subset: true,
+                                search_realm: that.options.search_realm,
+                                query: query
+                            });
                         }else{
                             that.setSelected(data.selection);        
                         }
@@ -513,7 +518,7 @@ $.widget( "heurist.resultList", {
                     that._renderPage(that.current_page);
                 }
                 
-                //that._refresh();
+               
             });
 
         }
@@ -577,7 +582,7 @@ $.widget( "heurist.resultList", {
 
             $('<div class="result-list-header ui-widget-content" ' //was ui-heurist-heade
             + 'style="font-size:1em;text-align:left;padding-left:12px;position:relative;'
-            + 'font-weight: bold;letter-spacing: 0.26px;padding:10px;"/>')
+            + 'font-weight: bold;letter-spacing: 0.26px;padding:10px;"></div>')
                 .appendTo( this.div_header );
         }else{
         
@@ -655,8 +660,7 @@ $.widget( "heurist.resultList", {
                     else if(key=='edit_ext') btn_icon = 'ui-icon-newwin'
                         else if(key=='delete') btn_icon = 'ui-icon-minus';
 
-                btn_icon = {primary: btn_icon};
-                $('<div>',{'data-key':key}).button({icons: btn_icon, text:true, label:window.hWin.HR(title) })
+                $('<div>',{'data-key':key}).button({icon: btn_icon, showLabel:true, label:window.hWin.HR(title) })
                 .appendTo(this.action_buttons_div)
                 .on('click', function( event ) {
                     let key = $(event.target).parent().attr('data-key');
@@ -686,7 +690,7 @@ $.widget( "heurist.resultList", {
 
             this.btn_actions = $( "<button>" )
             .appendTo( this.action_buttons_div )
-            .button({icons: { secondary: "ui-icon-triangle-1-s"}, text:true, label: window.hWin.HR("Actions")});
+            .button({iconPosition:'end', icon:'ui-icon-triangle-1-s', showLabel:true, label: window.hWin.HR("Actions")});
 
             this._on( this.btn_actions, {
                 click: function() {
@@ -728,7 +732,7 @@ $.widget( "heurist.resultList", {
                     if(this._is_fancybox_active){
                         if(this._rec_onpage){
                             this.div_content.mediaViewer({selector:'.realThumb', search_initial:'ids:'+this._rec_onpage.join(',') });            
-                            //setTimeout(function(){that.div_content.mediaViewer('show');},1000);
+                           
                         }
                         this.fancybox_button.css({'border':'1px solid', background: '#dbdcfd'}); //, background: '#ddd'
                     }else{
@@ -737,12 +741,13 @@ $.widget( "heurist.resultList", {
                         if(this.div_content.mediaViewer('instance')) this.div_content.mediaViewer('clearAll');
                     }
                     
-                    //window.hWin.HAPI4.save_pref('rec_list_viewmode_'+this.options.entityName, view_mode);
+                    
             }});
         }
 
-        // Check if allow_record_content_view needs to be overwritten
-        this.options.allow_record_content_view = !this._is_publication || this.options.blog_result_list || this.options.allow_record_content_view || this.options.view_mode == 'record_view';
+        // Check if allow_record_content_view needs to be overwritten, always hide in backend
+        this.options.allow_record_content_view = this._is_publication && (this.options.blog_result_list || this.options.allow_record_content_view);
+        this.options.export_options = !this._is_publication ? 'csv' : this.options.export_options;
 
         //------------------
         let smodes = '<button value="list" class="btnset_radio"/>'
@@ -752,7 +757,7 @@ $.widget( "heurist.resultList", {
 
         if(this.options.entityName=='records' && this.options.allow_record_content_view){
             smodes += '<button value="record_content" class="btnset_radio"/>';
-            //smodes += '<button value="tabs" class="btnset_radio"/>';
+           
         }
         
         
@@ -789,11 +794,19 @@ $.widget( "heurist.resultList", {
         
         this._on( this.view_mode_selector.find('button'), {
             click: function(event) {
-                    let btn = $(event.target).parent('button');
-                    let view_mode = btn.attr('value');
+                let btn = $(event.target).parent('button');
+                let view_mode = btn.attr('value');
 
-                    this.applyViewMode(view_mode);
-                    window.hWin.HAPI4.save_pref('rec_list_viewmode_'+this.options.entityName, view_mode);
+                let total_inquery = (this._currentRecordset!=null) ? this._currentRecordset.count_total() : 0;
+                total_inquery = (this._currentSubset) ? this._currentSubset.count_total() : total_inquery;
+
+                if(view_mode == 'record_content' && total_inquery > 100){
+                    // Block record content view at high result counts
+                    return;
+                }
+
+                this.applyViewMode(view_mode);
+                window.hWin.HAPI4.save_pref('rec_list_viewmode_'+this.options.entityName, view_mode);
         }});
 
         this.span_pagination = $( "<div>")
@@ -848,51 +861,22 @@ $.widget( "heurist.resultList", {
             this.export_button = $('<button>', {
                 text: window.hWin.HR('Export'), title: window.hWin.HR('Export current results'), 
                 class: 'btnExportRecords ui-button-action', style: 'margin: 6px 10px 2px 0px; float: right;'
-            }).button({
-                icons: {
-                    primary: 'ui-icon-download'
-                }
-            }).prependTo(this.div_toolbar);
+            }).button({icon: 'ui-icon-download'}).prependTo(this.div_toolbar);
 
             this.export_button[0].style.setProperty('color', '#FFF', 'important');
 
             this._on(this.export_button, {
-                click: function(){
+                click: this._exportRecords
+            });
+        }else if(this.options.entityName=='records' && !this._is_publication){ // show CSV export button on backend
 
-                    if(!this._currentRecordset || this._currentRecordset.length() == 0){
-                        window.hWin.HEURIST4.msg.showMsgFlash('No records to export...', 3000);
-                        return;
-                    }
+            this.export_button = $('<button>', {
+                text: window.hWin.HR('CSV'), title: 'Export current results in CSV format',
+                class: 'ui-main-color', style: 'padding: 8px; float: right; margin-right: 10px;'
+            }).button({icon: 'ui-icon-arrowthick-1-s'}).insertBefore(this.view_mode_selector);
 
-                    // Set current query and current recordset
-                    window.hWin.HEURIST4.current_query_request = this._query_request;
-                    window.hWin.HAPI4.currentRecordset = this._currentRecordset;
-
-                    if(this._collection && this._collection.length > 0){
-                        window.hWin.HAPI4.currentRecordsetCollected = this._collection;
-                    }
-
-                    let selected = this.getSelected(true);
-                    if(selected){
-                        window.hWin.HAPI4.currentRecordsetSelection = selected;
-                    }
-
-                    // open export menu in dialog/popup
-                    let url = `${window.hWin.HAPI4.baseURL}hclient/framecontent/exportMenu.php?db=${window.hWin.HAPI4.database}`;
-
-                    let handle_formats = !window.hWin.HEURIST4.util.isempty(this.options.export_options) && this.options.export_options != 'all';
-                    if(handle_formats){
-                        url += `&output=${this.options.export_options}`
-                    }
-
-                    window.hWin.HEURIST4.msg.showDialog(url, {width: 650, height: 568, dialogid: 'export_record_popup', 
-                        onpopupload: function(){
-                            if(handle_formats){
-                                $('#export_record_popup').dialog('widget').hide();
-                            }
-                        }
-                    });
-                }
+            this._on(this.export_button, {
+                click: this._exportRecords
             });
         }
 
@@ -966,7 +950,7 @@ $.widget( "heurist.resultList", {
             
             this.element.parent().css({'background':'none','border':'none'});
 
-            //this.div_toolbar.addClass('ui-heurist-bg-light');
+           
             this.div_content.addClass('ui-heurist-bg-light');
         }
         
@@ -1006,7 +990,7 @@ $.widget( "heurist.resultList", {
         }
 
         let has_content_header = this.div_content_header && this.div_content_header.is(':visible');
-        //!window.hWin.HEURIST4.util.isempty(this.div_content_header.html());
+       
 
         if(has_content_header){ //table_header
                     
@@ -1031,7 +1015,7 @@ $.widget( "heurist.resultList", {
         }
    
         //move content down to leave space for header
-        this.div_content.css({'top': top+'px'}); //'110px'});
+        this.div_content.css({'top': top+'px'});
 		
 		if(has_content_header){
             this.div_content_header
@@ -1096,7 +1080,9 @@ $.widget( "heurist.resultList", {
         if(this.div_content_header) this.div_content_header.remove();
 
         // remove generated elements
+        if(this.action_buttons_div){
         this.action_buttons_div.remove();
+        } 
         if(this.btn_search_save){
             this.btn_search_save.remove(); 
             //this.btn_search_save_withorder.remove(); 
@@ -1109,15 +1095,15 @@ $.widget( "heurist.resultList", {
         if(this.div_actions) this.div_actions.remove();
         if(this.div_search_form) this.div_search_form.remove();
         if(this.fancybox_button) this.fancybox_button.remove();
-        this.reorder_button.remove();
-        this.div_toolbar.remove();
-        this.div_content.remove();
-        this.div_coverall.remove();
+        if(this.reorder_button) this.reorder_button.remove();
+        if(this.div_toolbar) this.div_toolbar.remove();
+        if(this.div_content) this.div_content.remove();
+        if(this.div_coverall) this.div_coverall.remove();
 
-        this.menu_tags.remove();
-        this.menu_share.remove();
-        this.menu_more.remove();
-        this.menu_view.remove();
+        if(this.menu_tags) this.menu_tags.remove();
+        if(this.menu_share) this.menu_share.remove();
+        if(this.menu_more) this.menu_more.remove();
+        if(this.menu_view) this.menu_view.remove();
 
         this._removeNavButtons();
 
@@ -1126,6 +1112,9 @@ $.widget( "heurist.resultList", {
 
     },
 
+    //
+    //
+    //
     _removeNavButtons: function(){
         if(this.btn_page_menu){
             this._off( this.btn_page_menu, 'click');
@@ -1284,7 +1273,7 @@ $.widget( "heurist.resultList", {
             if(window.hWin.HEURIST4.util.isempty(header_html)){
                 this.div_content_header.hide();
             }else{
-                this.div_content_header.html( header_html ).show(); //css('display','table');
+                this.div_content_header.html( header_html ).show();
             }
         } 
         if(this.options.view_mode=='tabs' || old_mode=='tabs' || window.hWin.HEURIST4.util.isFunction(this.options.renderer)){
@@ -1293,7 +1282,7 @@ $.widget( "heurist.resultList", {
         }
     
         this._adjustHeadersPos();
-        //this.element.find('input[type=radio][value="'+newmode+'"]').prop('checked', true);
+       
 
         if(this.view_mode_selector){
             
@@ -1322,7 +1311,7 @@ $.widget( "heurist.resultList", {
     clearAllRecordDivs: function(new_title, message){
 
         $('.password-reminder-popup').dialog('close');
-        //this._currentRecordset = null;
+       
         this._lastSelectedIndex = null;
 
         if(this.div_coverall){
@@ -1339,7 +1328,7 @@ $.widget( "heurist.resultList", {
             
             let $allrecs = this.div_content.find('.recordDiv');
             this._off( $allrecs, "click");
-            //this.div_content.empty();
+           
             
             if(this.div_content.tabs('instance')){
                 //this.div_content.tabs('paging', {}); 
@@ -1468,7 +1457,7 @@ $.widget( "heurist.resultList", {
                     $emptyres.find('.acc')
                     .accordion({collapsible:true,heightStyle:'content',
                             activate: function( event, ui ) {
-                                //$emptyres.find('.acc > h3').removeClass('ui-state-active');
+                               
                             }});
                     $emptyres.find('p').css({'padding-top':'10px'});
                     
@@ -1766,7 +1755,7 @@ $.widget( "heurist.resultList", {
         // Apply user pref font size
         let usr_font_size = window.hWin.HAPI4.get_prefs_def('userFontSize', 0);
         let title_font_size = '';
-        if(usr_font_size != 0){
+        if(usr_font_size != 0 && !this._is_publication){
             usr_font_size = (usr_font_size < 8) ? 8 : (usr_font_size > 18) ? 18 : usr_font_size;
             title_font_size = ' style="font-size: '+usr_font_size+'px"';
         }
@@ -1788,8 +1777,9 @@ $.widget( "heurist.resultList", {
         // it is useful to display the record title as a rollover in case the title is too long for the current display area
         + '<div title="'+(is_logged?'dbl-click to edit: ':'')+recTitle_strip_all+'" class="recordTitle" '+title_font_size+'>' //  '+rectypeTitleClass+'
         +   sCount;
-        
-        if(this.options.show_url_as_link && fld('rec_URL')){
+
+        let show_as_link = rectypeID > 0 && $Db.rty(rectypeID, 'rty_ShowURLOnEditForm') != 0;
+        if(this.options.show_url_as_link && show_as_link && fld('rec_URL')){
             if(window.hWin.HEURIST4.util.isempty(fld('rec_URLErrorMessage'))){
                 html = html + '<a href="'+fld('rec_URL')+'" target="_blank">'+ recTitle_strip1 + '</a>';
             }else{
@@ -1821,7 +1811,7 @@ $.widget( "heurist.resultList", {
         + ' class="rec_edit_link_ext action-button logged-in-only ui-button ui-widget ui-state-default ui-corner-all ui-button-icon-only"'
         + ' role="button" aria-disabled="false" data-key="edit_ext">'
         + '<span class="ui-button-text">New tab</span>'
-        + '<span class="ui-button-icon-primary ui-icon ui-icon-newwin"/>'
+        + '<span class="ui-button-icon-primary ui-icon ui-icon-newwin"></span>'
         + '</div>'  // Replace ui-icon-pencil with ui-icon-extlink and swap position when this is finished 
         
         /* Ian removed 5/2/2020. TODO: Need to replace with Select, Preview and Download buttons */
@@ -1830,7 +1820,7 @@ $.widget( "heurist.resultList", {
         + 'class="rec_view_link action-button ui-button ui-widget ui-state-default ui-corner-all'+btn_icon_only+'" '
         + 'role="button" aria-disabled="false">'
         + '<span class="ui-button-text">Preview</span>'
-        + '<span class="ui-button-icon-primary ui-icon ui-icon-comment"/>'
+        + '<span class="ui-button-icon-primary ui-icon ui-icon-comment"></span>'
         + '</div>'):'')
         
         //toadd and toremove classes works with div.collected see h4styles
@@ -1852,7 +1842,7 @@ $.widget( "heurist.resultList", {
         + 'class="rec_view_link_ext action-button ui-button ui-widget ui-state-default ui-corner-all'+btn_icon_only+'" '
         + 'role="button" aria-disabled="false">'
         + '<span class="ui-button-text">Link</span>'
-        + '<span class="ui-button-icon-primary ui-icon ui-icon-extlink"/>'
+        + '<span class="ui-button-icon-primary ui-icon ui-icon-extlink"></span>'
         + '</div>'
             :'')
 
@@ -1863,13 +1853,13 @@ $.widget( "heurist.resultList", {
         + 'class="rec_expand_on_map action-button ui-button ui-widget ui-state-default ui-corner-all'+btn_icon_only+'" '
         + 'role="button" aria-disabled="false">'
         + '<span class="ui-button-text">'+window.hWin.HR('Show data')+'</span>'
-        + '<span class="ui-button-icon-primary ui-icon ui-icon-globe"/>'
+        + '<span class="ui-button-icon-primary ui-icon ui-icon-globe"></span>'
         + '</div>'
         +'<div title="'+window.hWin.HR('resultList_action_dataset')+'" '
         + 'class="rec_download action-button ui-button ui-widget ui-state-default ui-corner-all'+btn_icon_only+'" '
         + 'role="button" aria-disabled="false">'
         + '<span class="ui-button-text">'+window.hWin.HR('Download')+'</span>'
-        + '<span class="ui-button-icon-primary ui-icon ui-icon-arrowstop-1-s"/>'
+        + '<span class="ui-button-icon-primary ui-icon ui-icon-arrowstop-1-s"></span>'
         + '</div>'
             :'')
         
@@ -1879,13 +1869,13 @@ $.widget( "heurist.resultList", {
         + 'class="rec_view_link_ext action-button ui-button ui-widget ui-state-default ui-corner-all'+btn_icon_only+'" '
         + 'role="button" aria-disabled="false">'
         + '<span class="ui-button-text">'+window.hWin.HR('Embed')+'</span>'
-        + '<span class="ui-button-icon-primary ui-icon ui-icon-globe"/>'
+        + '<span class="ui-button-icon-primary ui-icon ui-icon-globe"></span>'
         + '</div>'
         + '<div title="'+window.hWin.HR('resultList_action_delete')+'" '
         + 'class="rec_delete action-button logged-in-only ui-button ui-widget ui-state-default ui-corner-all'+btn_icon_only+'" '
         + 'role="button" aria-disabled="false">'
         + '<span class="ui-button-text">'+window.hWin.HR('Delete')+'</span>'
-        + '<span class="ui-button-icon-primary ui-icon ui-icon-trash"/>'
+        + '<span class="ui-button-icon-primary ui-icon ui-icon-trash"></span>'
         + '</div>'
             :'')
         
@@ -2061,7 +2051,7 @@ $.widget( "heurist.resultList", {
 
         let selected_rec_ID = $rdiv.attr('recid');
 
-        let action =  $target.attr('data-key') || $target.parents().attr('data-key');//parents('div[data-key!=""]');
+        let action =  $target.attr('data-key') || $target.parents().attr('data-key');
         if(!window.hWin.HEURIST4.util.isempty(action)){ //action_btn && action_btn.length()>0){
             if(this.options.renderer){
                 //custom handler
@@ -2087,7 +2077,7 @@ $.widget( "heurist.resultList", {
             }
             
             // remove this remark to prevent selection on action button click
-            //return;
+           
         }
 
         let ispwdreminder = $target.hasClass('rec_p_reminder'); //this is password reminder click
@@ -2123,7 +2113,7 @@ $.widget( "heurist.resultList", {
                 this._showRecordViewPopup( selected_rec_ID );
 
                 if(!(this.options.recordview_onselect=='popup')){
-                    //__selectOnClick(null);
+                   
                     return;
                 }
                 
@@ -2177,7 +2167,7 @@ $.widget( "heurist.resultList", {
                     if(rectypeID==window.hWin.HAPI4.sysinfo['dbconst']['RT_MAP_DOCUMENT']){
 
                         window.hWin.HAPI4.currentRecordsetSelection = [selected_rec_ID];
-                        if(Hul.isempty(window.hWin.HAPI4.currentRecordsetSelection)) return;
+                        if(window.hWin.HEURIST4.util.isempty(window.hWin.HAPI4.currentRecordsetSelection)) return;
                         
                         window.hWin.HEURIST4.ui.showRecordActionDialog('recordDelete', {
                             hide_scope: true,
@@ -2230,14 +2220,14 @@ $.widget( "heurist.resultList", {
             if($rdiv.hasClass('selected')){
                 $rdiv.removeClass('selected');
                 $rdiv.find('.recordSelector>input').prop('checked', '');
-                //this._currentSelection.removeRecord(selected_rec_ID);
+               
                 this._manageMultiSelection(selected_rec_ID, false);
             }else{
                 $rdiv.addClass('selected')
                 $rdiv.find('.recordSelector>input').prop('checked', 'checked');
                 this._manageMultiSelection(selected_rec_ID, true);
                 /*if(this._currentSelection==null){
-                    this._currentSelection = [selected_rec_ID]; //this._currentRecordset.getSubSetByIds([selected_rec_ID]);
+                    this._currentSelection = [selected_rec_ID];
                 }else{
                     this._currentSelection.addRecord(selected_rec_ID, this._currentRecordset.getById(selected_rec_ID));
                 }*/
@@ -2253,14 +2243,14 @@ $.widget( "heurist.resultList", {
                 if($rdiv.hasClass('selected')){
                     $rdiv.removeClass('selected');
                     this._lastSelectedIndex = null;
-                    //$rdiv.removeClass('ui-state-highlight');
+                   
                 }else{
                     $rdiv.addClass('selected');
                     $rdiv.addClass('selected_last');
                     this._lastSelectedIndex = selected_rec_ID;
-                    //$rdiv.addClass('ui-state-highlight');
+                   
                 }
-                //this._lastSelectedIndex = selected_rec_ID;
+               
 
             }else if(this.options.multiselect && event.shiftKey){
 
@@ -2317,7 +2307,7 @@ $.widget( "heurist.resultList", {
         }
         
 
-        //window.hWin.HEURIST4.util.stopEvent(event);
+        
         
         this.triggerSelection();
     },
@@ -2461,7 +2451,7 @@ $.widget( "heurist.resultList", {
                     if( typeof rendererTemplate === 'string' 
                             && rendererTemplate.substr(-4)=='.tpl' ){
 
-                        infoURL = window.hWin.HAPI4.baseURL + 'viewers/smarty/showReps.php?snippet=1&publish=1&debug=0&q=ids:'
+                        infoURL = window.hWin.HAPI4.baseURL + '?snippet=1&q=ids:'
                         + recID 
                         + '&db='+window.hWin.HAPI4.database+'&template='
                         + encodeURIComponent(rendererTemplate);
@@ -2504,7 +2494,7 @@ $.widget( "heurist.resultList", {
                                 let cw2  = this.contentWindow.document.documentElement;//.scrollHeight
 
                                 function __adjustHeight(){
-                                    //h = $(cw).height();
+                                   
                                     if(cw2){
                                         let bh = cw.body?cw.body.scrollHeight:0;
                                         let h = cw2.scrollHeight;                               
@@ -2527,7 +2517,7 @@ $.widget( "heurist.resultList", {
                                     ele2.removeClass('loading');
                                     ele2.find('iframe').css('opacity',1);
                                 }, 2100);
-                                //setTimeout(__adjustHeight, 10000);
+                               
                                 
                             }catch(e){
                                 ele2.removeClass('loading').height(400);    
@@ -2602,7 +2592,7 @@ $.widget( "heurist.resultList", {
             if(this._currentMultiSelection==null){
                 return null;
             }else if(idsonly){
-                return this._currentMultiSelection; //.getIds();
+                return this._currentMultiSelection;
             }else if(this._fullRecordset){
                 return this._fullRecordset.getSubSetByIds(this._currentMultiSelection);
             }else{
@@ -2648,9 +2638,12 @@ $.widget( "heurist.resultList", {
         //clear selection
         this.div_content.find('.selected').removeClass('selected');
         this.div_content.find('.selected_last').removeClass('selected_last');
+        this._lastSelectedIndex = null;    
 
         if (selection == "all") {
             this.div_content.find('.recordDiv').addClass('selected');
+
+            window.hWin.HAPI4.currentRecordsetSelection = this.getSelected(true);
         }else{
 
             let recIDs_list = window.hWin.HAPI4.getSelection(selection, true); //need to rewrite since it works with global currentRecordset
@@ -2661,9 +2654,6 @@ $.widget( "heurist.resultList", {
                     let idx = window.hWin.HEURIST4.util.findArrayIndex(rec_id, recIDs_list);
                     if(idx>=0){ 
                         $(rdiv).addClass('selected');
-                        //if(that._lastSelectedIndex==rec_id){
-                        //    $(rdiv).addClass('selected_last');
-                        //}
                     }
                 });
                 if(recIDs_list.length==1){
@@ -2677,11 +2667,11 @@ $.widget( "heurist.resultList", {
     
     scrollToRecordDiv: function(selected, to_top_of_viewport){
         
-        let rdiv;
-        if($(selected).is('div.recordDiv')){
-            rdiv = $(selected)
-        }else{
+        let rdiv = null;
+        if( window.hWin.HEURIST4.util.isPositiveInt(selected) ){
             rdiv = this.div_content.find('.recordDiv[recid="'+selected+'"]');    
+        }else if($(selected).length>0 && $(selected).is('div.recordDiv')){
+            rdiv = $(selected)
         }
         
         if(rdiv && rdiv.length==1){
@@ -2737,15 +2727,8 @@ $.widget( "heurist.resultList", {
             }
 
             // update local cache
-            /* Since 2024-03-09 - collection is independent on current record set 
-            if(this._currentRecordset && this._currentRecordset.length() > 0 && hasCollection){
-                let collected = this._currentRecordset.getSubSetByIds(collection);
-                this._collection = collected && collected.length() > 0 ? collected.getIds() : [];
-            }else{
-                this._collection = [];
-            }
-            */
-            this._collection = hasCollection?collection:[];
+            this._collection = hasCollection ? collection : [];
+            window.hWin.HAPI4.currentRecordsetCollected = hasCollection ? collection : [];
 
             // update 'cart' count
             this._updateInfo();
@@ -2757,12 +2740,12 @@ $.widget( "heurist.resultList", {
     loadanimation: function(show){
         if(show){
             this.div_loading.show();
-            //this.div_content.css('background','url('+window.hWin.HAPI4.baseURL+'hclient/assets/loading-animation-white.gif) no-repeat center center');
+           
             this.element.css('cursor', 'progress');
         }else{
             this.div_loading.hide();
             this.element.css('cursor', 'auto');
-            //this.div_content.css('background','none');
+           
         }
     },
 
@@ -2774,7 +2757,7 @@ $.widget( "heurist.resultList", {
         if ( this._query_request ) {
 
             this._query_request.w = 'a';
-            this._query_request.source = this.element.attr('id'); //orig = 'rec_list';
+            this._query_request.source = this.element.attr('id');
 
             window.hWin.HAPI4.RecordSearch.doSearch( this, this._query_request );
         }
@@ -2878,6 +2861,15 @@ $.widget( "heurist.resultList", {
                 }
             });
         }
+
+        let $content_view = this.view_mode_selector.find('button[value="record_content"]');
+        if($content_view.length > 0 && total_inquery > 100){
+            total_inquery <= 100
+                ? $content_view.attr('title', window.hWin.HR('Record contents'))
+                               .find('.ui-icon').css('color', '')
+                : $content_view.attr('title', 'This function is disabled for over 100 records as it is really only usable with a limited record count')
+                               .find('.ui-icon').css('color', 'grey');
+        }
     },
 
     //
@@ -2890,7 +2882,7 @@ $.widget( "heurist.resultList", {
         let total_inquery = (this._currentRecordset!=null)?this._currentRecordset.count_total():0;
 
         this.max_page = 0;
-        //this.current_page = 0;
+       
 
         if(this.count_total>0){
 
@@ -2905,10 +2897,10 @@ $.widget( "heurist.resultList", {
         let start = 0;
         let finish = 0;
 
-        //this._renderRecNumbers();
+       
         this._removeNavButtons();
 
-        let span_pages = $(this.span_pagination); //.children()[0]);//first();
+        let span_pages = $(this.span_pagination);
         span_pages.empty();
 
         this._updateInfo();
@@ -2969,13 +2961,10 @@ $.widget( "heurist.resultList", {
 
                         let $btn = $( "<button>", { text:''+i, id: 'page'+(i-1) }).css({'font-size':'0.7em'}).button()
                         .appendTo( span_pages )
-                        .click( function(event){
+                        .on('click', function(event){
                             let page = Number(this.id.substring(4));
                             that._renderPage(page);
                         } );
-                        if(i-1==currentPage){
-                            //$btn.button('disable').addClass('ui-state-active').removeClass('ui-state-disabled');
-                        }
                     }
                 }
                 if (finish != pageCount) { //force last page
@@ -2998,27 +2987,21 @@ $.widget( "heurist.resultList", {
                     this.btn_page_prev = $( "<button>", {text:currentPage} )
                     .appendTo( span_pages )
                     .css({'font-size':'0.7em', 'width':'1.6em'})
-                    .button({icons: {
-                        primary: "ui-icon-triangle-1-w"
-                        }, text:false});
+                    .button({icon:"ui-icon-triangle-1-w", showLabel:false});
 
                     this.btn_page_menu = $( "<button>", {
                         text: (currentPage+1)
                     })
                     .appendTo( span_pages )
                     .css({'font-size':'0.7em'})
-                    .button({icons: {
-                        secondary: "ui-icon-triangle-1-s"
-                    }});
+                    .button({iconPosition:'end', icon:'ui-icon-triangle-1-s'});
 
                     this.btn_page_menu.find('.ui-icon-triangle-1-s').css({'font-size': '1.3em', right: 0});
 
                     this.btn_page_next = $( "<button>", {text:currentPage} )
                     .appendTo( span_pages )
                     .css({'font-size':'0.7em', 'width':'1.6em'})
-                    .button({icons: {
-                        primary: "ui-icon-triangle-1-e"
-                        }, text:false});
+                    .button({icon:"ui-icon-triangle-1-e", showLabel:false});
 
 
                     this.menu_pages = $('<ul>'+smenu+'</ul>')   //<a href="#">
@@ -3056,7 +3039,7 @@ $.widget( "heurist.resultList", {
                     this.span_pagination.find('button').addClass(this.options.header_class).css({'border':'none'});
                 }else if(this.options.is_h6style){
                     this.span_pagination.find('button').removeClass('ui-heurist-btn-header1')
-                        .css({'background':'none'});//.css({'border':'none !important'});
+                        .css({'background':'none'});
                 }
                 
                 if(!ismenu){
@@ -3082,7 +3065,7 @@ $.widget( "heurist.resultList", {
         let keep_selection = this.getSelected(true);
         this._renderPage(this.current_page);
         if(keep_selection && keep_selection.length>0){
-            //this.setSelected(keep_selection);
+            /* implement later */
         }
     }
     
@@ -3303,7 +3286,7 @@ $.widget( "heurist.resultList", {
         }
                 
         if(this.options.groupByField){
-            //Object.keys(html_groups);
+           
             let hasRender = window.hWin.HEURIST4.util.isFunction(this.options.rendererGroupHeader);
 
             //
@@ -3660,6 +3643,7 @@ $.widget( "heurist.resultList", {
                 if(Object.hasOwn(that._cached_linked_images, cur_rec)){
                     if(!window.hWin.HEURIST4.util.isempty(that._cached_linked_images[cur_rec])){
                         $(ele).css('background-image', `url("${that._cached_linked_images[cur_rec]}")`)
+                              .css('opacity',1);
                     }
                 }else{
                     rec_images.push(cur_rec);
@@ -3697,7 +3681,8 @@ $.widget( "heurist.resultList", {
                         $rec.find('.recTypeThumb.rectypeThumb')
                             .removeClass('rectypeThumb')
                             .addClass('realThumb')
-                            .css('background-image', `url("${url}")`);
+                            .css('background-image', `url("${url}")`)
+                            .css('opacity',1);
                     }
                 });
             }
@@ -3763,7 +3748,7 @@ $.widget( "heurist.resultList", {
                     let recID = rec_toload[i];
                     if(resp.getById(recID)==null){
                         this._currentRecordset.removeRecord(recID);
-                        //this._currentRecordset.setRecord(recID,{rec_ID:recID, rec_Title:'Error! Cannot get data from server'});
+                       
                     }        
                 }
 
@@ -3778,7 +3763,6 @@ $.widget( "heurist.resultList", {
 
     showRetainedSelection: function(){
 
-        //if(window.hWin.HEURIST4.util.isnull(need_show)){
         let need_show = this.cb_selected_only.is(':checked');
 
 
@@ -4350,7 +4334,7 @@ $.widget( "heurist.resultList", {
             
             if ( typeof this.options.rendererExpandDetails === 'string' && this.options.rendererExpandDetails.substr(-4)=='.tpl' ){
 
-                recInfoUrl = window.hWin.HAPI4.baseURL + 'viewers/smarty/showReps.php?publish=1&debug=0&q=ids:'
+                recInfoUrl = window.hWin.HAPI4.baseURL + '?q=ids:'
                 + rec_ID
                 + '&db='+window.hWin.HAPI4.database+'&template='
                 + encodeURIComponent(this.options.rendererExpandDetails);
@@ -4384,7 +4368,6 @@ $.widget( "heurist.resultList", {
             is_h6style: true,
             modal: false,
             dialogid: 'recordview_popup',    
-            //width: 700, height: 800, //(lt=='WebSearch'?(window.hWin.innerWidth*0.9):
             onmouseover: function(){
                 that._clearTimeouts();
             },
@@ -4492,7 +4475,7 @@ $.widget( "heurist.resultList", {
             return;
         }
 
-        let rec_ids = recids.join(',');//that._currentRecordset.getOrder().join(',');
+        let rec_ids = recids.join(',');
 
         let request = {
             q: '{"ids":"'+ rec_ids +'"}',
@@ -4519,8 +4502,6 @@ $.widget( "heurist.resultList", {
                         rec_div.addClass('c' + record.d[dty_id].join(' c'));  
                     }
                 });
-            }else{
-                //window.hWin.HEURIST4.msg.showMsgErr(response);
             }
         });
     },
@@ -4542,11 +4523,65 @@ $.widget( "heurist.resultList", {
             this._currentRecordset = this._fullRecordset;
         }
 
+        const query = this._currentRecordset.length() > 0 ? `ids:${this._currentRecordset.getIds().join(',')}` : '';
+
+        $(this.document).trigger(window.hWin.HAPI4.Event.ON_REC_SEARCH_FINISH, {
+            recordset: this._currentRecordset,
+            showing_subset: true,
+            search_realm: this.options.search_realm,
+            query: query
+        });
+
         this._renderPage(0);
     },
     
     getCurrentViewMode: function(){
         return this._current_view_mode;
     },
+
+    _exportRecords: function(){
+
+        if(!this._currentRecordset || this._currentRecordset.length() == 0){
+            window.hWin.HEURIST4.msg.showMsgFlash('No records to export...', 3000);
+            return;
+        }
+
+        // Set current query and current recordset
+        window.hWin.HEURIST4.current_query_request = this._query_request;
+        window.hWin.HAPI4.currentRecordset = this._currentRecordset;
+
+        if(this._collection && this._collection.length > 0){
+            window.hWin.HAPI4.currentRecordsetCollected = this._collection;
+        }
+
+        let selected = this.getSelected(true);
+        if(selected){
+            window.hWin.HAPI4.currentRecordsetSelection = selected;
+        }
+        
+        if(this.options.export_options=='csv'){
+            window.hWin.HEURIST4.ui.showRecordActionDialog('recordExportCSV', {});    
+        }else{
+            // open export menu in dialog/popup
+            let url = `${window.hWin.HAPI4.baseURL}hclient/framecontent/exportMenu.php?db=${window.hWin.HAPI4.database}`;
+
+            if(typeof this.options.export_options !== 'string'){
+                this.options.export_options = 'all';
+            }
+            
+            let handle_formats = !window.hWin.HEURIST4.util.isempty(this.options.export_options) && this.options.export_options != 'all';
+            if(handle_formats){
+                url += `&output=${this.options.export_options}`
+            }
+
+            window.hWin.HEURIST4.msg.showDialog(url, {width: 650, height: 568, dialogid: 'export_record_popup', 
+                onpopupload: function(){
+                    if(handle_formats){
+                        $('#export_record_popup').dialog('widget').hide();
+                    }
+                }
+            });
+        }
+    }
     
 });

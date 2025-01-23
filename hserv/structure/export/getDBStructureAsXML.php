@@ -21,6 +21,8 @@
 * distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied
 * See the License for the specific language governing permissions and limitations under the License.
 */
+use hserv\structure\ConceptCode;
+
 require_once dirname(__FILE__).'/../../../hclient/framecontent/initPageMin.php';
 
 header("Content-Type: application/xml");
@@ -28,12 +30,14 @@ header("Content-Type: application/xml");
 // Normally jsut outputs definitions, this will include users/groups
 $includeUgrps = @$_REQUEST["includeUgrps"];// returns null if not set
 
-$sysinfo = $system->get_system();
-$db_version = $sysinfo['sys_dbVersion'].'.'.$sysinfo['sys_dbSubVersion'].'.'.$sysinfo['sys_dbSubSubVersion'];
+$mysqli = $system->getMysqli();
 
-define('HEURIST_DBID', $system->get_system('sys_dbRegisteredID'));
+$sysinfo = $system->settings->get();
 
-$mysqli = $system->get_mysqli();
+$db_version = getDbVersion($mysqli);
+
+
+define('HEURIST_DBID', $system->settings->get('sys_dbRegisteredID'));
 
 $rty_ID = @$_REQUEST["rty"];
 $dty_ID = @$_REQUEST["dty"];
@@ -54,7 +58,6 @@ $is_subset = ($rty_ID>0 || $dty_ID>0 || $trm_ID>0);
 // UPDATE THE FOLLOWING WHEN DATABASE FORMAT IS CHANGED:
 // Version info in common/config/initialise.php
 // admin/setup/dbcreate/blankDBStructure.sql - dump structure of hdb_HeuristCoreDefinitions database and insert where indicated in file
-// admin/setup/dbcreate/blankDBStructureDefinitionsOnly.sql - copy blankDBStructure.sql, delete non-definition tables for temp db creation speed
 // admin/setup/dbcreate/coreDefinitions.txt (get this from the admin interface lsiting in exchange format)
 // admin/setup/dbcreate/coreDefinitionsHuNI.txt (get this from the admin interface lsiting in exchange format)
 // admin/setup/dbcreate/coreDefinitionsFAIMS.txt (get this from the admin interface lsiting in exchange format)
@@ -68,7 +71,7 @@ print "\n\n<hml_structure>";
 // File headers to explain what the listing represents and for version checking
 print "\n\n<!--Heurist Definitions Exchange File, generated: ".date("d M Y @ H:i")."-->";
 print "\n<HeuristBaseURL>" . HEURIST_BASE_URL. "</HeuristBaseURL>";
-print "\n<HeuristDBName>" . HEURIST_DBNAME . "</HeuristDBName>";
+print "\n<HeuristDBName>" . $system->dbname() . "</HeuristDBName>";
 print "\n<HeuristProgVersion>".HEURIST_VERSION."</HeuristProgVersion>";
 
 // *** MOST IMPORTANT ***
@@ -76,9 +79,7 @@ print "\n<HeuristProgVersion>".HEURIST_VERSION."</HeuristProgVersion>";
 // However use of XML tags should allow import even if structure has evolved
 print "\n<HeuristDBVersion>".$db_version."</HeuristDBVersion>";
 
-
 // TODO: Also need to output general properties of the database set in Structure > Properties / dvanced Properties
-
 
 if(!$is_subset){
 // Output each of the definition tables in turn
@@ -178,7 +179,7 @@ if (!$includeUgrps) {
     return;
 }
 
-if (! $system->is_admin() ) {
+if (! $system->isAdmin() ) {
     print "\n\n<!-- You do not have sufficient privileges to list users and groups -->";
     print "\n</hml_structure>";
     return;
@@ -260,7 +261,7 @@ function do_print_table2( $tname, $id=0 )
                 }
             }elseif(strpos($fld,'IDInOriginatingDB')!==false){
                 if(HEURIST_DBID>0 && !($val>0)){
-                    $val = $val[$id_field];
+                    $val = $row[$id_field];
                 }
             }
             print "<$fld>$val</$fld>";

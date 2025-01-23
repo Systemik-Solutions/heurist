@@ -40,7 +40,7 @@ $.widget( "heurist.connections", {
         
         this.framecontent = $('<div>')
                    .css({
-                        width:'100%', height:'100%',
+                        width:'100%', height:'100%', overflow:'hidden',
                        // position:'absolute', top:'2.5em', bottom:0, left:0, right:0,
                         'background':'url('+window.hWin.HAPI4.baseURL+'hclient/assets/loading-animation-white.gif) no-repeat center center'})
                    .appendTo( this.element );
@@ -71,17 +71,14 @@ $.widget( "heurist.connections", {
 
                 //accept events from the same realm only
                 if(!that._isSameRealm(data)) return;
-                
-                //that.recordset_changed = true;
-                //that._getRelations( data );
-                
-                
+
                 //find all relation within given result set
                 that.recordset_changed = true;
                 that.options.relations = null;
                 that.options.recordset = data.recordset; //HRecordSet
+                that._lastRequest = data.request; //last request, contains query
+
                 that._refresh();
-                
 
             // Search start
             }else if(e.type == window.hWin.HAPI4.Event.ON_REC_SEARCHSTART){
@@ -184,8 +181,7 @@ $.widget( "heurist.connections", {
                         this._doVisualize(data);
                     
                     }
-                }else if(this.graphframe[0] && this.graphframe[0].contentWindow 
-                        && window.hWin.HEURIST4.util.isFunction(this.graphframe[0].contentWindow.showData)){
+                }else if(this._isVisualizeInited()){
                     //clear
                     this.graphframe[0].contentWindow.showData(null);
                 }
@@ -211,11 +207,11 @@ $.widget( "heurist.connections", {
     
     loadanimation: function(show){
         if(show){
-            //this.graphframe.hide();
+           
             this.framecontent.css('background','url('+window.hWin.HAPI4.baseURL+'hclient/assets/loading-animation-white.gif) no-repeat center center');
         }else{
             this.framecontent.css('background','none');
-            //this.graphframe.show();
+           
         }
     },
     
@@ -358,13 +354,19 @@ $.widget( "heurist.connections", {
         }
         return {nodes: array, links: links};
     }
+    
+    , _isVisualizeInited(){
+        
+        return !window.hWin.HEURIST4.util.isnull(this.graphframe) && this.graphframe.length > 0 &&
+         window.hWin.HEURIST4.util.isFunction(this.graphframe[0].contentWindow.showData);
+    }
 
     /** Calls the visualisation plugin */
     , _doVisualize: function (data) {
         
-        if( !window.hWin.HEURIST4.util.isnull(this.graphframe) && this.graphframe.length > 0 ){
+        if(this._isVisualizeInited() ){
             let that = this;
-            this.graphframe[0].contentWindow.showData(data, this.options.selection, 
+            this.graphframe[0].contentWindow.showData(data, this.options.selection, this._lastRequest,
                     function(selected){
                         $(that.document).trigger(window.hWin.HAPI4.Event.ON_REC_SELECT, 
                         { selection:selected, source:that.element.attr('id'), search_realm:that.options.search_realm } );
@@ -388,12 +390,9 @@ $.widget( "heurist.connections", {
 
             this.options.selection = selection;
             
-            if(!this.element.is(':visible')
-                || window.hWin.HEURIST4.util.isnull(this.graphframe) || this.graphframe.length < 1){
-                    return;
+            if(this.element.is(':visible') && this._isVisualizeInited()){
+                this.graphframe[0].contentWindow.showSelection(this.options.selection);
             }
-            
-            this.graphframe[0].contentWindow.showSelection(this.options.selection);
     }    
 
 });

@@ -17,12 +17,14 @@
 * distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied
 * See the License for the specific language governing permissions and limitations under the License.
 */
+use hserv\utilities\USanitize;
+
 $is_inlcuded = false;
 
 if(!defined('PDIR')) {
     $is_inlcuded = true;
     define('PDIR','../../');
-    require_once dirname(__FILE__).'/../../hserv/System.php';
+    require_once dirname(__FILE__).'/../../autoload.php';
 }
 
 //variable is_error can be defined as global
@@ -34,16 +36,19 @@ $is_error_unknown = false;
 
 //variable message can be defined as global
 if(!isset($message)){
-    if( @$_REQUEST['error'] ){
-        $message = $_REQUEST['error'];
+    
+    $req_params = USanitize::sanitizeInputArray();
+    
+    if( @$req_params['error'] ){
+        $message = $req_params['error'];
         if(is_array($message)){
             $message = @$message['message'];
             if(@$message['sysmsg'] && $message!=null){
                 $message = $message.$message['sysmsg'];
             }
         }
-    }elseif( @$_REQUEST['message'] ){
-        $message = $_REQUEST['message'];
+    }elseif( @$req_params['message'] ){
+        $message = $req_params['message'];
         $is_error = false;
     }else{
         //take error message from system
@@ -60,6 +65,7 @@ if(!isset($message)){
         $message ='Unknown error.';
         $is_error_unknown = true;
     }
+    USanitize::purifyHTML($message);
 
     if($is_error_unknown){
         if(defined('CONTACT_HEURIST_TEAM')){
@@ -70,7 +76,7 @@ if(!isset($message)){
     }
 }
 
-    $dbname = $_REQUEST['db'];
+    $dbname = @$_REQUEST['db'];
     $dbname = (preg_match('[\W]', $dbname))?'':$dbname;
 ?>
 <!DOCTYPE html>
@@ -78,6 +84,7 @@ if(!isset($message)){
     <head>
         <title><?php print defined('HEURIST_TITLE')?HEURIST_TITLE:"Heurist";?></title>
         <meta http-equiv="content-type" content="text/html; charset=utf-8">
+        <meta name="robots" content="noindex,nofollow">
 
         <link rel=icon href="<?php echo PDIR;?>favicon.ico" type="image/x-icon">
 
@@ -95,28 +102,14 @@ if(!isset($message)){
     <?php
     if(isset($try_login) && $try_login === true){ // Does a login link need to be handled
 
-        if (($_SERVER["SERVER_NAME"]=='localhost'||$_SERVER["SERVER_NAME"]=='127.0.0.1'))  {
-        ?>
-
-            <script type="text/javascript" src="<?php echo PDIR;?>external/jquery-ui-1.12.1/jquery-1.12.4.js"></script>
-            <script type="text/javascript" src="<?php echo PDIR;?>external/jquery-ui-1.12.1/jquery-ui.js"></script>
-
-        <?php
-        }else{
-        ?>
-
-            <script src="https://code.jquery.com/jquery-1.12.2.min.js" integrity="sha256-lZFHibXzMHo3GGeehn1hudTAP3Sc0uKXBXAzHX1sjtk=" crossorigin="anonymous"></script>
-            <script src="https://code.jquery.com/ui/1.12.1/jquery-ui.min.js" integrity="sha256-VazP97ZCwtekAsvgPBSUwPFKdrwD3unUfSGVYrahUqU=" crossorigin="anonymous"></script>
-
-        <?php
-        }
-        ?>
+            includeJQuery();
+    ?>
 
         <script>window.hWin = window;</script>
         <script type="text/javascript" src="<?php echo PDIR;?>hclient/core/detectHeurist.js"></script>
-        <script type="text/javascript" src="<?php echo PDIR;?>hclient/assets/localization/localization.js"></script>
 
         <script type="text/javascript" src="<?php echo PDIR;?>hclient/core/hapi.js"></script>
+        <script type="text/javascript" src="<?php echo PDIR;?>hclient/core/HSystemMgr.js"></script>
         <script type="text/javascript" src="<?php echo PDIR;?>hclient/core/utils.js"></script>
         <script type="text/javascript" src="<?php echo PDIR;?>hclient/core/utils_ui.js"></script>
         <script type="text/javascript" src="<?php echo PDIR;?>hclient/core/utils_msg.js"></script>

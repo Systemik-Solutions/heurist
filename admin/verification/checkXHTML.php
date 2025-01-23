@@ -35,10 +35,10 @@ define('PDIR','../../');//need for proper path to js and css
 
 require_once dirname(__FILE__).'/../../hclient/framecontent/initPageMin.php';
 
-$mysqli = $system->get_mysqli();
+$mysqli = $system->getMysqli();
 
 $woots = array();
-$res = $mysqli->query("select * from woots");// where woot_Title='record:96990'");
+$res = $mysqli->query("select * from woots");
 if($res){
     while ($row = $res->fetch_assoc()) {
         array_push($woots, $row);
@@ -46,12 +46,14 @@ if($res){
     $res->close();
 }
 ?>
-<html>
-	<head>
-		<meta http-equiv="content-type" content="text/html; charset=utf-8">
-		<title>Check Wysiwyg Texts</title>
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta http-equiv="content-type" content="text/html; charset=utf-8">
+        <meta name="robots" content="noindex,nofollow">
+        <title>Check Wysiwyg Texts</title>
         <link rel="stylesheet" type="text/css" href="<?php echo PDIR;?>h4styles.css" />
-	</head>
+    </head>
 
     <body class="popup">
         <div class="banner"><h2>Check Wysiwyg Texts</h2></div>
@@ -59,16 +61,16 @@ if($res){
         <div id="page-inner" style="overflow:auto;padding-left: 6px;">
             <div>This function checks the WYSIWYG text data (personal and public notes, blog posts) for invalid XHTML<br>&nbsp;<hr></div>
 
-            <table class="wysiwygCheckTable">
+            <table class="wysiwygCheckTable" role="presentation">
                 <?php
 
                 foreach ($woots as $woot) {
-	                $valid = true;
-	                $errs = array();
+                    $valid = true;
+                    $errs = array();
 
-	                //print "\n\nchecking woot \"" . $woot["woot_Title"] . "\"... ";
 
-	                $res = $mysqli->query("select * from woot_Chunks where chunk_WootID = " . intval($woot["woot_ID"]) . " and chunk_IsLatest and not chunk_Deleted");
+
+                    $res = $mysqli->query("select * from woot_Chunks where chunk_WootID = " . intval($woot["woot_ID"]) . " and chunk_IsLatest and not chunk_Deleted");
                     if($res){
                         while ($row = $res->fetch_assoc()) {
                             $err = check($row["chunk_Text"]);
@@ -80,41 +82,41 @@ if($res){
                         $res->close();
                     }
 
-	                if ($valid) {
-		                //print "ok\n";
-	                } else {
+                    if ($valid) {
+
+                    } else {
                         print "<tr><td><a target=_blank href='".HEURIST_BASE_URL."records/woot/woot.html?db=".HEURIST_DBNAME."w=";
-		                print $woot["woot_Title"] . "'>";
+                        print $woot["woot_Title"] . "'>";
                         print $woot["woot_Title"];
                         print "</a></td>\n";
 
-		                print "<td>" . htmlspecialchars(join("\n", $errs)) . "s</td></tr>\n";
-	                }
+                        print "<td>" . htmlspecialchars(join("\n", $errs)) . "s</td></tr>\n";
+                    }
                 }
 
                 function check($html) {
-                //print "text: $html\n";
-	                $descriptorspec = array(
-		                0 => array("pipe", "r"),
-		                2 => array("pipe", "w"),
-	                );
-	                $proc = proc_open("xmllint -o /dev/null -", $descriptorspec, $pipes);
 
-	                fwrite($pipes[0], "<html>" . $html . "</html>");
-	                fclose($pipes[0]);
+                    $descriptorspec = array(
+                        0 => array("pipe", "r"),
+                        2 => array("pipe", "w"),
+                    );
+                    $proc = proc_open("xmllint -o /dev/null -", $descriptorspec, $pipes);
 
-	                $out = stream_get_contents($pipes[2]);
-	                fclose($pipes[2]);
+                    fwrite($pipes[0], "<html>" . $html . "</html>");
+                    fclose($pipes[0]);
 
-	                $rv = proc_close($proc);
-                //print "rv: $rv\n";
-                //print "out: $out\n";
+                    $out = stream_get_contents($pipes[2]);
+                    fclose($pipes[2]);
 
-	                if ($rv != 0) {
-		                return $out;
-	                } else {
-		                return 0;
-	                }
+                    $rv = proc_close($proc);
+
+
+
+                    if ($rv != 0) {
+                        return $out;
+                    } else {
+                        return 0;
+                    }
                 }
 
                 ?>
@@ -122,7 +124,7 @@ if($res){
 
             <p>&nbsp;</p>
             <p>
-            [end of check]
+                [end of check]
             </p>
         </div>
     </body>

@@ -1003,7 +1003,7 @@ div.div-result-list-content.icons_list{
 }
 
 .icons .rt-icon{
-    display: none;
+    vertical-align: middle;
 }
 
 .rt-icon{
@@ -1465,6 +1465,10 @@ div.saved-search > .edit-delete-buttons, .recordDiv > .edit-delete-buttons {
     margin: 0px 2px;
 }
 
+.horizontalmenu  a.ui-state-active{
+    margin:0px;
+}
+
 /* List view - Datatable */
 table.dataTable th{
     text-align: left;
@@ -1650,6 +1654,7 @@ span.fancytree-checkbox{
 }
 .rtt-tree .fancytree-has-children span.fancytree-expander{
     display: inline-block;
+    transform: scale(1.5) translate(1px, -1px);
 }
 
 /* Fancytree: Change individual checkboxes to radio buttons */
@@ -2044,7 +2049,7 @@ background: #8ea9b9
     padding: 5px 0px 5px 0px;
     width: 100%;
     border-top: 1px solid #7D9AAA;
-    font-size: 11px;
+    font-size: 1em;
     overflow: visible;
     text-align: left;
     color: #7D9AAA;
@@ -2689,3 +2694,16 @@ li.edit-form-tab > a{
 .input-with-invisible-text{color:transparent !important;}
 .input-with-invisible-text::selection {background: transparent;}
 .input-with-invisible-text::-moz-selection {background: transparent;}
+
+
+.table {
+    display: table;
+    width: 100%;
+}
+.row {
+    display: table-row;
+}
+.cell {
+    display: table-cell;
+    padding: 8px;
+}

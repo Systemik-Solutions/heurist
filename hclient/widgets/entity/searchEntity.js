@@ -44,6 +44,7 @@ $.widget( "heurist.searchEntity", {
     },
     
     _need_load_content:true, // do not load search form html content
+    _search_request:{},
 
     // the widget's constructor
     _create: function() {
@@ -62,7 +63,11 @@ $.widget( "heurist.searchEntity", {
                 function(response, status, xhr){
                     that._need_load_content = false;
                     if ( status == "error" ) {
-                        window.hWin.HEURIST4.msg.showMsgErr(response);
+                        window.hWin.HEURIST4.msg.showMsgErr({
+                            message: response,
+                            error_title: 'Failed to load HTML content',
+                            status: window.hWin.ResponseStatus.UNKNOWN_ERROR
+                        });
                     }else{
                         that._initControls();
                     }
@@ -105,9 +110,7 @@ $.widget( "heurist.searchEntity", {
             // summary button - to show various counts for entity 
             // number of group members, records by rectypes, tags usage
             this.btn_summary = this.element.find('#btn_summary')
-                .button({label: window.hWin.HR("Show/refresh counts"), text:false, icons: {
-                    secondary: "ui-icon-retweet"
-                }});
+                .button({label: window.hWin.HR("Show/refresh counts"), showLabel:false, iconPosition:'end', icon:'ui-icon-retweet'});
             if(this.btn_summary.length>0){
                 this._on( this.btn_summary, { click: this.startSearch });
             }
@@ -116,7 +119,7 @@ $.widget( "heurist.searchEntity", {
             this.element.find('#div-table-right-padding').css('min-width',right_padding);
         
         
-            //EXTEND this.startSearch();
+           
             window.hWin.HEURIST4.ui.disableAutoFill( this.element.find( 'input' ) );
             
     },  
@@ -158,7 +161,35 @@ $.widget( "heurist.searchEntity", {
     // public methods
     //
     startSearch: function(){
-        //TO EXTEND        
+        
+            if(!this._search_request){
+                this._search_request = {};
+            }
+                    
+            this._trigger( "onstart" );
+    
+            this._search_request['a']          = 'search'; //action
+            this._search_request['entity']     = this.options.entity.entityName;
+            this._search_request['request_id'] = window.hWin.HEURIST4.util.random();
+            if(!this._search_request['details']){
+                this._search_request['details'] = 'id';
+            }
+            if(this.options.database){
+                this._search_request['db'] = this.options.database;    
+            }
+            
+
+            let that = this;                                                
+       
+            window.hWin.HAPI4.EntityMgr.doRequest(this._search_request, 
+                function(response){
+                    if(response.status == window.hWin.ResponseStatus.OK){
+                        that._trigger( "onresult", null, 
+                            {recordset:new HRecordSet(response.data), request:this._search_request} );
+                    }else{
+                        window.hWin.HEURIST4.msg.showMsgErr(response);
+                    }
+                });      
     },
     
 

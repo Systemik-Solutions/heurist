@@ -19,17 +19,19 @@
 * See the License for the specific language governing permissions and limitations under the License.
 */
 
+use hserv\utilities\DbUtils;
+
+require_once dirname(__FILE__).'/../../../autoload.php';
+require_once dirname(__FILE__).'/../../../hserv/structure/dbsUsersGroups.php';
+
+
 define('DEMO_DB', 'hdb_demo');
 define('DEMO_DB_TEMPLATE', 'hdb_demo_template');
 define('DEMO_DB_ONLY', false);
 
-
-require_once dirname(__FILE__).'/../../../hserv/System.php';
-require_once dirname(__FILE__).'/../../../hserv/utilities/dbUtils.php';
-
 set_time_limit(0);
 
-$system = new System();
+$system = new hserv\System();
 
 $res = false;
 
@@ -37,7 +39,7 @@ $isSystemInited = $system->init(DEMO_DB);
 
 if($isSystemInited){
 
-    $mysqli = $system->get_mysqli();
+    $mysqli = $system->getMysqli();
     $user_record = user_getById($mysqli, 2);
 
     $res = DbUtils::databaseDrop(false, DEMO_DB, false);
@@ -76,11 +78,10 @@ if($isSystemInited){
 if(is_bool($res) && !$res){
     $response = $system->getError();
     $response = $response['message'];
-}elseif(is_array($res) && count($res) > 0){
+}elseif(is_array($res) && !empty($res)){
     $response = 'not able to create all file directories '.implode(', ',$res);
 }else{
     $response = 'Database '.DEMO_DB.' has been reset';
 }
 
 print $response;
-?>

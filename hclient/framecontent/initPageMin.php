@@ -17,9 +17,11 @@
 * distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied
 * See the License for the specific language governing permissions and limitations under the License.
 */
+use hserv\utilities\USanitize;
+
 if(!defined('PDIR')) {define('PDIR','../../');}//need for js scripts
 
-require_once dirname(__FILE__).'/../../hserv/System.php';
+require_once dirname(__FILE__).'/../../autoload.php';
 
 define('ERROR_REDIR', dirname(__FILE__).'/../../hclient/framecontent/infoPage.php');
 
@@ -27,10 +29,10 @@ $error_msg = '';
 $isSystemInited = false;
 
 // init main system class
-$system = new System();
+$system = new hserv\System();
 
 if(defined('ADMIN_PWD_REQUIRED') && ADMIN_PWD_REQUIRED==1){
-    $sysadmin_pwd = System::getAdminPwd();
+    $sysadmin_pwd = USanitize::getAdminPwd();
 
     if($system->verifyActionPassword( $sysadmin_pwd, $passwordForServerFunctions) ){
         include_once dirname(__FILE__).'/../../hclient/framecontent/infoPage.php';
@@ -55,17 +57,20 @@ if(!$isSystemInited){
 $login_warning = 'To perform this action you must be logged in';
 $invalid_access = true;
 
-$is_admin = $system->is_admin();
+$is_admin = $system->isAdmin();
 
 //
 // to limit access to particular page
-// define const in the very begining of your php code  just before require_once 'initPage.php';
 //
-if(defined('LOGIN_REQUIRED') && !$system->has_access()){
+// @todo replacec with userCheckAccess
+if(defined('LOGIN_REQUIRED') && !$system->hasAccess()){
     $message = $login_warning;
+}elseif(defined('MANAGER_MEMBER_REQUIRED') && 
+        !($system->isDbOwner() || $system->isMember([$system->settings->get('sys_OwnerGroupID')]))){
+    $message = $login_warning.' as member of group \'Database Managers\'';     
 }elseif(defined('MANAGER_REQUIRED') && !$is_admin ){ //A member should also be able to create and open database
     $message = $login_warning.' as Administrator of group \'Database Managers\'';
-}elseif(defined('OWNER_REQUIRED') && !$system->is_dbowner()){
+}elseif(defined('OWNER_REQUIRED') && !$system->isDbOwner()){
     $message = $login_warning.' as Database Owner';
 }else{
     $invalid_access = false;
@@ -93,11 +98,11 @@ if(isset($message)){
 }
 
 function echo_flush($msg){
-    //ob_start();
+
     print $msg;
-    //ob_end_flush();
-    //@ob_flush();
-    //@flush();
+
+
+
 }
 
 //

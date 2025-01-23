@@ -1,11 +1,11 @@
 <?php
 /**
 * recordTemplate.php: Exports record structure templates in JSON format,
-*	or calls record_output.php to export actual records (if rectype_ids is not provided)
+* or calls record_output.php to export actual records (if rectype_ids is not provided)
 *
 * @package     Heurist academic knowledge management system
 * @link        https://HeuristNetwork.org
-* @copyright   (C) 2005-2022 University of Sydney
+* @copyright   (C) 2005-2023 University of Sydney
 * @author      Brandon McKay     <blmckay13@gmail.com>
 * @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
 * @version     6
@@ -18,19 +18,20 @@
 * distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied
 * See the License for the specific language governing permissions and limitations under the License.
 */
-
-require_once dirname(__FILE__).'/../../hserv/System.php';
-require_once dirname(__FILE__).'/../../hserv/structure/search/dbsData.php';
-require_once dirname(__FILE__).'/../../hserv/records/search/recordSearch.php';
-require_once dirname(__FILE__).'/../../hserv/structure/conceptCode.php';
+use hserv\structure\ConceptCode;
 
 if(!array_key_exists('rectype_ids', $_REQUEST)){
     require_once dirname(__FILE__).'/../../hserv/controller/record_output.php';// attempt to export actual records
     exit;
 }
 
+require_once dirname(__FILE__).'/../../autoload.php';
+require_once dirname(__FILE__).'/../../hserv/structure/search/dbsData.php';
+require_once dirname(__FILE__).'/../../hserv/records/search/recordSearch.php';
+
+
 if(!defined('PDIR')){
-    $system = new System();
+    $system = new hserv\System();
     if( !$system->init(filter_var(@$_REQUEST['db'])) ){
         die("Cannot connect to database");
     }
@@ -121,15 +122,14 @@ record types and fields exported from the target database, this is
 only useful for synchronising vocabularies and terms.\n\n";
 
 $import_help = "{"
-    . "\n \t\t\"TRM_ID\": \"Specifies any of the following, which are evaluated in order: local ID, concept code, label or standard code. If no match is found, the value will be added as a new term\","
-    . "\n \t\t\"DATE\": \"Specify date field values in ISO format (yyyy or yyyy-mm or yyyy-mm-dd)\","
-    . "\n \t\t\"RECORD_REFERENCE\": \"May be replaced with a numeric or alphanumeric reference to another record. Note that this reference will be replaced with an automatically generated numeric Heurist record ID (H-ID), and the reference supplied will be recorded in a field Original ID.\","
-    . "\n \t\t\"RELATIONSHIP_RECORD\": \"Special fields that contain no data; instead new records of type RELATIONSHIP should be imported. They will appear in the marker fields when the data is viewed.\","
-    . "\n \t\t\"RECORD-IDENTIFIER\": \"Specify the record identifier in the source database (numeric or alphanumeric) if the record could be the target of a record pointer field, including the target record pointer of a relationship record.\""
-    . "\n \t}";
+. "\n \t\t\"TRM_ID\": \"Specifies any of the following, which are evaluated in order: local ID, concept code, label or standard code. If no match is found, the value will be added as a new term\","
+. "\n \t\t\"DATE\": \"Specify date field values in ISO format (yyyy or yyyy-mm or yyyy-mm-dd)\","
+. "\n \t\t\"RECORD_REFERENCE\": \"May be replaced with a numeric or alphanumeric reference to another record. Note that this reference will be replaced with an automatically generated numeric Heurist record ID (H-ID), and the reference supplied will be recorded in a field Original ID.\","
+. "\n \t\t\"RELATIONSHIP_RECORD\": \"Special fields that contain no data; instead new records of type RELATIONSHIP should be imported. They will appear in the marker fields when the data is viewed.\","
+. "\n \t\t\"RECORD-IDENTIFIER\": \"Specify the record identifier in the source database (numeric or alphanumeric) if the record could be the target of a record pointer field, including the target record pointer of a relationship record.\""
+. "\n \t}";
 
 // START OUTPUT
-//$fd = fopen('php://output', 'w');
 
 $json = "{\"heurist\":{\n \t\"help\": ". $import_help .",\n \t\"records\":[";
 //fwrite($fd, "{\"heurist\":{\n \t\"help\": ". $import_help .",\n \t\"records\":[");// starting string
@@ -156,12 +156,16 @@ foreach ($rectype_ids as $rty_id) {
         foreach ($rectype_structure['details'] as $dt => $details) {
 
             foreach ($details as $value) {
-                if(array_key_exists('file', $value)){ // file field
-                    $value = $file_field;
-                }elseif(array_key_exists('geo', $value)){ // geo field
-                    $value = $geo_field;
-                }elseif(array_key_exists('id', $value) && $value['id'] == 'RECORD_REFERENCE'){
-                    $value = '{"id": "RECORD_REFERENCE", "type": "RTY_ID", "title": "TEXT"}';
+                if(is_array($value)){
+                    if(array_key_exists('file', $value)){ // file field
+                        $value = $file_field;
+                    }elseif(array_key_exists('geo', $value)){ // geo field
+                        $value = $geo_field;
+                    }elseif(array_key_exists('id', $value) && strpos($value['id'],'RECORD_REFERENCE')===0){
+                        $value = '{"id": "RECORD_REFERENCE", "type": "RTY_ID", "title": "TEXT"}';
+                    }else{
+                        $value = '"' . json_encode($value) . '"';
+                    }
                 }elseif(strpos($value, 'VALUE') !== false){ //$value == 'VALUE'
                     $value = '"TRM_ID"';
                 }elseif(strpos($value, 'SEE NOTES AT START') !== false){ //$value == 'SEE NOTES AT START'
@@ -196,25 +200,19 @@ $json .= "\n \t],";
 
 // Add database details
 $db_details = "\n \t\"database\":{"
-    . "\n \t\t\"id\": \"". $system->get_system('sys_dbRegisteredID') ."\","
-    . "\n \t\t\"db\": \"". htmlspecialchars($system->dbname()) ."\","
-    . "\n \t\t\"url\": \"". HEURIST_BASE_URL ."\","
-    . "\n \t\t\"rectypes\": {". $rectypes ."\n \t\t}"
-    . "\n \t}";
+. "\n \t\t\"id\": \"". $system->settings->get('sys_dbRegisteredID') ."\","
+. "\n \t\t\"db\": \"". htmlspecialchars($system->dbname()) ."\","
+. "\n \t\t\"url\": \"". HEURIST_BASE_URL ."\","
+. "\n \t\t\"rectypes\": {". $rectypes ."\n \t\t}"
+. "\n \t}";
 $json .= $db_details;
-//fwrite($fd, $db_details);
 
 // Close off
 $json .= "\n}}";
-//fwrite($fd, "\n}}");
 
 $filename = 'Template_' . $_REQUEST['db'] . '_' . date("YmdHis") . '.json';
 
 header(CTYPE_JSON);
 header('Content-Disposition: attachment; filename="'.$filename.'";');
-//header('Expires: ' . gmdate("D, d M Y H:i:s", time() - 3600));
 
 echo $json;
-
-exit;
-?>

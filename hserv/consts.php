@@ -1,4 +1,5 @@
 <?php
+use \hserv\utilities\USystem;
 
 /**
 * List of system constants
@@ -22,12 +23,8 @@
 * See the License for the specific language governing permissions and limitations under the License.
 */
 
-// TODO: Rationalise the duplication of constants across /php/consts.php and /common/connect/initialise.php
-//       in particualr this duplication of HEURIST_MIN_DB_VERSION and any other explicit constants
-require_once dirname(__FILE__).'/utilities/uSystem.php';
-
 define('HEURIST_VERSION', $version);//code version is defined congigIni.php
-define('HEURIST_MIN_DBVERSION', "1.3.14");//minimal version of db for current version of code
+define('HEURIST_MIN_DBVERSION', "1.3.17");//minimal version of db for current version of code
 
 // The reference server is the location of the Heurist Reference Index database (HEURIST_INDEX_DATABASE), the Heurist_Help database,
 
@@ -37,12 +34,14 @@ if(!@$heuristReferenceServer){
     //$heuristReferenceServer = 'https://HeuristRef.Net';
 }
 
+define('HEURIST_DEF_DIR', '/heurist/'); //default Heurist folder
 define('HEURIST_MAIN_SERVER', $heuristReferenceServer);
-define('HEURIST_INDEX_BASE_URL', $heuristReferenceServer.'/heurist/');//central index and template databases url
+define('HEURIST_INDEX_BASE_URL', $heuristReferenceServer.HEURIST_DEF_DIR);//central index and template databases url
 define('HEURIST_INDEX_DBREC', '1-22');//concept code for record type "Registered Database" in Heurist Reference Index (HEURIST_INDEX_DATABASE)
 
 define('HEURIST_INDEX_DATABASE', 'Heurist_Reference_Index');
-define('HEURIST_HELP', $heuristReferenceServer.'/heurist/help');
+define('HEURIST_BUGREPORT_DATABASE', 'Heurist_Job_Tracker');
+define('HEURIST_HELP', $heuristReferenceServer.HEURIST_DEF_DIR.'help');
 
 if (@$httpProxy != '') {
     define('HEURIST_HTTP_PROXY_ALWAYS_ACTIVE', (isset($httpProxyAlwaysActive) && $httpProxyAlwaysActive===true));//always use proxy for CURL
@@ -52,7 +51,7 @@ if (@$httpProxy != '') {
     }
 }
 
-$host_params = USystem::getHostParams(@$argv);
+$host_params = USystem::getHostParams(isset($argv)?$argv:null);
 
 define('HEURIST_DOMAIN', $host_params['domain']);
 
@@ -65,18 +64,14 @@ if (!@$mailDomain) {
 define('HEURIST_SERVER_URL', $host_params['server_url']);
 define('HEURIST_SERVER_NAME', @$host_params['server_name']);// server host name for the configured name, eg. myheurist.net
 
-if(@$_SERVER["REQUEST_URI"]) {define('HEURIST_CURRENT_URL', $host_params['server_url'] . $_SERVER["REQUEST_URI"]);}//NOT USED
-if(!defined('HEURIST_DIR')){
-  define('HEURIST_DIR',
-    (@$host_params['heurist_dir']? $host_params['heurist_dir'] :@$_SERVER["DOCUMENT_ROOT"])
-    . $host_params['install_dir']);//  eg. /var/www/html/HEURIST @todo - read simlink (realpath)
-}
+if(!defined('HEURIST_DIR'))  { define('HEURIST_DIR', $host_params['heurist_dir']); }
 
-define('HEURIST_BASE_URL', $host_params['server_url'] . $host_params['install_dir']  );// eg. https://myheurist.net/heurist/
-
-define('HEURIST_BASE_URL_PRO', $host_params['server_url'] . $host_params['install_dir_pro'] );// production url eg. https://myheurist.net/heurist/
+define('HEURIST_BASE_URL', $host_params['baseURL'] );// eg. https://myheurist.net/h6-alpha/
+define('HEURIST_BASE_URL_PRO', $host_params['baseURL_pro'] );// production url eg. https://myheurist.net/heurist/
 
 define('HEURIST_SCRATCHSPACE_DIR', sys_get_temp_dir());
+
+//------------ database connection
 
 if ($dbHost) {
     define('HEURIST_DBSERVER_NAME', $dbHost);
@@ -105,16 +100,6 @@ if(isset($dbMySQLpath) && file_exists($dbMySQLpath)){
 }
 define('HEURIST_DB_MYSQL_SCRIPT_MODE', $dbScriptMode);
 
-/*  @todo - redirect to system config error page
-
-if (!($dbAdminUsername && $dbAdminPassword)) { //if these are not specified then we can't do anything
-returnErrorMsgPage(1, "MySql user account/password not specified. Set in configIni.php");
-}
-if(preg_match('/[^a-z_\-0-9]/i', $dbAdminPassword)){
-//die("MySql user password contains non valid charactes. Only alphanumeric allowed. Set in configIni.php");
-returnErrorMsgPage(1, "MySql user password may not contain special characters. To avoid problems down the line they are restricted to alphanumeric only. Set in configIni.php");
-}
-*/
 define('ADMIN_DBUSERNAME', $dbAdminUsername);//user with all rights so we can create databases, etc.
 define('ADMIN_DBUSERPSWD', $dbAdminPassword);
 define('HEURIST_DB_PREFIX', $dbPrefix);
@@ -122,8 +107,8 @@ define('HEURIST_DB_PORT', $dbPort);
 
 //---------------------------------
 $date = new DateTime();
-//define('HEURIST_TITLE', 'Heurist Academic Knowledge Management System - &copy; 2005-2023 The University of Sydney.');
-define('HEURIST_TITLE', 'Heurist V'.HEURIST_VERSION);//.' '.$date->format('d M Y @ H:i') );
+
+define('HEURIST_TITLE', 'Heurist V'.HEURIST_VERSION);
 
 /**
 * Response status for ajax requests. See ResponseStatus in hapi.js
@@ -138,33 +123,6 @@ define("HEURIST_UNKNOWN_ERROR", "unknown");// 500 A request could not be process
 define("HEURIST_DB_ERROR", "database");// 500 A request could not be processed due to a server database error. Most probably this is BUG. Contact developers
 define("HEURIST_SYSTEM_CONFIG", "syscfg");// 500 System not-fatal configuration error. Contact system admin
 define("HEURIST_SYSTEM_FATAL", "system");// 500 System fatal configuration error. Contact system admin
-/*
-$usrTags = array(
-"rty_ID"=>"i",
-"rty_Name"=>"s",
-"rty_OrderInGroup"=>"i",
-"rty_Description"=>"s",
-"rty_TitleMask"=>"s",
-"rty_CanonicalTitleMask"=>"s",
-"rty_Plural"=>"s",
-"rty_Status"=>"s",
-"rty_OriginatingDBID"=>"i",
-"rty_NameInOriginatingDB"=>"s",
-"rty_IDInOriginatingDB"=>"i",
-"rty_NonOwnerVisibility"=>"s",
-"rty_ShowInLists"=>"i",
-"rty_RecTypeGroupID"=>"i",
-"rty_RecTypeModelsIDs"=>"s",
-"rty_FlagAsFieldset"=>"i",
-"rty_ReferenceURL"=>"s",
-"rty_AlternativeRecEditor"=>"s",
-"rty_Type"=>"s",
-"rty_ShowURLOnEditForm" =>"i",
-"rty_ShowDescriptionOnEditForm" =>"i",
-"rty_Modified"=>"i",
-"rty_LocallyModified"=>"i"
-);
-*/
 
 //---------------------------------
 // set up email defines
@@ -174,6 +132,7 @@ define('HEURIST_MAIL_TO_INFO', $infoEmail?$infoEmail:'info@HeuristNetwork.org');
 define('HEURIST_MAIL_TO_ADMIN', $sysAdminEmail?$sysAdminEmail:HEURIST_MAIL_TO_INFO);
 
 define('CONTACT_HEURIST_TEAM', 'contact <a href=mailto:'.HEURIST_MAIL_TO_INFO.'>Heurist team</a> ');
+define('CONTACT_HEURIST_TEAM_PLEASE', ' Please '.CONTACT_HEURIST_TEAM);
 define('CONTACT_SYSADMIN', 'contact your <a href=mailto:'.HEURIST_MAIL_TO_ADMIN.'>system administrator</a> ');
 
 define('CRITICAL_DB_ERROR_CONTACT_SYSADMIN',
@@ -181,6 +140,9 @@ define('CRITICAL_DB_ERROR_CONTACT_SYSADMIN',
             .'<br><br>Please contact the system administrator (email: ' . HEURIST_MAIL_TO_ADMIN . ') for assistance.'
             .'<br><br>This error has been emailed to the Heurist team (for servers maintained by the project or those on which this function has been enabled).'
             .'<br><br>We apologise for any inconvenience');
+
+define('CONTACT_SYSADMIN_ABOUT_PERMISSIONS',
+        'Please ask your system administrator to correct the path and/or permissions for this directory');
 
 //
 define('WEBSITE_THUMBNAIL_SERVICE', $websiteThumbnailService);
@@ -192,13 +154,51 @@ define("HEURIST_UNITED_TERMS", true);
 //common constants
 define('NAKALA_REPO', 'http'.'://nakala.fr/'); //split to avoid sonarcloud security hotspot
 define('DATE_8601', 'Y-m-d H:i:s');
+define('REGEX_YEARONLY', '/^-?\d+$/');
 define('REGEX_ALPHANUM', '/[^a-zA-Z0-9_]/');
+define('REGEX_EOL', '/[\r\n]/');
+
 define('XML_HEADER', '<?xml version="1.0" encoding="UTF-8"?>');
 define('CTYPE_JSON', 'Content-type: application/json;charset=UTF-8');
+define('CTYPE_HTML', 'Content-type: text/html;charset=UTF-8');
+define('CTYPE_JS', 'Content-type: text/javascript');
 define('CONTENT_LENGTH', 'Content-Length: ');
 define('HEADER_CORS_POLICY', 'Access-Control-Allow-Origin: *');
+define('MIMETYPE_JSON', 'application/json');
 
+//common separators
+define('TABLE_S','<table>');
+define('TR_S','<tr><td>');
+define('TD','</td><td>');
+define('TD_E','</td>');
+define('TR_E','</td></tr>');
+define('TABLE_E','</table>');
+define('DIV_S','<div>');
+define('DIV_E','</div>');
+define('BR','<br>');
+define('BR2','<br><br>');
 
+//common sql reserved words
+define('SQL_AND',' AND ');
+define('SQL_NOT',' NOT ');
+define('SQL_WHERE',' WHERE ');
+define('SQL_NULL', 'NULL');
+define('SQL_DELETE', 'DELETE FROM ');
+define('SQL_IN',' IN (');
+define('SQL_FALSE','(1=0)');
+define('SQL_BETWEEN',' BETWEEN ');
+
+define('MT_VIMEO','video/vimeo');
+define('MT_YOUTUBE','video/youtube');
+define('MT_SOUNDCLOUD','audio/soundcloud');
+
+//
+define('HTTP_SCHEMA','http://');
+define('HTTPS_SCHEMA','https://');
+define('XML_SCHEMA','http://www.w3.org/2001/XMLSchema#string');
+define('TEMP_MEMORY', 'php://temp/maxmemory:1048576');
+
+global $glb_lang_codes;
 $glb_lang_codes = null;
 
 //common languages for translation database definitions (ISO639-2 codes)
@@ -213,13 +213,35 @@ define('HEURIST_ALLOWED_EXT',
 .'mid,midi,wms,wmd,qt,evo,cda,wav,csv,tsv,tab,txt,rtf,xml,xsl,xslx,xslt,xls,xlsx,hml,kml,kmz,shp,dbf,shx,svg,htm,html,xhtml,'
 .'ppt,pptx,zip,gzip,tar,json,ecw,nxs,nxz,obj,mtl,3ds,stl,ply,gltf,glb,off,3dm,fbx,dae,wrl,3mf,ifc,brep,step,iges,fcstd,bim');
 
+//special media types
+define('ULF_REMOTE','_remote');
+define('ULF_IIIF','_iiif');
+define('ULF_IIIF_IMAGE','_iiif_image');
+define('ULF_TILED_IMAGE','_tiled');
+
+//default system folders
+define('DIR_IMAGE','image/');
+define('DIR_SCRATCH','scratch/');
+define('DIR_BACKUP','backup/');
+define('DIR_THUMBS','thumbs/');
+define('DIR_ENTITY','entity/');
+define('DIR_FILEUPLOADS','file_uploads/');
+define('DIR_WEBIMAGECACHE','webimagecache/');
+define('DIR_BLURREDIMAGECACHE','blurredimagescache/');
+define('DIR_GENERATED_REPORTS','generated-reports/');
+define('DIR_SMARTY_TEMPLATES', 'smarty-templates/');
+
+
+define('ICON_PLACEHOLDER', HEURIST_BASE_URL.'hclient/assets/16x16.gif');
+define('ICON_EXTLINK', HEURIST_BASE_URL.'hclient/assets/external_link_16x16.gif');
+
 /** RECORD TYPE DEFINITIONS */
 $rtDefines = array(
     // Standard core record types (HeuristCoreDefinitions: DB = 2)
     'RT_RELATION' => array(2, 1),
     'RT_INTERNET_BOOKMARK' => array(2, 2),
     'RT_NOTE' => array(2, 3),
-    'RT_ORGANIZATION' => array(2, 4),
+    'RT_ORGANISATION' => array(2, 4),
     'RT_MEDIA_RECORD' => array(2, 5),
     'RT_AGGREGATION' => array(2, 6),
     'RT_COLLECTION' => array(2, 6), // duplicate naming
@@ -303,7 +325,6 @@ $dtDefines = array('DT_NAME' => array(2, 1),
     'DT_GIVEN_NAMES' => array(2, 18),
     'DT_GENDER' => array(2, 20),
     'DT_EMAIL' => array(2, 23),
-    'DT_LOCATION' => array(2, 27), // TODO : change DT_PLACE_NAME with new update.
     'DT_GEO_OBJECT' => array(2, 28),
     'DT_MIME_TYPE' => array(2, 29),
     'DT_IMAGE_TYPE' => array(2, 30),
@@ -354,11 +375,8 @@ $dtDefines = array('DT_NAME' => array(2, 1),
     'DT_FILE_MD5' => array(2, 68),
     'DT_PARENT_ENTITY' => array(2, 247),
     'DT_EDITOR' => array(3, 1013),
-    'DT_OTHER_FILE' => array(3, 62), //TODO: remove from code
-    'DT_LOGO_IMAGE' => array(3, 222), //TODO: remove from code
-    'DT_IMAGES' => array(3, 224), //TODO: remove from code
     'DT_DOI' => array(3, 1003),
-    'DT_WEBSITE_ICON' => array(3, 347), //TODO: remove from code
+    'DT_WEBSITE_ICON' => array(3, 347), //remove from code
     'DT_ISBN' => array(3, 1011),
     'DT_ISSN' => array(3, 1032),
     'DT_JOURNAL_REFERENCE' => array(3, 1034),
@@ -420,7 +438,7 @@ $dtDefines = array('DT_NAME' => array(2, 1),
 
     'DT_WORKFLOW_STAGE' => array(2, 1080)
 
-);//TODO: add email magic numbers
+);
 
 
 $trmDefines = array(
@@ -444,23 +462,175 @@ $trmDefines = array(
 
 //---------------------------------
 
-function boot_error_handler($errno, $errstr, $errfile, $errline){
-    if($errno==E_WARNING){ //E_PARSE E_NOTICE
-            if(strpos($errstr,'Input variables')>0){
-
+function bootErrorHandler($errno, $errstr, $errfile, $errline){
+    if($errno==E_WARNING && strpos($errstr,'Input variables')>0){ //E_PARSE E_NOTICE
                 $message = "$errstr $errfile:$errline";
                 error_log('Large INPUT: '.htmlspecialchars($message));
                 error_log(print_r(array_slice($_REQUEST, 0, 100),true));
                 error_log(print_r($_SERVER, true));
-            /*
-            if(class_exists('Log')){
-                Log::write($message, 'warning', true);
-            }
-            if(ENV != ENV_PROD){
-                echo $message;
-            }
-            */
-            }
     }
+}
+
+//
+// Common functions
+//
+function errorWrongParam($param){
+    return $param.' parameter is not defined or wrong';
+}
+
+function errorDiv($text){
+    return '<div class="error" style="color:red">'.$text.DIV_E;
+}
+
+
+function redirectURL($url){
+    header('Location: '.$url);
+}
+
+
+function getNow(){
+    return new \DateTime('now', new \DateTimeZone('UTC'));
+}
+
+function isEmptyStr($val){
+    // !empty is analogous to isset($foo) && $foo
+    return empty($val) || $val=='';
+}
+
+function isEmptyArray($val){
+    return !is_array($val) || empty($val);
+}
+
+/**
+ * Searches for a value in a two-dimensional array by a specific key.
+ *
+ * @param array $arr The array to search in (2D array).
+ * @param string $key The key to search for within the nested arrays.
+ * @param mixed $keyvalue The value to match against.
+ * @return int|null Returns the index of the found item, or null if not found.
+ */
+function findInArray(array $arr, string $key, $keyvalue): ?int {
+    foreach ($arr as $idx => $item) {
+        if (is_array($item) && array_key_exists($key, $item) && $item[$key] === $keyvalue) {
+            return $idx;
+        }
+    }
+    return null;
+}
+
+function isPositiveInt($val){
+    return isset($val) && (is_int($val) || ctype_digit($val)) && (int)$val>0;
+}
+
+function isLocalHost(){
+    return $_SERVER["SERVER_NAME"]=='localhost' || $_SERVER["SERVER_NAME"]=='127.0.0.1';
+}
+
+
+function dataOutput($data, $filename=null, $mimeType=null)
+{
+    if($mimeType==null){
+        $mimeType = MIMETYPE_JSON;
+    }
+    if($mimeType==MIMETYPE_JSON && is_array($data)){
+        $data = json_encode($data);
+    }
+
+    header('Content-type: '.$mimeType.';charset=UTF-8');
+
+    if($filename){ //browser downloads it as file
+        header('Content-Disposition: attachment; filename="' . $filename . '";');
+        header("Pragma: no-cache;");
+        header('Expires: ' . gmdate("D, d M Y H:i:s", time() - 3600));
+    }
+
+    $len = strlen($data);
+    if($len>0){header('Content-Length: '. $len);}
+
+    if($mimeType==MIMETYPE_JSON){
+        header('X-Content-Type-Options: nosniff');
+        header('X-XSS-Protection: 1; mode=block');
+        header('Content-Security-Policy: default-src \'self\'; script-src \'self\'; frame-ancestors \'self\'');
+    }
+
+    echo $data;
+}
+
+function includeJQuery(){
+
+   $useVersion3 =  false;
+
+   if ($useVersion3) {
+           // integrity has been got with https://www.srihash.org/
+?>
+        <script src="https://code.jquery.com/jquery-3.7.1.js" integrity="sha384-wsqsSADZR1YRBEZ4/kKHNSmU+aX8ojbnKUMN4RyD3jDkxw5mHtoe2z/T/n4l56U/" crossorigin="anonymous"></script>
+        <script src="https://code.jquery.com/jquery-migrate-3.5.2.js" integrity="sha384-v0gmY8lRWAAaI20hT2ehyGAhsZiQpB+ZMpRHg/ipfVinhY4zxJXPjV8zaVW3kq4W" crossorigin="anonymous"></script>
+        <script src="https://code.jquery.com/ui/1.14.0/jquery-ui.js" integrity="sha384-/L7+EN15GOciWSd0nb17+43i1HKOo5t8SFtgDKGqRJ2REbp8N6fwVumuBezFc4qC" crossorigin="anonymous"></script>
+        <link rel="stylesheet" type="text/css" href="https://code.jquery.com/ui/1.14.0/themes/base/jquery-ui.css">
+
+        <!-- Calendar picker -->
+        <script type="text/javascript" src="<?php echo PDIR;?>external/jquery.calendars-2.1.1/js/jquery.plugin.js"></script>
+        <script type="text/javascript" src="<?php echo PDIR;?>external/jquery.calendars-2.1.1/js/jquery.calendars.js"></script>
+        <script type="text/javascript" src="<?php echo PDIR;?>external/jquery.calendars-2.1.1/js/jquery.calendars.plus.js"></script>
+
+        <link rel="stylesheet" type="text/css" href="<?php echo PDIR;?>external/jquery.calendars-2.1.1/css/jquery.calendars.picker-1.2.1.css">
+        <script type="text/javascript" src="<?php echo PDIR;?>external/jquery.calendars-2.1.1/js/jquery.calendars.picker.js"></script>
+
+        <script src="<?php echo PDIR;?>external/jquery.calendars-2.1.1/js/jquery.calendars.taiwan.js"></script>
+        <script src="<?php echo PDIR;?>external/jquery.calendars-2.1.1/js/jquery.calendars.thai.js"></script>
+        <script src="<?php echo PDIR;?>external/jquery.calendars-2.1.1/js/jquery.calendars.julian.js"></script>
+        <script src="<?php echo PDIR;?>external/jquery.calendars-2.1.1/js/jquery.calendars.persian.js"></script>
+        <script src="<?php echo PDIR;?>external/jquery.calendars-2.1.1/js/jquery.calendars.islamic.js"></script>
+        <script src="<?php echo PDIR;?>external/jquery.calendars-2.1.1/js/jquery.calendars.ummalqura.js"></script>
+        <script src="<?php echo PDIR;?>external/jquery.calendars-2.1.1/js/jquery.calendars.hebrew.js"></script>
+        <script src="<?php echo PDIR;?>external/jquery.calendars-2.1.1/js/jquery.calendars.ethiopian.js"></script>
+        <script src="<?php echo PDIR;?>external/jquery.calendars-2.1.1/js/jquery.calendars.coptic.js"></script>
+        <script src="<?php echo PDIR;?>external/jquery.calendars-2.1.1/js/jquery.calendars.nepali.js"></script>
+        <script src="<?php echo PDIR;?>external/jquery.calendars-2.1.1/js/jquery.calendars.mayan.js"></script>
+        <script src="<?php echo PDIR;?>hclient/core/jquery.calendars.japanese.js"></script>
+<?php
+   }else{
+
+
+   if(isLocalHost()){
+?>
+        <script type="text/javascript" src="<?php echo PDIR;?>external/jquery-ui-1.12.1/jquery-1.12.4.js"></script>
+        <script type="text/javascript" src="<?php echo PDIR;?>external/jquery-ui-1.12.1/jquery-ui.js"></script>
+        <link rel="stylesheet" type="text/css" href="<?php echo PDIR;?>external/jquery-ui-themes-1.12.1/themes/base/jquery-ui.css"/>
+<?php
+   }else{
+?>
+        <script src="https://code.jquery.com/jquery-1.12.2.min.js" integrity="sha256-lZFHibXzMHo3GGeehn1hudTAP3Sc0uKXBXAzHX1sjtk=" crossorigin="anonymous"></script>
+        <script src="https://code.jquery.com/ui/1.12.1/jquery-ui.min.js" integrity="sha256-VazP97ZCwtekAsvgPBSUwPFKdrwD3unUfSGVYrahUqU=" crossorigin="anonymous"></script>
+        <link rel="stylesheet" type="text/css" href="https://code.jquery.com/ui/1.12.1/themes/base/jquery-ui.css">
+
+<?php
+   }
+?>
+        <!-- Calendar picker -->
+        <script type="text/javascript" src="<?php echo PDIR;?>external/jquery.calendars-1.2.1/jquery.calendars.js"></script>
+        <script type="text/javascript" src="<?php echo PDIR;?>external/jquery.calendars-1.2.1/jquery.calendars.plus.js"></script>
+
+        <link rel="stylesheet" type="text/css" href="<?php echo PDIR;?>external/jquery.calendars-1.2.1/jquery.calendars.picker.css">
+        <script type="text/javascript" src="<?php echo PDIR;?>external/jquery.calendars-1.2.1/jquery.calendars.picker.js"></script>
+
+        <script src="<?php echo PDIR;?>external/jquery.calendars-1.2.1/jquery.calendars.taiwan.js"></script>
+        <script src="<?php echo PDIR;?>external/jquery.calendars-1.2.1/jquery.calendars.thai.js"></script>
+        <script src="<?php echo PDIR;?>external/jquery.calendars-1.2.1/jquery.calendars.julian.js"></script>
+        <script src="<?php echo PDIR;?>external/jquery.calendars-1.2.1/jquery.calendars.persian.js"></script>
+        <script src="<?php echo PDIR;?>external/jquery.calendars-1.2.1/jquery.calendars.islamic.js"></script>
+        <script src="<?php echo PDIR;?>external/jquery.calendars-1.2.1/jquery.calendars.ummalqura.js"></script>
+        <script src="<?php echo PDIR;?>external/jquery.calendars-1.2.1/jquery.calendars.hebrew.js"></script>
+        <script src="<?php echo PDIR;?>external/jquery.calendars-1.2.1/jquery.calendars.ethiopian.js"></script>
+        <script src="<?php echo PDIR;?>external/jquery.calendars-1.2.1/jquery.calendars.coptic.js"></script>
+        <script src="<?php echo PDIR;?>external/jquery.calendars-1.2.1/jquery.calendars.nepali.js"></script>
+        <script src="<?php echo PDIR;?>external/jquery.calendars-1.2.1/jquery.calendars.mayan.js"></script>
+        <script src="<?php echo PDIR;?>hclient/core/jquery.calendars.japanese.js"></script>
+<?php
+   }
+?>
+   <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery.fancytree/2.38.3/jquery.fancytree-all.js" integrity="sha384-BSBg3ImWc3aK3fo7lX3qP5Ben/mH1jIVv4MJPkG7txP2Qg+kmn7l5u6XWDCxrrYK" crossorigin="anonymous"></script>
+   <link rel="stylesheet" type="text/css" href="<?php echo PDIR;?>external/jquery.widgets/jquery.fancytree/skin-themeroller/ui.fancytree.css" />
+<?php
 }
 ?>

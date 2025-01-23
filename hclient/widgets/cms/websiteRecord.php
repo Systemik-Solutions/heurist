@@ -1,5 +1,6 @@
 <?php
-print '<!DOCTYPE html>';
+use hserv\structure\ConceptCode;
+
     /**
     *  Website generator based on CMS records 99-51,52,53
     *
@@ -88,7 +89,7 @@ CONTENT:
     This method replaces all div elements with attribute "data-heurist-app-id" to
     the appropriate Heurist widgets (search, map, result list etc)
 
-    There are 2 fields per menu/page record "target css" and "target element". They are reserved
+    There are 2 fields per menu/page record target css and target element. They are reserved
     for future use. At the moment page content is always loaded into #main-content and applied
     general Heurist color scheme unless the style is overdefined for particular
     widget.
@@ -122,43 +123,42 @@ $edit_OldEditor = (@$_REQUEST['edit']==1);
 
 $system->defineConstants();
 
-$mysqli = $system->get_mysqli();
+$mysqli = $system->getMysqli();
 
 $isEmptyHomePage = false;
 $open_page_or_record_on_init = 0;
-if(_isPositiveInt(@$_REQUEST['initid'])) {
+if(isPositiveInt(@$_REQUEST['initid'])) {
     $open_page_or_record_on_init = intval(@$_REQUEST['initid']);
-}elseif(_isPositiveInt(@$_REQUEST['pageid'])) {
+}elseif(isPositiveInt(@$_REQUEST['pageid'])) {
     $open_page_or_record_on_init = intval(@$_REQUEST['pageid']);
 }
 
-$rec_id = 0;
-if(_isPositiveInt(@$_REQUEST['recID'])) {
+$rec_id = 0;  //home record id
+if(isPositiveInt(@$_REQUEST['recID'])) {
     $rec_id = intval(@$_REQUEST['recID']);
-}elseif(_isPositiveInt(@$_REQUEST['recid'])) {
+}elseif(isPositiveInt(@$_REQUEST['recid'])) {
     $rec_id = intval(@$_REQUEST['recid']);
-}elseif(_isPositiveInt(@$_REQUEST['id'])) {
+}elseif(isPositiveInt(@$_REQUEST['id'])) {
     $rec_id = intval(@$_REQUEST['id']);
+}elseif(isPositiveInt(@$_REQUEST['website'])) {
+    $rec_id = intval(@$_REQUEST['website']);
 }
 
-if(!($rec_id>0))
-{
-    //if recID is not defined - find fist available "CMS home" record
+//find default website
+$res = recordSearch($system, array('q'=>array('t'=>RT_CMS_HOME), 'detail'=>'ids'));
+$def_rec_id = 0;
+if(@$res['status']==HEURIST_OK){
+    $def_rec_id = @$res['data']['records'][0];
+}
 
-    $res = recordSearch($system, array('q'=>array('t'=>RT_CMS_HOME), 'detail'=>'ids'));
-    if(@$res['status']==HEURIST_OK){
-        $rec_id = @$res['data']['records'][0];
-        if(!($rec_id>0)){
+if(!isPositiveInt($rec_id)){
+    // if recID is not defined - use fist available "CMS home" record
+    $rec_id = $def_rec_id;
+    if(!isPositiveInt($rec_id)){
+        $try_login = $system->getCurrentUser() == null;
+        $message = 'Sorry, there are no publicly accessible websites defined for this database. '
+        .'Please ' . ($try_login ? '<a class="login-link">login</a> or' : '') . ' ask the owner to publish their website(s).';
 
-            $try_login = $system->getCurrentUser() == null;
-            $message = 'Sorry, there are no publicly accessible websites defined for this database. '
-            .'Please ' . ($try_login ? '<a class="login-link">login</a> or' : '') . ' ask the owner to publish their website(s).';
-
-            include_once ERROR_REDIR;
-            exit;
-        }
-    }else{
-        //$message = $system->getError()['message'];
         include_once ERROR_REDIR;
         exit;
     }
@@ -167,47 +167,28 @@ if(!($rec_id>0))
 // check if this record has been replaced (merged)
 $rec_id = recordSearchReplacement($mysqli, $rec_id, 0);
 
-//validate permissions
-//$rec = mysql__select_row_assoc($mysqli,
-//        'select rec_Title, rec_NonOwnerVisibility, rec_OwnerUGrpID from Records where rec_ID='.$rec_id);
 $rec = recordSearchByID($system, $rec_id, true);
 
 $home_page_on_init = $rec_id;
 
 if($rec==null){
-    //header('Location: '.ERROR_REDIR.'&msg='.rawurlencode('Record #'.$rec_id.' not found'));
+
     $message = 'Website ID '.$home_page_on_init.' does not refer to a CMS Home record';
-    //'Record #'.$home_page_on_init.' not found';
+
     include_once ERROR_REDIR;
     exit;
 }
 
 $hasAccess = (($rec['rec_NonOwnerVisibility'] == 'public') ||
-               $system->is_admin() ||
-    ( ($system->get_user_id()>0) &&
+               $system->isAdmin() ||
+    ( ($system->getUserId()>0) &&
             ($rec['rec_NonOwnerVisibility'] !== 'hidden' ||    //visible for logged
-             $system->is_member($rec['rec_OwnerUGrpID']) )) );//owner
-
-/*
-print $rec_id.'<br>';
-print $rec['rec_NonOwnerVisibility'].'<br>';
-print $system->get_user_id().'  >'.($system->is_admin()===true).'<br>';
-print $rec['rec_OwnerUGrpID'].'<br>';
-print $hasAccess.'<br>';
-print '--------<br>';
-print ($rec['rec_NonOwnerVisibility'] === 'public').'<br>';
-print ($system->is_admin()===true).'<br>';
-print ($system->get_user_id()>0).'<br>';
-print ($rec['rec_NonOwnerVisibility'] !== 'hidden').'<br>';
-print  $system->is_member($rec['rec_OwnerUGrpID']);
-exit;
-*/
+             $system->isMember($rec['rec_OwnerUGrpID']) )) );//owner
 
 if(!$hasAccess){
 
     $try_login = $system->getCurrentUser() == null;
 
-//@todo The Heurist website at this address is not yet publicly accessible.
     $message = 'The Heurist website at this address is not yet publicly accessible. '
         . ($try_login ? '<br>Try <a class="login-link">logging in</a> to view this website.' : '');
 
@@ -217,7 +198,7 @@ if(!$hasAccess){
 
 $showWarnAboutPublic = !$edit_OldEditor && ($rec['rec_NonOwnerVisibility'] != 'public');
 
-$hasAccess = ($system->is_admin() || $system->is_member($rec['rec_OwnerUGrpID']));
+$hasAccess = ($system->isAdmin() || $system->isMember($rec['rec_OwnerUGrpID']));
 
 $site_owner = user_getDbOwner($mysqli);//info about user #2
 
@@ -260,15 +241,15 @@ $image_banner = __getFile($rec, '99-951', null);//DT_CMS_BANNER
 
 $image_logo = $image_logo?'<img style="max-width:270px;" src="'.$image_logo.'">':'';
 
-$meta_keywords = htmlspecialchars(__getValue($rec, DT_CMS_KEYWORDS));
-$meta_description = htmlspecialchars(__getValue($rec, DT_SHORT_SUMMARY));
+$meta_keywords = htmlspecialchars(strip_tags(__getValue($rec, DT_CMS_KEYWORDS)));
+$meta_description = htmlspecialchars(strip_tags(__getValue($rec, DT_SHORT_SUMMARY)));
 
 $website_language_def = '';
 $website_languages_links = '';
 $website_languages = null;
 if(defined('DT_LANGUAGES')){
     $website_languages = @$rec['details'][DT_LANGUAGES];
-    if(is_array($website_languages) && count($website_languages)>0){
+    if(!isEmptyArray($website_languages)){
         $orig_arr = print_r($website_languages,true);
         $website_languages_codes = getTermCodes($mysqli, $website_languages);
         $res = '';
@@ -284,7 +265,7 @@ if(defined('DT_LANGUAGES')){
                 array_push($website_languages_res, $lang_code);
             }
         }
-        $website_languages_links = $res;
+        $website_languages_links = count($website_languages_res)>1?$res:'';
         $website_languages = $website_languages_res;
     }
 }
@@ -323,15 +304,13 @@ if(!$isWebPage && __getValue($rec,DT_EXTENDED_DESCRIPTION)==''){
 $external_files = null;
 $website_custom_css = null;
 $website_custom_javascript = null;
-$website_custom_javascript_allowed = $system->isJavaScriptAllowed();
+$website_custom_javascript_allowed = $system->settings->isJavaScriptAllowed();
 if($website_custom_javascript_allowed)
 {
     if($system->defineConstant('DT_CMS_EXTFILES')){
         $external_files = @$rec['details'][DT_CMS_EXTFILES];
-        if($external_files!=null){
-            if(!is_array($external_files)){
+        if($external_files!=null && !is_array($external_files)){
                 $external_files = array($external_files);
-            }
         }
     }
     $website_custom_javascript = __getValue($rec, DT_CMS_SCRIPT);
@@ -429,7 +408,7 @@ if(!$isWebPage){  //not standalone web page
 
     $record_view_smarty_template = defined('DT_SMARTY_TEMPLATE')?__getValue($rec, DT_SMARTY_TEMPLATE):null;
     $record_view_target = defined('DT_CMS_TARGET')?__getValue($rec, DT_CMS_TARGET):null;
-    if($record_view_target=='recordview') {$record_view_target='main-recordview';}
+    if($record_view_target=='recordview') {$record_view_target='main-recordview';} //blank(_blank),popup,recordview(main-recordview)
 
     //backward capability
     if($custom_website_php_template==null && strpos($record_view_smarty_template, 'cmsTemplate')===0){
@@ -449,7 +428,7 @@ if(!$isWebPage){  //not standalone web page
         if(defined('DT_CMS_FOOTER')){
             $page_footers = @$rec['details'][DT_CMS_FOOTER];
         }
-        //$page_footer = defined('DT_CMS_FOOTER')?__getValue($rec, DT_CMS_FOOTER):'';
+
         $is_page_footer_fixed = ($page_footer_type != ConceptCode::getTermLocalID('2-531'));
         $default_style = ";border-top:2px solid rgb(112,146,190);background:lightgray;";
         if ($is_page_footer_fixed) {
@@ -460,23 +439,28 @@ if(!$isWebPage){  //not standalone web page
             $page_footer_style = 'height:'.$footer_height.(($page_footers!=null) ? '' : $default_style);
         }
 
+        $mailto = '';
+        if(@$site_owner['ugr_eMail']){
+            $mailto = '<div>&bull;&nbsp;&nbsp;<a href="mailto:'.@$site_owner['ugr_eMail'].'" target="_blank">site owner</a></div>';
+        }
+        $favicon_url = HEURIST_BASE_URL.'favicon.ico';
+
         // CSS in h4styles.css
-        $host_information = '<div id="main-host" style="min-height:48px;">'
-            .'<div>'
-                .'&nbsp;&nbsp;<a href="#" onclick="performCaptcha();">report site</a>'
-            .'</div>'
-            .(@$site_owner['ugr_eMail']?'<div>'
-                .'&bull;&nbsp;&nbsp;<a href="mailto:'.@$site_owner['ugr_eMail'].'" target="_blank">site owner</a>'
-                .'</div>':''
-            )
-            .'<div>'
-                .'<a href="https://HeuristNetwork.org" target="_blank" style="text-decoration:none;" '
-                .'title="This website is generated by Heurist, an academic knowledge management system developed at the University of Sydney Faculty of Arts and Social Sciences under the direction of Dr Ian Johnson, chief programmer Artem Osmakov.">'
-                .'powered by &nbsp;&nbsp;<img src="'.HEURIST_BASE_URL.'favicon.ico" style="vertical-align:sub"> Heurist'
-                .'</a>'
-            .'</div>'
-            .'<div id="host_info"></div>'
-            .'</div>';
+        $host_information = <<<EXP
+        <div id="main-host" style="min-height:48px;">
+            <div>
+                &nbsp;&nbsp;<a href="#" onclick="performCaptcha();">report site</a>
+            </div>
+            $mailto
+            <div>
+                <a href="https://HeuristNetwork.org" target="_blank" style="text-decoration:none;"
+                title="This website is generated by Heurist, an academic knowledge management system developed at the University of Sydney Faculty of Arts and Social Sciences under the direction of Dr Ian Johnson, chief programmer Artem Osmakov.">
+                powered by &nbsp;&nbsp;<img src="$favicon_url" style="vertical-align:sub"> Heurist
+                </a>
+            </div>
+                <div id="host_info"></div>
+        </div>
+        EXP;
 
         $page_footer = '<footer id="page-footer" class="'.($is_page_footer_fixed?'ent_footer':'static_footer').'"'
                 .' style="'.$page_footer_style.'">';
@@ -488,7 +472,7 @@ if(!$isWebPage){  //not standalone web page
                         ||($current_language==$website_language_def && $lang==null))?'':' style="display:none"';
                 $page_footer = $page_footer.
                         '<div class="page-footer-content" data-lang="'.($lang!=null?$lang:'').'"'.$st.'>'
-                            .$val.'</div>';
+                            .$val.DIV_E;
         }
         }
         $page_footer = $page_footer.$host_information.'</footer>';
@@ -502,16 +486,16 @@ $home_page_record_id = $rec_id;
 
 $websiteScriptAndStyles_php = HEURIST_DIR.'hclient/widgets/cms/websiteScriptAndStyles.php';
 
-$template = __getTemplate($custom_website_php_template);
-if(!$template && $default_CMS_Template){
-    $template = __getTemplate($default_CMS_Template);
+$template = getCmsTemplateFullPath($custom_website_php_template); //defined CMS Home in field DT_CMS_TEMPLATE
+if(!$template && $default_CMS_Template){  //defined in heuristConfigIni
+    $template = getCmsTemplateFullPath($default_CMS_Template);
 }
 
 if($template!==false){
     //use custom template for website
     include_once $template;
 }else{
-    //use default template for this folder
+    //use default template in this folder
     $template = HEURIST_DIR.'hclient/widgets/cms/cmsTemplate.php';
     if(!file_exists($template)){
             $message = 'Sorry, it is not possible to load default cms template. '
@@ -525,14 +509,15 @@ if($template!==false){
 }
 
 //
+// retuns path to cms template
 //
-//
-function __getTemplate($template){
+function getCmsTemplateFullPath($template){
 
     if($template){
         if(substr( $template, -4 ) !== '.php'){
                 $template = $template.'.php';
         }
+        $template = basename($template);
         if($template!='cmsTemplate.php'){
             $template = HEURIST_DIR.'hclient/widgets/cms/templates/'.$template;
             if(!file_exists($template)) {return false;}
@@ -541,11 +526,5 @@ function __getTemplate($template){
     }
     return false;
 }
-
-//
-//
-//
-function _isPositiveInt($val){
-    return is_numeric($val) && (int)$val>0;
-}
 ?>
+

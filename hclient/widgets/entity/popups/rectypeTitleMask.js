@@ -32,8 +32,7 @@ $.widget( "heurist.rectypeTitleMask", $.heurist.recordAction, {
         rty_ID: 0, 
         rty_TitleMask: '',
         
-        htmlContent: 'rectypeTitleMask.html',
-        helpContent: 'rectypeTitleMask.html' //in context_help folder
+        htmlContent: 'rectypeTitleMask.html'
     },
 
     action_in_progress: false,
@@ -82,10 +81,10 @@ $.widget( "heurist.rectypeTitleMask", $.heurist.recordAction, {
                 let check_status = $(e.target).is(":checked");
 
                 if(!treediv.is(':empty') && treediv.fancytree("instance")){
-                    let tree = treediv.fancytree("getTree");
+                    let tree = $.ui.fancytree.getTree(treediv);
                     tree.visit(function(node){ 
 
-                        if(!node.hasChildren() && node.data.type != "relmarker" && node.data.type != "resource" 
+                        if(!node.hasChildren() && node.type != "relmarker" && node.type != "resource" 
                             && (node.getLevel()==1 || (!window.hWin.HEURIST4.util.isempty(node.span) && $(node.span.parentNode.parentNode).is(":visible")))
                         ){    
                             node.setSelected(check_status);
@@ -130,7 +129,7 @@ $.widget( "heurist.rectypeTitleMask", $.heurist.recordAction, {
         //show hide hints and helps according to current level
         window.hWin.HEURIST4.ui.applyCompetencyLevel(-1, this.element); 
         
-        window.hWin.HEURIST4.util.setDisabled( this.element.parents('.ui-dialog').find('#btnDoAction'), false );
+        window.hWin.HEURIST4.util.setDisabled( this.element.parents('.ui-dialog').find('.btnDoAction'), false );
         
         return true;
     },
@@ -140,7 +139,6 @@ $.widget( "heurist.rectypeTitleMask", $.heurist.recordAction, {
     //
     _getActionButtons: function(){
         let res = this._super();
-        let that = this;
         res[1].text = window.hWin.HR('Save Mask');
         res[0].text = window.hWin.HR('Cancel');
         return res;
@@ -162,7 +160,7 @@ $.widget( "heurist.rectypeTitleMask", $.heurist.recordAction, {
         _text = '';
 
         
-        let tree = this.element.find('.rtt-tree').fancytree("getTree");
+        let tree = $.ui.fancytree.getTree( this.element.find('.rtt-tree') );
         let fieldIds = tree.getSelectedNodes(false);
         let k, len = fieldIds.length;
         
@@ -198,7 +196,7 @@ $.widget( "heurist.rectypeTitleMask", $.heurist.recordAction, {
     _insertAtCursor: function(myField, myValue) {
         //IE support
         if (document.selection) {
-            myField.focus();
+            myField.dispatchEvent(new Event('focus'));
             let sel = document.selection.createRange();
             sel.text = myValue;
         }
@@ -234,12 +232,12 @@ $.widget( "heurist.rectypeTitleMask", $.heurist.recordAction, {
             function (response) {
                 if(response.status != window.hWin.ResponseStatus.OK || response.message){
 
-                    //window.hWin.HEURIST4.util.setDisabled( that.element.parents('.ui-dialog').find('#btnDoAction'), true );
+                    
                     window.hWin.HEURIST4.msg.showMsgErr(response);
                     
                 }else{
                     
-                    //window.hWin.HEURIST4.util.setDisabled( that.element.parents('.ui-dialog').find('#btnDoAction'), false );
+                    
                     
                     if(that.element.find('#listRecords > option').length>1){
                         
@@ -397,8 +395,6 @@ $.widget( "heurist.rectypeTitleMask", $.heurist.recordAction, {
     //
     _loadRecordTypeTreeView: function(rtyID){
         
-        let that = this;
-
         //generate treedata from rectype structure
         let treedata = window.hWin.HEURIST4.dbs.createRectypeStructureTree( null, 3, this.options.rty_ID, ['all','parent_link'] );
 
@@ -431,16 +427,15 @@ $.widget( "heurist.rectypeTitleMask", $.heurist.recordAction, {
                 }
             },
             renderNode: function(event, data){
-
-                if(data.node.data.type == "enum") { // hide blue and expand arrows for terms
+                if(data.node.type == "enum") { // hide blue and expand arrows for terms
                     $(data.node.span.childNodes[0]).hide();
                     $(data.node.span.childNodes[1]).hide();
                 }
-                if(data.node.parent && (data.node.parent.data.type == 'resource' || data.node.parent.data.type == 'rectype')){ // add left border+margin
+                if(data.node.parent && (data.node.parent.type == 'resource' || data.node.parent.type == 'rectype')){ // add left border+margin
                     $(data.node.li).attr('style', 'border-left: black solid 1px !important;margin-left: 9px;');
                 }else{
 
-                    if(data.node.parent && data.node.parent.data.type == 'enum'){ // make term options inline and smaller
+                    if(data.node.parent && data.node.parent.type == 'enum'){ // make term options inline and smaller
                         $(data.node.li).css('display', 'inline-block');
                         $(data.node.span.childNodes[0]).css('display', 'none');
 
@@ -449,7 +444,7 @@ $.widget( "heurist.rectypeTitleMask", $.heurist.recordAction, {
                         }
                     }
                 }
-                if(data.node.data.type == 'separator'){
+                if(data.node.type == 'separator'){
                     $(data.node.span).attr('style', 'background: none !important;color: black !important;'); //stop highlighting
                     $(data.node.span.childNodes[1]).hide(); //checkbox for separators
                 }
@@ -472,14 +467,14 @@ $.widget( "heurist.rectypeTitleMask", $.heurist.recordAction, {
             },
             loadChildren: function(e, data){
                 setTimeout(function(){
-                    //that._assignSelectedFields();
+                   
                     },500);
             },
             select: function(e, data) {
             },
             click: function(e, data){
 
-                if(data.node.data.type == 'separator'){
+                if(data.node.type == 'separator'){
                     return false;
                 }
 
@@ -506,7 +501,7 @@ $.widget( "heurist.rectypeTitleMask", $.heurist.recordAction, {
                 }
             },
             dblclick: function(e, data) {
-                if(data.node.data.type == 'separator'){
+                if(data.node.type == 'separator'){
                     return false;
                 }
                 data.node.toggleSelected();

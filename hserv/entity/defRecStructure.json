@@ -5,7 +5,7 @@
     
     "tablePrefix": "rst",
     
-    "helpContent": "defRecStructure.html",
+    "helpContent": "defRecStructure.htm",
     
     "searchFormContent": "searchDefRecStructure.html",
     
@@ -383,6 +383,17 @@
                     "rst_DisplayName":"Formula:",
                     "rst_DisplayHelpText":"Define formula if value of this field will be calculated",
                     "rst_FieldConfig": {"entity":"DefCalcFunctions"}
+                }
+            },
+            {
+                "dtID": "rst_EntryMask",
+                "dtFields":{
+                    "dty_Type":"freetext",
+                    "rst_Class":"freetext integer float",
+                    "rst_DisplayWidth":60,
+                    "rst_DisplayName":"Entry mask:",
+                    "rst_DisplayHelpText":"Define an entry value mask to be applied to values entered into this field",
+                    "rst_Display":"hidden"
                 }
             },
             {

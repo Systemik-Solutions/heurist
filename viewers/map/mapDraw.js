@@ -15,7 +15,7 @@
     
     let arc = s.split(' ');  
     
-    let islat = false, k;
+    let islat = false;
     let hemisphere = 'N';  
     
     if(window.hWin.HEURIST4.util.isnull(type) && arc.length>2){
@@ -47,8 +47,6 @@
         //check for UTM - assume they are integer and at least several are more than 180
         for (let k=0; k<arc.length; k++){
             
-            //if(k==2 && type==google.maps.drawing.OverlayType.CIRCLE) continue;
-        
             let crd = Number(arc[k]);
             if(isNaN(crd)){
                 alert(arc[k]+" is not number value");
@@ -101,25 +99,6 @@
     
     
     else if(UTMzone!=0) {
-        /*
-        if( !window.hWin.HEURIST4.util.isFunction(document['Utm']) ){
-            let path = window.hWin.HAPI4.baseURL + 'external/js/geodesy-master/';
-            let scripts = [path+'vector3d.js', path+'latlon-ellipsoidal.js', path+'utm.js', path+'dms.js'];
-        
-            //load missed javascripts
-            $.getMultiScripts(scripts)
-            .done(function() {
-                simplePointsToWKT(sCoords, type, UTMzone, callback); 
-            }).fail(function(error) {
-                // one or more scripts failed to load
-                window.hWin.HEURIST4.msg.showMsgErr('Cannot load geodesy-master scripts');
-            }).always(function() {
-                // always called, both on success and error
-            });
-        
-            return;
-        }*/
-        
         //parse UTMzone must be 1-60 N or S
         if(UTMzone.toLowerCase().indexOf('s')>=0){
             hemisphere = 'S';
@@ -185,13 +164,11 @@
             }else{
                 wkt =  'LINESTRING ('+coords.join(', ')+')';
             }
-        }else {
-            if(coords.length==1){
+        }else if(coords.length==1){
                 wkt =  'POINT ('+coords[0]+')';
                 
-            }else{
+        }else{
                 wkt =  'MULTIPOINT ('+coords.join(', ')+')';
-            }
         }
     }
     if(wkt!='' && window.hWin.HEURIST4.util.isFunction(callback)){

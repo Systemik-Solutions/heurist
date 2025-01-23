@@ -80,13 +80,12 @@ if(!$init_client || @$_REQUEST['session']>0){ //2a. init operation on client sid
     <head>
         <title>Rebuild Calculated Fields</title>
         <meta http-equiv="content-type" content="text/html; charset=utf-8">
+        <meta name="robots" content="noindex,nofollow">
         <link rel="stylesheet" type="text/css" href="<?php echo PDIR;?>h4styles.css" />
 
-<?php if($init_client){ ?>
-
-        <script type="text/javascript" src="<?php echo PDIR;?>external/jquery-ui-1.12.1/jquery-1.12.4.js"></script>
-        <script type="text/javascript" src="<?php echo PDIR;?>external/jquery-ui-1.12.1/jquery-ui.js"></script>
-        <link rel="stylesheet" type="text/css" href="<?php echo PDIR;?>external/jquery-ui-themes-1.12.1/themes/base/jquery-ui.css"/>
+<?php if($init_client){
+        includeJQuery();
+?>
 
         <script type="text/javascript">
 
@@ -104,7 +103,7 @@ if(!$init_client || @$_REQUEST['session']>0){ //2a. init operation on client sid
 
         var action_url = window.hWin.HAPI4.baseURL + "admin/verification/rebuildCalculatedFields.php";
 
-        var session_id = window.hWin.HEURIST4.msg.showProgress( $('.progress_div'),  0, 500 );
+        var session_id = window.hWin.HEURIST4.msg.showProgress( {container:$('.progress_div'), interval:500} );
 
         var request = {
             'session': session_id
@@ -116,7 +115,7 @@ if(!$init_client || @$_REQUEST['session']>0){ //2a. init operation on client sid
 ?>
         //url to show affected records
         var sURL = window.hWin.HAPI4.baseURL
-                        +'?w=all&db='+window.hWin.HAPI4.database+'&nometadatadisplay=true&q=';
+                        +'?w=all&db='+window.hWin.HAPI4.database+'&q=';
 
         window.hWin.HEURIST4.util.sendRequest(action_url, request, null, function(response){
             window.hWin.HEURIST4.msg.hideProgress();
@@ -188,34 +187,34 @@ if($init_client){
                 them with the existing value and updates the field where the value has
                 changed.
                 At the end of the process it will display a list of records
-                for which the fields were changed, cleared and a list of errors if formula canot be executed.
+                for which the fields were changed, cleared and a list of errors if formula cannot be executed.
             </div>
             <p class="header_info">This will take some time for large databases</p>
 <?php
     }
 }else{
     if( is_bool($res) && !$res ){
-        print '<div><span style="color:red">'.htmlspecialchars($system->getError()['message']).'</span></div>';
+        print errorDiv(htmlspecialchars($system->getErrorMsg()));
         print '</div></body></html>';
         exit;
     }elseif($res['message']){
-        print '<div><span style="color:red">'.htmlspecialchars($res['message']).'</span></div>';
+        print errorDiv(htmlspecialchars($system->getErrorMsg()));
     }
 
     if($res['q_updates']){
         $q_updates = HEURIST_BASE_URL.'?w=all&q='.$res['q_updates']
-            .'&db='.HEURIST_DBNAME.'&nometadatadisplay=true';
+            .'&db='.HEURIST_DBNAME;
     }else{
         $q_updates = '';
     }
     if($res['q_cleared']){
         $q_cleared = HEURIST_BASE_URL.'?w=all&q='.$res['q_cleared']
-            .'&db='.HEURIST_DBNAME.'&nometadatadisplay=true';
+            .'&db='.HEURIST_DBNAME;
     }else{
         $q_cleared = '';
     }
 
-    if(is_array(@$res['errors']) && count($res['errors'])>0){
+    if(!isEmptyArray(@$res['errors'])){
         $q_errors = '';
         foreach($res['errors'] as $key=>$msg){
             $q_errors = $q_errors . $key . '  ' .$msg . '<br>';

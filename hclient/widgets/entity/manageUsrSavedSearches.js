@@ -29,9 +29,9 @@ $.widget( "heurist.manageUsrSavedSearches", $.heurist.manageEntity, {
         
         this.options.layout_mode = 'short';
         this.options.use_cache = false;
-        //this.options.edit_mode = 'popup';
+       
         
-        //this.options.select_return_mode = 'recordset';
+       
         this.options.edit_need_load_fullrecord = true;
         this.options.edit_height = 640;
         this.options.height = 640;
@@ -41,7 +41,7 @@ $.widget( "heurist.manageUsrSavedSearches", $.heurist.manageEntity, {
             this.options.select_mode = 'manager';
             this.options.layout_mode = 'editonly';
             this.options.width = 790;
-            //this.options.height = 640;
+           
         }else
         //for selection mode set some options
         if(this.options.select_mode!='manager'){
@@ -114,7 +114,7 @@ $.widget( "heurist.manageUsrSavedSearches", $.heurist.manageEntity, {
                 if(window.hWin.HAPI4.is_admin()){
                     title = 'Manage All Filters as Database Administrator';    
                 }else{                    
-                    //usr_ID = window.hWin.HAPI4.currentUser['ugr_ID'];
+                   
                     title = 'Manage Saved Filters';    
                 }
             }
@@ -202,7 +202,7 @@ $.widget( "heurist.manageUsrSavedSearches", $.heurist.manageEntity, {
         }
         
         let group_id = recordset.fld(record, 'svs_UGrpID');
-        //var group_name = window.hWin.HAPI4.usr_names({UGrpID:group_id});
+
         let group_name = (group_id==window.hWin.HAPI4.user_id())
                             ?window.hWin.HAPI4.currentUser['ugr_FullName']
                             :window.hWin.HAPI4.sysinfo.db_usergroups[group_id];
@@ -210,7 +210,7 @@ $.widget( "heurist.manageUsrSavedSearches", $.heurist.manageEntity, {
         
         let html = '<div class="recordDiv" id="rd'+recID+'" recid="'+recID+'">'
                 + '<div class="recordSelector"><input type="checkbox" /></div>'
-                + '<div class="recordIcons"><span class="ui-icon '+iconBtn+'"/></div>'
+                + '<div class="recordIcons"><span class="ui-icon '+iconBtn+'"></span></div>'
                 + fld2('svs_Name','39ex')
                 + '<div class="truncate" style="display:inline-block;width:29ex">'
                     +group_name+'</div>'
@@ -272,19 +272,19 @@ $.widget( "heurist.manageUsrSavedSearches", $.heurist.manageEntity, {
             ele.editing_input('setValue', ugl_GroupID);
             //hide save button
             if(this._toolbar){
-                this._toolbar.find('#btnRecSave').css('visibility', 'visible');
+                this._toolbar.find('.btnRecSave').css('visibility', 'visible');
             }
         }else
         //hide after edit init btnRecRemove for dbowner (user #2)
         if(this._currentEditID==2 || !window.hWin.HAPI4.is_admin()){
             var ele = this._toolbar;
-            ele.find('#btnRecRemove').hide();
+            ele.find('.btnRecRemove').hide();
         }
         
         if(!window.hWin.HAPI4.is_admin()){
             var input_ele = this._editing.getFieldByName('ugr_Enabled');
             input_ele.hide();
-            //input_ele.editing_input('f', 'rst_Display', 'hidden');
+           
         }
         */
     },    
@@ -297,7 +297,7 @@ $.widget( "heurist.manageUsrSavedSearches", $.heurist.manageEntity, {
         if(this._currentEditID<0 && this.options.select_mode=='select_single'){
             
                 this._selection = new HRecordSet();
-                //{fields:{}, order:[recID], records:[fieldvalues]});
+               
                 this._selection.addRecord(recID, fieldvalues);
                 this._selectAndClose();
                 return;        

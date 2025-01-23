@@ -149,7 +149,7 @@ $.widget( "heurist.manageUsrReminders", $.heurist.manageEntity, {
             this._sendReminder();
         
         }else{    
-            this._super();// null, afteraction );
+            this._super();
         }
     },
     
@@ -227,7 +227,7 @@ $.widget( "heurist.manageUsrReminders", $.heurist.manageEntity, {
                 
                 let btn_save;
                 if(that._toolbar){
-                    btn_save = that._toolbar.find('#btnRecSave');
+                    btn_save = that._toolbar.find('.btnRecSave');
                 }
                 
                 let res = ele.editing_input('getValues'); 
@@ -289,7 +289,7 @@ $.widget( "heurist.manageUsrReminders", $.heurist.manageEntity, {
         
         //return '<div style="display:table;height:2em;width:99%;font-size:0.9em">'
         return __cell('Record title',35)+__cell('Recipient',17)+__cell('Freq',7)
-                    +__cell('Date',12)+__cell('Message',50);//+__cell('',12);
+                    +__cell('Date',12)+__cell('Message',50);
                     
     },
     

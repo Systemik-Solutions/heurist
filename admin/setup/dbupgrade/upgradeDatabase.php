@@ -27,12 +27,9 @@ if(!defined('PDIR')){
     require_once dirname(__FILE__).'/../../../hserv/utilities/utils_db_load_script.php';
     require_once dirname(__FILE__).'/../../../hserv/structure/import/dbsImport.php';
 
-    /*if(isForAdminOnly("to upgrade database structure")){
-    return;
-    }*/
-    $src_maj = intval( $system->get_system('sys_dbVersion') );
-    $src_min = intval( $system->get_system('sys_dbSubVersion') );
-    $src_sub = intval( $system->get_system('sys_dbSubSubVersion') );
+    $src_maj = intval( $system->settings->get('sys_dbVersion') );
+    $src_min = intval( $system->settings->get('sys_dbSubVersion') );
+    $src_sub = intval( $system->settings->get('sys_dbSubSubVersion') );
 
     $trg_ver = explode(".", HEURIST_MIN_DBVERSION);
     $trg_maj = intval($trg_ver[0]);
@@ -40,7 +37,7 @@ if(!defined('PDIR')){
     $trg_sub = intval($trg_ver[2]);
 
     if( $src_maj==$trg_maj && $src_min == $trg_min && $src_sub==$trg_sub){ //versions are ok redirect to main page
-        header('Location: ' . HEURIST_BASE_URL . '?db=' . $_REQUEST['db']);
+        redirectURL(HEURIST_BASE_URL . '?db=' . $_REQUEST['db']);
         exit;
     }
 ?>
@@ -49,11 +46,13 @@ if(!defined('PDIR')){
     <head>
         <title>Heurist database version upgrade</title>
         <meta http-equiv="content-type" content="text/html; charset=utf-8">
+        <meta name="robots" content="noindex,nofollow">
 
         <link rel=icon href="<?php echo PDIR?>favicon.ico" type="image/x-icon">
 
-        <script type="text/javascript" src="<?php echo PDIR;?>external/jquery-ui-1.12.1/jquery-1.12.4.js"></script>
-        <script type="text/javascript" src="<?php echo PDIR;?>external/jquery-ui-1.12.1/jquery-ui.js"></script>
+<?php
+        includeJQuery();
+?>
 
         <!-- CSS -->
         <?php include_once dirname(__FILE__).'/../../../hclient/framecontent/initPageCss.php';?>
@@ -64,6 +63,7 @@ if(!defined('PDIR')){
         <script type="text/javascript" src="<?php echo PDIR;?>hclient/core/utils_msg.js"></script>
         <script type="text/javascript" src="<?php echo PDIR;?>hclient/core/utils_ui.js"></script>
         <script type="text/javascript" src="<?php echo PDIR;?>hclient/core/hapi.js"></script>
+        <script type="text/javascript" src="<?php echo PDIR;?>hclient/core/HSystemMgr.js"></script>
 
         <script type="text/javascript" src="<?php echo PDIR;?>hclient/widgets/profile/profile_login.js"></script>
         <script>
@@ -112,7 +112,7 @@ if(!defined('PDIR')){
 
                 <?php
 
-                    if($system->is_admin() && @$_REQUEST['mode']=='action' && $src_maj==$trg_maj){ //upgrade minor versions
+                    if($system->isAdmin() && @$_REQUEST['mode']=='action' && $src_maj==$trg_maj){ //upgrade minor versions
                     //2d iteration ACTION!!!
                         $upgrade_success = true;
                         $keep_minver = $src_min;
@@ -122,7 +122,7 @@ if(!defined('PDIR')){
 
                             if($trg_maj==1 && $src_min==2){
                                 $filename = $filename.'.php';
-                            }elseif($src_min==3 && $trg_sub==14){
+                            }elseif($src_min==3 && $trg_sub>0){
                                 $filename = 'DBUpgrade_1.3.0_to_1.3.14.php';
                             }else{
                                 $filename = $filename.'.sql';
@@ -134,23 +134,26 @@ if(!defined('PDIR')){
                                     include_once $filename;
                                     $rep = updateDatabseTo_v3($system);//PHP
                                 }elseif($src_min==3 && $src_sub<$trg_sub){
-                                    if($src_sub<13){
+
+                                    if($src_sub<17){
                                         include_once $filename;
-                                        $rep = updateDatabseTo_v1_3_12($system);
+                                        $rep = updateDatabseTo_v1_3_17($system);
+
+                                        if($rep!==false && $src_sub<14){ //for db_utils.php
+                                            $rep2 = recreateRecDetailsDateIndex($system, true, true);
+                                            if($rep2){
+                                                $rep = array_merge($rep, $rep2);
+                                            }else{
+                                                $rep = false;
+                                            }
+                                        }
+
                                     }else{
                                         $rep = array('');
                                     }
-                                    if($rep!==false){ //for db_utils.php
-                                        $rep2 = recreateRecDetailsDateIndex($system, true, true);
-                                        if($rep2){
-                                            $rep = array_merge($rep, $rep2);
-                                        }else{
-                                            $rep = false;
-                                        }
-                                    }
 
                                 }else{
-                                    $rep = executeScript($dir.$filename);//SQL
+                                    $rep = executeScript($dir.$filename);//execute SQL script
                                 }
 
                                 if($rep){
@@ -161,8 +164,8 @@ if(!defined('PDIR')){
                                             print '<p>'.$msg.'</p>';
                                         }
                                     }
-                                    if($trg_min==3 && $trg_sub==14){ //to 1.3.14
-                                        print "<p>Upgraded to $trg_maj.$trg_min.$trg_sub</p>";
+                                    if($trg_min==3 && $trg_sub>0){ //to 1.3.16
+
                                     }else{
                                         print "<p>Upgraded to $src_maj.$src_min.0</p>";
                                     }
@@ -170,9 +173,7 @@ if(!defined('PDIR')){
                                 }else{
                                     $error = $system->getError();
                                     if($error){
-                                        print '<p style="color:red">'
-                                            .$error['message']
-                                            .'<br>'.@$error['sysmsg'].'</p>';
+                                        print errorDiv($error['message'].BR.@$error['sysmsg']);
                                     }
 
                                     $upgrade_success = false;
@@ -181,14 +182,14 @@ if(!defined('PDIR')){
 
                             }else{
                                 print "<p style='font-weight:bold'>Cannot find the database upgrade script '".$filename
-                                ."'. Please ".CONTACT_HEURIST_TEAM."</p>";
+                                ."'.".CONTACT_HEURIST_TEAM_PLEASE.'</p>';
                                 $upgrade_success = false;
                                 break;
                             }
                         }
 
-                        if( (!($trg_min==3 && $trg_sub==14)) && $src_min>$keep_minver){ //update database - set version up to date
-                            $mysqli = $system->get_mysqli();
+                        if( (!($trg_min==3 && $trg_sub>0)) && $src_min>$keep_minver){ //update database - set version up to date
+                            $mysqli = $system->getMysqli();
                             mysql__usedatabase($mysqli, HEURIST_DBNAME);
                             $query1 = "update sysIdentification set sys_dbSubVersion=$src_min, sys_dbSubSubVersion=0 where 1";
                             $res1 = $mysqli->query($query1);
@@ -206,7 +207,7 @@ if(!defined('PDIR')){
                     ?>
 
                     <p>Your database <b> <?=HEURIST_DBNAME?> </b> currently uses database format version
-                        <b><?=$src_maj.'.'.$src_min.'.'.$system->get_system('sys_dbSubSubVersion')?> </b>
+                        <b><?=$src_maj.'.'.$src_min.'.'.$system->settings->get('sys_dbSubSubVersion')?> </b>
                         <br>(this is distinct from the program version # listed below)</p>
 
                     <p>This version of the software <b>(Vsn <?=HEURIST_VERSION?>)</b>
@@ -216,10 +217,10 @@ if(!defined('PDIR')){
 
                     <?php
 
-                        if($system->is_admin()){
+                        if($system->isAdmin()){
 
                             if($src_maj!=$trg_maj){
-                                print '<p style="font-weight:bold">Automatic upgrade applies to minor version updates only (ie. within database version 1, 2 etc.). Please '.CONTACT_HEURIST_TEAM.' to upgrade major version (1 => 2, 2 => 3)</p>';
+                                print '<p style="font-weight:bold">Automatic upgrade applies to minor version updates only (ie. within database version 1, 2 etc.).'.CONTACT_HEURIST_TEAM_PLEASE.' to upgrade major version (1 => 2, 2 => 3)</p>';
                             }else{
 
                                 //verification that all scripts exist and get safety rating from these scrips
@@ -232,7 +233,6 @@ if(!defined('PDIR')){
                                     $filename = "DBUpgrade_$src_maj.$src_min.0_to_$trg_maj.".($src_min+1).".0.sql";
                                     if( file_exists($dir.$filename) ){
 
-                                        //$content = file_get_contents($dir.$filename);
                                         $safety = "";
                                         $description = "";
 
@@ -256,7 +256,8 @@ if(!defined('PDIR')){
                                             }
                                             fclose($file);
                                         }else{
-                                            print "<p style='font-weight:bold'>Cannot read the upgrade script '".$filename."'. Please ".CONTACT_HEURIST_TEAM."</p>";
+                                            print "<p style='font-weight:bold'>Cannot read the upgrade script '".$filename."'."
+                                            .CONTACT_HEURIST_TEAM_PLEASE."</p>";
                                             $is_allfind = false;
                                             break;
                                         }
@@ -268,7 +269,7 @@ if(!defined('PDIR')){
                                         $src_min++;
                                     }else{
                                         print "<p style='font-weight:bold'>Cannot find the upgrade script '".$filename
-                                        ."'. Please ".CONTACT_HEURIST_TEAM."</p>";
+                                        ."'.".CONTACT_HEURIST_TEAM_PLEASE."</p>";
                                         $is_allfind = false;
                                         break;
                                     }
@@ -345,10 +346,10 @@ $description = 'Modify tables:  defRecStructure(rst_SemanticReferenceURL,rst_Ter
                 <div class="ui-state-error" style="width:90%;margin:auto;margin-top:10px;padding:10px;">
                     <span class="ui-icon ui-icon-alert" style="float: left; margin: .3em;"></span>
                     Error: Unable to execute <?php echo $filename;?> for database <?php echo HEURIST_DBNAME; ?><br>
-                    Please check whether this file is valid; <?php echo CONTACT_HEURIST_TEAM;?> if needed<br>
+                    Please check whether this file is valid. <?php echo CONTACT_HEURIST_TEAM_PLEASE;?> if needed<br>
                 </div>
 <?php
-                if(!$system->is_admin()){
+                if(!$system->isAdmin()){
                 ?>
         <div class="ui-state-error" style="width:90%;margin:auto;margin-top:10px;padding:10px;">
             <span class="ui-icon ui-icon-alert" style="float: left; margin: .3em;"></span>

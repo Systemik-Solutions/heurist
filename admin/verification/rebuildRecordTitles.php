@@ -24,10 +24,6 @@
     * See the License for the specific language governing permissions and limitations under the License.
     */
 
-    /*
-    * TODO: Massive redundancy: This is pretty much identical code to recalcTitlesSopecifiedRectypes.php and should be
-    * combined into one file, or call the same functions to do the work
-    */
 set_time_limit(0);
 
 define('MANGER_REQUIRED',1);
@@ -48,9 +44,9 @@ $rty_ids_list = null;
 //sanitize
 if(@$_REQUEST['recTypeIDs']){
     $rty_ids = prepareIds(filter_var($_REQUEST['recTypeIDs']));
-    $mysqli = $system->get_mysqli();
-    //$rty_ids = array_map(array($mysqli,'real_escape_string'), $rty_ids);
-    if(count($rty_ids)>0) {$rty_ids_list = implode(',', $rty_ids);}
+    $mysqli = $system->getMysqli();
+
+    if(!empty($rty_ids)) {$rty_ids_list = implode(',', $rty_ids);}
 }
 
 if(!$init_client || intval(@$_REQUEST['session'])>0){ //2a. init operation on client side
@@ -78,14 +74,12 @@ if(!$init_client || intval(@$_REQUEST['session'])>0){ //2a. init operation on cl
     <head>
         <title>Rebuild Constructed Record Titles</title>
         <meta http-equiv="content-type" content="text/html; charset=utf-8">
+        <meta name="robots" content="noindex,nofollow">
         <link rel="stylesheet" type="text/css" href="<?php echo PDIR;?>h4styles.css" />
 
-<?php if($init_client){ ?>
-
-        <script type="text/javascript" src="<?php echo PDIR;?>external/jquery-ui-1.12.1/jquery-1.12.4.js"></script>
-        <script type="text/javascript" src="<?php echo PDIR;?>external/jquery-ui-1.12.1/jquery-ui.js"></script>
-        <link rel="stylesheet" type="text/css" href="<?php echo PDIR;?>external/jquery-ui-themes-1.12.1/themes/base/jquery-ui.css"/>
-
+<?php if($init_client){
+        includeJQuery();
+?>
         <script type="text/javascript">
 
 
@@ -102,7 +96,7 @@ if(!$init_client || intval(@$_REQUEST['session'])>0){ //2a. init operation on cl
 
         var action_url = window.hWin.HAPI4.baseURL + "admin/verification/rebuildRecordTitles.php";
 
-        var session_id = window.hWin.HEURIST4.msg.showProgress( $('.progress_div'),  0, 500 );
+        var session_id = window.hWin.HEURIST4.msg.showProgress( {container:$('.progress_div'), interval:500} );
 
         var request = {
             'session': session_id
@@ -193,24 +187,11 @@ if($init_client){
                 </span>
             </div>
 <?php
-/*
-print '<br><br><b>DONE</b><br><br><a target=_blank href="'.HEURIST_BASE_URL.'?db='.HEURIST_DBNAME.
-    '&w=all&q=ids:'.join(',', $updates).'">Click to view updated records</a><br>&nbsp;<br>';
-
-if(count($blanks)>0){
-    print '<br>&nbsp;<br><a target=_blank href="'.HEURIST_BASE_URL.'?db='.HEURIST_DBNAME.
-        '&w=all&q=ids:'.join(',', $blanks).
-    '">Click to view records for which the data would create a blank title</a>'.
-    '<br>This is generally due to faulty title mask (verify with Check Title Masks)<br>'.
-    'or faulty data in individual records. These titles have not been changed.';
-}
-*/
-
 }else{
 
     if( is_bool($res) && !$res ){
 
-        print '<div><span style="color:red">'.$system->getError()['message'].'</span> are updated</div>';
+        print errorDiv($system->getErrorMsg());
 
     }else{
         print '<div><span id=total_count>'.intval($res['total_count']).'</span> records in total</div>';
@@ -260,7 +241,7 @@ function doRecTitleUpdate( $system, $progress_session_id, $recTypeIDs ){
     $unchanged_count = 0;
 
 
-    $mysqli = $system->get_mysqli();
+    $mysqli = $system->getMysqli();
 
     $rec_count = mysql__select_value($mysqli, 'select count(rec_ID) rec_RecTypeID from Records where !rec_FlagTemporary '
                 .($recTypeIDs?'and rec_RecTypeID in ('.$recTypeIDs.')':''));
@@ -275,17 +256,14 @@ function doRecTitleUpdate( $system, $progress_session_id, $recTypeIDs ){
     //masks per record types
     $masks = mysql__select_assoc2($mysqli, 'select rty_ID, rty_TitleMask from  defRecTypes');
 
-    if($progress_session_id>0 && $rec_count>100){
-        mysql__update_progress(null, $progress_session_id, true, '0,'.$rec_count);
-    }
+    progressSession($progress_session_id, $processed_count, $rec_count);
 
-    $titleDT = $system->defineConstant('DT_NAME')?DT_NAME :0;
+    $titleDT = intval($system->defineConstant('DT_NAME')?DT_NAME :0);
 
     while ($row = $res->fetch_assoc() ) {
 
-        $rec_id = $row['rec_ID'];
+        $rec_id = intval($row['rec_ID']);
         $rec = $row;
-
 
         $mask = $masks[$rec['rec_RecTypeID']];
 
@@ -303,42 +281,22 @@ function doRecTitleUpdate( $system, $progress_session_id, $recTypeIDs ){
             $unchanged_count++;
 
         }elseif (! preg_match('/^\\s*$/', $new_title)) {    // if new title is blank, leave the existing title
-            //$updates[$rec_id] = $new_title;
+
             $updates[] = $rec_id;
             $mysqli->query('update Records set rec_Modified=rec_Modified, rec_Title="'.
                 $mysqli->real_escape_string($new_title).'" where rec_ID='.$rec_id);
 
-        }else {
-            if ( $rec['rec_RecTypeID'] == 1 && $rec['rec_Title']) {
-                $titleDT = intval($titleDT);
-
-                $has_detail_160 = mysql__select_value($mysqli,
-                    "select dtl_ID from recDetails where dtl_DetailTypeID = $titleDT and dtl_RecID =". $rec_id);
-                //touch the record so we can update it  (required by the heuristdb triggers)
-                $mysqli->query('update Records set rec_RecTypeID=1 where rec_ID='.$rec_id);
-                if ($has_detail_160) {
-                    $query = "update recDetails set dtl_Value=? where dtl_DetailTypeID = $titleDT and dtl_RecID=".$rec_id;
-                }else{
-                    $query = 'insert into recDetails (dtl_RecID, dtl_DetailTypeID, dtl_Value) VALUES('
-                        .intval($rec_id) . ','. intval($titleDT)  .',?)';
-                }
-
-                mysql__exec_param_query($mysqli, $query, array('s', $rec['rec_Title']));
-
+        }elseif (updateRaltionhipForBlankTitle($rec, $titleDT))  {
+            
                 ++$repair_count;
-            }else{
+        }else{
                 array_push($blanks, $rec_id);
                 ++$blank_count;
-            }
         }
 
-        if($progress_session_id>0 &&  $rec_count>100){
-            $session_val = $processed_count.','.$rec_count;
-            $current_val = mysql__update_progress(null, $progress_session_id, false, $session_val);
-            if($current_val && $current_val=='terminate'){
-                $msg_termination = 'Operation has been terminated by user';
+        if(progressSession($progress_session_id, $processed_count, $rec_count)){
+                // Operation has been terminated by user
                 break;
-            }
         }
 
     }//while records
@@ -346,24 +304,74 @@ function doRecTitleUpdate( $system, $progress_session_id, $recTypeIDs ){
     $res->close();
 
     //remove session file
-    if($progress_session_id>0 && $rec_count>25 && ($processed_count % 25 == 0)){
-        mysql__update_progress(null, $progress_session_id, false, 'REMOVE');
-    }
+    progressSession($progress_session_id, 'REMOVE', $rec_count);
 
     $q_updates = '';
     if(count($updates)>1000){
-        $q_updates = 'sortby:-m';//'&limit='.count($updates);
-    }elseif(count($updates)>0){
+        $q_updates = 'sortby:-m';
+    }elseif(!empty($updates)){
         $q_updates = 'ids:'.implode(',',$updates);
     }
     $q_blanks = '';
     if(count($blanks)>2000){
         $q_blanks = 'ids:'.array_slice($blanks, 0, 2000);
-    }elseif(count($blanks)>0){
+    }elseif(!empty($blanks)){
         $q_blanks = 'ids:'.implode(',',$blanks);
     }
 
     return array('changed_count'=>count($updates), 'same_count'=>$unchanged_count, 'blank_count'=>$blank_count, 'total_count'=>$rec_count,
        'q_updates'=>$q_updates, 'q_blanks'=>$q_blanks);
 }
+//
+//
+//
+function progressSession($progress_session_id, $processed_count, $total_count){
+    
+    if($progress_session_id>0 && $total_count>0){
+        
+        if($processed_count=='REMOVE'){
+            mysql__update_progress(null, $progress_session_id, false, 'REMOVE');    
+            
+        }elseif($total_count>25 && ($processed_count % 25 == 0)){
+            
+            $current_val = mysql__update_progress(null, $progress_session_id, false, $processed_count.','.$total_count);
+            return $current_val=='terminate';
+            
+        }elseif($processed_count==0){
+
+            mysql__update_progress(null, $progress_session_id, true, '0,'.$total_count);
+            
+        }
+
+    }
+    return false;
+}
+//
+//
+//
+function updateRaltionhipForBlankTitle($rec, $titleDT){
+   
+    if ( $rec['rec_RecTypeID'] == 1 && $rec['rec_Title']) {
+        
+        $rec_id = intval($rec['rec_ID']);
+
+        $has_detail_160 = mysql__select_value($mysqli,
+            "select dtl_ID from recDetails where dtl_DetailTypeID = $titleDT and dtl_RecID =". $rec_id);
+        //touch the record so we can update it  (required by the heuristdb triggers)
+        $mysqli->query('update Records set rec_RecTypeID=1 where rec_ID='.$rec_id);
+        if ($has_detail_160) {
+            $query = "update recDetails set dtl_Value=? where dtl_DetailTypeID = $titleDT and dtl_RecID=".$rec_id;
+        }else{
+            $query = 'insert into recDetails (dtl_RecID, dtl_DetailTypeID, dtl_Value) VALUES('
+                .$rec_id . ','. $titleDT  .',?)';
+        }
+
+        mysql__exec_param_query($mysqli, $query, array('s', $rec['rec_Title']));
+
+        return true;
+    }else{
+        return false;
+    }
+}
 ?>
+

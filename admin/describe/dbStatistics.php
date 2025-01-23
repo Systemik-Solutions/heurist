@@ -24,9 +24,10 @@ define('MANAGER_REQUIRED',1);
 define('PDIR','../../');//need for proper path to js and css
 
 require_once dirname(__FILE__).'/../../hclient/framecontent/initPageMin.php';
-require_once dirname(__FILE__).'/../../hserv/utilities/uFile.php';
 
 $is_csv = (@$_REQUEST['csv']==1);
+
+$folder_size = (@$_REQUEST['folder_size']==1);
 
 $starts_with = filter_var(@$_REQUEST['start'], FILTER_SANITIZE_STRING);
 
@@ -34,19 +35,10 @@ $is_delete_allowed = (strlen(@$passwordForDatabaseDeletion) > 14);
 
 set_time_limit(0);//no limit
 
-$mysqli = $system->get_mysqli();
+$mysqli = $system->getMysqli();
 $dbs = mysql__getdatabases4($mysqli, true, $starts_with);
 
-$sysadmin = $system->is_system_admin();
-
-// Force system admin rights
-/*
-if($sysadmin){
-    startMySession();
-    $_SESSION[HEURIST_SESSION_DB_PREFIX.'heurist']['user_systemadmin'] = '1';
-    session_write_close();
-}
-*/
+$sysadmin = $system->isSystemAdmin();
 
 /**
 * Selects the value after a query
@@ -67,7 +59,7 @@ function mysql__select_val($query) {
 * Calculates the directory size
 * @param mixed $dir Directory to check
 *
-* @todo move to utilities/uFile.php
+* @todo move to utilities/UFile.php
 */
 function dirsize($dir)
 {
@@ -77,7 +69,7 @@ function dirsize($dir)
     $size = 0;
     while ($file = @readdir($dh))
     {
-        if ($file != "." and $file != "..")
+        if ($file != "." && $file != "..")
         {
             $path = $dir."/".$file;
             if (is_dir($path))
@@ -95,7 +87,7 @@ function dirsize($dir)
 }
 
 if($is_csv){
-    $fd = fopen('php://temp/maxmemory:1048576', 'w');//less than 1MB in memory otherwise as temp file
+    $fd = fopen(TEMP_MEMORY, 'w');//less than 1MB in memory otherwise as temp file
     if (false === $fd) {
         die('Failed to create temporary file');
     }
@@ -121,12 +113,16 @@ foreach ($dbs as $db){
 
       $broken_dbs[] = $db_name;
     }else{
+        
+        $size = 0;
+       
+        if($folder_size){
+            $size = file_exists(HEURIST_FILESTORE_ROOT . $db_name) ? folderSize(HEURIST_FILESTORE_ROOT . $db_name) : 0;
 
-        $size = file_exists(HEURIST_FILESTORE_ROOT . $db_name) ? folderSize(HEURIST_FILESTORE_ROOT . $db_name) : 0;
-
-        if($size > 0){ // to MB
-            $size /= 1048576;
-            $size = round((float)$size, 2);
+            if($size > 0){ // to MB
+                $size /= 1048576;
+                $size = round((float)$size, 2);
+            }            
         }
 
         $db = '`'.$db.'`';
@@ -135,11 +131,10 @@ foreach ($dbs as $db){
             $db_name,
             mysql__select_val("select count(*) from $db.`Records` where (not rec_FlagTemporary)"),
             $size,
-            mysql__select_val("select max(rec_Modified)  from $db.`Records`"),
+            mysql__select_val("select max(rec_Modified)  from $db.`Records` where (not rec_FlagTemporary)"),
             mysql__select_value($mysqli, "select max(rst_Modified) from $db.`defRecStructure`"),
             mysql__select_val("select cast(sys_dbRegisteredID as CHAR) from $db.`sysIdentification` where 1"),
-            mysql__select_val("select concat_ws('.',cast(sys_dbVersion as char),cast(sys_dbSubVersion as char)) "
-                ." from $db.`sysIdentification` where 1")
+            mysql__select_val("select concat_ws('.',cast(sys_dbVersion as char),cast(sys_dbSubVersion as char)) from $db.`sysIdentification` where 1")
         );
 
         $owner = mysql__select_row($mysqli, "SELECT concat(ugr_FirstName,' ',ugr_LastName),ugr_eMail,ugr_Organisation ".
@@ -156,8 +151,8 @@ foreach ($dbs as $db){
 
             $record_row[] = implode(' ', $owner);
 
-            $record_row[4] = strtotime($record_row[4]);
-            $record_row[5] = strtotime($record_row[5]);
+            $record_row[4] = strtotime($record_row[4]);  // rec_Modified
+            $record_row[5] = strtotime($record_row[5]);  // rst_Modified
 
             $aitem_quote = function($n)
             {
@@ -167,34 +162,20 @@ foreach ($dbs as $db){
             $record_row[] = $record_row[0];//add dbname to the end
 
             $record_row = array_map($aitem_quote, $record_row);
-            $arr_databases[] = implode(',',$record_row);//'"'.implode('","',  str_replace('"','',$record_row)   ).'"';
+            $arr_databases[] = implode(',',$record_row);
         }
 
         $i++;
     }
-    //if($i>10) {break;}
 }//foreach
 
 if($is_csv){
-
-        /*
-        $filename = 'ServerUsageStatistics.csv';
-
-        rewind($fd);
-        $out = stream_get_contents($fd);
-        fclose($fd);
-
-        header('Content-Type: text/csv');
-        header('Content-Disposition: attachment; filename='.$filename);
-        header(CONTENT_LENGTH . strlen($out));
-        exit($out);
-        */
 
         $zipname = 'ServerUsageStatistics.zip';
         $destination = tempnam("tmp", "zip");
 
         $zip = new ZipArchive();
-        if (!$zip->open($destination, ZIPARCHIVE::OVERWRITE)) {
+        if (!$zip->open($destination, ZipArchive::OVERWRITE)) {
             print "Cannot create zip $destination";
         }else{
             // return to the start of the stream
@@ -223,9 +204,11 @@ if($is_csv){
 
 }else{
 ?>
-<html>
+<!DOCTYPE html>
+<html lang="en">
     <head>
         <meta http-equiv="content-type" content="text/html; charset=utf-8">
+        <meta name="robots" content="noindex,nofollow">
         <title>Database statistics for this server</title>
 
         <link rel="icon" href="<?php echo PDIR;?>favicon.ico" type="image/x-icon">
@@ -234,9 +217,12 @@ if($is_csv){
         <!-- jQuery UI -->
         <script type="text/javascript" src="<?php echo PDIR;?>external/jquery-ui-1.12.1/jquery-1.12.4.js"></script>
         <script type="text/javascript" src="<?php echo PDIR;?>external/jquery-ui-1.12.1/jquery-ui.js"></script>
-
+<!--
         <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/1.10.24/css/jquery.dataTables.css">
-        <script type="text/javascript" charset="utf8" src="https://cdn.datatables.net/1.10.24/js/jquery.dataTables.js"></script>
+        <script type="text/javascript" src="https://cdn.datatables.net/1.10.24/js/jquery.dataTables.min.js" charset="utf8"></script>
+-->
+        <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/v/dt/jszip-2.5.0/dt-1.10.21/b-1.6.2/b-html5-1.6.2/datatables.min.css"/>
+        <script type="text/javascript" src="https://cdn.datatables.net/v/dt/jszip-2.5.0/dt-1.10.21/b-1.6.2/b-html5-1.6.2/datatables.min.js"></script>
 
         <!-- CSS -->
         <?php include_once dirname(__FILE__).'/../../hclient/framecontent/initPageCss.php';?>
@@ -256,11 +242,11 @@ if($is_csv){
             <?php if($is_delete_allowed) { /*&& $sysadmin*/?> <button id="deleteDatabases" onclick="deleteDatabases()">Delete selected databases</button><br><br> <?php } ?>
 
 
-            <table style="width:98%" class="div_datatable display">
+            <table style="width:98%" class="div_datatable display" role="presentation">
             </table>
             <div style="padding-top:20px;">
             <?php
-                if(is_array($broken_dbs) && count($broken_dbs)>0){
+                if(!isEmptyArray($broken_dbs)){
                     echo '<h4>Broken databases (missed sysIdentification or Records tables)</h4>';
                     echo implode('<br>',$broken_dbs);
                 }
@@ -359,7 +345,7 @@ if($is_csv){
                 { title: "Owner", searchable:false, width:200,  //data: "owner",
                     render: function(data, type) {
                         if (type === 'display') {
-                            return "<div style='max-width:100px' class='three-lines' title='"+data+"'>"+data+"</div>";
+                            return "<div style='max-width:100px' class='three-lines' title='"+data+"'>"+data+'</div>';
                         }else{
                             return data;
                         }
@@ -453,9 +439,9 @@ if($is_csv){
                     })
                     .dialog("open");
 
-                    //$dlg.parent('.ui-dialog').css({top:150,left:150});
 
-                    //$(document.body).scrollTop(0);
+
+
 
                 }
 
@@ -475,7 +461,7 @@ if($is_csv){
                     window.hWin.HEURIST4.util.sendRequest(url, request, null,
                         function(response){
                             if(response.status == window.hWin.ResponseStatus.OK){
-                                //submit.parentNode.removeChild(submit);
+
                                 $("#div-pw").hide();
                                 var ele = $("#authorized");
                                 ele.css({'background-image': 'url(../../hclient/assets/loading-animation-white.gif)',
@@ -528,7 +514,7 @@ if($is_csv){
                                             {position: { my: "left top", at: "left+150 top+150", of: window }});
 
                                         $("#authorized").append('<div class="ui-state-error" style="padding:4px;">'
-                                                    +databases[current_index]+' '+msg +"</div>");
+                                                    +databases[current_index]+' '+msg +'</div>');
 
                                     }
                                 }

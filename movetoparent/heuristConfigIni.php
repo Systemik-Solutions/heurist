@@ -35,8 +35,27 @@
 // **** DO NOT EDIT THE COPY OF THIS FILE IN THE CODEBASE (..../HEURIST/movetoparent)
 //      as this will have no effect (it is the copy in ..../HEURIST/ which is used)
 
-if (!@$serverName) {$serverName = null;} // override default taken from request header SERVER_NAME
-if (!@$mailDomain) {$mailDomain = null;} // You may need to set mail domain if it does not use server domain
+// [server url]                 
+// enter the server name or IP address of your Web server, null will pull SERVER_NAME from the request header
+// you may set this value if several domains point to your server. It will unify urls across links, web pages, reports
+// for example $serverName = "heuristscholar.org";  Be sure to include the port if not port 80
+if (!@$serverName) {$serverName = null;} // if not 'null', overrides default taken from request header SERVER_NAME
+if (!@$mailDomain) {$mailDomain = null;} // set mail domain if it does not use server domain
+
+// if base $heuristBaseURL is null, heurist detects it automatically 
+// Although it may differ from desired url you wish to see (because web server settings: aliases, rewrite rules etc)
+// Set this value explicitely to avoid possible issues
+if (!@$heuristBaseURL) {$heuristBaseURL = null;}  // base url ( ie server url+optional folder https://heuristscholar.org/h6-alpha )  
+// if you have several heurist instances of heurist, set this value to production instance
+//
+// if $heuristBaseURL is set and $heuristBaseURL_pro is null, then production version is the same as $heuristBaseURL
+// if both $heuristBaseURL and $heuristBaseURL_pro are null, heurist detects it automatically, default folder for pro version is /heurist
+if (!@$heuristBaseURL_pro) {$heuristBaseURL_pro = null;}
+
+// [database]
+// enter the host name or IP address of your MySQL server, blank --> localhost
+// for example $dbHost = "heuristscholar.org";  will cause the code to use mysql on the server at heuristscholar.org
+// Can be used to specify a separate database server in a tiered setup
 if (!@$dbHost) {$dbHost= "";}// Optional, blank = localhost for single tier, or set IP of MySQL server
 
 // MySQL user with full write (create) access on this database server
@@ -56,9 +75,9 @@ if (!@$defaultRootFileUploadPath) {$defaultRootFileUploadPath = "/var/www/html/H
 
 // [EMAIL]
 
-if (!@$sysAdminEmail) {$sysAdminEmail = "info@HeuristNetwork.org";}
+if (!@$sysAdminEmail) {$sysAdminEmail = "admin@example.org";}
 // REQUIRED, please set to email of the system administrator or mailing group
-if (!@$infoEmail) {$infoEmail = "info@HeuristNetwork.org";}
+if (!@$infoEmail) {$infoEmail = "info@example.org";}
 // recommended, please set to the email of whoever provides user assistance
 if (!@$bugEmail) {$bugEmail = "info@HeuristNetwork.org";}
 // recommended, set to info@heuristNetwork.org if your server is running a standard Heurist installation
@@ -90,8 +109,15 @@ if (!@$websiteThumbnailYsize) {$websiteThumbnailYsize = 300;} // required
 
 // [ACCESS AND PERFORMANCE]
 
+// We STRONGLY  recommend setting the rewrite rules so that you can use short, clean URLs for websites etc.
 // use [base_url]/[database]/view/[rec_id] links - Need to define RewriteRule in httpd.conf
-$useRewriteRulesForRecordLink = true;
+// if null it checks for RewriteRule on every system init, set it to true or false to reduce workload
+$useRewriteRulesForRecordLink = null;
+// If apache redirects are properly set as in the example in server_scripts/apache_configurations.txt, 
+// URLs such as https://HeuristRef.net/MyDatabase or https://HeuristRef.net/MyDatabase/39 
+// will redirect to https://heurist.huma-num.fr/MyDatabase/web/39
+// which will in turn redirect to something like https://heurist.huma-num.fr/heurist/?db=MyDatabase&website=39. 
+// Note that omitting the ID will redirect to the website with the lowest ID.
 
 // array of saml service providers
 $saml_service_provides = null;
@@ -103,7 +129,7 @@ $allowWebAccessThumbnails = true;
 $allowWebAccessUploadedFiles = true;
 $allowWebAccessEntityFiles = true;
 
-//Proxy use. If httpProxyAuth is set this will override the value of bypassProxy when making external requests via cURL within uFile.php
+//Proxy use. If httpProxyAuth is set this will override the value of bypassProxy when making external requests via cURL within UFile.php
 if (!@$httpProxy) {$httpProxy = '';}// blank = assumes direct internet access from server
 if (!@$httpProxyAuth) {$httpProxyAuth = '';}// authorization for proxy server "username:password"
 $httpProxyAlwaysActive = false;           // if true - always use proxy for CURL, otherwise proxy will mostly be used for non-heurist resources
@@ -113,6 +139,7 @@ $accessToken_MapBox = 'OBTAIN THIS FROM MAPBOX';
 $accessToken_MapTiles = 'OBTAIN THIS FROM MAPTILER';
 $accessToken_GoogleAPI = 'OBTAIN THIS FROM GOOGLE MAPS';
 $accessToken_GeonamesAPI = 'OBTAIN THIS FROM GEONAMES';
+$accessToken_Matomo = 'OBTAIN THIS FROM MATOMO';
 
 // Opentheso Servers for external lookup
 // List of opentheso compaitable servers for user's to query
@@ -181,5 +208,9 @@ if (!@$needEncodeRecordDetails) {$needEncodeRecordDetails = 0; }
 // if (!@$absolutePathsToRemoveFromWebPages) $absolutePathsToRemoveFromWebPages = array('https://heuristplus.sydney.edu.au');
 $absolutePathsToRemoveFromWebPages = null;
 
-
+//
+// Matomo tracking server configuration
+//
+$matomoUrl = null; //'domain.com/matomo';
+$matomoSiteId = null; //'1';
 ?>

@@ -68,6 +68,7 @@ $.widget( "heurist.importStructure", {
     _cachedRecordset_dbs:null,
 
     _is_rename_target: false,
+    _is_conservative: false,
     _selectedDB:null, //regid of currently selected database
 
     _init_local_defs_once:true,
@@ -75,7 +76,7 @@ $.widget( "heurist.importStructure", {
     // the widget's constructor
     _create: function() {
         // prevent double click to select text
-        //it prevents inputs in FF this.element.disableSelection();
+       
     }, //end _create
 
     //
@@ -104,8 +105,8 @@ $.widget( "heurist.importStructure", {
         
         //1. database selector
         +'<div class="ent_wrapper" id="panel_dbs">'
-        +    '<div class="ent_header searchForm"/>'     
-        +    '<div class="ent_content_full recordList"/>'
+        +    '<div class="ent_header searchForm"></div>'     
+        +    '<div class="ent_content_full recordList"></div>'
         +'</div>'
         
         //2. List of record types to be imported
@@ -114,7 +115,7 @@ $.widget( "heurist.importStructure", {
         +'<div class="ent_header" style="padding:4px;">'
         +'<div style="position:absolute;right:225px;left:0">' //450px
         +'<h4  style="margin:0;padding:4 0 0 4" id="h_source"></h4>'     
-        +'<div id="btn_back_to_databases" style="position:absolute;right:30px;top:0px;z-index:10"/>'
+        +'<div id="btn_back_to_databases" style="position:absolute;right:30px;top:0px;z-index:10"></div>'
         +'</div>'
 
         //+'<div style="border-left:1px solid lightgray;position:absolute;right:225px;width:224px;height:2.8em">'
@@ -152,8 +153,8 @@ $.widget( "heurist.importStructure", {
         //target
         +'<div id="panel_def_list_target" '
         +'style="position:absolute; top:2.8em;bottom:0;right:0px; overflow:hidden;width:225px;">'
-        +'<select id="select_rty_list_target" size="500" style="width:100%;height:100%;border:lightgray 1px solid"/>'
-        +'<select id="select_dty_list_target" size="500" style="width:100%;height:100%;border:lightgray 1px solid;display:none;"/>'
+        +'<select id="select_rty_list_target" size="500" style="width:100%;height:100%;border:lightgray 1px solid"></select>'
+        +'<select id="select_dty_list_target" size="500" style="width:100%;height:100%;border:lightgray 1px solid;display:none;"></select>'
         +'<div id="select_trm_list_target" style="width:100%;height:100%;border:lightgray 1px solid;display:none;">'
             + 'Due to the potentially numerous amount of vocabulary and terms,<br>existing local vocabulary and terms are not displayed here'
         +'</div>'
@@ -163,8 +164,8 @@ $.widget( "heurist.importStructure", {
 
         //3. report after completion of import
         +'<div class="ent_wrapper" id="panel_report" style="display:none">'
-        +    '<div class="ent_content_full" style="bottom:2.8em;top:0;padding:10px"/>'
-        +    '<div class="ent_footer" style="text-align:center"><div id="btn_close_panel_report"/></div>'
+        +    '<div class="ent_content_full" style="bottom:2.8em;top:0;padding:10px"></div>'
+        +    '<div class="ent_footer" style="text-align:center"><div id="btn_close_panel_report"></div></div>'
         +'</div>'
 
         +'</div>';
@@ -279,7 +280,7 @@ $.widget( "heurist.importStructure", {
             groupByField: 'rec_RecTypeID',
             rendererGroupHeader: function(grp_val){
                 if(grp_val==0){
-                    //width:100%;
+                   
                     return '<div style="border-bottom:1px solid lightgray">'
                     +'<div style="padding:24px 0 4px 40px;"><h2 style="margin:0">Curated templates</h2>'
                     +'<div style="padding-top:4px;"><i>Databases curated by the Heurist team as a source of useful entity types for new databases</i></div></div></div>';
@@ -297,7 +298,7 @@ $.widget( "heurist.importStructure", {
                 let sHeader = '<div style="width:62px">Reg#</div><div style="width:23em">Database Name</div>'
                 +'<div style="width:2em">&nbsp;</div>'
                 +'<div style="width:52em">Description</div>';
-                //+'<div style="width:3em">URL</div>';
+               
                 return sHeader;
             },
             renderer:
@@ -343,10 +344,10 @@ $.widget( "heurist.importStructure", {
                 that.input_search = that.searchForm_dbs.find('.input_search');
 
                 that._on( that.input_search, { keypress: that.startSearchOnEnterPress });
-                //that._on( this.input_search,  { keyup:this.startSearch_dbs });
+               
                 that._on( that.btn_search_start, { click: that.startSearch_dbs });            
 
-                //that.searchForm_dbs.find('#input_search_type_div2').show();
+               
                 that.input_search_type = that.searchForm_dbs.find('#input_search_type2');
                 that._on(that.input_search_type,  { change:that.startSearch_dbs });
 
@@ -488,7 +489,7 @@ $.widget( "heurist.importStructure", {
         const that = this;
         let panel_dbs = this.element.find('#panel_dbs');
 
-        let record = db_ids.getFirstRecord();//this._cachedRecordset_dbs.getById(db_ids[0]);
+        let record = db_ids.getFirstRecord();
 
         let sDB_ID = db_ids.fld(record, 'rec_ID');
         let sURL  = db_ids.fld(record, 'rec_URL');
@@ -756,9 +757,6 @@ $.widget( "heurist.importStructure", {
         // remove generated elements
         if(this.searchForm_dbs) this.searchForm_dbs.remove();
         if(this.recordList_dbs) this.recordList_dbs.remove();
-
-        //if(this.searchForm_rty) this.searchForm_rty.remove();
-        //if(this.recordList_rty) this.recordList_rty.remove();
     },
 
     //----------------------
@@ -767,7 +765,7 @@ $.widget( "heurist.importStructure", {
     //
     _onActionListener:function(event, action){
         if(action=='select-and-close'){
-            //this._selectAndClose();
+           
             return true;
         } else {
             let recID = 0;
@@ -812,7 +810,7 @@ $.widget( "heurist.importStructure", {
         }
 
         let recID = fld('rec_ID');
-        let recURL = fld('rec_URL');
+        
         let dbName = fld('rec_Title');
         let recTitle = window.hWin.HEURIST4.util.stripTags(fld('rec_ScratchPad'), "u, i, b, strong, em");
 
@@ -860,7 +858,7 @@ $.widget( "heurist.importStructure", {
             + '<div title="Click to open database in new window" '
             + 'class="rec_edit_link_ext ui-button action-button ui-widget ui-state-default ui-corner-all ui-button-icon-only" '
             + 'role="button" aria-disabled="false" data-key="open">'
-            + '<span class="ui-button-icon-primary ui-icon ui-icon-extlink"/><span class="ui-button-text"/>'
+            + '<span class="ui-button-icon-primary ui-icon ui-icon-extlink"></span><span class="ui-button-text"></span>'
             + '</div>';
         }
 
@@ -876,7 +874,6 @@ $.widget( "heurist.importStructure", {
     _initDialog: function(){
 
         let options = this.options,
-        btn_array = [], 
         position = null;
         
         const that = this;
@@ -888,7 +885,7 @@ $.widget( "heurist.importStructure", {
         let maxh = (window.hWin?window.hWin.innerHeight:window.innerHeight);
         if(options['height']>maxh) options['height'] = maxh*0.95;
 
-        //this.options.window = window.hWin;
+       
         this.element.addClass('ui-heurist-bg-light');
 
         let $dlg = this.element.dialog({
@@ -995,7 +992,8 @@ $.widget( "heurist.importStructure", {
              _is_rename_target - should rectype/concept labels be overwritten with labels imported from the source database
              type - entity - what is being imported? {rectype|detailtype|term}
         */
-        window.hWin.HAPI4.SystemMgr.import_definitions(this._selectedDB, id, this._is_rename_target, type,
+        window.hWin.HAPI4.SystemMgr.import_definitions(this._selectedDB, id, type,
+            this._is_rename_target, this._is_conservative,
             function(response){    
 
                 window.hWin.HEURIST4.msg.sendCoverallToBack(); 
@@ -1435,6 +1433,11 @@ $.widget( "heurist.importStructure", {
                 +'customisation with names which may be quite different and out-of-context with existing data. '
                 +'If this is not a new database, we suggest cancelling and making a clone first (please' 
                 +' delete the clone once you are happy with the result of the import).'
+            +'</p>'
+            +'<p style="font-size:smaller">'
+                +'<label><input type="checkbox" id="import_new_rectypes_only"/>&nbsp;Check this box</label> '
+                +'  if you wish to import record types not yet in this database which are connected to the '
+                +' imported record type through record pointer or relationship marker fields.'
             +'</p>';
         }else if(type == 'detailtype'){
 
@@ -1466,6 +1469,7 @@ $.widget( "heurist.importStructure", {
         btns['Proceed'] = () => {
 
             that._is_rename_target = $dlg.find('#rename_target_entities').is(':checked');
+            that._is_conservative = $dlg.find('#import_new_rectypes_only').is(':checked');
 
             if(that._is_rename_target){
 
@@ -1522,10 +1526,10 @@ $.widget( "heurist.importStructure", {
         msg = '<div id="handled-defs">'
                     + '<div>'
                         + '<ul>'
-                            + (!window.hWin.HEURIST4.util.isempty(response.report.rectypes) ? `<li href="#rty">Record types</li>` : '')
-                            + (!window.hWin.HEURIST4.util.isempty(response.report.detailtypes) ? `<li href="#dty">Base fields</li>` : '')
-                            + (!window.hWin.HEURIST4.util.isempty(response.report.terms) ? `<li href="#trm">Terms</li>` : '')
-                            + (!window.hWin.HEURIST4.util.isempty(response.report.translations) ? `<li href="#translation">Translations</li>` : '')
+                            + (!window.hWin.HEURIST4.util.isempty(response.report.rectypes) ? `<li><a href="#rty">Record types</a></li>` : '')
+                            + (!window.hWin.HEURIST4.util.isempty(response.report.detailtypes) ? `<li><a href="#dty">Base fields</a></li>` : '')
+                            + (!window.hWin.HEURIST4.util.isempty(response.report.terms) ? `<li><a href="#trm">Terms</a></li>` : '')
+                            + (!window.hWin.HEURIST4.util.isempty(response.report.translations) ? `<li><a href="#translation">Translations</a></li>` : '')
                         + '</ul>'
                     + '</div>'
                     + msg
