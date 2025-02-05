@@ -72,6 +72,8 @@ abstract class ExportRecords {
      */
     protected $fd;
 
+    protected $total = null;
+
     /**
      * @var string $comma Separator used for JSON formatting
      */
@@ -327,6 +329,16 @@ abstract class ExportRecords {
         $this->_outputPrepareFields($params);
         $this->_outputHeader();
 
+        // Check if offset and limit are provided for pagination
+        if (isset($params['offset'], $params['limit'])) {
+            $offset = max((int) $params['offset'], 0); // Ensure offset is non-negative
+            $limit = (int) $params['limit'];
+    
+            $this->total = count($this->records);
+            // Apply pagination to $records
+            $this->records = array_slice($this->records, $offset, $limit);
+        }
+
         //MAIN LOOP  ----------------------------------------
         foreach ($this->records as $record) {
             $recID = is_array($record) ? $record['rec_ID'] : $record;
@@ -519,6 +531,10 @@ abstract class ExportRecords {
             $this->rt_counts[$rtid] = array('name'=>$rectypes[$rtid][0],'code'=>$rectypes[$rtid][1],'count'=>$cnt);
         }
         $database_info['rectypes'] = $this->rt_counts;
+
+        if ($this->total){
+            $database_info['total'] = $this->total;
+        }
 
         return $database_info;
     }
