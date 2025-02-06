@@ -324,6 +324,7 @@ mapDraw.js initial_wkt -> parseWKT -> GeoJSON -> _loadGeoJSON (as set of separat
                         if(timeenabled<MAXITEMS){
                      
                             dres = dates[k];
+                            let iconImg;
                             
                             if(typeof iconId=='string' && (iconId.indexOf('http:')==0 || iconId.indexOf('https:')==0)){
                                 iconImg = iconId;

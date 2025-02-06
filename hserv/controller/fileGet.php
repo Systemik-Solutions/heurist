@@ -23,6 +23,7 @@
 * See the License for the specific language governing permissions and limitations under the License.
 */
 use hserv\utilities\USanitize;
+use hserv\utilities\UImage;
 
 require_once dirname(__FILE__).'/../../autoload.php';
 require_once 'entityScrudSrv.php';

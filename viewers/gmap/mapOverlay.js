@@ -311,7 +311,7 @@ function HMappingControls( mapping, startup_mapdocument_id ) {
                 let neBound = new google.maps.LatLng(y2, x2);
                 bounds = new google.maps.LatLngBounds(swBound, neBound);
 
-                window.hWin.HEURIST4.ui.addoption(selBookmakrs, map_bookmarks.length, bookmark[0]?bookmark[0]:'Extent '+(map_bookmarks.length+1));
+                window.hWin.HEURIST4.ui.addoption(document.getElementById('selMapBookmarks'), map_bookmarks.length, bookmark[0]?bookmark[0]:'Extent '+(map_bookmarks.length+1));
 
                 map_bookmarks.push({extent:bounds, tmin:tmin, tmax:tmax});
 
