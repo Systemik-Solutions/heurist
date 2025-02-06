@@ -26,7 +26,7 @@ use Smarty\Smarty;
 use Smarty\Security;
 use Smarty\Template;
 
-class HeuristSecurityPolicy extends Smarty_Security {
+class HeuristSecurityPolicy extends Security {
 
   // disable acess to static classes
   public $static_classes = null;
