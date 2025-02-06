@@ -71,7 +71,41 @@ function HLayout(args) {
         }
         return null;
     }
+
+    //
+    // put specified widget on top
+    //
+    // implemented for tabs only and if several same widgets are in layout it show first only
+    //
+    function _putAppOnTop( widgetname ){
+        
+        var app = _appGetWidgetByName( widgetname );
+        if(Hul.isnull(app)) return;
+        
+        var ele = $(app.widget);  //find panel with widget
+        if( ele.hasClass('ui-tabs-panel') ){
+            //get parent tab and make it active
+            $(ele.parent()).tabs( "option", "active", ele.index()-1 );
+        }
+    }
+
+    //
+    // we may use several widgets of the same type: staticPage or recordListExt for example
+    // put specific tab on top
+    // note: you have to define unique layout_id in layout_default.js
+    //
+    function _putAppOnTopById( layout_id ){
+        
+        if(Hul.isnull(layout_id)) return;
+        
+        //var $container = $(_containerid);
+        var ele = $('div[layout_id="'+layout_id+'"]');
+        if( ele.hasClass('ui-tabs-panel') ){
+            $(ele.parent()).tabs( "option", "active", ele.index()-1 );
+        }
+    }
     
+
     //
     // action: close, open
     // args - [pane, values] 
@@ -1351,6 +1385,10 @@ console.error('Cardinal layout widget does not have proper options');
         appGetWidgetById: function(id){
             return _appGetWidgetById(id);
         },
+
+        appGetWidgetByName: function( widgetname ){
+            return _appGetWidgetByName( widgetname );
+        },
         
         //
         // 
@@ -1437,6 +1475,14 @@ console.error('Cardinal layout widget does not have proper options');
             }
             
             _defineMediaSource($container); 
+        },
+
+        putAppOnTop: function( widgetname ){
+            _putAppOnTop( widgetname );
+        },
+
+        putAppOnTopById: function( widgetname ){
+            _putAppOnTopById( widgetname );
         },
         
         init: function(cfg_widgets, cfg_layouts){

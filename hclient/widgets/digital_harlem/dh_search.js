@@ -21,8 +21,7 @@
 var Hul = window.hWin.HEURIST4.util;
 
 //constants
-//const _NAME = 0, _QUERY = 1, _GRPID = 2, _ISFACETED=3;
-const _NAME = 0
+const _NAME = 0, _QUERY = 1, _GRPID = 2, _ISFACETED=3;
 
 $.widget( "heurist.dh_search", {
 
