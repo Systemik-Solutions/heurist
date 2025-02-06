@@ -40,7 +40,7 @@ function initialisePagination() {
         'q': coreQuery,
         'detail': 'detail'
     }, (response) => {
-        people = new hRecordSet(response.data);
+        people = new HRecordSet(response.data);
         // Record title is at idx 5
         people.each((id, rec) => names.push(rec[5]));
         initials = new Set(names.map((value) => value[0].toUpperCase()));

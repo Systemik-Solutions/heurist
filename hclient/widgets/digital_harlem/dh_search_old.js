@@ -416,7 +416,7 @@ $.widget( "heurist.dh_search", {
                         if(response.status == window.hWin.ResponseStatus.OK){
                             that._currentquery = query;
                             that._currenttype  = content_id;
-                            that._resultset = new hRecordSet(response.data);
+                            that._resultset = new HRecordSet(response.data);
                         }else{
                             window.hWin.HEURIST4.msg.showMsgErr(response);
                             return;

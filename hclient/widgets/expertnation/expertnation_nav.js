@@ -882,7 +882,7 @@ content = content.replace('http://heurist.sydney.edu.au/heurist/',window.hWin.HA
                 return;
             }
 
-            that.recset = new hRecordSet(response.data);
+            that.recset = new HRecordSet(response.data);
             //prepare result 
             var idx, records = that.recset.getRecords();
 
@@ -1116,7 +1116,7 @@ content = content.replace('http://heurist.sydney.edu.au/heurist/',window.hWin.HA
             }//for recset
 
 
-            var res_recordset = new hRecordSet({
+            var res_recordset = new HRecordSet({
                 count: res_orders.length,
                 offset:0,
                 fields: that.recset.getFields(),
@@ -1247,7 +1247,7 @@ content = content.replace('http://heurist.sydney.edu.au/heurist/',window.hWin.HA
                 return;
             }
 
-            that.recset = new hRecordSet(response.data);
+            that.recset = new HRecordSet(response.data);
 
             var idx, html = '';
 
@@ -1853,7 +1853,7 @@ content = content.replace('http://heurist.sydney.edu.au/heurist/',window.hWin.HA
             }
 
 
-            that.recset = new hRecordSet(response.data);
+            that.recset = new HRecordSet(response.data);
 
             //-----------------            
             var person = that.recset.getById(recID);

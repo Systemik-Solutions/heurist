@@ -258,7 +258,7 @@ $.widget( "heurist.dh_search", {
             //perform search
             window.hWin.HAPI4.RecordMgr.search(request, function(response){
                 if(response.status == window.hWin.ResponseStatus.OK){
-                    var resdata = new hRecordSet(response.data);
+                    var resdata = new HRecordSet(response.data);
                     //add SELECT and fill it with values
                     var smenu = '', idx;
                     var records = resdata.getRecords();
