@@ -153,8 +153,8 @@ function HMappingControls( mapping, startup_mapdocument_id ) {
         // Clean old data
         $('#map_extents').css('visibility','hidden');
         _removeMapDocumentOverlays();
-        let selBookmarks = document.getElementById('selMapBookmarks');
-        $(selBookmarks).empty();
+        let selBookmakrs = document.getElementById('selMapBookmarks');
+        $(selBookmakrs).empty();
         let btnMapRefresh = $("#btnMapRefresh");
         let btnMapEdit = $("#btnMapEdit");
         window.hWin.HEURIST4.util.setDisabled(btnMapEdit, true);
@@ -228,7 +228,7 @@ function HMappingControls( mapping, startup_mapdocument_id ) {
         let doc = _getMapDocumentDataById(mapdocument_id);
         let lt = window.hWin.HAPI4.sysinfo['layout'];   
 
-        let selBookmarks = document.getElementById('selMapBookmarks');
+        let selBookmakrs = document.getElementById('selMapBookmarks');
         let btnMapRefresh = $("#btnMapRefresh");
         let btnMapEdit = $("#btnMapEdit");
         if( !window.hWin.HEURIST4.util.isnull(doc) ) {
@@ -236,7 +236,7 @@ function HMappingControls( mapping, startup_mapdocument_id ) {
             let bounds = null, err_msg_all = '';
 
             map_bookmarks = [];
-            window.hWin.HEURIST4.ui.addoption(selBookmarks, -1, 'bookmarks...');
+            window.hWin.HEURIST4.ui.addoption(selBookmakrs, -1, 'bookmarks...');
 
             // Longitude,Latitude centrepoint, Initial minor span
             // add initial bookmarks based on long lat  minorSpan
@@ -311,7 +311,7 @@ function HMappingControls( mapping, startup_mapdocument_id ) {
                 let neBound = new google.maps.LatLng(y2, x2);
                 bounds = new google.maps.LatLngBounds(swBound, neBound);
 
-                window.hWin.HEURIST4.ui.addoption(selBookmarks, map_bookmarks.length, bookmark[0]?bookmark[0]:'Extent '+(map_bookmarks.length+1));
+                window.hWin.HEURIST4.ui.addoption(selBookmakrs, map_bookmarks.length, bookmark[0]?bookmark[0]:'Extent '+(map_bookmarks.length+1));
 
                 map_bookmarks.push({extent:bounds, tmin:tmin, tmax:tmax});
 
@@ -345,10 +345,10 @@ function HMappingControls( mapping, startup_mapdocument_id ) {
 
 
 
-            let selBookmarks = document.getElementById('selMapBookmarks')                  
-            selBookmarks.onmousedown = function(){ selBookmarks.selectedIndex = 0; }
-            selBookmarks.onchange = function(){
-                let val = $(selBookmarks).val();
+            let selBookmakrs = document.getElementById('selMapBookmarks')                  
+            selBookmakrs.onmousedown = function(){ selBookmakrs.selectedIndex = 0; }
+            selBookmakrs.onchange = function(){
+                let val = $(selBookmakrs).val();
                 if(val>=0){
                     map.fitBounds(map_bookmarks[val]['extent']);    
                     if(map_bookmarks[val]['tmin']!=null)
@@ -357,8 +357,8 @@ function HMappingControls( mapping, startup_mapdocument_id ) {
             }
             
             $('#map_extents').css('visibility','visible');
-            selBookmarks.selectedIndex = 1;
-            $(selBookmarks).trigger('change');
+            selBookmakrs.selectedIndex = 1;
+            $(selBookmakrs).trigger('change');
 
             mapping.setTimeMapProperty('centerOnItems', false);    
             
@@ -389,7 +389,7 @@ function HMappingControls( mapping, startup_mapdocument_id ) {
                     if(!map_container.is(':visible')) return;
                     clearInterval(checkVisible); //stop listener
 
-                    $(selBookmarks).trigger('change');
+                    $(selBookmakrs).trigger('change');
                     //mapping.autoCenterAndZoom();
                     //mapping.zoomDataset()
                     //zoom to map document extent
