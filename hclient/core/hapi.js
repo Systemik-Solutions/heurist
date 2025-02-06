@@ -186,12 +186,12 @@ function hAPI(_db, _oninit, _baseURL) { //, _currentUser
             if(script_name.endsWith('/web') || script_name.endsWith('/website')) script_name = script_name + '/'; //add last slash
 
             //actions for redirection https://hist/heurist/[dbname]/web/
-            if(script_name.search(/\/([A-Za-z0-9_]+)\/(website|web|hml|tpl|view|edit|adm)\/.*/)>=0){
-                installDir = script_name.replace(/\/([A-Za-z0-9_]+)\/(website|web|hml|tpl|view|edit|adm)\/.*/, '')+'/';
+            if(script_name.search(/\/([A-Za-z0-9_]+)\/(website|web|hml|tpl|view|edit|adm|test)\/.*/)>=0){
+                installDir = script_name.replace(/\/([A-Za-z0-9_]+)\/(website|web|hml|tpl|view|edit|adm|test)\/.*/, '')+'/';
                 if(installDir=='/') installDir = '/h6-alpha/';/* to change back to '/heurist/'; */
             }else{
                 //removed top folders: applications|common|search|records|
-                installDir = script_name.replace(/(((\?|admin|context_help|export|hapi|hclient|hserv|import|startup|redirects|viewers|help|ext|external)\/.*)|(index.*|test.php))/, ""); // Upddate in utils_host.php also
+                installDir = script_name.replace(/(((\?|admin|context_help|export|hapi|hclient|hserv|import|startup|test|redirects|viewers|help|ext|external)\/.*)|(index.*|test.php))/, ""); // Upddate in utils_host.php also
             }
         }
 
@@ -917,10 +917,10 @@ function hAPI(_db, _oninit, _baseURL) { //, _currentUser
             // For existing instances (ie in different browser window) it verifies the  relevance of definitions every 20 seconds.
             // see initialLoadDatabaseDefintions 
             //
-            relevanceEntityData: function (callback) {
+            relevanceEntityData: function (callback, errorCallback = null) {
                 
                 if(entity_timestamp>0){
-                    window.hWin.HAPI4.EntityMgr.refreshEntityData('relevance', callback)
+                    window.hWin.HAPI4.EntityMgr.refreshEntityData('relevance', callback, errorCallback);
                 }else if (window.hWin.HEURIST4.util.isFunction(callback)) {
                     callback(this, true);
                 }
@@ -929,7 +929,7 @@ function hAPI(_db, _oninit, _baseURL) { //, _currentUser
             //
             // refresh several entity data at once
             // 
-            refreshEntityData: function (entityName, callback) {
+            refreshEntityData: function (entityName, callback, errorCallback = null) {
 
                 let params = { a: 'structure', 'details': 'full'};
                 params['entity'] = entityName;
@@ -938,7 +938,7 @@ function hAPI(_db, _oninit, _baseURL) { //, _currentUser
                 let s_time = new Date().getTime() / 1000;
                 if(_msgOnRefreshEntityData) clearTimeout(_msgOnRefreshEntityData);
                 _msgOnRefreshEntityData = setTimeout(function(){
-                    window.hWin.HEURIST4.msg.showMsgFlash('Database definitions refresh', false);
+                    window.hWin.HEURIST4.msg.showMsgFlash('Database definitions refresh', false, { position: {my: 'left+100 top+100', at: 'left top', of: $(document)} });
                 }, 1000);
 
                  
@@ -966,8 +966,9 @@ function hAPI(_db, _oninit, _baseURL) { //, _currentUser
                             if (window.hWin.HEURIST4.util.isFunction(callback)) callback(this, true);
 
                         } else {
-                            console.log('ERROR: ',response);                            
-                            window.hWin.HEURIST4.msg.showMsgErr(response);
+                            console.log('ERROR: ',response);
+                            if(window.hWin.HEURIST4.util.isFunction(errorCallback)){ errorCallback.call(this, response); }
+                            else{ window.hWin.HEURIST4.msg.showMsgErr(response); }
                         }
                     }
 
@@ -1627,7 +1628,7 @@ function hAPI(_db, _oninit, _baseURL) { //, _currentUser
 
                 if (_regional[_region] && _regional[_region][key]) {
                     return _regional[_region][key];
-                } else if (_region != 'ENG' && _regional['ENG'][key])
+                } else if (_region != 'ENG' && _regional['ENG'] && _regional['ENG'][key])
                 {
                     return _regional['ENG'][key];
                 }else{

@@ -141,6 +141,8 @@ $.widget( "heurist.resultList", {
 
         check_linked_media: true, // check linked records (only type "media") for an image
         
+        fontsize: 0, //base font size for renderRecordData otherwise it takes from user preferences
+        
         language: 'def'
     },
 
@@ -223,6 +225,10 @@ $.widget( "heurist.resultList", {
 
         this._is_publication = window.hWin.HAPI4.is_publish_mode;
 
+        if(this.options.fontsize==0 && this.element.css('font-size')){
+            this.options.fontsize = parseFloat(this.element.css('font-size'));
+        }
+        
         // Auto select record(s), retrieved from url
         let rec_ids = window.hWin.HEURIST4.util.getUrlParameter('rec_id', location.href);
         if(!rec_ids && window.hWin.HAPI4.sysinfo.use_redirect){
@@ -627,17 +633,20 @@ $.widget( "heurist.resultList", {
         .appendTo( this.element );
 
         this.div_content = $( "<div>" )
-        .addClass('div-result-list-content ent_content_full')
+        .addClass('div-result-list-content')
         //.css({'border-top':'1px solid #cccccc'})  //,'padding-top':'1em'
         .css({'overflow-y':'auto'})
         .appendTo( this.element );
         
+        if(this.element.css('position')=='relative' && this.element[0].style.height=='100%'){
+            this.div_content.css('height','100%');
+        }else{                                          
+            this.div_content.addClass('ent_content_full');    
+        }
         
         if(window.hWin.HEURIST4.util.isFunction(this.options.onScroll)){
             this._on(this.div_content, {'scroll':this.options.onScroll});
         }
-                          
-
         
         this.div_loading = $( "<div>" )
         .css({ 'width': '50%', 'height': '50%', 'top': '25%', 'margin': '0 auto', 'position': 'relative',
@@ -1015,7 +1024,12 @@ $.widget( "heurist.resultList", {
         }
    
         //move content down to leave space for header
-        this.div_content.css({'top': top+'px'});
+        if(this.div_content.css('position')=='absolute'){
+            this.div_content.css({'top': top+'px'});    
+        }else{
+            this.div_content.css({'margin-top': top+'px'});    
+        }
+        
 		
 		if(has_content_header){
             this.div_content_header
@@ -1888,7 +1902,7 @@ $.widget( "heurist.resultList", {
     },
 
     //
-    //
+    // assign tooltip (title) for recordDiv
     //
     _recordDivOnHover: function(event){
         
@@ -2471,6 +2485,10 @@ $.widget( "heurist.resultList", {
                     if(that.options.language && that.options.language!='def'){
                         infoURL = infoURL + '&lang='+that.options.language;
                     }
+                    if(this.options.fontsize>0){
+                        infoURL = infoURL + '&fontsize=' + this.options.fontsize;
+                    }
+                    
                     
                     //content is smarty report
                     if( this.options.rendererExpandInFrame ||  !isSmarty)

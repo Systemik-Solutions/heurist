@@ -367,7 +367,23 @@ if(!$invalid_access && (defined('CREATE_RECORDS') || defined('DELETE_RECORDS')))
 
                         //verify definitions relevance every 20 seconds
                         if(!window.hWin.RefreshCacheInterval){
-                            window.hWin.RefreshCacheInterval = setInterval(function(){window.hWin.HAPI4.EntityMgr.relevanceEntityData()}, 600000);
+                            window.hWin.RefreshCacheInterval = setInterval(function(){window.hWin.HAPI4.EntityMgr.relevanceEntityData(null, (response) => {
+
+                                let show_login = response.message === 'Error_Connection_Reset';
+
+                                window.hWin.HEURIST4.msg.showMsgErr(response, false, {
+                                    close: () => {
+                                        if(show_login){                                            
+                                            window.hWin.HEURIST4.ui.checkAndLogin(true, (is_logged_in) => {
+                                                if(!is_logged_in){
+                                                    clearInterval(window.hWin.RefreshCacheInterval);
+                                                }
+                                            });
+                                        }
+                                    }
+                                });
+
+                            })}, 600000);
                         }
 
                         if(!window.hWin.HEURIST4.util.isnull(callback) && window.hWin.HEURIST4.util.isFunction(callback)){

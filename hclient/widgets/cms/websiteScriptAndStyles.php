@@ -66,7 +66,11 @@ if (isLocalHost() && !@$_REQUEST['embed'])  {
 ?>
 <script type="text/javascript" src="<?php echo PDIR;?>external/jquery.widgets/jquery.layout.js"></script>
 <link rel="stylesheet" type="text/css" href="<?php echo PDIR;?>external/jquery-ui-iconfont-master/jquery-ui.icon-font.css" />
-
+<!--
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-MrcW6ZMFYlzcLA8Nl+NtUVF0sA7MsXsP1UyJoMp4YLEuNSfAP+JcXn/tWtIaxVXM" crossorigin="anonymous"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.6.0/css/fontawesome.min.css" integrity="sha384-NvKbDTEnL+A8F/AA5Tc5kmMLSJHUO868P+lDtTpJIeQdGYaUIuLr4lVGOEA1OcMy" crossorigin="anonymous">
+-->
 <!-- CSS -->
 <?php
     //PDIR.
@@ -98,6 +102,7 @@ if (isLocalHost() && !@$_REQUEST['embed'])  {
     var isJsAllowed = <?php echo $website_custom_javascript_allowed?'true':'false';?>;
     var first_not_empty_page = 0;
     var website_title = <?php echo $website_title; ?>;
+    var is_custom_header = <?php echo ($page_header!==null && $page_header!=='')?'true':'false';?>;
 
     var record_view_smarty_template = '<?php echo $record_view_smarty_template!=null?$record_view_smarty_template:'';?>';
     var record_view_target = '<?php echo $record_view_target!=null?$record_view_target:'';?>';
@@ -1356,7 +1361,7 @@ $website_languages_links ->#main-languages
                 $('#main-title').fadeIn(500);
                 $('#main-title').attr('data-adjusted',1)
             });
-        }else  if(img.length == 0){
+        }else  if(img.length == 0 && !is_custom_header){
             $('#main-title').css({
                 left: '10px',
                 top: '30px'

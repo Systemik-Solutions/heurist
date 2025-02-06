@@ -239,7 +239,7 @@ $title_alt = __getValue($rec, '3-1009');//DT_CMS_ALT_TITLE
 $title_alt2 = __getValue($rec, '2-1052');
 $image_banner = __getFile($rec, '99-951', null);//DT_CMS_BANNER
 
-$image_logo = $image_logo?'<img style="max-width:270px;" src="'.$image_logo.'">':'';
+$image_logo = $image_logo?'<img src="'.$image_logo.'">':'';
 
 $meta_keywords = htmlspecialchars(strip_tags(__getValue($rec, DT_CMS_KEYWORDS)));
 $meta_description = htmlspecialchars(strip_tags(__getValue($rec, DT_SHORT_SUMMARY)));
@@ -432,11 +432,11 @@ if(!$isWebPage){  //not standalone web page
         $is_page_footer_fixed = ($page_footer_type != ConceptCode::getTermLocalID('2-531'));
         $default_style = ";border-top:2px solid rgb(112,146,190);background:lightgray;";
         if ($is_page_footer_fixed) {
-            $footer_height = ($page_footers!=null) ? '80px' : '48px';
-            $page_footer_style = 'height:'.$footer_height.$default_style;
+            $page_footer_height = ($page_footers!=null) ? '80px' : '48px';
+            $page_footer_style = 'height:'.$page_footer_height.$default_style;
         } else {
-            $footer_height = 'auto';
-            $page_footer_style = 'height:'.$footer_height.(($page_footers!=null) ? '' : $default_style);
+            $page_footer_height = 'auto';
+            $page_footer_style = 'height:'.$page_footer_height.(($page_footers!=null) ? '' : $default_style);
         }
 
         $mailto = '';
