@@ -1,5 +1,7 @@
 /**
 *  appInitAll - main function which initialises everything
+* 
+*  to be replaced with HLayoutMgr
 *
 *  @see ext/layout
 *  @see layout_defaults.js - configuration file
@@ -7,7 +9,7 @@
 * @package     Heurist academic knowledge management system
 * @link        https://HeuristNetwork.org
 * @copyright   (C) 2005-2023 University of Sydney
-* @author      Artem Osmakov   <artem.osmakov@sydney.edu.au>
+* @author      Artem Osmakov   <osmakov@gmail.com>
 * @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
 * @version     4.0
 */
@@ -20,18 +22,15 @@
 * See the License for the specific language governing permissions and limitations under the License.
 */
 
-
+/* global cfg_widgets, cfg_layouts */
 //
 // 
 //
-function hLayout(args) {
-     var _className = "hLayout",
+function HLayout(args) {
+     const _className = "HLayout",
          _version   = "0.4";      
 
-    var Hul = window.hWin.HEURIST4.util;
-
-     var widgetinstances = [], //@todo array of all inited widgets 
-         widgets = [],
+    let  widgets = [],
          layouts = [],  //json description of layout
          _containerid,
          _is_container_layout = false;
@@ -47,7 +46,7 @@ function hLayout(args) {
     
     function _appGetWidgetByName( widgetname ){
         
-        var i;
+        let i;
         for(i=0; i<widgets.length; i++){
             if(widgets[i].widgetname==widgetname){
                 return widgets[i];
@@ -65,15 +64,14 @@ function hLayout(args) {
     */
     function _appGetWidgetById(id){
 
-        var i;
-        for(i=0; i<widgets.length; i++){
+        for(let i=0; i<widgets.length; i++){
             if(widgets[i].id==id){
                 return widgets[i];
             }
         }
         return null;
     }
-    
+
     //
     // put specified widget on top
     //
@@ -107,13 +105,14 @@ function hLayout(args) {
         }
     }
     
+
     //
     // action: close, open
     // args - [pane, values] 
     //
     function _cardinalPanel(action, args, element){
 
-        var $container = null;
+        let $container = null;
         
         //by default find parent of element with ui-layout-container clas
         //find parent container
@@ -130,7 +129,6 @@ function hLayout(args) {
             $container = $(_containerid); 
         }
      
-        //if(!$.isFunction($container.layout)) return;
         if(!$container.hasClass('ui-layout-container')) {
             $container = $container.children().find('.ui-layout-container');
         }
@@ -139,11 +137,11 @@ function hLayout(args) {
         }
         
         
-        var pane, 
+        let pane, 
             myLayout = $container.layout();
         
         
-        if($.isArray(args)){
+        if(Array.isArray(args)){
             if(args.length<1) return;
             pane = args[0];
         }else{
@@ -171,23 +169,23 @@ function hLayout(args) {
     */
     function _getLayoutParams($container, supp_options){
         
-        var eles = $container.find('div[data-heurist-app-id]');
+        let eles = $container.find('div[data-heurist-app-id]');
         
-        var layout = {id:'Dynamic', type:'free'};
+        let layout = {id:'Dynamic', type:'free'};
         
-        var is_layout = false;
+        let is_layout = false;
         
-        for(var i=0; i<eles.length; i++){
-            var ele = $(eles[i]);
-            var app_id = ele.attr('data-heurist-app-id');
+        for(let i=0; i<eles.length; i++){
+            let ele = $(eles[i]);
+            let app_id = ele.attr('data-heurist-app-id');
             if(_appGetWidgetById(app_id)!=null){ //is defined in layout_default.cfg_widgets
 
-                var cfgele = ele.find('span.widget-options:first'); //old version
+                let cfgele = ele.find('span.widget-options:first'); //old version
                 if(cfgele.length==0) cfgele = ele;
                 // in new version config is in body
-                opts = window.hWin.HEURIST4.util.isJSON(cfgele.text());
+                let opts = window.hWin.HEURIST4.util.isJSON(cfgele.text());
                 
-                //extend options with suppimentary ones
+                //extend options with supplimentary ones
                 if(supp_options && supp_options[app_id]){
                     opts = (opts!=false)? $.extend(opts, supp_options[app_id])
                                     :supp_options[app_id];
@@ -213,7 +211,7 @@ function hLayout(args) {
         
         $container.find('img[data-id], source[data-id], embed[data-id]').each(
             function(idx,item){
-                var surl = window.hWin.HAPI4.baseURL_pro+'?db='
+                let surl = window.hWin.HAPI4.baseURL_pro+'?db='
                         + window.hWin.HAPI4.database
                         + "&file=" + $(item).attr('data-id');
                 $(item).attr('src', surl);
@@ -230,7 +228,7 @@ function hLayout(args) {
     function _layoutGetById(id){
         if(id){
             id = id.toLowerCase();
-            var i;
+            let i;
             for(i=0; i<layouts.length; i++){
                 if(layouts[i].id.toLowerCase()==id){
                     return layouts[i];
@@ -255,17 +253,15 @@ function hLayout(args) {
     function _appInitAll(layoutid, $container){
 
     //--------------------------------------------
-    var grid_min_size = 200;
-    var grid_step_size = 100;
-    var app_counter = 0; //to maintain unique id for panels and tabs
-    //var layout, $container;
+    let grid_min_size = 200;
+    let app_counter = 0; //to maintain unique id for panels and tabs
 
     //
     // north-west-east-south layout
     //
     function _initLayoutCardinal(layout, $container){
         
-        var layout_opts =  {
+        let layout_opts =  {
             applyDefaultStyles: true,
             maskContents:       true,  //alows resize over iframe
             //togglerContent_open:    '<div class="ui-icon"></div>',
@@ -283,19 +279,19 @@ function hLayout(args) {
               //togglerAlign_closed:16,   //top position   
               togglerLength_closed:40,
               onopen_start : function(){ 
-                  var  w = window.hWin.HAPI4.LayoutMgr.cardinalPanel('getSize', ['center','outerWidth'] );
-                  var mw = 250; //window.hWin.HAPI4.LayoutMgr.cardinalPanel('getSize', ['west','minWidth'] );
+                  let  w = window.hWin.HAPI4.LayoutMgr.cardinalPanel('getSize', ['center','outerWidth'] );
+                  let mw = 250; 
                   if(w<310){
-                      var tw = (window.hWin?window.hWin.innerWidth:window.innerWidth);
+                      let tw = (window.hWin?window.hWin.innerWidth:window.innerWidth);
                       window.hWin.HAPI4.LayoutMgr.cardinalPanel('sizePane', ['east', tw-w-mw]);
                       setTimeout( function(){window.hWin.HAPI4.LayoutMgr.cardinalPanel('open', ['west'] );}, 500 );
                       return 'abort';
                   }
-                  var tog = $container.find('.ui-layout-toggler-west');
+                  let tog = $container.find('.ui-layout-toggler-west');
                   tog.removeClass('prominent-cardinal-toggler');
               },
               onclose_end : function(){ 
-                   var tog = $container.find('.ui-layout-toggler-west');
+                   let tog = $container.find('.ui-layout-toggler-west');
                    tog.addClass('prominent-cardinal-toggler');
               }
             },
@@ -308,20 +304,20 @@ function hLayout(args) {
               togglerLength_closed:40,
               onopen_start: function(){ 
                   
-                  var  w = window.hWin.HAPI4.LayoutMgr.cardinalPanel('getSize', ['center','outerWidth'] );
-                  var mw = 350;
+                  let  w = window.hWin.HAPI4.LayoutMgr.cardinalPanel('getSize', ['center','outerWidth'] );
+                  let mw = 350;
                   if(w<310){
-                      var tw = (window.hWin?window.hWin.innerWidth:window.innerWidth);
+                      let tw = (window.hWin?window.hWin.innerWidth:window.innerWidth);
                       window.hWin.HAPI4.LayoutMgr.cardinalPanel('sizePane', ['west', tw-w-mw]);
                       setTimeout( function(){window.hWin.HAPI4.LayoutMgr.cardinalPanel('open', ['east'] );}, 500 );
                       return 'abort';
                   }
-                  var tog = $container.find('.ui-layout-toggler-east');
+                  let tog = $container.find('.ui-layout-toggler-east');
                   tog.removeClass('prominent-cardinal-toggler togglerVertical');
                   tog.find('.heurist-helper2.eastTogglerVertical').remove();
               },
               onclose_end : function(){ 
-                   var tog = $container.find('.ui-layout-toggler-east');
+                   let tog = $container.find('.ui-layout-toggler-east');
                    tog.addClass('prominent-cardinal-toggler togglerVertical');
                    $('<span class="heurist-helper2 eastTogglerVertical" style="width:175px;">Visualisation</span>').appendTo(tog);
               }
@@ -338,11 +334,11 @@ function hLayout(args) {
             onopen_end: function(pane_name, pane_element){
                 if(pane_name=='west'){
                     var tog = pane_element.parent().find('.ui-layout-toggler-west');
-                    //tog.removeClass('ui-icon-triangle-1-e').addClass('ui-icon-triangle-1-w');
-                    //tog.find('.content-open').addClass('ui_icon ui-icon-triangle-1-e');
-                    //tog.find('.content-closed').addClass('ui_icon ui-icon-triangle-1-w');
-                    //tog.removeClass('ui_icon ui-icon-triangle-1-e');
-                    //tog.addClass('ui_icon ui-icon-triangle-1-w');
+                   
+                   
+                   
+                   
+                   
                     
                 }
             },
@@ -353,13 +349,13 @@ function hLayout(args) {
         };
 
         // 1) create panes (see ext/layout)
-        var $pane = $(document.createElement('div'));
+        let $pane = $(document.createElement('div'));
         $pane.addClass('ui-layout-center')
         .appendTo($container);
 
         if(!layout.center){
             layout_opts.center__minWidth = 200;
-            //$pane.addClass('pane_dropable');
+           
             layout['center'].dropable = true;
         }else{
             if(layout.center.minsize){
@@ -370,7 +366,7 @@ function hLayout(args) {
         function __layoutAddPane(pos){
             if(layout[pos]){
 
-                var lpane = layout[pos];
+                let lpane = layout[pos];
 
                 $pane = $(document.createElement('div'));
                 $pane.addClass('ui-layout-'+pos)
@@ -379,7 +375,7 @@ function hLayout(args) {
                 if(lpane.size){
                     layout_opts[pos+'__size'] = lpane.size;
                 }
-                if(Hul.isnull(lpane.resizable) || lpane.resizable ){
+                if(window.hWin.HEURIST4.util.isnull(lpane.resizable) || lpane.resizable ){
                     if(lpane.minsize){
                         layout_opts[pos+'__minSize'] = lpane.minsize;
                     }
@@ -402,8 +398,8 @@ function hLayout(args) {
         
         // 3) add tabs/apps to panes
 
-        var bg_color = window.hWin.HEURIST4.util.getCSS('background-color', 'ui-widget-content');
-        //$('.ui-widget-content:first').css('background-color');
+        let bg_color = window.hWin.HEURIST4.util.getCSS('background-color', 'ui-widget-content');
+       
         $('body').css('background-color', bg_color);
 
         layoutInitPane(layout, $container, 'north', bg_color);
@@ -462,17 +458,17 @@ function hLayout(args) {
             }
         });
     */
-        //temp appAdjustContainer();
+       
     }
 
     //
     //
     //
     function __toogleIcons($container, pane, closed, opened){
-        var tog = $container.find('.ui-layout-toggler-'+pane);
-        //tog.addClass('ui-heurist-btn-header1');
+        let tog = $container.find('.ui-layout-toggler-'+pane);
+       
         
-        var togc = tog.find('.content-closed'); togc.empty();
+        let togc = tog.find('.content-closed'); togc.empty();
         $('<div>').addClass('ui-icon ui-icon-carat-2-'+closed).appendTo(togc);
         
         togc = tog.find('.content-open'); togc.empty();
@@ -487,7 +483,7 @@ function hLayout(args) {
     */
     function _initLayoutFree(layout, $container){
 
-        //$container.hide();
+       
 
         //find main container and load template
         if(layout['template']){
@@ -505,8 +501,8 @@ function hLayout(args) {
         }
 
         //1. loop trough all layout panes  - create divs or use existing ones
-        var panes = Object.keys(layout);
-        var i, reserved = ['id', 'name', 'theme', 'type', 'options', 'cssfile', 'template'];
+        let panes = Object.keys(layout);
+        let i, reserved = ['id', 'name', 'theme', 'type', 'options', 'cssfile', 'template'];
 
         //
         // pos - element id and index in layout (cfg) array
@@ -515,13 +511,13 @@ function hLayout(args) {
             
             if(layout[pos]){
 
-                var lpane = layout[pos];
+                let lpane = layout[pos];
 
-                var ele = $container.find('#'+pos);
+                let ele = $container.find('#'+pos);
                 //this div may already exists
                 if(ele.length<1){
                     //does not exist - add new one
-                    $pane = $('<div>',{id:pos})
+                    let $pane = $('<div>',{id:pos})
                             .addClass('ui-layout-'+pos)
                             .appendTo($container);
                     //apply css
@@ -540,10 +536,7 @@ function hLayout(args) {
             }
         }
 
-        
-        var bg_color = $('.ui-widget-content:first').css('background-color');
         $('body').css('background-color', '');
-        
         
         for (i=0; i<panes.length; i++){
             if(reserved.indexOf(panes[i])<0){
@@ -554,16 +547,9 @@ function hLayout(args) {
 
         initDragDropListener();
         
-        //setTimeout(function(){$container.show();},1000);
+       
     }
 
-    //
-    // init either tabs or accordion or groups
-    //
-    function _initLayoutGroups($container){
-        
-    }
-    
     
     /**
     * Adds application/widgets to specified pane
@@ -577,12 +563,12 @@ function hLayout(args) {
 
             if(layout[pos]){
                 
-                var cardinal_panes = ['north','east','west','center','south'];
-                var $pane_content;
+                let cardinal_panes = ['north','east','west','center','south'];
+                let $pane_content;
 
-                var lpane = layout[pos];
+                let lpane = layout[pos];
                 
-                var $pane = $container.find('.ui-layout-'+pos);
+                let $pane = $container.find('.ui-layout-'+pos);
                 if (lpane.apps && lpane.apps[0].appid == 'heurist_Groups') {
                     
                     //$($pane.children()[0]).remove(); //remove div with header
@@ -591,11 +577,11 @@ function hLayout(args) {
                     $pane.find('span.widget-options:first').remove(); //remove configuration span with header
                     
                     
-                    var mode = lpane.apps[0].options.groups_mode;
+                    let mode = lpane.apps[0].options.groups_mode;
                     
                     if(mode!='tabs'){
                         
-                        var pid = $pane.attr('id');
+                        let pid = $pane.attr('id');
                         
                         $pane.children('ul').remove();
                         $pane.children('.ui-tabs-panel').each(function(idx,item){
@@ -604,7 +590,7 @@ function hLayout(args) {
                                 if(mode!='divs'){
                                     $('<h3>').html(lpane.apps[0].options.tabs[idx].title).appendTo($pane);
                                 }
-                                var ele = $('<div>')
+                                let ele = $('<div>')
                                         .html($(item).html())
                                         .appendTo($pane);
                                 ele.addClass('group-tab').attr('id',(pid+'-'+idx));
@@ -620,12 +606,10 @@ function hLayout(args) {
                     }else{ //tabs by default
                         // in design mode - it is called from iframe and baseURL is different 
                         // to fix this mess
-                        //var rhash = /#.*$/;
-                        //var locationUrl = window.location.href.replace( rhash, "" ); //Client_DOM_Code_Injection
                         
-                        var locationUrl = window.hWin.HAPI4.baseURL;
+                        let locationUrl = window.hWin.HAPI4.baseURL;
                         $pane.find('li > a').each(function(idx, item){
-                           var href = $(item).attr('href');
+                           let href = $(item).attr('href');
                            href = href.substr(href.indexOf('#'));           
                            $(item).attr('href', locationUrl + href);
                         });
@@ -646,8 +630,8 @@ function hLayout(args) {
 console.error('Cardinal layout widget does not have proper options');
                         return;                        
                     }
-                    var layout_opts = lpane.apps[0].options.tabs;
-                    var $cardinal_container;
+                    let layout_opts = lpane.apps[0].options.tabs;
+                    let $cardinal_container;
                     if(lpane.apps[0].options.container){
                         $cardinal_container = $('#'+lpane.apps[0].options.container);   
                     }else{
@@ -658,14 +642,15 @@ console.error('Cardinal layout widget does not have proper options');
                     // container:'', tabs:{north:{id:"xxx"},center:{id:"xxx",size:300, minsize:150}...}
                     //
                     //  
-                    var keys = Object.keys(layout_opts);
+                    let keys = Object.keys(layout_opts);
                     
-                    for(var i=0; i<keys.length; i++){
-                        var ele_id = layout_opts[keys[i]].id;
+                    for(let i=0; i<keys.length; i++){
+                        let ele_id = layout_opts[keys[i]].id;
                         $cardinal_container.children('#'+ele_id).addClass('ui-layout-'+keys[i]);    
                     }
                     
-                    layout_opts['applyDefaultStyles'] = true;
+                    layout_opts['applyDefaultStyles'] = true; //remove for last version
+                    layout_opts['applyDemoStyles'] = false;
                     layout_opts['maskContents']       = true;
                     layout_opts['togglerAlign_open']  = 'center';
                     layout_opts['togglerContent_open']   = '&nbsp;';
@@ -738,16 +723,16 @@ console.error('Cardinal layout widget does not have proper options');
                     }
 
                     //init all tabs on current pane
-                    var containment_sel = '.ui-layout-'+pos+' > .ui-layout-content';
-                    var $tabs = $container.find( containment_sel+' > .tab_ctrl' ).tabs({
+                    let containment_sel = '.ui-layout-'+pos+' > .ui-layout-content';
+                    let $tabs = $container.find( containment_sel+' > .tab_ctrl' ).tabs({
                         activate: function(event ,ui){                 
-                            var action_id = $(ui.newTab[0]).attr('data-logaction');
+                            let action_id = $(ui.newTab[0]).attr('data-logaction');
                             if(action_id && window.hWin && window.hWin.HAPI4){
                                 window.hWin.HAPI4.SystemMgr.user_log(action_id);
                             }
 
                             if($(this).attr('data-keep-width')==1){
-                                var w = $(ui.oldTab[0]).parents('.ui-layout-pane').width();
+                                let w = $(ui.oldTab[0]).parents('.ui-layout-pane').width();
                                 $(ui.oldTab[0]).attr('data-width', w);
                                 w = $(ui.newTab[0]).attr('data-width');
                                 if(w>0){
@@ -759,7 +744,7 @@ console.error('Cardinal layout widget does not have proper options');
 					
                     if(pos == 'east'){ 
                         // Prevent east pane's tabs from navigating with arrow keys
-                        $tabs.find('.ui-tabs-anchor').keydown(function(e){
+                        $tabs.find('.ui-tabs-anchor').on('keydown',function(e){
                             e.stopPropagation();
                             e.preventDefault();
 
@@ -767,12 +752,14 @@ console.error('Cardinal layout widget does not have proper options');
                         });
                     }
                 
+                    appInitFeatures(containment_sel);
+                
                 }else{
                     $pane_content = $container.find('.ui-layout-'+pos);
                     appCreatePanel($pane_content, lpane.apps[0], true);
                 }
                 
-                appInitFeatures(containment_sel);
+                
                 
             }
     } //end layoutInitPane
@@ -781,10 +768,10 @@ console.error('Cardinal layout widget does not have proper options');
     // adjust absolute position of tab pane according to ul height
     //
     function onLayoutResize( $container ){
-        var $tabs = $container.find('.tab_ctrl_adjust' );
+        let $tabs = $container.find('.tab_ctrl_adjust' );
         
         $tabs.each(function(idx, tabctrl){
-            var h = $(tabctrl).find('ul[role="tablist"]').height();
+            let h = $(tabctrl).find('ul[role="tablist"]').height();
             $(tabctrl).find('div[role="tabpanel"]').css({'top':h+4,'bottom':0,'position':'absolute',left:'2px',right:'4px'}); 
             //,'width':'100%'
         });
@@ -807,36 +794,26 @@ console.error('Cardinal layout widget does not have proper options');
                     return false;
                 }
 
-                $pane_content =  $(this);
+                let $pane_content =  $(this);
 
-                var $li = ui.draggable;
+                let $li = ui.draggable;
                 //find portlet (content of tab) by href
-                var content_id = $li.find('a').attr('href');
-                var $app_content = $(content_id);
+                let content_id = $li.find('a').attr('href');
+                let $app_content = $(content_id);
 
-                var $src_tab = $app_content.parent();
+                let $src_tab = $app_content.parent();
 
-                var app = _appGetWidgetById($app_content.attr('widgetid')); //ART04-26
-                var offset = $pane_content.offset();
-                var $tab = appCreateTabControl($pane_content, {appid: $app_content.attr('widgetid'), content_id: content_id.substr(1) }, //to remove #
+                let offset = $pane_content.offset();
+                let $tab = appCreateTabControl($pane_content, {appid: $app_content.attr('widgetid'), content_id: content_id.substr(1) }, //to remove #
                     {dockable: true, dragable:true, resizable:true,
                         css:{top:event.pageY-offset.top,left:event.pageX-offset.left,height:200,width:200}});
                 appAdjustContainer();
                 $app_content.appendTo( $tab );
 
-                /*the same
-                //var tt = $tab.get();
-                //var pp = $portlet.get();
-                //tt.appendChild(tt);
-                //$portlet.prependTo( $tab );
-                //$portlet.appendTo($tab);
-                //$tab.append($portlet);
-                */
-
                 //remove from source
                 $li.remove();
 
-                var $tab = $tab.tabs();
+                $tab = $tab.tabs();
                 appInitFeatures('#'+$pane_content.attr('id'));
 
                 $src_tab.tabs( 'refresh' );
@@ -846,7 +823,7 @@ console.error('Cardinal layout widget does not have proper options');
 
             }
         });
-        //temp appAdjustContainer();
+       
     }
 
 
@@ -862,9 +839,9 @@ console.error('Cardinal layout widget does not have proper options');
 
         app_counter++;
 
-        var $d;
+        let $d;
         
-        //is_cardinal_layout = true;
+       
         
         if(!_is_container_layout ){
             $d = $(document.createElement('div'));
@@ -884,10 +861,10 @@ console.error('Cardinal layout widget does not have proper options');
 
         if(needcontent){ //for standalone application load content at once
 
-            var application = _appGetWidgetById(app.appid); //find in app array
+            let application = _appGetWidgetById(app.appid); //find in app array
 
             if(app.hasheader){
-                var $header = $("<div>");
+                let $header = $("<div>");
                 $header.append(window.hWin.HR(app.name || application.name))
                 //.addClass('ui-widget-header')
                 .addClass('ui-corner-all')
@@ -898,8 +875,8 @@ console.error('Cardinal layout widget does not have proper options');
             appAddContent($d, application, app);
 
             $d.addClass('ui-widget-content');
-            //.addClass('ui-corner-all');
-            //.css('padding','0.2em');
+           
+           
         }
 
         if(app.css){
@@ -929,12 +906,12 @@ console.error('Cardinal layout widget does not have proper options');
     */
     function appAddContent($app_container, app, appcfg){
         
-      var options = appcfg.options, 
-          layout_id = appcfg.layout_id;
-          app_css = appcfg.css;
+        let options = appcfg.options, 
+            layout_id = appcfg.layout_id;
+        const app_css = appcfg.css;
 
 
-        var $content = $(document.createElement('div'));
+        let $content = $(document.createElement('div'));
         $content.attr('id', app.id+'_'+app_counter)
         .attr('widgetid', app.id)
         .appendTo($app_container);
@@ -950,7 +927,7 @@ console.error('Cardinal layout widget does not have proper options');
         }else if(app.widgetname=='include_layout'){
             //nested layouts
 
-            var layout = _layoutGetById(options.ref);
+            let layout = _layoutGetById(options.ref);
             if(layout){
 
                 if(app_css){
@@ -959,7 +936,7 @@ console.error('Cardinal layout widget does not have proper options');
                     });
                 }else if(app.resizable) {
                     $content.css('width', '98%');
-                    $d.css('height', '98%');
+                    $content.css('height', '98%');
                 }else {
                     $content.css('width', '99%');
                     $content.css('height', '99%');
@@ -972,17 +949,21 @@ console.error('Cardinal layout widget does not have proper options');
 
             app.widget = $content;
 
-            if($.isFunction($('body')[app.widgetname])){ //OK! widget script js has been loaded
+            if(window.hWin.HEURIST4.util.isFunction($('body')[app.widgetname])){ //OK! widget script js has been loaded
             
-                manage_dlg = $content[app.widgetname]( options );
+                $content[app.widgetname]( options );
             }else{
                 //this is normal way of widget initialization
                 // script is loaded dynamically and init function is widget name
                 $.getScript( window.hWin.HAPI4.baseURL + app.script, function() {  //+'?t='+(new Date().getTime())
-                    if($.isFunction($content[app.widgetname])){
+                    if(window.hWin.HEURIST4.util.isFunction($content[app.widgetname])){
                         $content[app.widgetname]( options );   //call function
                     }else{
-                        window.hWin.HEURIST4.msg.showMsgErr('Widget '+app.widgetname+' not loaded. Verify your configuration');
+                        window.hWin.HEURIST4.msg.showMsgErr({
+                            message: `Widget ${app.widgetname} not loaded. Verify your configuration`,
+                            error_title: 'Widget loading failed',
+                            status: window.hWin.ResponseStatus.UNKNOWN_ERROR
+                        });
                     }
                 });
             }
@@ -1006,7 +987,7 @@ console.error('Cardinal layout widget does not have proper options');
 
         if(!apps) return null;
 
-        if(! $.isArray(apps)){
+        if(! Array.isArray(apps)){
             apps = [apps];
         }
         if(tabcfg==null){
@@ -1014,9 +995,9 @@ console.error('Cardinal layout widget does not have proper options');
         }
 
         //create
-        $tab_ctrl = appCreatePanel($pane_content, tabcfg, false);
+        let $tab_ctrl = appCreatePanel($pane_content, tabcfg, false);
         $tab_ctrl.addClass('tab_ctrl').css('border', 'none');
-        var $ul = $(document.createElement('ul')).appendTo($tab_ctrl);
+        let $ul = $(document.createElement('ul')).appendTo($tab_ctrl);
         
         
         if(tabcfg) {
@@ -1048,10 +1029,10 @@ console.error('Cardinal layout widget does not have proper options');
         $.each(apps, function(idx, _app){
             //_app - reference to widget in layout tab list
 
-            var app = _appGetWidgetById(_app.appid);
+            let app = _appGetWidgetById(_app.appid);
 
             if(app){    
-                var content_id;
+                let content_id;
                 if(_app.content_id){
                     content_id = _app.content_id; //already exists
                 }else{
@@ -1060,13 +1041,13 @@ console.error('Cardinal layout widget does not have proper options');
                 }
                 
                 //to log user activity
-                var action_id = '';
+                let action_id = '';
                 if(_app.options && _app.options['data-logaction']){
                     action_id = ' data-logaction="'+_app.options['data-logaction']+'"';
                 }
 
 
-                var title_html = '<li'+action_id+'><a class="header'+content_id+'" href="#'+content_id+'">'
+                let title_html = '<li'+action_id+'><a class="header'+content_id+'" href="#'+content_id+'">'
                         + (window.hWin.HR(_app.name || app.name)) +'</a></li>';
                 $ul.append($(title_html));
                 
@@ -1080,7 +1061,7 @@ console.error('Cardinal layout widget does not have proper options');
         
         if(tabcfg && tabcfg.style){    //@todo!!!!!
             if(tabcfg.style['background-header']){
-                //$tab_ctrl.attr('background-header', tabcfg.style['background-header']+' !important');
+               
                 //$(tab_ctrl).find('ul').css('background',tabb.style['background-header']+' !important');    
             }
         }
@@ -1133,7 +1114,7 @@ console.error('Cardinal layout widget does not have proper options');
             start: function(event, ui){
                 $('.tab_ctrl').css('z-index', '0');
                 $( this ).parent().css('z-index', '1');
-                //ui.helper.css('z-index', '999999');
+               
             }
         });
 
@@ -1149,8 +1130,8 @@ console.error('Cardinal layout widget does not have proper options');
 
 
                 if(draggable.parent().hasClass('ui-tabs-nav')){
-                    var src_id = draggable.parent().parent().attr('id');
-                    var trg_id = $( this ).parent().attr('id');
+                    let src_id = draggable.parent().parent().attr('id');
+                    let trg_id = $( this ).parent().attr('id');
                     return src_id!=trg_id;
                 }else{
                     return false;
@@ -1160,15 +1141,15 @@ console.error('Cardinal layout widget does not have proper options');
             hoverClass: "ui-state-active",
             drop: function( event, ui ) {
 
-                var $tab = $( this ).parent(); //parent of ul
+                let $tab = $( this ).parent(); //parent of ul
 
-                var $li = ui.draggable;
+                let $li = ui.draggable;
                 //find portlet (content of tab) by href
-                var content_id = $li.find('a').attr('href');
-                var app_name = $li.find('a').html();
-                var $app_content = $(content_id);
+                let content_id = $li.find('a').attr('href');
+                let app_name = $li.find('a').html();
+                let $app_content = $(content_id);
 
-                var $src_tab = $app_content.parent();
+                let $src_tab = $app_content.parent();
 
                 if($src_tab.attr('id')==$tab.attr('id')) return;
 
@@ -1201,7 +1182,7 @@ console.error('Cardinal layout widget does not have proper options');
             containment: containment_selector //'.ui-layout-content'
         });
 
-        //to destrot use 'destroy' to disable $( '.ui-tabs-nav li' ).draggable('disable');
+       
         
         
         $( '.tab_ctrl ul' ).disableSelection();
@@ -1222,16 +1203,15 @@ console.error('Cardinal layout widget does not have proper options');
     //
     function isMouseoverTabControl(e){
 
-        var s = e.pageX+"  "+e.pageY;
-        var res = false;
+        let res = false;
 
         $(".tab_ctrl").each(
             function(ids, element){
 
-                var $item = $(element);
+                let $item = $(element);
 
                 //offset -> method allows you to retrieve the current position of an element 'relative' to the document
-                var position = $item.offset();
+                let position = $item.offset();
 
                 if(e.pageX>position.left && e.pageX<position.left+$item.width() &&
                     e.pageY>position.top && e.pageY<position.top+$item.height()){
@@ -1242,7 +1222,7 @@ console.error('Cardinal layout widget does not have proper options');
                     return false;
 
                 }
-                //$("#lblhover").html("xxxx");
+               
 
         });
 
@@ -1251,7 +1231,7 @@ console.error('Cardinal layout widget does not have proper options');
 
     //********************************************************** body of _appInitAll
     
-        var layout = null;
+        let layout = null;
         if($.isPlainObject(layoutid) && layoutid['type'] &&  layoutid['id']){
             layout = layoutid;
             layoutid = layout['id'];
@@ -1276,19 +1256,19 @@ console.error('Cardinal layout widget does not have proper options');
         //var $container = $(containerid);
         
         //add style to header
-        if(!Hul.isempty(layout.cssfile)){
+        if(!window.hWin.HEURIST4.util.isempty(layout.cssfile)){
             
-            if(!$.isArray(layout.cssfile)){
+            if(!Array.isArray(layout.cssfile)){
                 layout.cssfile = [layout.cssfile];
             }
-            for (var idx in layout.cssfile){
+            for (let idx in layout.cssfile){
                 $("head").append($('<link rel="stylesheet" type="text/css" href="'+layout.cssfile[idx]+'?t='+(new Date().getTime())+'">'));
             }
             layout.cssfile = null;
         }
         
 
-        if(Hul.isempty(layout.type) || layout.type=='cardinal'){
+        if(window.hWin.HEURIST4.util.isempty(layout.type) || layout.type=='cardinal'){
             
             $container.empty();
             _initLayoutCardinal(layout, $container);
@@ -1300,11 +1280,11 @@ console.error('Cardinal layout widget does not have proper options');
             
             //special styles case for default layout
             //@todo - definition of styles for tab control via layuot_default.js
-            var tabb = $container.find('div[layout_id="main_header_tab"]');
+            let tabb = $container.find('div[layout_id="main_header_tab"]');
             if(tabb.length>0){
                 
                 $(tabb).tabs({activate: function( event, ui ) { 
-                        $(window).resize(); 
+                        $(window).trigger('resize'); 
                         //change/restore z-index and background color
                         $(ui.newTab[0]).css({'z-index': ui.newTab.attr('data-zmax'),
                                        'background': 'url(hclient/assets/tab_shape_sel.png)',
@@ -1318,18 +1298,18 @@ console.error('Cardinal layout widget does not have proper options');
                         });   
                 }});
                 
-                var tabheader = $(tabb).children('ul');
+                let tabheader = $(tabb).children('ul');
                 tabheader.css({'border':'none', 'background':'#8ea9b9'});  //, 'padding-top':'1em'
                 
                 $(tabb).children('.ui-tabs-panel[layout_id!="FAP"]').css({position:'absolute', top:'5.01em',
                         left:0,bottom:'0.2em',right:0, 'min-width':'75em',overflow:'hidden'});
                 
-                tabheader.find('a').css({'width':'100%','outline':0}); 
+                tabheader.find('a').css({'width':'100%','outline':'none'}); 
                 
-                var lis = tabheader.children('li');
-                var count_lis = lis.length;
+                let lis = tabheader.children('li');
+                let count_lis = lis.length;
                     lis.css({
-                            'outline':0,
+                            'outline':'none',
                             'border':'none',
                             'font-weight': 'bold',
                             //A11 'font-size': '1.4em',
@@ -1346,7 +1326,7 @@ console.error('Cardinal layout widget does not have proper options');
                 lis.each(function(idx,item){
                     
                    if(idx == lis.length-1) $(item).css({width:'300px'});
-                   //$(item).css({width:((idx+1)*100+'px')});
+                  
                    $(item).css({'z-index': count_lis - idx});
                    $(item).attr('data-zkeep', count_lis - idx);
                    $(item).attr('data-zmax', count_lis+1);
@@ -1361,13 +1341,13 @@ console.error('Cardinal layout widget does not have proper options');
                        
                        $('<span class="ui-icon ui-icon-close" title="Close this tab" '
                        +'style="font-size: 16px;width:24px;height:24px;position:absolute;right:10;top:20;z-index:2;cursor:pointer"></span>')
-                       .click(function(){ 
+                       .on('click', function(){ 
                             $(item).hide(); 
                             if($(tabb).tabs("option", "active")==1) $(tabb).tabs({active:0}); 
                        })
                        .appendTo($(item));
                        
-                       //$(item).attr('admintab',1);
+                      
                    }
                    
                 });
@@ -1394,100 +1374,102 @@ console.error('Cardinal layout widget does not have proper options');
     }//END _appInitAll   
  
     //public members
-    var that = {
+    let that = {
 
         getClass: function () {return _className;},
         isA: function (strClass) {return (strClass === _className);},
         getVersion: function () {return _version;},
 
         //returns widget options from cfg_widgets
+        //WRONG USAGE, TO REMOVE: used to obtain instance of widget
         appGetWidgetById: function(id){
             return _appGetWidgetById(id);
         },
-        
-        //returns widget options from cfg_widgets
+
         appGetWidgetByName: function( widgetname ){
             return _appGetWidgetByName( widgetname );
         },
-
+        
+        //
+        // 
+        //
         getWidgetByName: function( widgetname ){
             
             if(widgetname=='svs_list'){
-                var app2 = _appGetWidgetByName('mainMenu6');
+                let app2 = _appGetWidgetByName('slidersMenu');
                 if(app2.widget){
-                    return $(app2.widget).mainMenu6('getSvsList');
+                    return $(app2.widget).slidersMenu('getSvsList');
                 }
             }  
             
-            var app = _appGetWidgetByName( widgetname );
+            let app = _appGetWidgetByName( widgetname );
             if(app && app.widget){
                 return $(app.widget);
             }else{
                 return null;
             }
         },
-        
-        executeCommand: function( widgetname, method, command ){
-            var app = _appGetWidgetByName( widgetname );
-            if(app && app.widget)
-                $(app.widget)[widgetname](method, command);
-        },
 
         //
-        //
+        // once in map.php
         //
         executeWidgetMethod: function( element_id, widgetname, method, params ){
-            var app = window.hWin.document.getElementById(element_id);
-            if(app && $.isFunction($(app)[widgetname]) && $(app)[widgetname]('instance')){
+            let app = window.hWin.document.getElementById(element_id);
+            if(app && window.hWin.HEURIST4.util.isFunction($(app)[widgetname]) && $(app)[widgetname]('instance')){
                 $(app)[widgetname](method, params);
             }else if(!app){
                 console.log('widget '+element_id+' not found');
-            }else if(!$.isFunction($(app)[widgetname])){
+            }else if(!window.hWin.HEURIST4.util.isFunction($(app)[widgetname])){
                 console.log('widget '+widgetname+' not loaded');
             //}else {
-            //    console.error('widget '+widgetname+' not inited');
+           
             }
         },
     
         //
-        //
+        // loads cfg from layout_default by layoutid and init layout in element with containerid
+        // see index.php and slidersMenu
         //
         appInitAll: function(layoutid, containerid){
             _containerid = containerid
-            var $container = $(containerid);
+            let $container = $(containerid);
             _appInitAll(layoutid, $container);
         },
         
         //
         // get layout properties from attributes of elements and init free layout
+        // see init main menu in cms, init layout v1 in HLayoutMgr
         //
         appInitFromContainer: function( document, containerid, supp_options, onInitComplete ){
             
             _containerid = containerid;
             _is_container_layout = true;
-            var $container;
+            let $container;
             if(document){
                 $container = $(document.body).find(containerid);
             }else{
                 $container = $(containerid);
             }
-            var layout = _getLayoutParams($container, supp_options); 
+            let layout = _getLayoutParams($container, supp_options); 
             
             //init groups/cardinal layouts
             if(layout){
                 _appInitAll(layout, $container); 
             }else{
-                if($.isFunction(onInitComplete)){
+                if(window.hWin.HEURIST4.util.isFunction(onInitComplete)){
                         onInitComplete.call();
                 }
             }
-            //
+            // define links to media from data-id
             _defineMediaSource($container); 
         },
         
+        //
+        // init layout in popup
+        //
         appInitFromContainer2: function( $container, supp_options ){
             //create layout based on heurist-app-id and heurist-app-options
-            var layout = _getLayoutParams($container, supp_options); 
+            let layout = _getLayoutParams($container, supp_options); 
             if(layout){
                 _appInitAll(layout, $container); 
             }
@@ -1503,28 +1485,13 @@ console.error('Cardinal layout widget does not have proper options');
             _putAppOnTopById( widgetname );
         },
         
-
-        visibilityAppById: function ( layout_id, show_or_hide ){
-            
-            if(Hul.isnull(layout_id)) return;
-            //var $container = $(_containerid);
-            var ele = $('div[layout_id="'+layout_id+'"]');
-            
-            if( ele.hasClass('ui-tabs-panel') ){
-                var ele2 = $(ele.parent()).find('ul li:eq('+(ele.index()-1)+')');
-                if(show_or_hide){
-                    ele2.show();
-                }else{
-                    ele2.hide();
-                }
-            }
-        },    
-        
-        
         init: function(cfg_widgets, cfg_layouts){
             _init(cfg_widgets, cfg_layouts)
         },
         
+        //
+        // to increase/reduce cardinal panel (for mapping, crosstab)
+        //
         cardinalPanel:function(pane, action, element){
             return _cardinalPanel(pane, action, element);
         },

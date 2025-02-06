@@ -5,8 +5,8 @@
 * @package     Heurist academic knowledge management system
 * @link        https://HeuristNetwork.org
 * @copyright   (C) 2005-2023 University of Sydney
-* @author      Artem Osmakov   <artem.osmakov@sydney.edu.au>
-* @author      Ian Johnson     <ian.johnson@sydney.edu.au>
+* @author      Artem Osmakov   <osmakov@gmail.com>
+* @author      Ian Johnson     <ian.johnson.heurist@gmail.com>
 * @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
 * @version     4
 */
@@ -22,11 +22,14 @@
 /**
 *  Represents the layer on map
 */
-function hMapLayer2( _options ) {
-    var _className = "MapLayer",
+function HMapLayer2( _options ) {
+    const _className = "MapLayer",
     _version   = "0.4";
 
-    var options = {
+    const RT_MAP_LAYER = window.hWin.HAPI4.sysinfo['dbconst']['RT_MAP_LAYER'],
+          DT_DATA_SOURCE = window.hWin.HAPI4.sysinfo['dbconst']['DT_DATA_SOURCE'];
+
+    let options = {
         // mapwidget:        refrence to mapping.js      
         // record_id  - loads arbitrary layer (not from mapdocument) (used for basemap image layer)
         
@@ -42,23 +45,23 @@ function hMapLayer2( _options ) {
         preserveViewport: true   //if false zoom to this layer
     };
 
-    var _record,     //datasource record
+    let _record,     //datasource record
         _recordset,  //referense to map document recordset
         _parent_mapdoc = null; //map document id
         
-    var _nativelayer_id = 0,
+    let _nativelayer_id = 0,
         _dataset_type = null,
         _geojson_ids = null,  //all record ids in geojson response
         _geojson_dty_ids = null; //all dty_ID in geojson response (for current search only) 
     
-    var is_inited = false,
+    let is_inited = false,
         is_visible = false,
         is_outof_range = null;
         
-    var _max_zoom_level = 0;
+    let _max_zoom_level = 0;
     
-    var _has_zoom_setting_per_record = 0;//1 - it does, -1 it doesn't, 0 - not checked yet
-    var _has_zoom_setting_per_layer = 0;//1 - it does, -1 it doesn't, 0 - not checked yet
+    let _has_zoom_setting_per_record = 0;//1 - it does, -1 it doesn't, 0 - not checked yet
+    let _has_zoom_setting_per_layer = 0;//1 - it does, -1 it doesn't, 0 - not checked yet
 
     //
     //
@@ -81,7 +84,7 @@ function hMapLayer2( _options ) {
 
             if(typeof options.not_init_atonce === 'undefined'){
                 if(window.hWin.HAPI4.sysinfo['dbconst']['DT_IS_VISIBLE']>0 && options.rec_layer){
-                    var is_initailly_visible = _recordset.fld(options.rec_layer, 
+                    let is_initailly_visible = _recordset.fld(options.rec_layer, 
                         window.hWin.HAPI4.sysinfo['dbconst']['DT_IS_VISIBLE']);
                         
                     options.not_init_atonce = (is_initailly_visible==window.hWin.HAPI4.sysinfo['dbconst']['TRM_NO']);
@@ -101,7 +104,7 @@ function hMapLayer2( _options ) {
     //    
     function _searchLayerRecord(record_id){
         
-            var request = {
+            let request = {
                         q: {"ids":record_id},  
                         rules:[{"query":"linkedfrom:"+RT_MAP_LAYER+"-"+DT_DATA_SOURCE}], //data sources linked to layers
                         w: 'a',
@@ -113,15 +116,15 @@ function hMapLayer2( _options ) {
                 function(response){
                     
                     if(response.status == window.hWin.ResponseStatus.OK){
-                        var resdata = new hRecordSet(response.data);
+                        let resdata = new HRecordSet(response.data);
                         
                         // detect map layer record                        
                         resdata.each(function(recID, record){
                                     
                                     if(resdata.fld(record, 'rec_RecTypeID')==RT_MAP_LAYER)
                                     {
-                                        var datasource_recID = resdata.fld(record, DT_DATA_SOURCE);    
-                                        var datasource_record = resdata.getById( datasource_recID );
+                                        let datasource_recID = resdata.fld(record, DT_DATA_SOURCE);    
+                                        let datasource_record = resdata.getById( datasource_recID );
                                         
                                         //creates and add layer to nativemap
                                         //returns mapLayer object
@@ -150,9 +153,9 @@ function hMapLayer2( _options ) {
         is_visible = true;
         
         //detect layer type
-        var rectypeID = _recordset.fld(_record, 'rec_RecTypeID');
+        let rectypeID = _recordset.fld(_record, 'rec_RecTypeID');
 
-        if(rectypeID == window.hWin.HAPI4.sysinfo['dbconst']['RT_MAP_LAYER'] 
+        if(rectypeID == RT_MAP_LAYER 
             || rectypeID == window.hWin.HAPI4.sysinfo['dbconst']['RT_TLCMAP_DATASET']
             || rectypeID == window.hWin.HAPI4.sysinfo['dbconst']['RT_QUERY_SOURCE']){
                
@@ -169,10 +172,9 @@ function hMapLayer2( _options ) {
             
             setTimeout(function(){ _triggerLayerStatus( 'visible' ); },200);
 
-        }else if(rectypeID == window.hWin.HAPI4.sysinfo['dbconst']['RT_GEOTIFF_SOURCE']){
+        }else if(rectypeID == window.hWin.HAPI4.sysinfo['dbconst']['RT_GEOTIFF_SOURCE']){ //RT_IMAGE_SOURCE
 
             _addImage();                              
-
             setTimeout(function(){ _triggerLayerStatus( 'visible' ); },200);
             
         }else if(rectypeID == window.hWin.HAPI4.sysinfo['dbconst']['RT_KML_SOURCE'] ||
@@ -195,11 +197,11 @@ function hMapLayer2( _options ) {
         if(window.hWin.HEURIST4.util.isempty(layer_url)){
             
              //obfuscated file id
-             var file_info = _recordset.fld(_record, window.hWin.HAPI4.sysinfo['dbconst']['DT_SERVICE_URL']);
+             let file_info = _recordset.fld(_record, window.hWin.HAPI4.sysinfo['dbconst']['DT_SERVICE_URL']);
              
-             if($.isArray(file_info)){
+             if(Array.isArray(file_info)){
              
-                 var url = window.hWin.HAPI4.baseURL + '?db=' + window.hWin.HAPI4.database + '&mode=url&file='+
+                 let url = window.hWin.HAPI4.baseURL + '?db=' + window.hWin.HAPI4.database + '&mode=url&file='+
                             file_info[0];
                             
                  window.hWin.HEURIST4.util.sendRequest(url, {}, null, 
@@ -219,19 +221,19 @@ function hMapLayer2( _options ) {
         // Source is a directory that contains folders in the following format: zoom / x / y eg. 12/2055/4833.png
         if(!window.hWin.HEURIST4.util.isempty(layer_url)) {
 
-            var tilingSchema = _recordset.fld(_record, window.hWin.HAPI4.sysinfo['dbconst']['DT_MAP_IMAGE_LAYER_SCHEMA']);
-            var mimeType = _recordset.fld(_record, window.hWin.HAPI4.sysinfo['dbconst']['DT_MIME_TYPE']);
+            let tilingSchema = _recordset.fld(_record, window.hWin.HAPI4.sysinfo['dbconst']['DT_MAP_IMAGE_LAYER_SCHEMA']);
+            let mimeType = _recordset.fld(_record, window.hWin.HAPI4.sysinfo['dbconst']['DT_MIME_TYPE']);
             //in basemap zoom levels (1-19)
-            var minZoom = _recordset.fld(_record, window.hWin.HAPI4.sysinfo['dbconst']['DT_MINIMUM_ZOOM_LEVEL']); 
-            var maxZoom = _recordset.fld(_record, window.hWin.HAPI4.sysinfo['dbconst']['DT_MAXIMUM_ZOOM_LEVEL']);
+            let minZoom = _recordset.fld(_record, window.hWin.HAPI4.sysinfo['dbconst']['DT_MINIMUM_ZOOM_LEVEL']); 
+            let maxZoom = _recordset.fld(_record, window.hWin.HAPI4.sysinfo['dbconst']['DT_MAXIMUM_ZOOM_LEVEL']);
             
-            var tileUrlFunc = null; 
+            let tileUrlFunc = null; 
             
-            var ccode1 = $Db.getConceptID('trm', tilingSchema);
-            var ccode2 = $Db.getConceptID('trm', mimeType);
-            var ext = (ccode2 == '2-540'? ".png" : (ccode2 == '2-537'?'.jpg':".gif"));
+            let ccode1 = $Db.getConceptID('trm', tilingSchema);
+            let ccode2 = $Db.getConceptID('trm', mimeType);
+            let ext = (ccode2 == '2-540'? ".png" : (ccode2 == '2-537'?'.jpg':".gif"));
 
-            var layer_options = {minZoom:minZoom , maxZoom:maxZoom, extension:ext};
+            let layer_options = {minZoom:minZoom , maxZoom:maxZoom, extension:ext};
             
             if(layer_url.indexOf('/info.json')>0){  //IIIF image
                 
@@ -269,7 +271,7 @@ function hMapLayer2( _options ) {
                 /* Blocked because of possible Remote file disclosure
                 if(layer_url.indexOf('http://')===0 && layer_url.indexOf('http://127.0.0.1')<0){
                     
-                    var mimetype = 'image/'+ext;
+                    let mimetype = 'image/'+ext;
                     
                     //load via proxy
                     layer_url = window.hWin.HAPI4.baseURL 
@@ -282,7 +284,7 @@ function hMapLayer2( _options ) {
             
             layer_options._extent = _getBoundingBox();
 
-            var layer_style = _recordset.fld(options.rec_layer || _record, window.hWin.HAPI4.sysinfo['dbconst']['DT_SYMBOLOGY']);
+            let layer_style = _recordset.fld(options.rec_layer || _record, window.hWin.HAPI4.sysinfo['dbconst']['DT_SYMBOLOGY']);
 
             if(layer_style){
                 layer_style = window.hWin.HEURIST4.util.isJSON(layer_style);
@@ -291,7 +293,7 @@ function hMapLayer2( _options ) {
                     options.className = layer_options.className = 'heurist-imageoverlay-'+_recordset.fld(options.rec_layer, 'rec_ID');
                 }
             }
-            
+           
             _nativelayer_id = options.mapwidget.mapping('addTileLayer', 
                                                         layer_url, 
                                                         layer_options, 
@@ -306,37 +308,74 @@ function hMapLayer2( _options ) {
     }
     
     //
+    // loads geotiff plugin
+    //
+    function _getGeoRasterScripts(){
+        
+        let path = window.hWin.HAPI4.baseURL + 'external/leaflet.plugins/georaster/';
+        let scripts = [
+                        'proj4-src.js',
+                        'georaster.browser.bundle.min.js',
+                        'georaster-layer-for-leaflet.min.js'
+                        ];
+        let  that = this;
+        $.getMultiScripts2(scripts, path)
+        .then(function() {  //OK! js has been loaded
+            _addImage();
+        }).catch(function(error) {
+            window.hWin.HEURIST4.msg.showMsg_ScriptFail();
+        });
+                
+    }    
+    
+    //
     // add image
     //
     function _addImage(){
 
-         //obfuscated file id
-         var file_info = _recordset.fld(_record, window.hWin.HAPI4.sysinfo['dbconst']['DT_FILE_RESOURCE']);
-         
-         var image_url = window.hWin.HAPI4.baseURL + '?db=' + window.hWin.HAPI4.database + '&file='+
-                    file_info[0];
-                    
-         var worldFileData = _recordset.fld(_record, window.hWin.HAPI4.sysinfo['dbconst']['DT_MAP_IMAGE_WORLDFILE']);
-         
-         var image_extent = null; //window.hWin.HEURIST4.geo.parseWorldFile( worldFileData, image_width, image_height);
-         
-         if(image_extent==null){
-            image_extent = _getBoundingBox();  //get wkt bbox from DT_GEO_OBJECT 
-         } 
-         
-         
-         if(image_extent==null){
-             //error
-            _triggerLayerStatus( 'error' );
-            
-            if(!window.hWin.HEURIST4.util.isempty(response.message)){
-            var msg = 'Layer : '+dataset_name+'<br><br>'
-                +'Extent of image is not defined.';
+        //obfuscated file id
+        let file_info = _recordset.fld(_record, window.hWin.HAPI4.sysinfo['dbconst']['DT_FILE_RESOURCE']);
+        
+        if(!file_info){
+            let error = {message: 'Cant add image layer. File resource is missed or invalid'};
+            window.hWin.HEURIST4.msg.showMsgErr(error);
+            return;
+        }
+
+        let image_url = window.hWin.HAPI4.baseURL + '?db=' + window.hWin.HAPI4.database + '&file='+
+                file_info[0];
+                
+        if(file_info[1]=='tif' || file_info[1]=='tiff'){
+        
+            if(typeof GeoRasterLayer !== 'function'){
+                 _getGeoRasterScripts();
+                 return;
             }
-            window.hWin.HEURIST4.msg.showMsgErr(msg);
-         }else{
-             
-            var layer_style = _recordset.fld(options.rec_layer || _record, window.hWin.HAPI4.sysinfo['dbconst']['DT_SYMBOLOGY']);
+            
+            _nativelayer_id = options.mapwidget.mapping('addGeoTiffImageOverlay', 
+                                                        image_url, 
+                                                        (layer_id)=>{_nativelayer_id=layer_id} );
+            return;
+        }
+                
+
+        let worldFileData = _recordset.fld(_record, window.hWin.HAPI4.sysinfo['dbconst']['DT_MAP_IMAGE_WORLDFILE']);
+
+        let image_extent = null; 
+
+        if(image_extent==null){
+            image_extent = _getBoundingBox();  //get wkt bbox from DT_GEO_OBJECT 
+        }
+
+        if(image_extent==null){
+            //error
+            _triggerLayerStatus( 'error' );
+
+            let error = {message: 'Cant add image layer. Extent of image is not defined.', error_title: 'Unable to add image layer'};
+            window.hWin.HEURIST4.msg.showMsgErr(error);
+        }else{
+
+            let layer_style = _recordset.fld(options.rec_layer || _record, window.hWin.HAPI4.sysinfo['dbconst']['DT_SYMBOLOGY']);
 
             if(layer_style){
                 layer_style = window.hWin.HEURIST4.util.isJSON(layer_style);
@@ -351,13 +390,11 @@ function hMapLayer2( _options ) {
                                                         image_extent, 
                                                         _recordset.fld(_record, 'rec_Title'),
                                                         options.className );
-          
+
             if(options.imageFilter){
-                    options.mapwidget.mapping('applyImageMapFilter', options.className, options.imageFilter);
-             }
-             
-         }
-          
+                options.mapwidget.mapping('applyImageMapFilter', options.className, options.imageFilter);
+            }
+        }
     }
 
     //
@@ -365,15 +402,15 @@ function hMapLayer2( _options ) {
     //
     function _addSHP() {
         
-        var layer_style = _recordset.fld(options.rec_layer || _record, window.hWin.HAPI4.sysinfo['dbconst']['DT_SYMBOLOGY']);
-        var rec_ID = _recordset.fld(_record, 'rec_ID');
+        let layer_style = _recordset.fld(options.rec_layer || _record, window.hWin.HAPI4.sysinfo['dbconst']['DT_SYMBOLOGY']);
+        let rec_ID = _recordset.fld(_record, 'rec_ID');
                     
-        request = {recID:rec_ID};             
+        const request = {recID:rec_ID};             
         //perform loading kml as geojson
         window.hWin.HAPI4.RecordMgr.load_shp_as_geojson(request,
             function(response){
                 if(response){
-                    var dataset_name = _recordset.fld(options.rec_layer || _record, 'rec_Title');
+                    let dataset_name = _recordset.fld(options.rec_layer || _record, 'rec_Title');
                     
                     if(response.status && response.status != window.hWin.ResponseStatus.OK){
                         _triggerLayerStatus( 'error' );
@@ -409,18 +446,18 @@ function hMapLayer2( _options ) {
     //
     function _addFileSource() {
 
-        var layer_style = _recordset.fld(options.rec_layer || _record, window.hWin.HAPI4.sysinfo['dbconst']['DT_SYMBOLOGY']);
-        var rec_ID = _recordset.fld(_record, 'rec_ID');
+        let layer_style = _recordset.fld(options.rec_layer || _record, window.hWin.HAPI4.sysinfo['dbconst']['DT_SYMBOLOGY']);
+        const rec_ID = _recordset.fld(_record, 'rec_ID');
             
-        //var url = window.hWin.HAPI4.baseURL + 'hserv/controller/record_map_source.php?db='
+        //let url = window.hWin.HAPI4.baseURL + 'hserv/controller/record_map_source.php?db='
         //            +window.hWin.HAPI4.database+'&format=geojson&recID='+rec_ID;
                     
-        request = {recID:rec_ID};             
+        const request = {recID:rec_ID};             
         //perform loading kml as geojson
         window.hWin.HAPI4.RecordMgr.load_kml_as_geojson(request,
             function(response){
                 if(response){
-                    var dataset_name = _recordset.fld(options.rec_layer || _record, 'rec_Title');
+                    let dataset_name = _recordset.fld(options.rec_layer || _record, 'rec_Title');
                     
                     if(response.status && response.status != window.hWin.ResponseStatus.OK){
                         _triggerLayerStatus( 'error' );
@@ -432,8 +469,8 @@ function hMapLayer2( _options ) {
                         window.hWin.HEURIST4.msg.showMsgErr(response);
                     }else{
                         
-                        var geojson_data = null;
-                        var timeline_data = [];
+                        let geojson_data = null;
+                        let timeline_data = [];
                         if(response['geojson'] && response['timeline']){
                             geojson_data = response['geojson'];
                             timeline_data = response['timeline'];   
@@ -457,7 +494,8 @@ function hMapLayer2( _options ) {
                                                              
                             is_outof_range = null;                        
                             _setVisibilityForZoomRange();   
-                        }else {
+                        }else{
+                            response = $.isPlainObject(response) ? response : {message: response, error_title: 'Unable to add file source'};
                             window.hWin.HEURIST4.msg.showMsgErr(response);
                             _triggerLayerStatus( 'error' );
                         }
@@ -474,13 +512,15 @@ function hMapLayer2( _options ) {
     //
     function _addQueryLayer(){
 
-        var layer_popup_template = _recordset.fld(options.rec_layer || _record, 
+        let layer_popup_template = _recordset.fld(options.rec_layer || _record, 
                                     window.hWin.HAPI4.sysinfo['dbconst']['DT_SMARTY_TEMPLATE']);
 
-        var layer_geofields = []
-        var layer_default_style = null;
+        let layer_geofields = [];
+        let layer_timefields = _recordset.fld(options.rec_layer || _record, 
+                        window.hWin.HAPI4.sysinfo['dbconst']['DT_TIMELINE_FIELDS']);
+        let layer_default_style = null;
         if(window.hWin.HAPI4.sysinfo['dbconst']['DT_SYMBOLOGY']>0){
-            var layer_themes = _recordset.fld(options.rec_layer || _record, 
+            let layer_themes = _recordset.fld(options.rec_layer || _record, 
                                         window.hWin.HAPI4.sysinfo['dbconst']['DT_SYMBOLOGY']);
   
 /*            
@@ -515,13 +555,13 @@ function hMapLayer2( _options ) {
                     if(item.geofield){
                         //geo field can be 2 types
                         //1. code request (rt:dt:rt:dt) that alows to drill for geo values in linked records
-                        //2. dty_ID - pointer/resource field 
-                        var geofields = item.geofield.split(',');
-                        for(var k=0; k<geofields.length; k++){
-                            var geofield = geofields[k];
+                        //2. dty_ID - record pointer/resource field 
+                        let geofields = item.geofield.split(',');
+                        for(let k=0; k<geofields.length; k++){
+                            let geofield = geofields[k];
                             if(geofield.indexOf(':')>0){
                                 //1. code request
-                                var field = window.hWin.HEURIST4.query.createFacetQuery(geofield, true, false);
+                                let field = window.hWin.HEURIST4.query.createFacetQuery(geofield, true, false);
                                 if(field['facet'] && field['facet']=='$IDS'){
                                     layer_geofields.push({id:field['id']}); //in main record
                                 }else{
@@ -543,20 +583,21 @@ function hMapLayer2( _options ) {
             }
         }
         if(layer_geofields.length==0) layer_geofields = null;
+        if(Array.isArray(layer_timefields) && layer_timefields.length==0) layer_timefields = null;
                                     
-                                    
-        var origination_db = null;
+        let origination_db = null;
         
-        var query = _recordset.fld(_record, window.hWin.HAPI4.sysinfo['dbconst']['DT_QUERY_STRING']);
-        var request = window.hWin.HEURIST4.query.parseHeuristQuery(query);
+        let query = _recordset.fld(_record, window.hWin.HAPI4.sysinfo['dbconst']['DT_QUERY_STRING']);
+        let request = window.hWin.HEURIST4.query.parseHeuristQuery(query);
 
         if(request.q){
             
-             var server_request = {
+             let server_request = {
                 q: request.q,
                 rules: request.rules,
                 w: request.w,
-                geofields: layer_geofields, //additional filter - get geodata from specified fields only
+                geofields: layer_geofields,   //additional filter - get geodata from specified fields only
+                timefields: layer_timefields, //additional filter - get datetime from specified fields only
                 //returns strict geojson and timeline data as two separate arrays, withoud details, only header fields rec_ID, RecTypeID, rec_Title and rec_MinZoom, rec_MaxZoom
                 leaflet: 1, 
                 simplify: 1, //simplify paths with more than 1000 vertices
@@ -564,7 +605,7 @@ function hMapLayer2( _options ) {
                 zip: 1,
                 format:'geojson'};
 
-            var MAXITEMS = window.hWin.HAPI4.get_prefs('search_detail_limit');
+            let MAXITEMS = window.hWin.HAPI4.get_prefs('search_detail_limit');
             if(MAXITEMS>0){
                 server_request['limit'] = MAXITEMS;
             }
@@ -579,10 +620,10 @@ function hMapLayer2( _options ) {
             window.hWin.HAPI4.RecordMgr.search_new(server_request,
                 function(response){
 
-                    var geojson_data = null;
-                    var timeline_data = [];
-                    var layers_ids = [];
-                    var timeline_dty_ids = [];
+                    let geojson_data = null;
+                    let timeline_data = [];
+                    let layers_ids = [];
+                    let timeline_dty_ids = [];
                     if(response['geojson'] && response['timeline']){
                         geojson_data = response['geojson'];
                         timeline_data = response['timeline'];   
@@ -601,21 +642,21 @@ function hMapLayer2( _options ) {
                         if(options.is_current_search && response['geojson_dty_ids']){
                             _geojson_dty_ids = response['geojson_dty_ids'];    
                             
-                            var _geojson_rty_ids = response['geojson_rty_ids'];
+                            let _geojson_rty_ids = response['geojson_rty_ids'];
                             //dynamic thematic map for current search
-                            var thematic_map = [];
-                            for(var i=0; i<_geojson_dty_ids.length; i++)
+                            let thematic_map = [];
+                            for(let i=0; i<_geojson_dty_ids.length; i++)
                             {
-                                var dty_ID = _geojson_dty_ids[i];
+                                let dty_ID = _geojson_dty_ids[i];
 
-                                var title = [];                                
+                                let title = [];                                
                                 if(dty_ID=='Path'){
                                     title = 'Path';                                   
                                 }else if (typeof dty_ID === 'string' && dty_ID.indexOf('relation:')===0){
                                     title = $Db.trm(dty_ID.substring(9),'trm_Label');
                                     if(!title) title = dty_ID;
                                 }else{
-                                    for(var j=0; j<_geojson_rty_ids.length; j++){
+                                    for(let j=0; j<_geojson_rty_ids.length; j++){
                                         let t1 = $Db.rst(_geojson_rty_ids[j], dty_ID, 'rst_DisplayName');
                                         if(!window.hWin.HEURIST4.util.isempty(t1)) title.push(t1);
                                     }
@@ -664,16 +705,16 @@ function hMapLayer2( _options ) {
                         is_outof_range = null;                        
                         _setVisibilityForZoomRange();   
                         
-                   }else {
-                        _triggerLayerStatus( 'error' );
+                    }else {
+                        response = $.isPlainObject(response) ? response : {message: response, error_title: 'Unable to add query layer'};
                         window.hWin.HEURIST4.msg.showMsgErr(response);
-                   }
+                        _triggerLayerStatus( 'error' );
+                    }
                     
-                   //check if there are layers and tlcmapdatasets among result set
-                   if( _parent_mapdoc==0 ){ // && window.hWin.HEURIST4.util.isArrayNotEmpty(layers_ids)
+                    //check if there are layers and tlcmapdatasets among result set
+                    if( _parent_mapdoc==0 ){ // && window.hWin.HEURIST4.util.isArrayNotEmpty(layers_ids)
                         options.mapwidget.mapping('getMapManager').addLayerRecords( layers_ids );
-                   } 
-                    
+                    } 
 
                 }
             );          
@@ -687,24 +728,24 @@ function hMapLayer2( _options ) {
     //
     function _addRecordSet(){
         
-        var layer_style = _recordset.fld(options.rec_layer || _record, 
+        let layer_style = _recordset.fld(options.rec_layer || _record, 
                     window.hWin.HAPI4.sysinfo['dbconst']['DT_SYMBOLOGY']);
-        var layer_popup_template = _recordset.fld(options.rec_layer || _record, 
+        let layer_popup_template = _recordset.fld(options.rec_layer || _record, 
                     window.hWin.HAPI4.sysinfo['dbconst']['DT_SMARTY_TEMPLATE']);
                     
-        var MAXITEMS = window.hWin.HAPI4.get_prefs('search_detail_limit');    
+        const MAXITEMS = window.hWin.HAPI4.get_prefs('search_detail_limit');    
         
-        var data = options.recordset.toGeoJSON(null,0,MAXITEMS);
+        let data = options.recordset.toGeoJSON(null,0,MAXITEMS);
 
-        var geojson_data = data['geojson'];
-        var timeline_data = data['timeline'];   
+        let geojson_data = data['geojson'];
+        let timeline_data = data['timeline'];   
 
         if( window.hWin.HEURIST4.util.isGeoJSON(geojson_data, true) 
             || window.hWin.HEURIST4.util.isArrayNotEmpty(timeline_data) )
         {
                          
             _geojson_ids = data['geojson_ids']; //simpify {all: data['geojson_ids']}; //all record ids to be plotted on map
-            var timeline_dty_ids = window.hWin.HEURIST4.util.isArrayNotEmpty(data['timeline_dty_ids'])
+            let timeline_dty_ids = window.hWin.HEURIST4.util.isArrayNotEmpty(data['timeline_dty_ids'])
                                     ?data['timeline_dty_ids']
                                     :[];                    
             
@@ -720,17 +761,19 @@ function hMapLayer2( _options ) {
                         preserveViewport:options.preserveViewport });
                                       
             is_outof_range = null;                        
-            _setVisibilityForZoomRange(currZoom);   
+            _setVisibilityForZoomRange();   
         }else {
             _triggerLayerStatus( 'error' );
-            window.hWin.HEURIST4.msg.showMsgErr(response);
+            window.hWin.HEURIST4.msg.showMsgErr({
+                message: 'Can not add recordset layer. Spatial and time data are empty',
+                error_title: 'Unable to add recordset layer'
+            });
         }
-        
     }
 
 
     function _getMaxZoomLevel(){
-        var layer_maxzoom = _recordset.fld(_record, window.hWin.HAPI4.sysinfo['dbconst']['DT_MAXIMUM_ZOOM_LEVEL']);
+        let layer_maxzoom = _recordset.fld(_record, window.hWin.HAPI4.sysinfo['dbconst']['DT_MAXIMUM_ZOOM_LEVEL']);
         return layer_maxzoom;
     }
     
@@ -739,16 +782,16 @@ function hMapLayer2( _options ) {
     //
     function _getBoundingBox(){
 
-        var ext = window.hWin.HEURIST4.geo.getWktBoundingBox(
+        let ext = window.hWin.HEURIST4.geo.getWktBoundingBox(
             _recordset.getFieldGeoValue(_record, window.hWin.HAPI4.sysinfo['dbconst']['DT_GEO_OBJECT'])
         );
-             
+        
         if(options.mapwidget.mapping('getCurrentCRS')=='Simple'){
-            var maxzoom = _getMaxZoomLevel();
+            let maxzoom = _getMaxZoomLevel();
             
-            if($.isArray(ext) && ext.length==2){
+            if(Array.isArray(ext) && ext.length==2){
             
-                var max_dim = Math.max(ext[1][0]-ext[0][0], ext[1][1]-ext[0][1]);
+                let max_dim = Math.max(ext[1][0]-ext[0][0], ext[1][1]-ext[0][1]);
                 
                 if(!(maxzoom>1) && max_dim>512){
                     //@todo 
@@ -762,9 +805,9 @@ function hMapLayer2( _options ) {
                 
                 if(maxzoom>0 && max_dim>512){
                     //convert pixels to lat/long
-                    var nativemap = options.mapwidget.mapping('getNativeMap');
-                    var latlong1 = nativemap.unproject([ext[0][1],ext[0][0]], maxzoom);
-                    var latlong2 = nativemap.unproject([ext[1][1],ext[1][0]], maxzoom);
+                    let nativemap = options.mapwidget.mapping('getNativeMap');
+                    let latlong1 = nativemap.unproject([ext[0][1],ext[0][0]], maxzoom);
+                    let latlong2 = nativemap.unproject([ext[1][1],ext[1][0]], maxzoom);
                     
                     ext = [latlong1, latlong2];
                 }          
@@ -782,7 +825,7 @@ function hMapLayer2( _options ) {
     function _triggerLayerStatus( status ){
 
         if(status!=null){
-            var layer_ID = 0;
+            let layer_ID = 0;
             if(options.rec_layer){
                 layer_ID = _recordset.fld(options.rec_layer, 'rec_ID');
             }
@@ -842,17 +885,17 @@ function hMapLayer2( _options ) {
         }
         
         // 1. get all fields that are used in active_themes and prepare ranges
-        var theme_fields = {};
-        var theme_queries = {};
+        let theme_fields = {};
+        let theme_queries = {};
 
-        for(var j=0; j<active_themes.length; j++){
-            var theme = active_themes[j];
+        for(let j=0; j<active_themes.length; j++){
+            let theme = active_themes[j];
             
             $.each(theme.fields, function(i, ftheme){
                 
                 if(ftheme.code!='rec_GeoField'){
                 
-                    var field = window.hWin.HEURIST4.query.createFacetQuery(ftheme.code, true, false);
+                    let field = window.hWin.HEURIST4.query.createFacetQuery(ftheme.code, true, false);
                     
                     //field.code - code without last dty_ID
                     
@@ -860,7 +903,7 @@ function hMapLayer2( _options ) {
                         theme_fields[field.code].push(field.id);
                     }else{
                     
-                        var query;
+                        let query;
                         if( (typeof field['facet'] === 'string') && (field['facet'] == '$IDS') ){ //this is field form target record type
                             query = '$IDS'; //'ids:'+_geojson_ids.join(',');//maplayer_query;
 
@@ -886,12 +929,12 @@ function hMapLayer2( _options ) {
                 }
                 */
                 
-                var isNumeric = true;
+                let isNumeric = true;
                 //prepare ranges
-                for(var j=0; j<ftheme.ranges.length; j++){
-                    var range = ftheme.ranges[j].value;
+                for(let j=0; j<ftheme.ranges.length; j++){
+                    let range = ftheme.ranges[j].value;
                     if(typeof range==='string'){
-                        var values = range.split(',');
+                        let values = range.split(',');
                         if(values.length>=2){
                             ftheme.ranges[j].value = values;
                         }else{
@@ -924,14 +967,14 @@ function hMapLayer2( _options ) {
         if(Object.keys(theme_queries).length>0)
         {
             
-            var query_codes = Object.keys(theme_queries);
+            let query_codes = Object.keys(theme_queries);
             
             function __executeQuery(query_idx){
                 
-                var code = query_codes[query_idx];
+                let code = query_codes[query_idx];
             
                 //find values
-                var server_request = {
+                let server_request = {
                     q: theme_queries[code],
                     //rules: theme.rules,  search for linked records
                     a: 'links_details',
@@ -947,26 +990,26 @@ function hMapLayer2( _options ) {
                         
 
                         if(response.status == window.hWin.ResponseStatus.OK){
-                            //var resdata = new hRecordSet(response.data);
+                            //let resdata = new HRecordSet(response.data);
                             //assign symbol for each element of layer
                             options.mapwidget.mapping('eachLayerFeature', _nativelayer_id, 
                                 function(layer){
                                     //get record from result set and assign field values
                                     let id = layer.feature.properties.rec_ID; 
-                                    var record = response.data[id];
-                                    for (var k=0; k<theme_fields[code].length; k++){
-                                        var dty_ID = theme_fields[code][k];
+                                    let record = response.data[id];
+                                    for (let k=0; k<theme_fields[code].length; k++){
+                                        let dty_ID = theme_fields[code][k];
                                         //get first value from array
-                                        for (var dtl_ID in record[dty_ID]){
+                                        for (let dtl_ID in record[dty_ID]){
                                             layer.feature.properties[code+':'+dty_ID] = record[dty_ID][dtl_ID];    
                                             break;
                                         }
                                     }
 
                                     /*
-                                    var record = resdata.getRecord(id);
-                                    for (var k=0; k<theme_fields[code].length; k++){
-                                        var dty_ID = theme_fields[code][k];
+                                    let record = resdata.getRecord(id);
+                                    for (let k=0; k<theme_fields[code].length; k++){
+                                        let dty_ID = theme_fields[code][k];
                                         layer.feature.properties[code+':'+dty_ID] = resdata.fld(record, dty_ID);
                                     }
                                     */
@@ -1015,14 +1058,14 @@ function hMapLayer2( _options ) {
         if(is_inited){
             
             if(!(current_zoom>=0)){
-                var nativemap = options.mapwidget.mapping('getNativeMap');
+                let nativemap = options.mapwidget.mapping('getNativeMap');
                 current_zoom = nativemap.getZoom();
             }
             
-            var _rec = options.rec_layer || _record;
+            let _rec = options.rec_layer || _record;
             if(_has_zoom_setting_per_layer<0 && _has_zoom_setting_per_record<0) return; //not set
 
-            var is_in_range = true;
+            let is_in_range = true;
 
             if(_has_zoom_setting_per_layer>0){ //already defined
                 
@@ -1036,17 +1079,17 @@ function hMapLayer2( _options ) {
                 if(_rec['layer']){
                     
                     // in basemap zoom levels (0-19)
-                    var dty_id_min = window.hWin.HAPI4.sysinfo['dbconst']['DT_MINIMUM_ZOOM_LEVEL'],
+                    let dty_id_min = window.hWin.HAPI4.sysinfo['dbconst']['DT_MINIMUM_ZOOM_LEVEL'],
                         dty_id_max = window.hWin.HAPI4.sysinfo['dbconst']['DT_MAXIMUM_ZOOM_LEVEL'];
                         
                     if(dty_id_min>0){
-                        var val = parseInt(_recordset.fld(_rec, dty_id_min));
+                        const val = parseInt(_recordset.fld(_rec, dty_id_min));
                         if(val>=0){
                             _rec['minzoom'] = val;
                         }
                     }
                     if(dty_id_max>0){
-                        var val = parseInt(_recordset.fld(_rec, dty_id_max));
+                        const val = parseInt(_recordset.fld(_rec, dty_id_max));
                         if(val>0){
                             _rec['maxzoom'] = val;
                         }
@@ -1055,11 +1098,11 @@ function hMapLayer2( _options ) {
                     if(!(_rec['maxzoom']>0 || _rec['minzoom']>=0)){ //already defined
                     
                         // in kilometers
-                        var dty_id = window.hWin.HAPI4.sysinfo['dbconst']['DT_MAXIMUM_ZOOM'];
-                        var layer_bnd = (_rec['layer']).getBounds();
+                        let dty_id = window.hWin.HAPI4.sysinfo['dbconst']['DT_MAXIMUM_ZOOM'];
+                        let layer_bnd = (_rec['layer']).getBounds();
                         
                         if(dty_id>0){
-                            var val = parseFloat(_recordset.fld(_rec, dty_id));
+                            const val = parseFloat(_recordset.fld(_rec, dty_id));
                             if(val>0){ 
                                 _rec['maxzoom'] = 32;
                                 if(val>0.0001){ //0.1 meter
@@ -1069,7 +1112,7 @@ function hMapLayer2( _options ) {
                         }
                         dty_id = window.hWin.HAPI4.sysinfo['dbconst']['DT_MINIMUM_ZOOM'];
                         if(dty_id>0){
-                            var val = parseFloat(_recordset.fld(_rec, dty_id));
+                            const val = parseFloat(_recordset.fld(_rec, dty_id));
                             if(val>0 && val!=20 && val!=90){ //old default value
                                 _rec['minzoom'] = options.mapwidget.mapping('convertZoomToNative', val, layer_bnd);
                             }
@@ -1089,7 +1132,7 @@ function hMapLayer2( _options ) {
             }
         
         
-            var status = null;
+            let status = null;
             if(is_in_range){
                 if(is_outof_range!==false){
                     is_outof_range = false;
@@ -1100,7 +1143,7 @@ function hMapLayer2( _options ) {
                 //visibility per record
                 if(_dataset_type=='db' && _has_zoom_setting_per_record>=0){
                 
-                    var show_rec_ids = [], hide_rec_ids = [];
+                    let show_rec_ids = [], hide_rec_ids = [];
                     
                     _has_zoom_setting_per_record = -1;
                     
@@ -1150,11 +1193,11 @@ function hMapLayer2( _options ) {
     //
     function _defineThematicMapSymbol(feature, themes){
         
-        var recID = feature.rec_ID;
-        var new_symbol = false;
+        let recID = feature.rec_ID;
+        let new_symbol = false;
         
-        for(var k=0; k<themes.length; k++)
-            for(var i=0; i<themes[k].fields.length; i++)
+        for(let k=0; k<themes.length; k++)
+            for(let i=0; i<themes[k].fields.length; i++)
             {
                 
                 let theme = themes[k];
@@ -1178,9 +1221,9 @@ function hMapLayer2( _options ) {
                 if(ftheme.range_type=='equal' || ftheme.range_type=='log'){
                     //@todo find min and max value
                 }else{
-                    for(var j=0; j<ftheme.ranges.length; j++){
-                        var range = ftheme.ranges[j];
-                        if($.isArray(range.value))
+                    for(let j=0; j<ftheme.ranges.length; j++){
+                        let range = ftheme.ranges[j];
+                        if(Array.isArray(range.value))
                         {
                             if(window.hWin.HEURIST4.util.findArrayIndex(value, range.value)>-1){
                                 fsymb = range.symbol;       
@@ -1218,10 +1261,10 @@ function hMapLayer2( _options ) {
     //
     function _mergeThematicSymbol(basesymbol, fsymb){
         
-            var use_style = window.hWin.HEURIST4.util.cloneJSON( basesymbol );
+            let use_style = window.hWin.HEURIST4.util.cloneJSON( basesymbol );
         
-            var keys = Object.keys(fsymb);
-            for(var j=0; j<keys.length; j++){
+            let keys = Object.keys(fsymb);
+            for(let j=0; j<keys.length; j++){
                 use_style[keys[j]] = fsymb[keys[j]];
             }
             
@@ -1229,7 +1272,7 @@ function hMapLayer2( _options ) {
     }    
     
     //public members
-    var that = {
+    let that = {
         getClass: function () {return _className;},
         isA: function (strClass) {return (strClass === _className);},
         getVersion: function () {return _version;},
@@ -1250,12 +1293,12 @@ function hMapLayer2( _options ) {
         setVisibility: function(visiblity_set){
             
             
-            var was_invisible = !is_visible;
+            let was_invisible = !is_visible;
             is_visible = (window.hWin.HEURIST4.util.isArrayNotEmpty(visiblity_set) || visiblity_set === true);
 
             if(is_outof_range) return;
             
-            var status = null;
+            let status = null;
             
             if(is_inited){
                 if(_nativelayer_id>0){
@@ -1302,27 +1345,27 @@ function hMapLayer2( _options ) {
         getMapData: function(){
             
             //detect datasource type 
-            var rectypeID = _recordset.fld(_record, 'rec_RecTypeID');
-            var request = {}, url = null;
-            var layerName = _recordset.fld(_record, 'rec_Title');
+            let rectypeID = _recordset.fld(_record, 'rec_RecTypeID');
+            let request = {}, url = null;
+            let layerName = _recordset.fld(_record, 'rec_Title');
             
-            var layer_ID = 0;
-            var dataset_ID = _recordset.fld(_record, 'rec_ID');
+            let layer_ID = 0;
+            let dataset_ID = _recordset.fld(_record, 'rec_ID');
             if(options.rec_layer){
                 layer_ID = _recordset.fld(options.rec_layer, 'rec_ID');
             }
 
-            if(rectypeID == window.hWin.HAPI4.sysinfo['dbconst']['RT_MAP_LAYER'] 
+            if(rectypeID == RT_MAP_LAYER 
                 || rectypeID == window.hWin.HAPI4.sysinfo['dbconst']['RT_TLCMAP_DATASET']
                 || rectypeID == window.hWin.HAPI4.sysinfo['dbconst']['RT_QUERY_SOURCE']){
                    
-                var sQuery;
+                let sQuery;
                 if(options.recordset){ 
                     sQuery = '?q=ids:'+options.recordset.getIds()
                         + '&db=' + window.hWin.HAPI4.database;
                 }else{
-                    var query = _recordset.fld(_record, window.hWin.HAPI4.sysinfo['dbconst']['DT_QUERY_STRING']);
-                    var params = window.hWin.HEURIST4.query.parseHeuristQuery(query);
+                    let query = _recordset.fld(_record, window.hWin.HAPI4.sysinfo['dbconst']['DT_QUERY_STRING']);
+                    let params = window.hWin.HEURIST4.query.parseHeuristQuery(query);
                     sQuery = window.hWin.HEURIST4.query.composeHeuristQuery2(params, true);
                     sQuery = sQuery + '&db=' + (params.db?params.db:window.hWin.HAPI4.database);
                 }
@@ -1338,9 +1381,9 @@ function hMapLayer2( _options ) {
 
             }else if(rectypeID == window.hWin.HAPI4.sysinfo['dbconst']['RT_TILED_IMAGE_SOURCE']){
                 
-                var layer_url = _recordset.fld(_record, window.hWin.HAPI4.sysinfo['dbconst']['DT_SERVICE_URL']);
+                let layer_url = _recordset.fld(_record, window.hWin.HAPI4.sysinfo['dbconst']['DT_SERVICE_URL']);
                 
-                var sMsg = '<p>This dataset is a tiled image running on a server. '
+                let sMsg = '<p>This dataset is a tiled image running on a server. '
                 +'Tiled images should be accessed via their URL which delivers the appropriate tiles for the area being mapped</p>'
                 +layer_url
                 +'<p>Link to metadata :'
@@ -1350,7 +1393,7 @@ function hMapLayer2( _options ) {
 
             }else if(rectypeID == window.hWin.HAPI4.sysinfo['dbconst']['RT_GEOTIFF_SOURCE']){
 
-                var imageFile = _recordset.fld(_record, window.hWin.HAPI4.sysinfo['dbconst']['DT_FILE_RESOURCE']);                
+                let imageFile = _recordset.fld(_record, window.hWin.HAPI4.sysinfo['dbconst']['DT_FILE_RESOURCE']);                
                 
                 url = window.hWin.HAPI4.baseURL+'?db='+ window.hWin.HAPI4.database 
                         +'&metadata='+dataset_ID+'&file='+imageFile;
@@ -1402,21 +1445,21 @@ function hMapLayer2( _options ) {
         //
         getBounds: function (format){
 
-            var bnd = options.mapwidget.mapping('getBounds', _nativelayer_id);
+            let bnd = options.mapwidget.mapping('getBounds', _nativelayer_id);
             
             if(!(bnd && bnd.isValid())) return null;
 
             if(format=='wkt'){
-                var aCoords = [];
-                var sw = bnd.getSouthWest();
-                var nw = bnd.getNorthEast();
+                let aCoords = [];
+                let sw = bnd.getSouthWest();
+                let nw = bnd.getNorthEast();
 
                 //move go util_geo?
                 function __formatPntWKT(pnt, d){
                     if(isNaN(d)) d = 7;
-                    var lat = pnt.lat;
+                    let lat = pnt.lat;
                     lat = lat.toFixed(d);
-                    var lng = pnt.lng;
+                    let lng = pnt.lng;
                     lng = lng.toFixed(d);
                     return lng + ' ' + lat;               
                 }            
@@ -1443,6 +1486,7 @@ function hMapLayer2( _options ) {
         applyStyle: function( newStyle, newTheme ){
             if(_nativelayer_id>0){
                 options.mapwidget.mapping('applyStyle', _nativelayer_id, newStyle, newTheme);
+                options.imageFilter = newStyle;
             }
         },
 

@@ -1,11 +1,12 @@
 /**
 /**
 * recordAddButton.js - button to add new record
+* used in CMS 
 *
 * @package     Heurist academic knowledge management system
 * @link        https://HeuristNetwork.org
 * @copyright   (C) 2005-2023 University of Sydney
-* @author      Artem Osmakov   <artem.osmakov@sydney.edu.au>
+* @author      Artem Osmakov   <osmakov@gmail.com>
 * @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
 * @version     4.0
 */
@@ -33,9 +34,9 @@ $.widget( "heurist.recordAddButton",{
     
     _init:function(){
         
-        var ele = $('<button>').appendTo(this.element);
+        let ele = $('<button>').appendTo(this.element);
         
-        var c2 = this.element.parent().attr('style');
+        let c2 = this.element.parent().attr('style');
         ele.attr('style',c2);
         this.element.parent().css({border:'none',background:'none'});
         
@@ -49,8 +50,8 @@ $.widget( "heurist.recordAddButton",{
         }       
         ele.button({label:this.options.add_record_label});
         
-        var that = this;
-             
+        let that = this;
+        
         this._on(ele, {click: function(e){
                 window.hWin.HEURIST4.ui.openRecordEdit(-1, null,{new_record_params:this.options,
                 

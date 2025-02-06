@@ -2,7 +2,7 @@
 * @package     Heurist academic knowledge management system
 * @link        https://HeuristNetwork.org
 * @copyright   (C) 2005-2023 University of Sydney
-* @author      Artem Osmakov   <artem.osmakov@sydney.edu.au>
+* @author      Artem Osmakov   <osmakov@gmail.com>
 * @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
 * @version     4.0
 */
@@ -37,22 +37,25 @@
 * @type Array
 */
 
-var cfg_widgets = [
+window.cfg_widgets = [
 
     {id:'heurist_Search', name:'Search', widgetname:'search', script:'hclient/widgets/search/search.js', minh:80, minw:150},
     {id:'heurist_SearchInput', name:'Filter', widgetname:'searchInput', script:'hclient/widgets/search/searchInput.js', minh:27, minw:150},
     {id:'heurist_SearchTree', name:'Saved searches', widgetname:'svs_list', script:'hclient/widgets/search/svs_list.js', minh:300, minw:200},
-    {id:'heurist_Navigation', name:'Navigation', widgetname:'navigation', script:'hclient/widgets/dropdownmenus/navigation.js'},
+    {id:'heurist_Navigation', name:'Navigation', widgetname:'navigation', script:'hclient/widgets/cpanel/navigation.js'},
     {id:'heurist_Groups', name:'Groups'},{id:'heurist_Cardinals', name:'Cardinal layout'},
 
 
-    {id:'heurist_mainMenu', name:'Main Menu', widgetname:'mainMenu', script:'hclient/widgets/dropdownmenus/mainMenu.js'},
-    {id:'heurist_mainMenu6', name:'Main Side Menu', widgetname:'mainMenu6', script:'hclient/widgets/dropdownmenus/mainMenu6.js'},
+    {id:'heurist_controlPanel', name:'Control Panel', widgetname:'controlPanel', script:'hclient/widgets/cpanel/controlPanel.js'},
+    {id:'heurist_slidersMenu', name:'Main Side Menu', widgetname:'slidersMenu', script:'hclient/widgets/cpanel/slidersMenu.js'},
     {id:'heurist_resultList', name:'Search Result', widgetname:'resultList', script:'hclient/widgets/viewers/resultList.js', minh:150, minw:150},
     {id:'heurist_resultListDataTable', name:'List View', widgetname:'resultListDataTable', script:'hclient/widgets/viewers/resultListDataTable.js'},
     {id:'heurist_resultListExt', name:'&nbsp;&nbsp;&nbsp;', widgetname:'recordListExt', script:'hclient/widgets/viewers/recordListExt.js'},
     {id:'heurist_resultListCollection', name:'Records Collection', widgetname:'resultListCollection', script:'hclient/widgets/viewers/resultListCollection.js'},
 
+    {id:'heurist_reportViewer', name:'Report', widgetname:'reportViewer', script:'hclient/widgets/viewers/reportViewer.js'},
+    
+    
     {id:'heurist_Map', name:'Map (old)', title:'Map and timeline', widgetname:'app_timemap', script:'hclient/widgets/viewers/app_timemap.js'},  // map in iframe
     {id:'heurist_Map2', name:'Map', title:'Map and timeline',
                 widgetname:'app_timemap', script:'hclient/widgets/viewers/app_timemap.js', minh:300, minw:300},  // map in iframe
@@ -64,7 +67,7 @@ var cfg_widgets = [
 
     {id:'heurist_recordAddButton', name:'Add Record', widgetname:'recordAddButton', script:'hclient/widgets/record/recordAddButton.js'},
     {id:'heurist_emailForm', name:'Email Us Form', widgetname:'emailForm', script:'hclient/widgets/admin/emailForm.js'},
-    
+        
     // DIGITAL HARLEM APPS
     {id:'dh_search', name:'Search Forms', widgetname:'dh_search', script:'hclient/widgets/digital_harlem/dh_search.js'},
     {id:'dh_maps', name:'Saved Maps', widgetname:'dh_maps', script:'hclient/widgets/digital_harlem/dh_maps.js'},
@@ -76,7 +79,6 @@ var cfg_widgets = [
     {id:'expertnation_nav', name:'Navigation', widgetname:'expertnation_nav', script:'hclient/widgets/expertnation/expertnation_nav.js'},
     {id:'expertnation_place', name:'Place', widgetname:'expertnation_place', script:'hclient/widgets/expertnation/expertnation_place.js'},
      
-    
     //fake app - reference to another layout to include
     {id:'include_layout',name:'Inner Layout', widgetname:'include_layout'}
 
@@ -100,7 +102,7 @@ options - parameters to init application
 
 */
 
-var cfg_layouts = [
+window.cfg_layouts = [
 
     // Default layout - the standard Heurist interface, used if no parameter provided
     // TODO: change the id and name to jsut HeuristDefault and Heurist Default - h4 and h3 are hangovers from old versions
@@ -108,7 +110,7 @@ var cfg_layouts = [
         north_pane:{ dropable:false, dragable:false, 
                 css:{position:'absolute', top:0,left:0,height:'6em',right:0, 
                      'min-width':'75em'}, 
-            apps:[{appid:'heurist_mainMenu', hasheader:false, css:{height:'100%', border:'solid'}}] 
+            apps:[{appid:'heurist_controlPanel', hasheader:false, css:{height:'100%', border:'solid'}}] 
         },
         center_pane:{ dockable:false, dropable:false, dragable:false, 
                 css:{position:'absolute', top:'6em',left:0,bottom:0,right:0},
@@ -124,11 +126,11 @@ var cfg_layouts = [
         north_pane:{ dropable:false, dragable:false, 
                 css:{position:'absolute', top:0,left:0,height:'50px',right:'-2px', 
                      'min-width':'77em'}, 
-            apps:[{appid:'heurist_mainMenu', hasheader:false, css:{height:'100%', border:'solid'}}] 
+            apps:[{appid:'heurist_controlPanel', hasheader:false, css:{height:'100%', border:'solid'}}] 
         },
         center_pane:{ dockable:false, dropable:false, dragable:false, 
                 css:{position:'absolute', top:'50px',left:0,bottom:'0.1em',right:'2px'},
-            apps:[{appid:'heurist_mainMenu6', hasheader:false, css:{width:'100%'}}]
+            apps:[{appid:'heurist_slidersMenu', hasheader:false, css:{width:'100%'}}]
         }    
     },
     
@@ -192,9 +194,8 @@ var cfg_layouts = [
                     {appid:'heurist_Map2', options:{'data-logaction':'open_MapTime', leaflet:true
                         , layout_params:{legend:'search,-basemaps,-mapdocs,250,off'} }}, 
                     
-                    {appid:'heurist_resultListExt', name: 'Custom Reports', options:{title:'Custom Reports', 
-                                    url: 'viewers/smarty/showReps.html?db=[dbname]', 'data-logaction':'open_Reports'}
-                    },
+                    {appid:'heurist_reportViewer', name: 'Custom Reports'},
+
                     {appid:'heurist_Frame', name: 'Export',
                         options:{url: 'hclient/framecontent/exportMenu.php?db=[dbname]',
                                          isframe:true, 'data-logaction':'open_Export'}
@@ -211,7 +212,7 @@ var cfg_layouts = [
         }
     },
 
-    // Heurist v6 version. It is inited in mainMenu6.js
+    // Heurist v6 version.
     {id:'SearchAnalyze3', name:'Search Analyze Publish2', theme:'heurist', type:'cardinal',
         center:{minsize:156, dropable:false, apps:[{appid:'heurist_resultList', hasheader:false,
                      dockable:false, dragable:false, css:{'background-color':'white','font-size':'0.9em'}, //AO 2020-01-30 ,'font-size':'12px'
@@ -233,10 +234,8 @@ var cfg_layouts = [
                     {appid:'heurist_Map2', options:{'data-logaction':'open_MapTime', leaflet:true
                         , layout_params:{legend:'search,-basemaps,-mapdocs,250,off', ui_main:true} }}, 
                     
-                    {appid:'heurist_resultListExt', name: 'Report', options:{title:'Report', 
-                                    url: 'viewers/smarty/showReps.html?db=[dbname]', 'data-logaction':'open_Reports',
-                                    css:{overflow:'hidden'}}
-                    },
+                    {appid:'heurist_reportViewer', name: 'Report'},
+                        
                     {appid:'heurist_Frame', name: 'Export',
                         options:{url: 'hclient/framecontent/exportMenu.php?db=[dbname]',
                                          isframe:true, 'data-logaction':'open_Export'}

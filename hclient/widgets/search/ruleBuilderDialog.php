@@ -6,7 +6,7 @@
 * @package     Heurist academic knowledge management system
 * @link        https://HeuristNetwork.org
 * @copyright   (C) 2005-2023 University of Sydney
-* @author      Artem Osmakov   <artem.osmakov@sydney.edu.au>
+* @author      Artem Osmakov   <osmakov@gmail.com>
 * @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
 * @version     4.0
 */
@@ -19,7 +19,7 @@
 * See the License for the specific language governing permissions and limitations under the License.
 */
 
-define('PDIR','../../../');  //need for proper path to js and css    
+define('PDIR','../../../');//need for proper path to js and css
 require_once dirname(__FILE__).'/../../../hclient/framecontent/initPage.php';
 ?>
 <script type="text/javascript" src="<?php echo PDIR;?>hclient/widgets/search/ruleBuilder.js"></script>
@@ -28,12 +28,8 @@ require_once dirname(__FILE__).'/../../../hclient/framecontent/initPage.php';
 <script type="text/javascript" src="<?php echo PDIR;?>hclient/widgets/search/searchBuilder.js"></script>
 <script type="text/javascript" src="<?php echo PDIR;?>hclient/widgets/search/searchBuilderItem.js"></script>
 <script type="text/javascript" src="<?php echo PDIR;?>hclient/widgets/search/searchBuilderSort.js"></script>
-<script type="text/javascript" src="<?php echo PDIR;?>external/jquery.fancytree/jquery.fancytree-all.min.js"></script>
 <script type="text/javascript" src="<?php echo PDIR;?>hclient/widgets/editing/editing_input.js"></script>
 <script type="text/javascript" src="<?php echo PDIR;?>hclient/widgets/editing/editing_exts.js"></script>
-
-<link rel="stylesheet" type="text/css" href="<?php echo PDIR;?>external/jquery.fancytree/skin-themeroller/ui.fancytree.css" />
-
 
 <style>
     .rulebuilder{
@@ -57,7 +53,7 @@ require_once dirname(__FILE__).'/../../../hclient/framecontent/initPage.php';
         font-weight:bold;
         display:table-cell;
     }
-    
+
 </style>
 </head>
 <body style="overflow:hidden">

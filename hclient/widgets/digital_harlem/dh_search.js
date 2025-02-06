@@ -21,7 +21,7 @@
 var Hul = window.hWin.HEURIST4.util;
 
 //constants
-//const _NAME = 0, _QUERY = 1, _GRPID = 2, _ISFACETED=3;
+const _NAME = 0, _QUERY = 1, _GRPID = 2, _ISFACETED=3;
 
 $.widget( "heurist.dh_search", {
 
@@ -257,7 +257,7 @@ $.widget( "heurist.dh_search", {
             //perform search
             window.hWin.HAPI4.RecordMgr.search(request, function(response){
                 if(response.status == window.hWin.ResponseStatus.OK){
-                    var resdata = new hRecordSet(response.data);
+                    var resdata = new HRecordSet(response.data);
                     //add SELECT and fill it with values
                     var smenu = '', idx;
                     var records = resdata.getRecords();

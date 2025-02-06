@@ -4,7 +4,7 @@
 * @package     Heurist academic knowledge management system
 * @link        https://HeuristNetwork.org
 * @copyright   (C) 2005-2023 University of Sydney
-* @author      Artem Osmakov   <artem.osmakov@sydney.edu.au>
+* @author      Artem Osmakov   <osmakov@gmail.com>
 * @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
 * @version     4.0
 */
@@ -23,25 +23,23 @@ $.widget( "heurist.searchSysGroups", $.heurist.searchEntity, {
     _initControls: function() {
         this._super();
         
-        var that = this;
+        let that = this;
 
         if(this.options.subtitle){
-            var ele = this.element.find('.sub-title');
+            let ele = this.element.find('.sub-title');
             if(ele.length>0){
                 ele.html('<h3>'+this.options.subtitle+'</h3>');
             }
         }
         
-        this.btn_add_record = this.element.find('#btn_add_record');
+        this.btn_add_record = this.element.find('.btn_AddRecord');
         
         if(this.options.edit_mode=='none'){
             this.btn_add_record.hide();
         }else{
             this.btn_add_record.css({'min-width':'9m','z-index':2})
-                    .button({label: window.hWin.HR("Add New Group"), icons: {
-                            primary: "ui-icon-plus"
-                    }})
-                .click(function(e) {
+                    .button({label: window.hWin.HR("Add New Group"), icon:"ui-icon-plus"})
+                .on('click', function(e) {
                     that._trigger( "onadd" );
                 }); 
                 
@@ -66,7 +64,7 @@ $.widget( "heurist.searchSysGroups", $.heurist.searchEntity, {
         this.input_search_role = this.element.find('#input_search_type');
         
         //hide all help divs except current mode
-        var smode = this.options.select_mode; 
+        let smode = this.options.select_mode; 
         if(smode=='manager'){
             if(this.options.ugl_UserID>0){
                 smode = 'manager_for_user';
@@ -112,16 +110,14 @@ $.widget( "heurist.searchSysGroups", $.heurist.searchEntity, {
     //
     startSearch: function(){
         
-            this._super();
-            
-            var request = {}
+            let request = {}
         
             if(this.input_search.val()!=''){
                 request['ugr_Name'] = this.input_search.val();
             }
         
             // actually we may take list of groups from currentUser['ugr_Groups']
-            var gr_role = this.input_search_role.val();
+            let gr_role = this.input_search_role.val();
             if(gr_role!='' && gr_role!='any'){
                 
                 if(gr_role=='admin'){
@@ -143,6 +139,9 @@ $.widget( "heurist.searchSysGroups", $.heurist.searchEntity, {
             }
             //always search for roles for current or given user            
             
+            this._super();
+            
+            
             this.input_sort_type = this.element.find('#input_sort_type');
             if(this.input_sort_type.val()=='member'){
                 request['sort:ugr_Members'] = '-1' 
@@ -152,24 +151,7 @@ $.widget( "heurist.searchSysGroups", $.heurist.searchEntity, {
                 request['sort:ugr_Name'] = '-1';   
             }
             
-            
-            this._trigger( "onstart" );
-    
-            request['a']          = 'search'; //action
-            request['entity']     = this.options.entity.entityName;
-            request['details']    = 'id'; //'id';
-            request['request_id'] = window.hWin.HEURIST4.util.random();
-            
-            var that = this;                                                
-            
-            window.hWin.HAPI4.EntityMgr.doRequest(request, 
-                function(response){
-                    if(response.status == window.hWin.ResponseStatus.OK){
-                        that._trigger( "onresult", null, 
-                            {recordset:new hRecordSet(response.data), request:request} );
-                    }else{
-                        window.hWin.HEURIST4.msg.showMsgErr(response);
-                    }
-                });
+            this._search_request = request;
+            this._super();
     }
 });

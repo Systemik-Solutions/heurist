@@ -4,7 +4,7 @@
 * @package     Heurist academic knowledge management system
 * @link        https://HeuristNetwork.org
 * @copyright   (C) 2005-2023 University of Sydney
-* @author      Artem Osmakov   <artem.osmakov@sydney.edu.au>
+* @author      Artem Osmakov   <osmakov@gmail.com>
 * @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
 * @version     4.0
 */
@@ -23,18 +23,14 @@ $.widget( "heurist.searchDefFileExtToMimetype", $.heurist.searchEntity, {
     _initControls: function() {
         this._super();
 
-        var that = this;
-        
         /*
-        this.btn_add_record = this.element.find('#btn_add_record');
+        this.btn_add_record = this.element.find('.btn_AddRecord');
         if(this.options.edit_mode=='none'){
             this.btn_add_record.hide();
         }else{
             this.btn_add_record.css({'min-width':'11.9em','z-index':2})
-                    .button({label: window.hWin.HR("Add New File Type"), icons: {
-                            primary: "ui-icon-plus"
-                    }})
-                .click(function(e) {
+                    .button({label: window.hWin.HR("Add New File Type"), icon:"ui-icon-plus"})
+                .on('click', function(e) {
                     that._trigger( "onaddrecord" );
                 }); 
             if(this.options.edit_mode=='inline'){
@@ -47,11 +43,6 @@ $.widget( "heurist.searchDefFileExtToMimetype", $.heurist.searchEntity, {
         this.input_search_type = this.element.find('#input_search_type');
         this._on( this.input_search_type, { change: this.startSearch });
         
-        if(this.options.select_mode=='manager'){
-//            this.element.find('#input_search_type_div').css('float','left');
-        }
-                      
-        //this.startSearch();            
     },  
 
     //
@@ -59,9 +50,7 @@ $.widget( "heurist.searchDefFileExtToMimetype", $.heurist.searchEntity, {
     //
     startSearch: function(){
         
-            this._super();
-            
-            var request = {};
+            let request = {};
             
             if(this.input_search.val()!=''){
                 request['fxm_Extension'] = this.input_search.val();

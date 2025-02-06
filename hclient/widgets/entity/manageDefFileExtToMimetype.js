@@ -4,7 +4,7 @@
 * @package     Heurist academic knowledge management system
 * @link        https://HeuristNetwork.org
 * @copyright   (C) 2005-2023 University of Sydney
-* @author      Artem Osmakov   <artem.osmakov@sydney.edu.au>
+* @author      Artem Osmakov   <osmakov@gmail.com>
 * @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
 * @version     4.0
 */
@@ -44,7 +44,7 @@ $.widget( "heurist.manageDefFileExtToMimetype", $.heurist.manageEntity, {
         }
         
         this.options.use_cache = true;
-        //this.options.view_mode = 'list';
+       
         
         /*if(this.options.edit_mode=='popup'){ //only inline allowed
             this.options.edit_mode='inline'
@@ -67,7 +67,7 @@ $.widget( "heurist.manageDefFileExtToMimetype", $.heurist.manageEntity, {
         this.recordList.resultList('option', 'show_toolbar', false);
         this.recordList.resultList('option', 'view_mode', 'list');
 
-        var that = this;
+        let that = this;
         window.hWin.HAPI4.EntityMgr.getEntityData(this.options.entity.entityName, false,
             function(response){
                 that.updateRecordList(null, {recordset:response});
@@ -93,11 +93,11 @@ $.widget( "heurist.manageDefFileExtToMimetype", $.heurist.manageEntity, {
             return window.hWin.HEURIST4.util.htmlEscape(recordset.fld(record, fldname));
         }
         
-        var recID   = fld('fxm_Extension');
-        var recTitle = '<span style="display:inline-block;width:4em">'+fld('fxm_Extension') + '</span>  ' 
-                        + fld('fxm_FiletypeName'); //fld2('fxm_MimeType');
+        let recID   = fld('fxm_Extension');
+        let recTitle = '<span style="display:inline-block;width:4em">'+fld('fxm_Extension') + '</span>  ' 
+                        + fld('fxm_FiletypeName');
         
-        var html = '<div class="recordDiv" id="rd'+recID+'" recid="'+recID+'">'; // style="height:1.3em"
+        let html = '<div class="recordDiv" id="rd'+recID+'" recid="'+recID+'">'; // style="height:1.3em"
         if(this.options.select_mode=='select_multi'){
             html = html + '<div class="recordSelector"><input type="checkbox" /></div><div class="recordTitle">';
         }else{
@@ -147,13 +147,13 @@ $.widget( "heurist.manageDefFileExtToMimetype", $.heurist.manageEntity, {
     
     _getEditDialogButtons: function(){
                                     
-            var that = this;        
+            let that = this;        
             
-            var btns = [       /*{text:window.hWin.HR('Reload'), id:'btnRecReload',icons:{primary:'ui-icon-refresh'},
+            let btns = [       /*{text:window.hWin.HR('Reload'), class:'btnRecReload',icon:'ui-icon-refresh',
                 click: function() { that._initEditForm_step3(that._currentEditID) }},  //reload edit form*/
                       
-                {showText:true, icons:{primary:'ui-icon-plus'},text:window.hWin.HR('Add New File Type'),
-                      css:{'margin-right':'0.5em','float':'left'}, id:'btnAddButton',
+                {showLabel:true, icon:'ui-icon-plus',text:window.hWin.HR('Add New File Type'),
+                      css:{'margin-right':'0.5em','float':'left'}, class:'btnAddButton',
                       click: function() { that._onActionListener(null, 'add'); }},
                       
                       
@@ -162,10 +162,10 @@ $.widget( "heurist.manageDefFileExtToMimetype", $.heurist.manageEntity, {
                       click: function() { 
                           that.closeDialog(); 
                       }},
-                {text:window.hWin.HR('Drop Changes'), id:'btnRecCancel', 
+                {text:window.hWin.HR('Drop Changes'), class:'btnRecCancel', 
                       css:{'margin-left':'0.5em','float':'right'},
                       click: function() { that._initEditForm_step3(that._currentEditID) }},  //reload edit form
-                {text:window.hWin.HR('Save'), id:'btnRecSave',
+                {text:window.hWin.HR('Save'), class:'btnRecSave',
                       accesskey:"S",
                       css:{'font-weight':'bold','float':'right'},
                       click: function() { that._saveEditAndClose( null, 'none' ); }},

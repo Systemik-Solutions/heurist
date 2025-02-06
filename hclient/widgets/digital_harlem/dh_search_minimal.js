@@ -59,7 +59,7 @@ function hSearchMinimalDigitalHarlem() {
                 }
 
                 var primary_rt = request.primary_rt;
-                var original_recordset = new hRecordSet(response.data);
+                var original_recordset = new HRecordSet(response.data);
                 var final_recordset = _prepareResultSet( original_recordset, primary_rt );
 
                 callback( final_recordset, original_recordset );
@@ -160,7 +160,7 @@ function hSearchMinimalDigitalHarlem() {
                     return;
                 }
 
-                var recordset = new hRecordSet(response.data);
+                var recordset = new HRecordSet(response.data);
 
                 var app = window.hWin.HAPI4.LayoutMgr.appGetWidgetByName('dh_search');  //window.hWin.HAPI4.LayoutMgr.appGetWidgetById('heurist_Map');
                 if(app && app.widget){
@@ -753,7 +753,7 @@ function hSearchMinimalDigitalHarlem() {
 
 
 
-        return new hRecordSet({
+        return new HRecordSet({
             count: res_orders.length,
             offset:0,
             fields: recordset.getFields(),

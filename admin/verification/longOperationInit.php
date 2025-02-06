@@ -1,17 +1,18 @@
 <?php
 
 /**
-* longOperationInit.php: 
-* 
-* iframe (wait) wrapper for listUploadedFilesErrors and listDatabaseErrors and rebuild titles
+* longOperationInit.php:
+*
+* iframe (wait) wrapper for listUploadedFilesErrors,rebuildRecordTitles,
+* rebuildCalculatedFields and checkRecURL
 *
 * @package     Heurist academic knowledge management system
 * @link        https://HeuristNetwork.org
 * @copyright   (C) 2005-2023 University of Sydney
 * @author      Tom Murtagh
 * @author      Kim Jackson
-* @author      Artem Osmakov   <artem.osmakov@sydney.edu.au>
-* @author      Ian Johnson     <ian.johnson@sydney.edu.au>
+* @author      Artem Osmakov   <osmakov@gmail.com>
+* @author      Ian Johnson     <ian.johnson.heurist@gmail.com>
 * @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
 * @version     3.1.0
 */
@@ -27,56 +28,67 @@ set_time_limit(0);
 
 $recTypeIDs = (@$_REQUEST['recTypeIDs']!=null)?htmlspecialchars($_REQUEST['recTypeIDs']):null;
 $dbname = htmlspecialchars($_REQUEST['db']);
-            
- if(@$_REQUEST['type']=='titles'){
+
+if(@$_REQUEST['type']=='titles'){
     if($recTypeIDs){
-        $srcURL = 'rebuildRecordTitles.php?recTypeIDs='.$recTypeIDs.'&db='.$dbname;    
+        $srcURL = 'rebuildRecordTitles.php?recTypeIDs='.$recTypeIDs.'&db='.$dbname;
     }else{
-        $srcURL = 'rebuildRecordTitles.php?db='.$dbname;    
+        $srcURL = 'rebuildRecordTitles.php?db='.$dbname;
     }
     $sTitle = 'Recalculation of composite record titles';
- 
- }else
- if(@$_REQUEST['type']=='calcfields'){
+
+}elseif(@$_REQUEST['type']=='calcfields'){
     if($recTypeIDs){
-        $srcURL = 'rebuildCalculatedFields.php?recTypeIDs='.$recTypeIDs.'&db='.$dbname;    
+        $srcURL = 'rebuildCalculatedFields.php?recTypeIDs='.$recTypeIDs.'&db='.$dbname;
     }else{
-        $srcURL = 'rebuildCalculatedFields.php?db='.$dbname;    
+        $srcURL = 'rebuildCalculatedFields.php?db='.$dbname;
     }
     $sTitle = 'Recalculation of calculated fields';
- 
- }else
- if(@$_REQUEST['type']=='files'){
+
+}elseif(@$_REQUEST['type']=='files'){
     $srcURL = 'listUploadedFilesErrors.php?db='.$dbname;
     $sTitle = 'Verifying files';
- }else{
-    $srcURL = 'listDatabaseErrors.php?db='.$dbname;
-    $sTitle = 'Verifying database';
- }
+}elseif(@$_REQUEST['type']=='urls'){
+    $srcURL = 'checkRecURL.php?db='.$dbname;
+    $sTitle = 'Check Records URL';
+}elseif(@$_REQUEST['type']=='entrymask'){
+
+    $srcURL = "rebuildEntryMasks.php?&db={$dbname}" . ($recTypeIDs ? "&recTypeIDs={$recTypeIDs}" : '');
+    $sTitle = 'Re-apply Entry Masks';
+
+}else{
+    exit;
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
     <head>
         <title><?php echo $sTitle; ?></title>
         <meta http-equiv="content-type" content="text/html; charset=utf-8">
-        <script type="text/javascript" src="../../external/jquery-ui-1.12.1/jquery-1.12.4.js"></script>
+        <meta name="robots" content="noindex,nofollow">
         <link rel="stylesheet" type="text/css" href="../../h4styles.css">
-        
+
         <script type="text/javascript">
-        
-        $(document).ready(function() {   
-        
-            setTimeout(function(){
-                var $dosframe = $('#verification_output');
-                $dosframe.on('load', function(){
-                    $dosframe.css({width:'97%',height:'97%'}).show(); 
-                    $('#in_porgress').hide()
-                });
-                
-                $dosframe.attr("src", "<?php echo $srcURL; ?>");
-             },500);
-        });
-        
+
+            document.addEventListener('DOMContentLoaded', function() {
+                setTimeout(function() {
+                    var dosframe = document.getElementById('verification_output');
+
+                    dosframe.addEventListener('load', function() {
+                        dosframe.style.width = '97%';
+                        dosframe.style.height = '97%';
+                        dosframe.style.display = 'block';
+
+                        var inProgress = document.getElementById('in_porgress');
+                        if (inProgress) {
+                            inProgress.style.display = 'none';
+                        }
+                    });
+
+                    dosframe.src = "<?php echo $srcURL; ?>";
+                }, 500);
+            });
+
         </script>
         <style>
         div#in_porgress{
@@ -89,10 +101,10 @@ $dbname = htmlspecialchars($_REQUEST['db']);
             height:100%;
             min-height:250px;
         }
-        </style>            
+        </style>
     </head>
     <body class="popup" style="overflow:hidden">
-        <div id='in_porgress'><h2><?php echo $sTitle; ?>. This may take up to a few minutes for large databases...</h2></div>    
+        <div id='in_porgress'><h2><?php echo $sTitle; ?>. This may take up to a few minutes for large databases...</h2></div>
         <iframe  title="Verification Output" id="verification_output" style="display:none;border:none;width:1;height:1;position:absolute;">
         </iframe>
     </body>

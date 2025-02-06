@@ -21,6 +21,7 @@
 */
 
 require_once dirname(__FILE__).'/../../../hserv/System.php';
+use hserv\System;
 require_once dirname(__FILE__).'/../../../hserv/records/search/recordSearch.php';
 
 $statistics = "";
@@ -102,8 +103,8 @@ if(@$_REQUEST['db'] && $system->init(@$_REQUEST['db'])){
                     //@todo all this stuff should be implemented on client side since header is not static content anymore  
 
                     // Put record types & counts in the table
-                    if($system->is_inited()){
-                        $res = $system->get_mysqli()->query($query);
+                    if($system->isInited()){
+                        $res = $system->getMysqli()->query($query);
                         $stats = array();
                         
                         while($row = $res->fetch_assoc()) { // each loop is a complete table row
@@ -111,7 +112,7 @@ if(@$_REQUEST['db'] && $system->init(@$_REQUEST['db'])){
 
                             if($appcode>0){
                                 //detect app
-                                $list = mysql__select_list($system->get_mysqli(), 'recDetails', 'dtl_Value', 
+                                $list = mysql__select_list($system->getMysqli(), 'recDetails', 'dtl_Value', 
                                     'dtl_recID='.intval($row["id"]).' and dtl_DetailTypeID=154'); //dev:145  prod:154
                                 $classes = '';    
                                 $isNotFound = true;

@@ -1,11 +1,11 @@
 <?php
 /**
 * Access tokens for basemaps. They are defined as global vars in heuristConfigIni.php
-* 
+*
 * @package     Heurist academic knowledge management system
 * @link        https://HeuristNetwork.org
 * @copyright   (C) 2005-2023 University of Sydney
-* @author      Artem Osmakov   <artem.osmakov@sydney.edu.au>
+* @author      Artem Osmakov   <osmakov@gmail.com>
 * @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
 * @version     4.0
 */
@@ -27,11 +27,10 @@ $accessToken_GoogleAPI = '';
 $accessToken_GeonamesAPI = '';
 
 if (is_file($parentIni)){
-    include_once($parentIni);
+    include_once $parentIni;
 }
 
 echo 'var accessToken_MapBox="'.$accessToken_MapBox.'",';
 echo 'accessToken_MapTiles="'.$accessToken_MapTiles.'",';
-echo 'accessToken_GoogleAPI="'.$accessToken_GoogleAPI.'",';
-echo 'accessToken_GeonamesAPI="'.$accessToken_GeonamesAPI.'";';
+echo 'accessToken_GoogleAPI="'.$accessToken_GoogleAPI.'";';
 ?>

@@ -4,7 +4,7 @@
 * @package     Heurist academic knowledge management system
 * @link        https://HeuristNetwork.org
 * @copyright   (C) 2005-2023 University of Sydney
-* @author      Artem Osmakov   <artem.osmakov@sydney.edu.au>
+* @author      Artem Osmakov   <osmakov@gmail.com>
 * @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
 * @version     4.0
 */
@@ -22,9 +22,9 @@ $.widget( "heurist.searchDefRecTypes", $.heurist.searchEntity, {
     //
     _initControls: function() {
         
-        var that = this;
+        let that = this;
         
-        //this.widgetEventPrefix = 'searchDefRecTypes';
+       
         
         this._super();
         
@@ -32,20 +32,20 @@ $.widget( "heurist.searchDefRecTypes", $.heurist.searchEntity, {
         window.hWin.HRA(this.element);
 
         //hide all help divs except current mode
-        var smode = this.options.select_mode; 
+        let smode = this.options.select_mode; 
         this.element.find('.heurist-helper1').find('span').hide();
         this.element.find('.heurist-helper1').find('span.'+smode+',span.common_help').show();
         
-        this.btn_add_record = this.element.find('#btn_add_record');
+        this.btn_add_record = this.element.find('.btn_AddRecord');
         this.btn_find_record = this.element.find('#btn_find_record');
         this.btn_csv_import = this.element.find('#btn_csv_import');
 
         if(this.options.edit_mode=='none' || this.options.import_structure){
             this.btn_add_record.parent().hide();
-            //this.btn_find_record.hide();
-            //this.element.find('#inner_title').hide();
+           
+           
             
-            var ele = this.element.find('#div_show_all_groups');
+            let ele = this.element.find('#div_show_all_groups');
             ele.parent().css('float','left');
             ele.hide();
         }else{
@@ -108,7 +108,7 @@ $.widget( "heurist.searchDefRecTypes", $.heurist.searchEntity, {
             /*
             function(){
                 this.input_search_group.val(this.element.find('#chb_show_all_groups').is(':checked')
-                                            ?'any':this.options.rtg_ID).change();
+                                            ?'any':this.options.rtg_ID).trigger('change');
             }});*/
                         
         }
@@ -120,8 +120,7 @@ $.widget( "heurist.searchDefRecTypes", $.heurist.searchEntity, {
         if( this.options.simpleSearch){
             
             this.element.find('#input_sort_type_div').hide();
-        }else{
-            if(smode=='select_multi' || smode=='select_single'){
+        }else if(smode=='select_multi' || smode=='select_single'){
                 
                 this.element.find('#btn_ui_config').hide();
                 this.element.find('#div_show_all_groups').hide();
@@ -144,9 +143,8 @@ $.widget( "heurist.searchDefRecTypes", $.heurist.searchEntity, {
                 window.hWin.HEURIST4.ui.createRectypeGroupSelect(this.input_search_group[0], 
                             [{key:'any',title:'all groups'}]);
                 this._on(this.input_search_group,  { change:this.startSearch });
-        
                 
-            }else{
+        }else{
                 
                 this.btn_ui_config = this.element.find('#btn_ui_config')
                         //.css({'width':'6em'})
@@ -156,13 +154,10 @@ $.widget( "heurist.searchDefRecTypes", $.heurist.searchEntity, {
                     this._on( this.btn_ui_config, {
                             click: this.configureUI });
                 }
-            
-                
-            }
 
         }
        
-        if($.isFunction(this.options.onInitCompleted)){
+        if(window.hWin.HEURIST4.util.isFunction(this.options.onInitCompleted)){
             this.options.onInitCompleted.call();
         }else{
             this.startSearch();              
@@ -177,7 +172,6 @@ $.widget( "heurist.searchDefRecTypes", $.heurist.searchEntity, {
         if(key == 'rtg_ID'){
             if(!this.element.find('#chb_show_all_groups').is(':checked'))
                 this.startSearch();
-                //this.element.find('#input_search_group').val(value).change();
                 
                 if(value==$Db.getTrashGroupId('rtg')){
                     this.btn_add_record.hide();
@@ -193,12 +187,12 @@ $.widget( "heurist.searchDefRecTypes", $.heurist.searchEntity, {
     //    
     configureUI: function(){
         
-        var that = this;
+        let that = this;
 
-        var popele = that.element.find('#div_ui_config');
+        let popele = that.element.find('#div_ui_config');
         
-        var flist = popele.find( ".toggles" );
-        var opts = this.options.ui_params['fields'];
+        let flist = popele.find( ".toggles" );
+        let opts = this.options.ui_params['fields'];
         
         flist.controlgroup( {
             direction: "vertical"
@@ -216,41 +210,41 @@ $.widget( "heurist.searchDefRecTypes", $.heurist.searchEntity, {
         popele.find('input[name="edit"]').prop('checked', 'checked');
         
         //sort
-        var cnt = flist.children().length;
-        var items = flist.children().sort(
+        let cnt = flist.children().length;
+        let items = flist.children().sort(
             function(a, b) {
-                    var vA = opts.indexOf($(a).attr('for'));
-                    var vB = opts.indexOf($(b).attr('for'));
+                    let vA = opts.indexOf($(a).attr('for'));
+                    let vB = opts.indexOf($(b).attr('for'));
                     if(!(vA>=0)) vA = cnt;
                     if(!(vB>=0)) vB = cnt;
                     return (vA < vB) ? -1 : (vA > vB) ? 1 : 0;
             });
-        var cop = flist.children();
+        
         flist.append(items);    
         
         flist.controlgroup('refresh');
         
-        var $dlg_pce = null;
+        let $dlg_pce = null;
 
-        var btns = [
+        let btns = [
             {text:window.hWin.HR('Apply'),
                 click: function() { 
                     
-                    var fields = [];
+                    let fields = [];
                     /*popele.find('input[type="checkbox"]:checked').each(function(idx,item){
                         fields.push($(item).attr('name'));
                     });*/
                     flist.find('input[name="name"]').prop('checked', 'checked');
                     flist.find('input[name="edit"]').prop('checked', 'checked');
                     flist.children().each(function(idx,item){
-                        var item = $(item).find('input');
+                        item = $(item).find('input');
                         if(item.is(':checked')){
                             fields.push(item.attr('name'));    
                         }                        
                     });
                     
                     //get new parameters
-                    var params = { 
+                    let params = { 
                         fields: fields
                     };
                     
@@ -287,22 +281,20 @@ $.widget( "heurist.searchDefRecTypes", $.heurist.searchEntity, {
     //
     startSearch: function(){
         
-            this._super();
-            
             if(!this.input_search) return;
             
-            var request = {}
+            let request = {}
             
-            var is_search_one_group = (!this.element.find('#chb_show_all_groups').is(':checked') && this.options.rtg_ID>0)
+            let is_search_one_group = (!this.element.find('#chb_show_all_groups').is(':checked') && this.options.rtg_ID>0)
         
             if(!is_search_one_group && this.input_search.val()!=''){
-                var s = this.input_search.val();
+                let s = this.input_search.val();
                 if(window.hWin.HEURIST4.util.isNumber(s) && parseInt(s)>0){
                      request['rty_ID'] = s;   
                      s = '';
                 }else if (s.indexOf('-')>0){
                     
-                    var codes = s.split('-');
+                    let codes = s.split('-');
                     if(codes.length==2 
                         && window.hWin.HEURIST4.util.isNumber(codes[0])
                         && window.hWin.HEURIST4.util.isNumber(codes[1])
@@ -337,7 +329,7 @@ $.widget( "heurist.searchDefRecTypes", $.heurist.searchEntity, {
                     request['not:rty_RecTypeGroupID'] = Math.abs(this.options.rtg_ID);
                 }
             
-                var sGroupTitle = '<h4 style="margin:0;padding-bottom:5px;">';
+                let sGroupTitle = '<h4 style="margin:0;padding-bottom:5px;">';
                 if(is_search_one_group)
                 {
                     this.input_search.parent().hide();
@@ -370,28 +362,8 @@ $.widget( "heurist.searchDefRecTypes", $.heurist.searchEntity, {
             
                 this._trigger( "onfilter", null, request);            
             }else{
-                this._trigger( "onstart" );
-        
-                request['a']          = 'search'; //action
-                request['entity']     = this.options.entity.entityName;
-                request['details']    = 'id'; //'id';
-                request['request_id'] = window.hWin.HEURIST4.util.random();
-                
-                //we may search users in any database
-                request['db']     = this.options.database;
-
-                var that = this;                                                
-           
-                window.hWin.HAPI4.EntityMgr.doRequest(request, 
-                    function(response){
-                        if(response.status == window.hWin.ResponseStatus.OK){
-                            that._trigger( "onresult", null, 
-                                {recordset:new hRecordSet(response.data), request:request} );
-                        }else{
-                            window.hWin.HEURIST4.msg.showMsgErr(response);
-                        }
-                    });
-                    
+                this._search_request = request;
+                this._super();                
             }            
     }
 });

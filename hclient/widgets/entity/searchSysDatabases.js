@@ -4,7 +4,7 @@
 * @package     Heurist academic knowledge management system
 * @link        https://HeuristNetwork.org
 * @copyright   (C) 2005-2023 University of Sydney
-* @author      Artem Osmakov   <artem.osmakov@sydney.edu.au>
+* @author      Artem Osmakov   <osmakov@gmail.com>
 * @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
 * @version     4.0
 */
@@ -19,6 +19,8 @@
 
 $.widget( "heurist.searchSysDatabases", $.heurist.searchEntity, {
 
+    input_email: null,
+
     //
     _initControls: function() {
         this._super();
@@ -32,13 +34,26 @@ $.widget( "heurist.searchSysDatabases", $.heurist.searchEntity, {
         this.input_sort_type.parent().hide();
         this._on(this.input_sort_type,  { change:this.startSearch });
 
-        this._on(this.input_search,  { keyup:this.startSearch });
+        this._on(this.input_search,  { keydown: window.hWin.HEURIST4.ui.preventNonAlphaNumeric, keyup:this.startSearch });
         
-        this.input_search.focus();         
-        
+        this.input_search.trigger('focus');         
+
+        // Setup email filtering
+        this.element.find('#input_import_only').show();
+        this.input_email = this.element.find('.input_search_email');
+        this._on(this.input_email, {
+            keydown: (e) => {
+                if(e.key == "Enter"){
+                    this.startSearch();
+                }
+            }
+        });
+        this._on(this.element.find('#btn_filter_email').button(), {
+            click: this.startSearch
+        });
         
         if(this.options.subtitle){
-            var ele = this.element.find('.sub-title');
+            let ele = this.element.find('.sub-title');
             if(ele.length>0){
                 ele.html('<h3 style="margin:1em 0 0 0">'+this.options.subtitle+'</h3>');
             }
@@ -49,28 +64,29 @@ $.widget( "heurist.searchSysDatabases", $.heurist.searchEntity, {
     // public methods
     //
     startSearch: function(){
-            this._super();
-            
-            var request = {};
-            
-            if(this.input_search.val()!=''){
-                request['sys_Database'] = this.input_search.val();
-            }
-            
-            if(this.input_search_type.val()!='' && this.input_search_type.val()!='any'){
-                request['sus_Role'] = this.input_search_type.val();
-            }
-            
-            
-            if(this.input_sort_type.val()=='name'){
-                request['sort:sys_Database'] = 1;
-            }else if(this.input_sort_type.val()=='register'){
-                request['sort:sys_dbRegisteredID'] = -1;
-            }else  if(this.input_sort_type.val()=='member'){
-                request['sort:sus_Count'] = -1;
-            }
-            
-            this._trigger( "onfilter", null, request);
+        
+        let request = {};
+        
+        if(this.input_search.val() != ''){
+            request['sys_Database'] = this.input_search.val();
+        }
+        if(this.input_email.val() != ''){
+            request['ugr_eMail'] = this.input_email.val();
+        }
+
+        if(this.input_search_type.val()!='' && this.input_search_type.val()!='any'){
+            request['sus_Role'] = this.input_search_type.val();
+        }
+        
+        if(this.input_sort_type.val()=='name'){
+            request['sort:sys_Database'] = 1;
+        }else if(this.input_sort_type.val()=='register'){
+            request['sort:sys_dbRegisteredID'] = -1;
+        }else  if(this.input_sort_type.val()=='member'){
+            request['sort:sus_Count'] = -1;
+        }
+        
+        this._trigger( "onfilter", null, request);
     }
 
 

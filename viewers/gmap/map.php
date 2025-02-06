@@ -6,7 +6,7 @@
 * @package     Heurist academic knowledge management system
 * @link        https://HeuristNetwork.org
 * @copyright   (C) 2005-2023 University of Sydney
-* @author      Artem Osmakov   <artem.osmakov@sydney.edu.au>
+* @author      Artem Osmakov   <osmakov@gmail.com>
 * @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
 * @version     4.0
 */
@@ -17,20 +17,22 @@
 * Unless required by applicable law or agreed to in writing, software distributed under the License is
 * distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied
 * See the License for the specific language governing permissions and limitations under the License.
-*/  
+*/
 
 //&callback=initMap" async defer  for gmap
 //<script type="text/javascript" src="https://maps.googleapis.com/maps/api/js?libraries=drawing"></script>
 //
-define('PDIR','../../');  //need for proper path to js and css    
+define('PDIR','../../');//need for proper path to js and css
 require_once dirname(__FILE__).'/../../hclient/framecontent/initPage.php';
 
 $system->defineConstants();
 ?>
-<script type="text/javascript" src="<?php echo PDIR;?>external/jquery.layout/jquery.layout-latest.js"></script>
+<script type="text/javascript" src="<?php echo PDIR;?>external/jquery.widgets/jquery.layout.js"></script>
+<script type="text/javascript" src="<?php echo PDIR;?>external/jquery.widgets/evol.colorpicker.js" charset="utf-8"></script>
+<link type="text/css" href="<?php echo PDIR;?>external/jquery.widgets/evol.colorpicker.css" rel="stylesheet"/>
 
 <!--
-<script src="https://developers.google.com/maps/documentation/javascript/examples/markerclusterer/markerclusterer.js"></script> 
+<script src="https://developers.google.com/maps/documentation/javascript/examples/markerclusterer/markerclusterer.js"></script>
 
 <script>
   (g=>{var h,a,k,p="The Google Maps JavaScript API",c="google",l="importLibrary",q="__ib__",m=document,b=window;b=b[c]||(b[c]={});var d=b.maps||(b.maps={}),r=new Set,e=new URLSearchParams,u=()=>h||(h=new Promise(async(f,n)=>{await (a=m.createElement("script"));e.set("libraries",[...r]+"");for(k in g)e.set(k.replace(/[A-Z]/g,t=>"_"+t[0].toLowerCase()),g[k]);e.set("callback",c+".maps."+q);a.src=`https://maps.${c}apis.com/maps/api/js?`+e;d[q]=f;a.onerror=()=>h=n(Error(p+" could not load."));a.nonce=m.querySelector("script[nonce]")?.nonce||"";m.head.append(a)}));d[l]?console.warn(p+" only loads once. Ignoring:",g):d[l]=(f,...n)=>r.add(f)&&u().then(()=>d[l](f,...n))})({
@@ -43,8 +45,6 @@ $system->defineConstants();
 -->
 
 <!-- Timemap -->
-<!-- <script type="text/javascript">Timeline_urlPrefix = RelBrowser.baseURL+"js/timemap.js/2.0.1/lib/";</script -->
-  
 <script type="text/javascript" src="<?php echo PDIR;?>external/timemap.js/2.0.1/lib/mxn/mxn.js?(googlev3)"></script>
 
 <script type="text/javascript" src="<?php echo PDIR;?>external/timemap.js/2.0.1/markerclusterer.js"></script>
@@ -77,9 +77,6 @@ $system->defineConstants();
 <script type="text/javascript" src="<?php echo PDIR;?>external/js/shapefile/shapefile.js"></script>
 <script type="text/javascript" src="<?php echo PDIR;?>external/js/shapefile/dbf.js"></script>
 
-<script type="text/javascript" src="<?php echo PDIR;?>external/js/evol.colorpicker.js" charset="utf-8"></script>
-<link href="<?php echo PDIR;?>external/js/evol.colorpicker.css" rel="stylesheet" type="text/css">
-
 <!-- Mapping -->
 <script type="text/javascript" src="<?php echo PDIR;?>viewers/gmap/map.js"></script>
 <script type="text/javascript" src="<?php echo PDIR;?>viewers/gmap/mapOverlay.js"></script>
@@ -90,7 +87,7 @@ $system->defineConstants();
     .ui-map-document { background-image: url('<?php echo PDIR;?>hclient/assets/mapdocument.png') !important;}
     .ui-map-layer { background-image: url('<?php echo PDIR;?>hclient/assets/maplayer.png') !important;}
 
-    /*   
+    /*
     .vis-item-overflow{
     position:absolute;
     }
@@ -132,17 +129,17 @@ $system->defineConstants();
 
 <script type="text/javascript">
 
-    var mapping, menu_datasets, btn_datasets, 
+    var mapping, menu_datasets, btn_datasets,
         is_googlemap_loaded = false, is_page_loaded = false;
-    
+
     function initMap(){
         is_googlemap_loaded = true;
         if(is_page_loaded) onPageInit(true);
     }
-    
+
     // Callback function on page initialization - see initPage.php
     function onPageInit(success){
-        
+
         is_page_loaded = success;
         if(!success || !is_googlemap_loaded) return;
         
@@ -154,14 +151,14 @@ $system->defineConstants();
 
         // Layout options
         var layout_opts =  {
-            applyDefaultStyles: true,
+                    applyDemoStyles: false,
             togglerContent_open:    '<div class="ui-icon"></div>',
             togglerContent_closed:  '<div class="ui-icon"></div>',
             onresize_end: function(){
-                //global 
+                //global
                 if(mapping) mapping.onWinResize();
             }
-            
+
         };
 
         // Setting layout
@@ -189,7 +186,7 @@ $system->defineConstants();
             layout_opts.center__minHeight = 0;
             layout_opts.south__spacing_open = 0;
         }
-        if(window.hWin.HEURIST4.util.getUrlParameter('noheader', location.search) || 
+        if(window.hWin.HEURIST4.util.getUrlParameter('noheader', location.search) ||
            window.hWin.HEURIST4.util.getUrlParameter('header', location.search)=='off'){
             layout_opts.north__size = 0;
         }
@@ -198,7 +195,7 @@ $system->defineConstants();
         }
 
         var mylayout = $('#mapping').layout(layout_opts);
-        
+
         $('#map').css('padding',0);
         $('#map').attr('data-mapid', 'cb51443861458fd0'); //google mapid for digital harlem
         
@@ -215,44 +212,41 @@ $system->defineConstants();
                 mapdocument = null;
             }
         }
-        
-        
+
+
         var noinit = window.hWin.HEURIST4.util.getUrlParameter('noinit', location.search);
         //init performed in app_timemap
-        if(noinit!='1'){ 
-            //this case only for initialization of mapping when it is loaded independently 
+        if(noinit!='1'){
+            //this case only for initialization of mapping when it is loaded independently
             //otherwise initialization is performed in app_timemap.js
 
             var q = window.hWin.HEURIST4.util.getUrlParameter('q', location.search);
-            
+
             //t:26 f:85:3313  f:1:building
             // Perform database query if possible (for standalone mode - when map.php is separate page)
             if( !window.hWin.HEURIST4.util.isempty(q) )
             {
                 var rules = window.hWin.HEURIST4.util.getUrlParameter('rules', location.search);
-                
+
                 if(!window.hWin.HEURIST4.util.isempty(rules)){
                     try{
                         rules = JSON.parse(rules);
                     }catch(ex){
-                        rules = null;    
+                        rules = null;
                     }
                 }else{
                     rules = null;
                 }
-                
+
                 window.hWin.HAPI4.RecordMgr.search({q: q, rules:rules, w: "a", detail:(rules?'detail':'timemap'), l:3000},
                     function(response){
                         if(response.status == window.hWin.ResponseStatus.OK){
 
                             // Show info on map    @todo reimplement as map init callback IMPORTANT!!!!
-                            var recset = new hRecordSet(response.data);
-                           
-                            //var mapdataset = recset.toTimemap();
-                            //mapping.load([mapdataset]);
-                            
+                            var recset = new HRecordSet(response.data);
+
                             mapping.load( null, //mapdataset,
-                                null,  //array of record ids                                               
+                                null,  //array of record ids
                                 mapdocument,    //map document on load
                                 function(selected){  //callback if something selected on map
                                 },
@@ -260,8 +254,8 @@ $system->defineConstants();
                                     var params = {id:'main', recordset:recset, title:'Current results' };
                                     mapping.map_control.addRecordsetLayer(params);
                                 }
-                            );                        
-                                        
+                            );
+
 
                         }else{
                             window.hWin.HEURIST4.msg.showMsgErr(response);
@@ -269,14 +263,14 @@ $system->defineConstants();
                     }
                 );
             } else {
-    
+
                 if(mapdocument>0){
                     mapping.load(null, null, mapdocument);//load with map document
                 }else{
-                    mapping.load();//load empty map    
+                    mapping.load();//load empty map
                 }
             }
-        
+
         }//noinit!='1'
 
         //init popup for timeline  ART14072015
@@ -287,31 +281,31 @@ $system->defineConstants();
             items: ".vis-item,.vis-item-overflow"
         });
 
-        $( window ).resize(function() {
+        $( window ).on('onresize',function() {
             var w = $(this).width();
             if (w < 400) {
                 $("#mapSelectorBtn").button({showLabel:false}).width(20);
             }else{
                 $("#mapSelectorBtn").button({showLabel:true}).width(w-360);
             }
-            
+
             mapping.onWinResize();
         });
 
-        $( "#timeline" ).mousedown(function(){
+        $( "#timeline" ).on('mousedown', function(){
             $( document ).bubble("closeAll");
         });
 
         //init buttons
         $("#mapToolbarDiv").css('background','none');
 
-        $("#btnExportKML").button().click(exportKML);
+        $("#btnExportKML").button().on('click',exportKML);
 
         $("#btnPrint").button({showLabel:false, icon: "ui-icon-print"})
-        .click(mapping.printMap);
+        .on('click',mapping.printMap);
 
         $("#btnEmbed").button({showLabel:false, icon: "ui-icon-globe-b"})
-        .click(showEmbedDialog);
+        .on('click',showEmbedDialog);
 
         $('#btn_help').button({icon: "ui-icon-help", showLabel:false}).on('click', 3, function(){
             var $helper = $("#helper");
@@ -321,7 +315,7 @@ $system->defineConstants();
                 $helper.dialog( "open" );
             }
         });
-        $( "#helper" ).load(window.hWin.HAPI4.baseURL+'context_help/mapping_overview.html #content');
+        $( "#helper" ).load(window.hWin.HRes('mapping_overview. #content'));
         //$( "#helper" ).find('p').css('padding','10px');
         $( "#helper" ).dialog({
             autoOpen: false, //(window.hWin.HAPI4.get_prefs('help_on')=='1'),
@@ -370,6 +364,7 @@ $system->defineConstants();
                             case "RT_TLCMAP_DATASET":
                                 $msg = "Heurist Map Layer";
                                 break;
+                            default;
                         }
 
                         return "(".$msg.", Concept ".$rtDefines[$rt][0]."-".$rtDefines[$rt][1].")";
@@ -380,22 +375,24 @@ $system->defineConstants();
             }
 
 
+            $pref_li = '<li rtid="';
+
             $items = '';
-            $items = $items.'<li rtid="'.checkRt('RT_KML_SOURCE').'"><a href="#">KML</a></li>';
-            $items = $items.'<li rtid="'.checkRt('RT_SHP_SOURCE').'"><a href="#">SHP</a></li>';
-            $items = $items.'<li rtid="'.checkRt('RT_GEOTIFF_SOURCE').'"><a href="#">GeoTiff</a></li>';
-            $items = $items.'<li rtid="'.checkRt('RT_TILED_IMAGE_SOURCE').'"><a href="#">Tiled image</a></li>';
-            $items = $items.'<li rtid="'.checkRt('RT_QUERY_SOURCE').'"><a href="#">Query layer</a></li>';
+            $items = $items.$pref_li.checkRt('RT_KML_SOURCE').'"><a href="#">KML</a></li>';
+            $items = $items.$pref_li.checkRt('RT_SHP_SOURCE').'"><a href="#">SHP</a></li>';
+            $items = $items.$pref_li.checkRt('RT_GEOTIFF_SOURCE').'"><a href="#">GeoTiff</a></li>';
+            $items = $items.$pref_li.checkRt('RT_TILED_IMAGE_SOURCE').'"><a href="#">Tiled image</a></li>';
+            $items = $items.$pref_li.checkRt('RT_QUERY_SOURCE').'"><a href="#">Query layer</a></li>';
         ?>
             $("#btnMapRefresh").button({ showLabel:false, icon:"ui-icon-arrowrefresh-1-e" })
-            .click( refreshMapDocument );
+            .on('click', refreshMapDocument );
             $("#btnMapNew").button({ showLabel:false, icon: "ui-map-document" })
-            .click( function(){ addNewRecord('<?=checkRt('RT_MAP_DOCUMENT')?>');} )
+            .on('click', function(){ addNewRecord('<?=checkRt('RT_MAP_DOCUMENT')?>');} )
             .append('<span class="ui-icon ui-icon-plus" style="margin-left:0px;margin-top:-2px" />');
             $("#btnMapEdit").button({showLabel:false, icon: "ui-icon-pencil"})
-            .click( mapEdit );
+            .on('click', mapEdit );
             $("#btnMapLayer").button({showLabel:false, icon: "ui-map-layer"})
-            .click(function(){ addNewRecord('<?=checkRt('RT_MAP_LAYER')?>');})
+            .on('click', function(){ addNewRecord('<?=checkRt('RT_MAP_LAYER')?>');})
             .append('<span class="ui-icon ui-icon-plus" style="margin-left:0px;margin-top:-2px" />');
 
             menu_datasets = $('<ul><?=$items?></ul>')
@@ -409,38 +406,37 @@ $system->defineConstants();
             }})
             .hide();
 
-            
+
             function __drodown_mapDataSources(e) {
-                $('.menu-or-popup').hide(); //hide other
+                $('.menu-or-popup').hide();//hide other
                 var $menu_layers = $( menu_datasets )
                 .show()
                 .position({my: "right top", at: "right bottom", of: btn_datasets });
-                $( document ).one( "click", function() { $menu_layers.hide(); });
+                $( document ).one( "click", function() { $menu_layers.hide();});
                 return false;
             }
-            
+
             btn_datasets = $("#btnMapDataSourceArrow").button({showLabel:false, icon: 'ui-icon-triangle-1-s'})
                 .css({'padding':'0.4em', 'max-width':'12px'})
-                .click(__drodown_mapDataSources);
-            $("#btnMapDataSource").button({showLabel:false,icon: "ui-icon-bars"}).click(__drodown_mapDataSources);
+                .on('click',__drodown_mapDataSources);
+            $("#btnMapDataSource").button({showLabel:false,icon: "ui-icon-bars"}).on('click',__drodown_mapDataSources);
 
 
             $("#mapToolbar").controlgroup();
 
     }
-    
+
     function _adjustLegendHeight() {
-        
+
         setTimeout(function(){
             var legend = $('#map_legend');
             var ch = $("#map_legend .content").height()+30;
 
-            
+
             var nt = parseInt(legend.css('bottom'), 10);
             nt = 30; //bottom
-            //var mh = $('#map').height();
             var mh = $("#mapping").find('.ui-layout-center').height();
-            
+
             var is_collapsed = (legend.find('#collapse').text() == "+");
             if(is_collapsed){
                 ch = 14;
@@ -448,22 +444,22 @@ $system->defineConstants();
             } else {
                 legend.css('overflow-y','auto');
             }
-           
+
            /*
             if(is_collapsed===true){
-                $(legend).css('top', mh-nt-50);   
+                $(legend).css('top', mh-nt-50);
             }else{
-            
+
                 if(mh-nt-ch < 70){
                     $(legend).css('top', 50);
                 }else{
-                    $(legend).css('top', mh-nt-ch);        
+                    $(legend).css('top', mh-nt-ch);
                 }
             }
             */
-            
+
             legend.css('bottom', nt);
-            
+
             if(mh-nt-ch<50){
                 ch = mh-nt-50; //reduce height
             }
@@ -471,7 +467,7 @@ $system->defineConstants();
             legend.css('top',top).height(ch);
         },500);
     }
-    
+
 
     function showEmbedDialog(){
 
@@ -480,14 +476,14 @@ $system->defineConstants();
         if(mapping.map_control.getCurrentMapdocumentId()>0){
             query = query + '&mapdocument=' + mapping.map_control.getCurrentMapdocumentId();
         }
-        
+
         var url = window.hWin.HAPI4.baseURL+'viewers/gmap/map.php' + query;
 
         //document.getElementById("linkTimeline").href = url;
 
         document.getElementById("code-textbox3").value = url;
-        
-        
+
+
         document.getElementById("code-textbox").value = '<iframe src=\'' + url +
         '\' width="800" height="650" frameborder="0"></iframe>';
 
@@ -500,10 +496,10 @@ $system->defineConstants();
         if(mapping.map_control.getCurrentMapdocumentId()>0){
             url = url + '&mapdocument=' + mapping.map_control.getCurrentMapdocumentId();
         }
-        
+
         document.getElementById("code-textbox2").value = '<iframe src=\'' + url +
         '\' width="800" height="650" frameborder="0"></iframe>';
-        
+
         window.hWin.HEURIST4.msg.showElementAsDialog({
             element: document.getElementById('map-embed-dialog'),
             height: 420,
@@ -511,7 +507,7 @@ $system->defineConstants();
             title: window.hWin.HR('Publish Map')
         });
 
-        /*        
+        /*
         var $dlg = $("#embed-dialog");
         $dlg.dialog({
             autoOpen: true,
@@ -536,7 +532,7 @@ $system->defineConstants();
             var win = window.open(url_kml, "_new");
         }
     }
-    
+
     function refreshMapDocument(){
         var recID = $("#mapSelectorBtn").attr('mapdoc-selected');
         mapping.map_control.loadMapDocumentById(recID, true);
@@ -549,7 +545,7 @@ $system->defineConstants();
         }
     }
     function editRecord(recID, rt){
-            window.hWin.HEURIST4.ui.openRecordEdit(recID, null, 
+            window.hWin.HEURIST4.ui.openRecordEdit(recID, null,
                 {new_record_params:{rt:rt},
                  selectOnSave:true,
                  onselect:function(event, data){
@@ -594,7 +590,7 @@ $system->defineConstants();
         <div class="ui-layout-center">
                 <div id="map" style="width:100%; height:100%" class="ui-layout-content">Mapping</div>
                 <div id="map_empty_message" style="width:100%; height:100%;margin:7px;display: none;">There are no spatial objects to plot on map</div>
-            
+
         </div>
 
         <!-- Toolbar -->
@@ -605,10 +601,10 @@ $system->defineConstants();
             </span>
 
             <!-- Map document selector -->
-            
+
             <div id="mapSelector" class="map-inited" style="float:left;">
                 <label id="map-doc-select-lbl" style="padding: 4px;line-height: 2.2em;"><i>Map document:</i></label>
-                <button id="mapSelectorBtn" class="truncate" style="max-width:300px;text-align:left"></button> 
+                <button id="mapSelectorBtn" class="truncate" style="max-width:300px;text-align:left"></button>
             </div>
             <div id="mapToolbar" class="map-inited" style="float:left;display:none">
                 <button id="btnMapRefresh" xxxdisabled="disabled" title="Refresh/reload current Map Document">Refresh current map</button>
@@ -635,7 +631,7 @@ $system->defineConstants();
             </select>-->
 
             <!-- Legend overlay -->
-            <div id="map_legend" 
+            <div id="map_legend"
                 style="background-color: rgba(200, 200, 200, 0.7); color:black; padding:4 8;overflow-y:auto; display:none;">
                 <div id="map_extents"  style="font-size: 0.9em;display:inline-block;visibility:hidden;padding-bottom:1em;">Zoom to:&nbsp;
                         <select id="selMapBookmarks" style="font-size:1.0em;"></select>
@@ -665,7 +661,7 @@ $system->defineConstants();
         <textarea id="code-textbox2" onclick="select(); if (window.clipboardData) clipboardData.setData('Text', value);" style="border: 1px dotted gray; padding: 3px; margin: 2; font-family: times; width: 100%; height: 40px;" readonly=""></textarea>
         <label style="font-size:0.9em">URL:</label>
         <textarea id="code-textbox3" onclick="select(); if (window.clipboardData) clipboardData.setData('Text', value);" style="border: 1px dotted gray; padding: 3px; margin: 2; font-family: times; width: 100%; height: 40px;" readonly=""></textarea>
-        
+
         <p style="padding-top:1em">Note: records will only appear on the map if they include geographic objects. You may get an empty or sparsely populated map if the search results do not contain map data. Records must have public status - private records will not appear on the map, which could therefore be empty. </p>
         <p style="padding-top:1em"><button id="btnExportKML">Create KML for Google Earth</button></p>
     </div>
@@ -687,22 +683,22 @@ $system->defineConstants();
         </fieldset>
         <div class="messages"></div>
     </div>
-    
+
     <div id="timeline-edit-dialog"  style="display:none" class="ui-heurist-bg-light">
-        
+
             <div style="padding:5px">
                 <label><input type="radio" name="time-label" checked value="0">Full length labels</label><br>
                 <label><input type="radio" name="time-label" value="1">Truncate label to bar</label><br>
                 <label><input type="radio" name="time-label" value="2">Fixed label width</label><br>
                 <label><input type="radio" name="time-label" value="3">Hide labels</label>
             </div>
-            
+
             <div style="padding:5px">
                 <label><input type="radio" name="time-label-pos" checked value="0">Label within the bar</label><br>
                 <!-- <label><input type="radio" name="time-label-pos" value="1">Label to the right of the bar</label><br> -->
                 <label><input type="radio" name="time-label-pos" value="2">Label above the bar</label>
             </div>
-        
+
             <div style="padding:5px">
                 <label><input type="radio" name="time-label-stack" checked value="0">Bars stacked on the above the other</label><br>
                 <label><input type="radio" name="time-label-stack" value="1">Bars wrapped to minimise height of timeline</label>
@@ -711,7 +707,7 @@ $system->defineConstants();
             <div style="padding:5px">
                 <label><input type="checkbox" name="time-filter-map" value="1">Filter map with current timeline range</label>
             </div>
-        
+
     </div>
     <script src="https://maps.googleapis.com/maps/api/js?key=<?php echo $accessToken_GoogleAPI;?>&loading=async&libraries=drawing,geometry,marker&callback=initMap" async></script>
 </body>

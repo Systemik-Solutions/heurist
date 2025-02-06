@@ -8,8 +8,8 @@
 * @package     Heurist academic knowledge management system
 * @link        https://HeuristNetwork.org
 * @copyright   (C) 2005-2023 University of Sydney
-* @author      Artem Osmakov   <artem.osmakov@sydney.edu.au>
-* @author      Ian Johnson     <ian.johnson@sydney.edu.au>
+* @author      Artem Osmakov   <osmakov@gmail.com>
+* @author      Ian Johnson     <ian.johnson.heurist@gmail.com>
 * @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
 * @version     4
 */
@@ -22,10 +22,10 @@
 * See the License for the specific language governing permissions and limitations under the License.
 */
 
-//to avoid "Open Redirect" security warning    
+//to avoid "Open Redirect" security warning
 parse_str($_SERVER['QUERY_STRING'], $vars);
 $query_string = http_build_query($vars);
 
-header('Location: ../hserv/structure/export/getDBStructureAsSQL.php?'.$query_string);
+redirectURL('../hserv/structure/export/getDBStructureAsSQL.php?'.$query_string);
 exit;
 ?>

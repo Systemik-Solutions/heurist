@@ -72,7 +72,7 @@
         
         <div style="padding-top:10px">
         <span id="div-content-type" style="display:none">
-            <label>Content-type: </label>
+            <label for="select-content-type">Content-type: </label>
             <select id="select-content-type">
                 <option value="html">html</option>
                 <option value="js">javasctipt</option>
@@ -83,12 +83,12 @@
                 <option>css</option>
             </select>
         </span>
-        <a href="#" id="link-url" style="outline:0" target="_blank" onclick="setTimeout(window.hWin.HEURIST4.ui.publishDlg.closePublishDialog(), 200);">
+        <a href="#link-url" id="link-url" style="outline:none" target="_blank" onclick="setTimeout(window.hWin.HEURIST4.ui.publishDlg.closePublishDialog(), 200);">
             Open in new window<span class="ui-icon ui-icon-extlink"></span>
         </a>
         </div>
         <span style="display:none">
-        <label style="font-size:0.9em">URL:</label>
+        <label style="font-size:0.9em" for="code-url">URL:</label>
         <textarea id="code-url" onclick="select(); if (window.clipboardData) clipboardData.setData('Text', value);" style="border: 1px dotted gray; padding: 3px; margin: 2px; font-family: Times, serif; width: 100%; height: 40px;" readonly=""></textarea>
         </span>
         

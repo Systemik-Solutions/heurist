@@ -18,29 +18,38 @@
 * @package     Heurist academic knowledge management system
 * @subpackage  !!!subpackagename for file such as Administration, Search, Edit, Application, Library
 */
-define('PDIR','../../');  //need for proper path to js and css    
-define('MANAGER_REQUIRED', 1);   
+use hserv\utilities\USanitize;
+
+define('PDIR','../../');//need for proper path to js and css
+define('MANAGER_REQUIRED', 1);
 
 require_once 'initPageMin.php';
-require_once dirname(__FILE__).'/../../hserv/utilities/uMail.php';
 
 // POST request
 if(isset($_POST['data'])) {
-    $data = json_decode($_POST['data']);
+    $params = USanitize::sanitizeInputArray();
+
+    $data = json_decode($params['data']);
     $response = "";
 
-    $subject = htmlspecialchars(filter_var($data->subject));  // Email subject
-    $header =  htmlspecialchars(filter_var($data->header));    // Email header
+    $subject = htmlspecialchars(filter_var($data->subject));// Email subject
     foreach($data->emails as $email) {
         // Determine message & recipients
-        USanitize::purifyHTML($email->message);       // Email message
+        USanitize::purifyHTML($email->message);// Email message
         $recipients = $email->recipients; // One or more e-mail adresses
         foreach($recipients as $recipient) {
             // Check if the e-mail address is valid
             $recipient_sanitized = filter_var($recipient, FILTER_VALIDATE_EMAIL);
             if($recipient_sanitized) {
                 // Send e-mail
-                $result = sendEmail_native($recipient_sanitized, $subject, $message, $header); // uMail.php
+                $result = sendEmail($recipient_sanitized, $subject, $email->message);
+                if(!$result){
+                    $err = $system->getError();
+                    $result = $err['message'];
+                }else{
+                    $result = 'sent';
+                }
+
                 $response .= $recipient_sanitized . " --> " . $result . "\n";
             }else{
                 $response .= $recipient . " --> invalid e-mail address\n";
@@ -57,29 +66,36 @@ if(isset($_POST['data'])) {
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta http-equiv="content-type" content="text/html; charset=utf-8">
-  <title>Bulk email sender</title>
+    <meta http-equiv="content-type" content="text/html; charset=utf-8">
+    <meta name="robots" content="noindex,nofollow">
+    <title>Bulk email sender</title>
 
-  <!-- CSS -->
-  <?php include_once dirname(__FILE__).'/initPageCss.php'; ?>
+    <!-- CSS -->
+    <?php
 
-  <script type="text/javascript" src="<?php echo PDIR;?>external/jquery-ui-1.12.1/jquery-1.12.4.js"></script>
-  <script type="text/javascript" src="<?php echo PDIR;?>hclient/core/detectHeurist.js"></script>
-  <script type="text/javascript" src="<?php echo PDIR;?>hclient/core/utils_dbs.js"></script>
+    include_once dirname(__FILE__).'/initPageCss.php';
+    includeJQuery();
 
-  <style>
-    #btn_redo {
-        cursor: pointer;
-        float: right;
-        font-size: 1.4em;
-        height: 1.8em;
-        margin-left: 2px;
-        margin-top: 6px;
-        width: 1.8em;
-    }
+    ?>
 
-  </style>
-  
+    <script type="text/javascript" src="<?php echo PDIR;?>hclient/core/detectHeurist.js"></script>
+    <script type="text/javascript" src="<?php echo PDIR;?>hclient/core/utils_dbs.js"></script>
+
+    <link rel="stylesheet" type="text/css" href="<?php echo PDIR;?>external/jquery-ui-iconfont-master/jquery-ui.icon-font.css" />
+
+    <style>
+        #btn_redo {
+            cursor: pointer;
+            float: right;
+            font-size: 1.4em;
+            height: 1.8em;
+            margin-left: 2px;
+            margin-top: 6px;
+            width: 1.8em;
+        }
+
+    </style>
+
 </head>
 
 <body class="ui-heurist-bg-light" onload="setup()">
@@ -127,7 +143,6 @@ if(isset($_POST['data'])) {
 
         <hr>
 
-
         <div>
             <div class="header_narrow"><label for="subject">Subject :</label></div>
             <input type="text" name="subject" id="subject" class="text ui-widget-content ui-corner-all mandatory"  maxlength="40" style="width:24.2em"/>
@@ -137,7 +152,7 @@ if(isset($_POST['data'])) {
             <textarea name="message2" id="message" rows="8" class="text ui-widget-content ui-corner-all mandatory"  style="margin-top:0.4em;width:25em"></textarea>
             <textarea name="message" id="message-prepared" rows="10"
                                                             class="text ui-widget-content ui-corner-all mandatory"  style="margin-top:0.4em;width:25em;display: none"></textarea>
-            <button id="btn_redo" style="display: none" onclick="redo()">&#10226;</button>
+            <button id="btn_redo" style="display: none" onclick="redo()" class="ui-icon ui-icon-arrowrefresh-1-s"></button>
 
             <div style="font-size: smaller; margin-top: 2px;">may include html; #fieldname to include content of field</div>
        </div>
@@ -145,26 +160,25 @@ if(isset($_POST['data'])) {
        <div style="display:block;padding-top:1em;text-align:right;width:100%">
             <button type="button" id="prepare"
                     class="ui-button ui-widget ui-state-default ui-corner-all ui-button-text-only"
-                    role="button" aria-disabled="false" onClick="prepare()">
+                    aria-disabled="false" onClick="prepare()">
                     <span class="ui-button-text">Prepare emails</span>
             </button>
-       </div>                                                
-
+       </div>
 
     </fieldset>
 
 
     <!-- Javascript -->
     <script type="text/javascript">
-        var storage_key = "email"; // Key used to store data
-        var dropdowns = ["#email", "#firstname", "#familyname", "#field1", "#field2", "#field3"]; // ID's of the dropdowns
-        var text_types = ["freetext", "blocktext"]; // Text only types for the dropdowns
-        var all_types = ["freetext", "blocktext", "memo", "seperator", "numeric", "date", "enum"]; // All types that can be selected from the dropdown
+        var storage_key = "email";// Key used to store data
+        var dropdowns = ["#email", "#firstname", "#familyname", "#field1", "#field2", "#field3"];// ID's of the dropdowns
+        var text_types = ["freetext", "blocktext"];// Text only types for the dropdowns
+        var all_types = ["freetext", "blocktext", "memo", "seperator", "numeric", "date", "enum"];// All types that can be selected from the dropdown
         var definitions; // Record type field definitions
         var ids =  window.hWin.HAPI4.selectedRecordIds; // Selected record ID's
         var recordset = window.hWin.HAPI4.currentRecordset.getSubSetByIds(ids);
-        var records = recordset.getRecords(); // Array of record objects
-        var first_record = recordset.getFirstRecord(); // First record in the list, used to determine the Record Types
+        var records = recordset.getRecords();// Array of record objects
+        var first_record = recordset.getFirstRecord();// First record in the list, used to determine the Record Types
 
         // Retrieves an item from localStorage
         function getItem(name) {
@@ -181,8 +195,8 @@ if(isset($_POST['data'])) {
             // Determine options
             var options = [];
             // Go through each field for the first record type
-            definitions.each2(function(dty_ID, detail){ 
-                    
+            definitions.each2(function(dty_ID, detail){
+
                 var field_type = $Db.dty(dty_ID, 'dty_Type');
                 // Appropriate type check
                 if(types.indexOf(field_type) >= 0) { // Check if this field is allowed
@@ -199,7 +213,7 @@ if(isset($_POST['data'])) {
             var html = "<option value=\"-1\" disabled=\"disabled\" selected=\"selected\">Select...</option>";
             if(options.length > 0) {
                 for(var i=0; i<options.length; i++) {
-                    html += "<option value=\"" +options[i].value+ "\">" + options[i].name + "</option>"; // Add field to dropdown
+                    html += "<option value=\"" +options[i].value+ "\">" + options[i].name + "</option>";// Add field to dropdown
                 }
             }
             return html;
@@ -217,11 +231,11 @@ if(isset($_POST['data'])) {
             }
 
             // Listen to dropdown hanges
-            $(dropdowns[i]).change(function(e) {
-                var id = $(this).attr("id"); // Dropdown ID
-                var value = $(this).prop("selectedIndex"); // Selected dropdown index
-                putItem("#"+id, value); // Store data
-                redo(); // Message needs to be re-done
+            $(dropdowns[i]).on('change', function(e) {
+                let id = $(this).attr("id");// Dropdown ID
+                let value = $(this).prop("selectedIndex");// Selected dropdown index
+                putItem("#"+id, value);// Store data
+                redo();// Message needs to be re-done
             });
         }
 
@@ -231,8 +245,8 @@ if(isset($_POST['data'])) {
             $("#selected-records").html("# of records selected: " + ids.length);
 
             // Determine record type of first record
-            //this.record = records.getFirstRecord(); // Reference to first record; 
-            var rectype = recordset.fld(first_record, 'rec_RecTypeID'); // Record type of first record
+
+            var rectype = recordset.fld(first_record, 'rec_RecTypeID');// Record type of first record
             definitions = $Db.rst(rectype);
 
             // TEXT ONLY DROPDOWNS
@@ -250,25 +264,25 @@ if(isset($_POST['data'])) {
             // Setup subject field
             $("#subject").on("keyup", function(e) {
                 var text = $(this).val();
-                putItem("subject", text); // Store subject text
+                putItem("subject", text);// Store subject text
             });
-            $("#subject").val(getItem("subject")); // Set subject text
+            $("#subject").val(getItem("subject"));// Set subject text
 
             // Setup message field
             $("#message").on("keyup", function(e) {
                 var text = $(this).val();
-                putItem("message", text); // Store message text
+                putItem("message", text);// Store message text
             });
-            $("#message").val(getItem("message")); // Set message text
+            $("#message").val(getItem("message"));// Set message text
 
         }
 
         // Swaps the text area's
         function redo() {
             $("#prepare > span").text("Prepare emails");
-            $("#btn_redo").hide(); // Hide redo button
+            $("#btn_redo").hide();// Hide redo button
             $("#message-prepared").slideUp(500, function(e) {  // Hide prepared message
-                $("#message").slideDown(500);  // Show raw message
+                $("#message").slideDown(500);// Show raw message
             })
         }
 
@@ -276,16 +290,16 @@ if(isset($_POST['data'])) {
         function getValue(record, type, index) {
             // Determine type
             if(type == "freetext" || type =="blocktext" || type == "date") {
-                return record.d[index]; 
+                return record.d[index];
 
             }else if(type == "memo") {
-                 alert("Memo");
+                alert("Memo");
 
             }else if(type == "seperator") {
-                         alert("sep");
+                alert("sep");
 
             }else if(type == "numeric") {
-                         alert("num");
+                alert("num");
 
             }else if(type == "enum") {
                 var enumID = record.d[index];
@@ -306,30 +320,30 @@ if(isset($_POST['data'])) {
             var res = [];
             for(var i=0; i<dropdowns.length; i++) {
                 // Index selected in the dropdown
-                var index = $(dropdowns[i]).val();   // field type index
+                var index = $(dropdowns[i]).val();// field type index
                 if(index && index > 0) {
                      res.push(index);
                 }
             }
             return res.join(',');
         }
-        
-        
+
+
         // Replaces the raw message text with fields in a record
         function prepareMessage(message, record, fields) {
             // Replace hashtags by actual content
             for(var i=0; i<dropdowns.length; i++) {
                 // Index selected in the dropdown
-                var dty_ID = $(dropdowns[i]).val();   // field type index
+                var dty_ID = $(dropdowns[i]).val();// field type index
                 var value = "?";
                 if(dty_ID && dty_ID > 0) {
                     var field_type = $Db.dty(dty_ID, 'dty_Type');
-                    value = getValue(record, field_type, dty_ID); // Record value at the given index
+                    value = getValue(record, field_type, dty_ID);// Record value at the given index
                 }
 
                 // Regex
-                var regex = new RegExp(dropdowns[i], "ig"); // Replace #xxx case insensitive
-                message = message.replace(regex, value);    // Replace all occurences with @value
+                var regex = new RegExp(dropdowns[i], "ig");// Replace #xxx case insensitive
+                message = message.replace(regex, value);// Replace all occurences with @value
             }
             return message;
         }
@@ -345,7 +359,7 @@ if(isset($_POST['data'])) {
             if(details!='' && !this.record){ // && !this.record.d
                 //load details if required
                  var request = request = {q: 'ids:'+ids.join(','), w: 'all', detail:details };
-                 
+
                  window.hWin.HAPI4.RecordSearch.doSearchWithCallback( request, function( new_recordset )
                  {
                     if(new_recordset!=null){
@@ -372,7 +386,6 @@ if(isset($_POST['data'])) {
                 // SEND EMAILS
                 var data = {};
                 data.subject = $("#subject").val();
-                data.header = "header";
                 data.emails = [];
 
                 // Construct a message based on record data
@@ -380,19 +393,23 @@ if(isset($_POST['data'])) {
                     var email = {};
 
                     // Email
-                    var emailIndex = $("#email").val();  // Dropdown index
+                    var emailIndex = $("#email").val();// Dropdown index
 
                     if(emailIndex>0){
                         var emailType = $Db.dty(emailIndex, 'dty_Type');
-                        email.recipients = getValue(records[r], emailType, emailIndex);  // Determine e-mail address(es) [comma seperated]
+                        email.recipients = getValue(records[r], emailType, emailIndex);// Determine e-mail address(es) [comma seperated]
                         if(!top.HEURIST4.util.isArrayNotEmpty(email.recipients)) email.recipients = [];
 
                         // Message
-                        email.message = prepareMessage(rawMessage, records[r], definitions); // Determine message
+                        email.message = prepareMessage(rawMessage, records[r], definitions);// Determine message
                         data.emails.push(email);
                     }else{
-                         window.hWin.HEURIST4.msg.showMsgErr("Define email field. It is mandatory");
-                         return;
+                        window.hWin.HEURIST4.msg.showMsgErr({
+                            message: "Define email field. It is mandatory",
+                            error_title: 'Missing email',
+                            status: window.hWin.ResponseStatus.ACTION_BLOCKED
+                        });
+                        return;
                     }
                 }
 

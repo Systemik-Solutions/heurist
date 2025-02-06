@@ -16,7 +16,7 @@
     /**
     * Verifies duplications for concept code in rectypes, fieldtypes and terms
     *
-    * @author      Artem Osmakov   <artem.osmakov@sydney.edu.au>
+    * @author      Artem Osmakov   <osmakov@gmail.com>
     * @copyright   (C) 2005-2023 University of Sydney
     * @link        https://HeuristNetwork.org
     * @version     3.1
@@ -24,85 +24,57 @@
     * @package     Heurist academic knowledge management system
     * @subpackage  !!!subpackagename for file such as Administration, Search, Edit, Application, Library
     */
-	
-define('PDIR','../../');  //need for proper path to js and css    
+
+define('ADMIN_PWD_REQUIRED', 1);
+define('PDIR','../../');//need for proper path to js and css
 
 require_once dirname(__FILE__).'/../../hclient/framecontent/initPageMin.php';
 
-if( false && $system->verifyActionPassword($_REQUEST['pwd'], $passwordForServerFunctions) ){
-	?>
-    
-    <form action="verifyConceptCodes.php" method="POST">
-        <div style="padding:20px 0px">
-            Only an administrator (server manager) can carry out this action.<br>
-            This action requires a special system administrator password (not a normal login password)
-        </div>
-    
-        <span style="display: inline-block;padding: 10px 0px;">Enter password:&nbsp;</span>
-        <input type="password" name="pwd" autocomplete="off" />
+?>
 
-        <input type="submit" value="OK" />
-    </form>
+<script>window.history.pushState({}, '', '<?php echo htmlspecialchars($_SERVER['PHP_SELF']);?>')</script>
 
-    <?php
-    exit;
-}
-
-?>  
-
-<script>window.history.pushState({}, '', '<?php echo htmlspecialchars($_SERVER['PHP_SELF']); ?>')</script>
-    
 <div style="font-family:Arial,Helvetica,sans-serif;font-size:12px">
             <p>This list shows re-use of the same concept code within each database where this occurs. Re-use is an error, although it should have very little adverse effect on local operations.</p>
-<?php            
+<?php
 
 
-$mysqli = $system->get_mysqli();
-    
+$mysqli = $system->getMysqli();
+
     //1. find all database
-    $query = 'show databases';
+    $databases = mysql__getdatabases4($mysqli, true);
 
-    $res = $mysqli->query($query);
-    if (!$res) {  print htmlspecialchars($query.'  '.$mysqli->error);  return; }
-    $databases = array();
-    while (($row = $res->fetch_row())) {
-        if( strpos($row[0], 'hdb_')===0 ){
-            //if($row[0]>'hdb_Masterclass_Cookbook')
-                $databases[] = $row[0];
-        }
-    }
-    
     foreach ($databases as $idx=>$db_name){
-        
+
         $rec_types = array();
         $det_types = array();
         $terms = array();
         $is_found = false;
-        
-        $db_name = preg_replace('/[^a-zA-Z0-9_]/', "", $db_name); //for snyk
+
+        $db_name = preg_replace(REGEX_ALPHANUM, "", $db_name);//for snyk
 
         //RECORD TYPES
-        
+
         $query = 'SELECT rty_OriginatingDBID, rty_IDInOriginatingDB, count(rty_ID) as cnt '
             ." FROM `$db_name`.defRecTypes "
             .' WHERE  rty_OriginatingDBID>0 AND rty_IDInOriginatingDB>0 '
             .' GROUP BY rty_OriginatingDBID, rty_IDInOriginatingDB HAVING cnt>1';
-        
+
         $res = $mysqli->query($query);
-        if (!$res) {  print htmlspecialchars($query.'  '.$mysqli->error);  return; }
-        
-        while (($row = $res->fetch_row())) {
+        if (!$res) {  print htmlspecialchars($query.'  '.$mysqli->error); return; }
+
+        while ($row = $res->fetch_row()) {
 
                $is_found = true;
-                
+
                $query = 'SELECT rty_ID, rty_Name, CONCAT(rty_OriginatingDBID,"-",rty_IDInOriginatingDB), rty_NameInOriginatingDB '
                ." FROM `$db_name`.defRecTypes "
                 .' WHERE  rty_OriginatingDBID='.intval($row[0]).' AND rty_IDInOriginatingDB='.intval($row[1])
                 .' ORDER BY rty_OriginatingDBID, rty_IDInOriginatingDB';
-                
-               $res2 = $mysqli->query($query);               
-               if (!$res2) {  print htmlspecialchars($query.'  '.$mysqli->error);  return; }
-               while (($row2 = $res2->fetch_row())) {
+
+               $res2 = $mysqli->query($query);
+               if (!$res2) {  print htmlspecialchars($query.'  '.$mysqli->error); return; }
+               while ($row2 = $res2->fetch_row()) {
                       array_push($rec_types, array_map('htmlspecialchars',$row2));
                }
         }
@@ -113,82 +85,82 @@ $mysqli = $system->get_mysqli();
             ." FROM `$db_name`.defDetailTypes "
             .' WHERE  dty_OriginatingDBID>0 AND dty_IDInOriginatingDB>0 '
             .' GROUP BY dty_OriginatingDBID, dty_IDInOriginatingDB HAVING cnt>1';
-        
+
         $res = $mysqli->query($query);
-        if (!$res) {  print htmlspecialchars($query.'  '.$mysqli->error);  return; }
-        
+        if (!$res) {  print htmlspecialchars($query.'  '.$mysqli->error); return; }
+
         $not_found = true;
-        while (($row = $res->fetch_row())) {
+        while ($row = $res->fetch_row()) {
 
                $is_found = true;
-                
+
                $query = 'SELECT dty_ID, dty_Name, CONCAT(dty_OriginatingDBID,"-",dty_IDInOriginatingDB), dty_NameInOriginatingDB '
                ." FROM `$db_name`.defDetailTypes "
                 .' WHERE  dty_OriginatingDBID='.intval($row[0]).' AND dty_IDInOriginatingDB='.intval($row[1])
                 .' ORDER BY dty_OriginatingDBID, dty_IDInOriginatingDB';
-                
-               $res2 = $mysqli->query($query);               
-               if (!$res2) {  print htmlspecialchars($query.'  '.$mysqli->error);  return; }
-               while (($row2 = $res2->fetch_row())) {
+
+               $res2 = $mysqli->query($query);
+               if (!$res2) {  print htmlspecialchars($query.'  '.$mysqli->error); return; }
+               while ($row2 = $res2->fetch_row()) {
                       array_push($det_types, array_map('htmlspecialchars',$row2));
                }
         }
-        
+
         //TERMS
 
         $query = 'SELECT trm_OriginatingDBID, trm_IDInOriginatingDB, count(trm_ID) as cnt '
                ." FROM `$db_name`.defTerms "
             .' WHERE  trm_OriginatingDBID>0 AND trm_IDInOriginatingDB>0 '
             .' GROUP BY trm_OriginatingDBID, trm_IDInOriginatingDB HAVING cnt>1';
-        
+
         $res = $mysqli->query($query);
-        if (!$res) {  print htmlspecialchars($query.'  '.$mysqli->error);  return; }
-        
-        while (($row = $res->fetch_row())) {
+        if (!$res) {  print htmlspecialchars($query.'  '.$mysqli->error); return; }
+
+        while ($row = $res->fetch_row()) {
 
                $is_found = true;
-                
+
                $query = 'SELECT trm_ID, trm_Label, CONCAT(trm_OriginatingDBID,"-",trm_IDInOriginatingDB), trm_NameInOriginatingDB '
                 ." FROM `$db_name`.defTerms "
                 .' WHERE  trm_OriginatingDBID='.intval($row[0]).' AND trm_IDInOriginatingDB='.intval($row[1])
                 .' ORDER BY trm_OriginatingDBID, trm_IDInOriginatingDB';
-                
-               $res2 = $mysqli->query($query);               
-               if (!$res2) {  print htmlspecialchars($query.'  '.$mysqli->error);  return; }
-               while (($row2 = $res2->fetch_row())) {
+
+               $res2 = $mysqli->query($query);
+               if (!$res2) {  print htmlspecialchars($query.'  '.$mysqli->error); return; }
+               while ($row2 = $res2->fetch_row()) {
                       array_push($terms, array_map('htmlspecialchars',$row2));
                }
         }
-        
+
         if($is_found){
-            print '<h4 style="margin:0;padding-top:20px">'.htmlspecialchars(substr($db_name,4)).'</h4><table style="font-size:12px">';    
-            if(is_array($rec_types) && count($rec_types)>0){
+            print '<h4 style="margin:0;padding-top:20px">'.htmlspecialchars(substr($db_name,4)).'</h4><table style="font-size:12px">';
+            if(!isEmptyArray($rec_types)){
                 print '<tr><td colspan=4><i>Record types</i></td></tr>';
                 foreach($rec_types as $row){
                     //snyk does not see htmlspecialchars above
-                    $list = str_replace(chr(29),'</td><td>',htmlspecialchars(implode(chr(29),$row)));
-                    print '<tr><td>'.$list.'</td></tr>';
+                    $list = str_replace(chr(29),TD,htmlspecialchars(implode(chr(29),$row)));
+                    print TR_S.$list.TR_E;
                 }
             }
-            if(is_array($det_types) && count($det_types)>0){
+            if(!isEmptyArray($det_types)){
                 print '<tr><td colspan=4><i>Detail types</i></td></tr>';
                 foreach($det_types as $row){
                     //snyk does not see htmlspecialchars above
-                    $list = str_replace(chr(29),'</td><td>',htmlspecialchars(implode(chr(29),$row)));
-                    print '<tr><td>'.$list.'</td></tr>';
+                    $list = str_replace(chr(29),TD,htmlspecialchars(implode(chr(29),$row)));
+                    print TR_S.$list.TR_E;
                 }
             }
-            if(is_array($terms) && count($terms)>0){
+            if(!isEmptyArray($terms)){
                 print '<tr><td colspan=4><i>Terms</i></td></tr>';
                 foreach($terms as $row){
                     //snyk does not see htmlspecialchars above
-                    $list = str_replace(chr(29),'</td><td>',htmlspecialchars(implode(chr(29),$row)));
-                    print '<tr><td>'.$list.'</td></tr>';
+                    $list = str_replace(chr(29),TD,htmlspecialchars(implode(chr(29),$row)));
+                    print TR_S.$list.TR_E;
                 }
             }
             print '</table>';
-        } 
-        
+        }
+
     }//while  databases
     print '[end report]</div>';
 ?>

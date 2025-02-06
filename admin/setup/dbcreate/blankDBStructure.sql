@@ -20,6 +20,7 @@
 --    * Database structure version: 1.2.0  @ 14/9/2017, 
 --    * Database structure version: 1.3.6  @ 20/10/2022, 
 --    * Database structure version: 1.3.10  @ 05/04/2023, 
+--    * Database structure version: 1.3.16  @ 27/08/2024, 
 
 --    * THE INSERTION STATEMENTS AT THE END ARE * NOT * PART OF THE DUMP
 --    * DO NOT DELETE THEM
@@ -42,6 +43,9 @@
 
 -- --------------------------------------------------------
 SET NAMES utf8mb4;
+SET FOREIGN_KEY_CHECKS= 0;
+SET UNIQUE_CHECKS = 0;
+START TRANSACTION;
 --  COLLATE utf8mb4_0900_ai_ci
 
 --
@@ -91,7 +95,7 @@ CREATE TABLE defCalcFunctions (
   cfn_Modified timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP COMMENT 'Date of last modification of this record, used to get last updated date for table',
   cfn_RecTypeIDs varchar(250) default NULL COMMENT 'CSV list of Rectype IDs that participate in formula',
   PRIMARY KEY  (cfn_ID)
-) ENGINE=InnoDB COMMENT='Specifications for generating calculated fields, plugins and';
+) ENGINE=InnoDB COMMENT='Specifications for generating calculated fields';
 
 -- --------------------------------------------------------
 
@@ -354,7 +358,7 @@ CREATE TABLE defVocabularyGroups (
 CREATE TABLE defTerms (
   trm_ID int unsigned NOT NULL auto_increment COMMENT 'Primary key, the term code used in the detail record',
   trm_Label varchar(250) NOT NULL COMMENT 'Human readable term used in the interface, cannot be blank',
-  trm_InverseTermId int unsigned default NULL COMMENT 'ID for the inverse value (relationships), null if no inverse',
+  trm_InverseTermID int unsigned default NULL COMMENT 'ID for the inverse value (relationships), null if no inverse',
   trm_Description varchar(1000) default NULL COMMENT 'A description/gloss on the meaning of the term',
   trm_Status enum('reserved','approved','pending','open') NOT NULL default 'open' COMMENT 'Reserved Heurist codes, approved/pending by ''Board'', and user additions',
   trm_OriginatingDBID mediumint unsigned default NULL COMMENT 'Database where this detail type originated, 0 = locally',
@@ -376,7 +380,7 @@ CREATE TABLE defTerms (
   trm_OrderInBranch smallint NULL Comment 'Defines sorting order of terms if non-alphabetic. Operates only within a single branch, including root',
   PRIMARY KEY  (trm_ID),
   KEY trm_ParentTermIDKey (trm_ParentTermID),
-  KEY trm_InverseTermIDKey (trm_InverseTermId)
+  KEY trm_InverseTermIDKey (trm_InverseTermID)
 ) ENGINE=InnoDB  DEFAULT CHARSET=utf8mb4 COMMENT='Terms by detail type and the vocabulary they belong to';
 
 -- --------------------------------------------------------
@@ -546,7 +550,6 @@ CREATE TABLE recThreadedComments (
 --
 -- Table structure for table 'recUploadedFiles'
 --
-
 CREATE TABLE recUploadedFiles (
   ulf_ID mediumint unsigned NOT NULL auto_increment COMMENT 'A unique numeric file ID used as filename to store the data on disk and should be different ids if shared',
   ulf_OrigFileName varchar(255) NOT NULL COMMENT 'The original name of the file uploaded',
@@ -567,6 +570,8 @@ CREATE TABLE recUploadedFiles (
   ulf_FilePath varchar(1024) default NULL COMMENT 'The path where the uploaded file is stored',
   ulf_FileName varchar(512) default NULL COMMENT 'The filename for the uploaded file',
   ulf_Parameters text COMMENT 'Parameters including source (flickr,youtube...), default player etc. used to determine special processing',
+  ulf_WhoCanView enum('viewable','loginrequired') NULL COMMENT 'Defines if the file is visible when not logged in. If public or blank then file is visible to all',
+  ulf_MD5Checksum text(32) NULL COMMENT 'A checksum for the uploaded file which can be used to verify integrity and to merge duplicates',
   PRIMARY KEY  (ulf_ID),
   KEY ulf_ObfuscatedFileIDKey (ulf_ObfuscatedFileID),
   KEY ulf_Description (ulf_Description(100)),
@@ -610,6 +615,9 @@ CREATE TABLE sysWorkflowRules  (
   swf_SetOwnership smallint NULL default NULL COMMENT 'Workgroup to be set as the owner group, Null = No change, 0=everyone',
   swf_SetVisibility  varchar(255) default NULL COMMENT 'public=anyone, viewable=all logged in, hidden = private, hidden may be followed by comma separated list of ugr_ID that should be set to have view permission',
   swf_SendEmail  varchar(255) default NULL COMMENT 'Comma separated list of ugr_ID that will be emailed on stage change',
+  swf_EmailList varchar(255) default NULL COMMENT 'Comma separated list of extra email address that will be emailed on stage change',
+  swf_RecEmailField smallint NULL default NULL COMMET 'Field within the record structure that contains an email to also be emailed',
+  swf_EmailText varchar(255) default NULL COMMENT 'Email body text to be sent on stage change, allows field value substitutions',
 PRIMARY KEY  (swf_ID),
 UNIQUE KEY swf_StageKey (swf_RecTypeID, swf_Stage)
 ) ENGINE=InnoDB COMMENT='Describes the rules to be applied when the value of the Workflow stage field is changed to this value';
@@ -641,7 +649,7 @@ CREATE TABLE sysDocumentation (
   doc_id tinyint unsigned NOT NULL auto_increment,
   doc_text text COMMENT 'Relevant documentation as text',
   PRIMARY KEY  (doc_id)
-) ENGINE=InnoDB COMMENT='Descriptive infORmation about this database and its function';
+) ENGINE=InnoDB COMMENT='Descriptive information about this database and its function';
 
 -- --------------------------------------------------------
 
@@ -713,7 +721,7 @@ CREATE TABLE sysUGrps (
   ugr_Name varchar(63) NOT NULL COMMENT 'The unique user/login/group name, user name defaults to email address',
   ugr_LongName varchar(128) default NULL COMMENT 'An optional longer descriptive name for a Workgroup',
   ugr_Description varchar(1000) default NULL COMMENT 'Extended description of a Workgroup displayed on homepage',
-  ugr_Password varchar(40) NOT NULL COMMENT 'Encrypted password string',
+  ugr_Password varchar(255) NOT NULL COMMENT 'Encrypted password string',
   ugr_eMail varchar(100) NOT NULL COMMENT 'Contact email address of the user/group',
   ugr_FirstName varchar(40) default NULL COMMENT 'Person''s first name, only for Users, not Workgroups',
   ugr_LastName varchar(63) default NULL COMMENT 'Person''s last name, only for Users, not Workgroups',
@@ -1026,7 +1034,7 @@ CREATE TABLE usrWorkingSubsets (
   sys_dbSubSubVersion,sys_eMailImapServer,sys_eMailImapPort,
   sys_eMailImapProtocol,sys_eMailImapUsername,sys_eMailImapPassword,
   sys_UGrpsdatabase,sys_OwnerGroupID,sys_ConstraintDefaultBehavior,sys_MediaFolders)
-  VALUES (1,0,1,3,14,NULL,NULL,NULL,NULL,NULL,NULL,1,'locktypetotype','uploaded_files');
+  VALUES (1,0,1,3,18,NULL,NULL,NULL,NULL,NULL,NULL,1,'locktypetotype','uploaded_files');
 
   -- Note: database sub version updated manually to '1' at 6pm 22/8/12
   -- 0 is everyone, 1 is the owning admins group, 2 is default dbAdmin user
@@ -1087,4 +1095,6 @@ INSERT IGNORE INTO sysUsrGrpLinks (ugl_UserID,ugl_GroupID,ugl_Role) VALUES (2,4,
 -- ------------------------------------------------------------------------------------------------
 -- ------------------------------------------------------------------------------------------------
 -- ------------------------------------------------------------------------------------------------
-
+COMMIT;
+SET FOREIGN_KEY_CHECKS= 1;
+SET UNIQUE_CHECKS = 1;

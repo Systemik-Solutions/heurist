@@ -6,8 +6,8 @@
      * @package     Heurist academic knowledge management system
      * @link        https://HeuristNetwork.org
      * @copyright   (C) 2005-2023 University of Sydney
-     * @author      Ian Johnson     <ian.johnson@sydney.edu.au>
-     * @author      Artem Osmakov   <artem.osmakov@sydney.edu.au>
+     * @author      Ian Johnson     <ian.johnson.heurist@gmail.com>
+     * @author      Artem Osmakov   <osmakov@gmail.com>
      * @author      Jan Jaap de Groot    <jjedegroot@gmail.com>
      * @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
      * @version     4.0
@@ -26,7 +26,7 @@
     // ElasticSearch index helpers
     //****************************************************************************************************************
 
-    $isElasticUp = NULL; // Global variable whether or not Elastic indexing is enabled & operational
+    $isElasticUp = null; // Global variable whether or not Elastic indexing is enabled & operational
 
     /**
      * Checks if ElasticSearch indexing is enabled in configIni.php
@@ -43,11 +43,11 @@
      * @return string Name of the ElasticSearch index
      */
     function getElasticIndex($dbName) {
-        
+
         list($database_name_full, $database_name) = mysql__get_names( $dbName );
-        
-        $elasticIndex = strtolower($database_name); // Must be lowercase
-        preg_replace('/[^A-Za-z0-9 ]/', '_', $elasticIndex); // Replace non-alphanumeric with underscore
+
+        $elasticIndex = strtolower($database_name);// Must be lowercase
+        preg_replace('/[^A-Za-z0-9 ]/', '_', $elasticIndex);// Replace non-alphanumeric with underscore
         return $elasticIndex;
     }
 
@@ -87,7 +87,7 @@
      */
     function isElasticAddressCreated($address) {
         $handle = curl_init($address);
-        curl_setopt($handle, CURLOPT_RETURNTRANSFER, TRUE);
+        curl_setopt($handle, CURLOPT_RETURNTRANSFER, true);
 
         curl_exec($handle);
         $httpCode = curl_getinfo($handle, CURLINFO_HTTP_CODE);
@@ -121,7 +121,7 @@
      */
     function isElasticUp() {
         global $isElasticUp;
-        if($isElasticUp == NULL) {
+        if($isElasticUp == null) {
             $isElasticUp = isElasticEnabled() && isElasticRunning();
         }
         return $isElasticUp;
@@ -174,11 +174,11 @@
      */
     function queryElastic($curl, $address, $query) {
         curl_setopt($curl, CURLOPT_RETURNTRANSFER, 1);
-        curl_setopt($curl, CURLOPT_HTTPHEADER, array('Content-Type: application/json'));
+        curl_setopt($curl, CURLOPT_HTTPHEADER, array(CTYPE_JSON));
         curl_setopt($curl, CURLOPT_URL, $address);
         curl_setopt($curl, CURLOPT_POSTFIELDS, json_encode($query));
-        curl_setopt($curl, CURLOPT_CONNECTTIMEOUT, 10); // Max 10 seconds connection time
-        curl_setopt($curl, CURLOPT_TIMEOUT, 60); // Max 60 seconds query time
+        curl_setopt($curl, CURLOPT_CONNECTTIMEOUT, 10);// Max 10 seconds connection time
+        curl_setopt($curl, CURLOPT_TIMEOUT, 60);// Max 60 seconds query time
 
         $json = curl_exec($curl);
         curl_close($curl);
@@ -194,7 +194,7 @@
      * @return bool True if $property exists and is true.
      */
     function checkElasticResponse($json, $property) {
-        if ($json != NULL) {
+        if ($json != null) {
             $response = json_decode($json);
             return property_exists($response, $property) && $response->$property;
         }
@@ -212,8 +212,8 @@
      */
     function createElasticIndex($database) {
         if(isElasticUp()) {
-            $query = '{ 
-                        "settings": { 
+            $query = '{
+                        "settings": {
                             "number_of_replicas": 1,
                             "number_of_shards": 1
                         },

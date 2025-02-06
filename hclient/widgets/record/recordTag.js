@@ -4,7 +4,7 @@
 * @package     Heurist academic knowledge management system
 * @link        https://HeuristNetwork.org
 * @copyright   (C) 2005-2023 University of Sydney
-* @author      Artem Osmakov   <artem.osmakov@sydney.edu.au>
+* @author      Artem Osmakov   <osmakov@gmail.com>
 * @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
 * @version     4.0
 */
@@ -27,7 +27,8 @@ $.widget( "heurist.recordTag", $.heurist.recordAction, {
         modal:  true,
         init_scope: 'selected',
         title:  'Add or Remove Tags for Records',
-        helpContent: 'recordTags.html',
+        helpContent: 'recordTags',
+        scope_types: ['selected', 'collected', 'current'],
         groups: 'all',
         modes: ['assign','remove']       //bookmark=assign bookmark_url - just selection of tags - no real action
     },
@@ -37,28 +38,28 @@ $.widget( "heurist.recordTag", $.heurist.recordAction, {
 
     _initControls:function(){
         
-        this.options.helpContent = 'recordTags.html';
+        this.options.helpContent = 'recordTags';
         
-        var sMsg;
+        let sMsg;
         if(this.options.modes=='bookmark_url'){
-            this.element.find('#div_fieldset').hide();
+            this._$('#div_fieldset').hide();
             sMsg = window.hWin.HR('recordTag_hint0');
         }else if (this.options.modes=='bookmark') { 
             sMsg = window.hWin.HR('recordTag_hint1');
-            this.options.helpContent = 'recordBookmark.html';
+            this.options.helpContent = 'recordBookmark';
         }else{
             sMsg = window.hWin.HR('recordTag_hint2');;
         }   
         sMsg = sMsg + window.hWin.HR('recordTag_hint3');
         
-        this.element.find('#div_header')
+        this._$('#div_header')
             //.css({'line-height':'21px'})
             .addClass('heurist-helper1')
             .html(sMsg);
         
         this._tagSelectionWidget = $('<div>').css({'width':'100%', padding: '0.2em'}).appendTo( this.element );
         
-        var that = this;
+        let that = this;
         
         window.hWin.HEURIST4.ui.showEntityDialog('usrTags', {
                 refreshtags:true, 
@@ -79,10 +80,10 @@ $.widget( "heurist.recordTag", $.heurist.recordAction, {
                 }
         });
         
-        res = this._super();
+        let res = this._super();
         
         //'width':106,'min-width':96,
-        this.element.find('fieldset > div > .header').css({'padding':'0 16 0 0'});
+        this._$('fieldset > div > .header').css({'padding':'0 16 0 0'});
         
         return res;
     },
@@ -93,9 +94,9 @@ $.widget( "heurist.recordTag", $.heurist.recordAction, {
     },
     
     _getActionButtons: function(){
-        var res = this._super();
+        let res = this._super();
         
-        var that = this;
+        let that = this;
         
         
         if(this.options.modes.indexOf('bookmark_url')>=0){
@@ -119,10 +120,9 @@ $.widget( "heurist.recordTag", $.heurist.recordAction, {
         
         if(this.options.modes.indexOf('assign')>=0)
             res.push({text:window.hWin.HR('Add tags'),
-                    id:'btnDoAction2',
                     disabled:'disabled',
                     css:{'float':'right'},
-                    class: 'ui-button-action',
+                    class: 'ui-button-action btnDoAction2',
                     click: function() { 
                             that.doAction('assign'); 
                     }});
@@ -141,23 +141,29 @@ $.widget( "heurist.recordTag", $.heurist.recordAction, {
     //
     doAction: function(mode){
         
-            var scope_val = this.selectRecordScope.val();
+            let scope_val = this.selectRecordScope.val();
             if(scope_val=='') return;
             
             if(mode!='assign') mode = 'remove';
 
             
             if(window.hWin.HEURIST4.util.isempty(this._tags_selection)){
-                window.hWin.HEURIST4.msg.showMsgErr('Need to select tags to '+mode);
+                window.hWin.HEURIST4.msg.showMsgErr({
+                    message: `Need to select tags to ${mode}`,
+                    error_title: 'Missing tags',
+                    status: window.hWin.ResponseStatus.INVALID_REQUEST
+                });
                 return;
             }
             
-            var scope = [], 
+            let scope = [], 
             rec_RecTypeID = 0;
             
             if(scope_val == 'selected'){
                 scope = this._currentRecordsetSelIds;
-            }else { //(scope_val == 'current'
+            }else if(scope_val == 'collected'){
+                scope = this._currentRecordsetColIds;
+            }else{ //(scope_val == 'current'
                 scope = this._currentRecordset.getIds();
                 if(scope_val  >0 ){
                     rec_RecTypeID = scope_val;
@@ -165,7 +171,7 @@ $.widget( "heurist.recordTag", $.heurist.recordAction, {
             }
             
         
-            var request = {
+            let request = {
                 'a'          : 'batch',
                 'entity'     : 'usrTags',
                 'request_id' : window.hWin.HEURIST4.util.random(),
@@ -178,7 +184,7 @@ $.widget( "heurist.recordTag", $.heurist.recordAction, {
                 request['rec_RecTypeID'] = rec_RecTypeID;
             }
                 
-            var that = this;                                                
+            let that = this;                                                
             
             window.hWin.HAPI4.EntityMgr.doRequest(request, 
                     function(response){
@@ -188,7 +194,7 @@ $.widget( "heurist.recordTag", $.heurist.recordAction, {
                             
                             that.closeDialog();
                             
-                            var msg = window.hWin.HR('Processed records')+': '+response.data.processed + '<br>';
+                            let msg = window.hWin.HR('Processed records')+': '+response.data.processed + '<br>';
                              
                              if(response.data.added==0 && response.data.removed==0) {
                                  msg += window.hWin.HR('No tags were affected');
@@ -216,11 +222,11 @@ $.widget( "heurist.recordTag", $.heurist.recordAction, {
 
     _onRecordScopeChange: function () 
     {
-        var isdisabled = (this.options.modes.indexOf('bookmark_url')<0 && this.selectRecordScope.val()=='') 
+        let isdisabled = (this.options.modes.indexOf('bookmark_url')<0 && this.selectRecordScope.val()=='') 
                         || !(this._tags_selection.length>0);
         
-        window.hWin.HEURIST4.util.setDisabled( this.element.parents('.ui-dialog').find('#btnDoAction2'), isdisabled );
-        window.hWin.HEURIST4.util.setDisabled( this.element.parents('.ui-dialog').find('#btnDoAction'), isdisabled );
+        window.hWin.HEURIST4.util.setDisabled( this.element.parents('.ui-dialog').find('.btnDoAction2'), isdisabled );
+        window.hWin.HEURIST4.util.setDisabled( this.element.parents('.ui-dialog').find('.btnDoAction'), isdisabled );
 
     },
 

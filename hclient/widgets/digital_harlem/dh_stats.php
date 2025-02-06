@@ -77,7 +77,7 @@ if(function_exists('recordSearch')) {
     dtl_RecID = rec_ID and     
     dtl_DetailTypeID=10 and dtl_Value between '1934-12-31' and '1936-01-01'"          
     */        
-    $res = $system->get_mysqli()->query($query);
+    $res = $system->getMysqli()->query($query);
     if($res){
         $row = $res->fetch_assoc();
         $stats['16']= $row["count"];   //USED ADDRESSES (PLACE FUNCTIONS)

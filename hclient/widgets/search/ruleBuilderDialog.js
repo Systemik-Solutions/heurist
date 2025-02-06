@@ -4,8 +4,8 @@
 * @package     Heurist academic knowledge management system
 * @link        https://HeuristNetwork.org
 * @copyright   (C) 2005-2023 University of Sydney
-* @author      Artem Osmakov   <artem.osmakov@sydney.edu.au>
-* @author      Ian Johnson     <ian.johnson@sydney.edu.au>
+* @author      Artem Osmakov   <osmakov@gmail.com>
+* @author      Ian Johnson     <ian.johnson.heurist@gmail.com>
 * @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
 * @version     4.0
 */
@@ -27,14 +27,14 @@
 {"t":"5","lt:15":{"t":"10","plain":"Petia"}}
 
 */
-var first_level_rty_ID = null;
+let first_level_rty_ID = null;
 
 function onPageInit(success) //callback function of hAPI initialization
 {
     if(success)  //system is inited
     {
 
-        var rules = window.hWin.HEURIST4.util.getUrlParameter('rules', window.location.search);
+        let rules = window.hWin.HEURIST4.util.getUrlParameter('rules', window.location.search);
         if(!rules){
             rules = '[]';
             first_level_rty_ID = window.hWin.HEURIST4.util.getUrlParameter('rty_ID', window.location.search);  
@@ -48,13 +48,9 @@ function onPageInit(success) //callback function of hAPI initialization
 
         $('#btn_save').addClass('ui-button-action').attr('title', 'explanatory rollover' ).button().on('click', 3, saveRules);
 
-        //$('#btn_apply').button().on('click', 3, applyRules);
+       
         
-        var ishelp_on = window.hWin.HAPI4.get_prefs('help_on');
-        ishelp_on = (ishelp_on==1 || ishelp_on==true || ishelp_on=='true');
-        
-        //@todo - use common helper/competency level functionality
-        $('#btn_help').button({icons: { primary: "ui-icon-help" }, text:false}).on('click', 3, showHelp);
+        $('#btn_help').button({icon:"ui-icon-help", showLabel:false}).on('click', 3, showHelp);
         $( "#helper" ).dialog({
             autoOpen: false, width:800,
             position: { my: "right bottom", at: "right top", of: $('#btn_help') },
@@ -74,13 +70,12 @@ function onPageInit(success) //callback function of hAPI initialization
         if(!window.hWin.HEURIST4.util.isempty(rules)){
 
             rules = window.hWin.HEURIST4.util.isJSON(rules);
-            //if(!window.hWin.HEURIST4.util.isArray(rules)) rules = $.parseJSON(rules);
 
             if(rules!==false && rules.length>0){
-                var i;
+                let i;
                 for(i=0; i<rules.length; i++){
 
-                    var ele = $("<div>").addClass('level1')
+                    let ele = $("<div>").addClass('level1')
                             .uniqueId().insertBefore($('#div_add_level'));
                     
                     ele.ruleBuilder({level:1,     //add RuleSets builder for level 1
@@ -107,7 +102,7 @@ function onPageInit(success) //callback function of hAPI initialization
 function addLevel(){    
 
     //need to add to dom first otherwise it will not filed selectmenu-parent
-    var ele = $("<div>").addClass('level1')
+    let ele = $("<div>").addClass('level1')
             .uniqueId().insertBefore($('#div_add_level'));
     
     ele.ruleBuilder({level:1,
@@ -123,13 +118,13 @@ function addLevel(){
 //  show/hide help panel
 //
 function showHelp(){
-    var $helper = $("#helper");
+    let $helper = $("#helper");
     if($helper.dialog( "isOpen" )){
         $helper.dialog( "close" );
-        //$helper.hide( 'explode', {}, 1000 );
+       
     }else{
         $helper.dialog( "open" );
-        //$helper.show( 'drop', {}, 1000 );
+       
     }
 }
 
@@ -142,9 +137,9 @@ function getRulesArray(){
     // rules:[ {query:query, levels:[]}, ....  ]
 
     //get first level
-    var rules = [];
+    let rules = [];
     $.each($('.level1'), function( index, value ) {
-        var subrule = $(value).ruleBuilder("getRules");
+        let subrule = $(value).ruleBuilder("getRules");
         if(!window.hWin.HEURIST4.util.isempty(subrule)) rules.push(subrule);
     });
     
@@ -179,7 +174,7 @@ function getRulesArray(){
 * Start search with current search
 */
 function applyRules(){
-    var res = getRulesArray();
+    let res = getRulesArray();
     if(res.length>0){
         res = {mode:'apply', rules:res};
         window.close(res);
@@ -190,7 +185,7 @@ function applyRules(){
 * Save rules with current search as a saved search
 */
 function saveRules(){
-    var res = getRulesArray();
+    let res = getRulesArray();
     if(res.length>0){
         res = {mode:'save', rules:res};
         window.close(res);

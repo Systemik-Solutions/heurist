@@ -2,13 +2,13 @@
 
 /**
 *
-* loadReports.php : load the particular report or list of reports
+* loadReports.php : load the particular smarty report or list of reports
 *
 * @package     Heurist academic knowledge management system
 * @link        https://HeuristNetwork.org
 * @copyright   (C) 2005-2023 University of Sydney
-* @author      Artem Osmakov   <artem.osmakov@sydney.edu.au>
-* @author      Ian Johnson     <ian.johnson@sydney.edu.au>
+* @author      Artem Osmakov   <osmakov@gmail.com>
+* @author      Ian Johnson     <ian.johnson.heurist@gmail.com>
 * @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
 * @version     4
 */
@@ -21,19 +21,21 @@
 * See the License for the specific language governing permissions and limitations under the License.
 */
 
-require_once dirname(__FILE__).'/../../hserv/System.php';
+require_once dirname(__FILE__).'/../../autoload.php';
 
 
-$system = new System();
+$system = new hserv\System();
 if( !$system->init(@$_REQUEST['db']) ){
-    $system->error_exit;
+    $system->errorExit();
 }
 
-if(!$system->has_access()){
-   $system->error_exit( 'To perform this action you must be logged in',  HEURIST_REQUEST_DENIED);
+if(!$system->hasAccess()){
+   $system->errorExit( 'To perform this action you must be logged in',  HEURIST_REQUEST_DENIED);
 }
 
-header('Content-type: application/json;charset=UTF-8');
+header(CTYPE_JSON);
+
+global $sys_usrReportSchedule_ColumnNames;
 
 $sys_usrReportSchedule_ColumnNames = array(
     "rps_ID"=>"i",
@@ -49,14 +51,14 @@ $sys_usrReportSchedule_ColumnNames = array(
 
 $metod = @$_REQUEST['method'];
 
-$mysqli = $system->get_mysqli();
+$mysqli = $system->getMysqli();
 
     if($metod=="searchreports"){
 
         //search the list of users by specified parameters
         $f_id     = @$_REQUEST['recID'];
         $f_name = $mysqli->real_escape_string(filter_var(@$_REQUEST['name'], FILTER_SANITIZE_STRING));
-        $f_userid = @$_REQUEST['usrID']; //@todo
+        $f_userid = @$_REQUEST['usrID'];//@todo
 
         $records = array();
         $recordsCount = 0;
@@ -82,11 +84,11 @@ $mysqli = $system->get_mysqli();
         $response = array("status"=>HEURIST_OK, "data"=>$records);
         print json_encode($response);
 
-    }else if($metod=="getreport"){ //-----------------
+    }elseif($metod=="getreport"){ //-----------------
 
         $recID = @$_REQUEST['recID'];
         if ($recID==null) {
-              $system->error_exit('Invalid call to loadReports, recID is required');
+              $system->errorExit('Invalid call to loadReports, recID is required');
         }
 
         $colNames = array("rps_ID", "rps_Type", "rps_Title", "rps_FilePath", "rps_URL", "rps_FileName", "rps_HQuery", "rps_Template", "rps_IntervalMinutes");
@@ -109,34 +111,34 @@ $mysqli = $system->get_mysqli();
         $response = array("status"=>HEURIST_OK, "data"=>$records);
         print json_encode($response);
 
-    }else if($metod=="savereport"){ //-----------------
+    }elseif($metod=="savereport"){ //-----------------
 
         $data  = @$_REQUEST['data'];
-        //$recID  = @$_REQUEST['recID'];
+
 
         if (!array_key_exists('report',$data) ||
         !array_key_exists('colNames',$data['report']) ||
         !array_key_exists('defs',$data['report'])) {
-              $system->error_exit('Invalid data structure sent with savereport method call to loadReports.php');
+              $system->errorExit('Invalid data structure sent with savereport method call to loadReports.php');
         }
 
         $colNames = $data['report']['colNames'];
 
-        $rv = array(); //result
+        $rv = array();//result
 
         foreach ($data['report']['defs'] as $recID => $rt) {
             array_push($rv, updateReportSchedule($mysqli, $colNames, intval($recID), $rt));
         }
-        
+
         $response = array("status"=>HEURIST_OK, "data"=>$rv);
         print json_encode($response);
-        
-    }else if($metod=="deletereport"){
+
+    }elseif($metod=="deletereport"){
 
         $recID  = @$_REQUEST['recID'];
         $rv = array();
         if (!($recID>0)) {
-              $system->error_exit('Invalid  or not ID sent with deletereport method call to loadReports.php');
+              $system->errorExit('Invalid  or not ID sent with deletereport method call to loadReports.php');
         }else{
             $rv = deleteReportSchedule($mysqli, $recID);
             if(@$rv['error']){
@@ -147,7 +149,7 @@ $mysqli = $system->get_mysqli();
             print json_encode($response);
         }
     }else{
-        $system->error_exit('Invalid or no method provided to loadReports.php');
+        $system->errorExit('Invalid or no method provided to loadReports.php');
     }
 
 exit;
@@ -163,7 +165,7 @@ exit;
 
         if($row['rps_FilePath']!=null){
             $dir = $row['rps_FilePath'];
-            if(substr($dir,-1)!="/") $dir = $dir."/";
+            if(substr($dir,-1)!="/") {$dir = $dir."/";}
         }else{
             $dir = HEURIST_FILESTORE_DIR."generated-reports/";
         }
@@ -224,7 +226,7 @@ exit;
 
         $ret = null;
 
-        if (is_array($colNames) && is_array($values) && count($colNames)>0 && count($values)>0){
+        if (!isEmptyArray($colNames) && is_array($values)){
 
             $isInsert = ($recID<0);
 
@@ -241,7 +243,7 @@ exit;
                 if (array_key_exists($colName, $sys_usrReportSchedule_ColumnNames))
                 {
 
-                    if($query!="") $query = $query.",";
+                    if($query!="") {$query = $query.",";}
 
                     if($isInsert){
                             $query = $query."?";
@@ -249,9 +251,9 @@ exit;
                             $query = $query."$colName = ?";
                     }
 
-                    $parameters[0] = $parameters[0].$sys_usrReportSchedule_ColumnNames[$colName]; //take datatype from array
+                    $parameters[0] = $parameters[0].$sys_usrReportSchedule_ColumnNames[$colName];//take datatype from array
                     array_push($parameters, $val);
-                    
+
                     if($colName=='rps_Title'){
                         $rps_Title = $val;
                     }
@@ -266,18 +268,18 @@ exit;
                 }else{
                     $query = "update usrReportSchedule set ".$query." where rps_ID = $recID";
                 }
-                
+
                 //check duplication
                 $rid = mysql__select_value($mysqli, 'SELECT rps_ID FROM usrReportSchedule WHERE rps_ID!='
                     .$recID.' AND rps_Title="'.$rps_Title.'"');
                 if($rid>0){
-                    
+
                     $ret = 'Duplicate entry. There is already report with the same name.';
-                    
+
                 }else{
-                
-                
-                
+
+
+
                     //temporary alter the structure of table 2016-05-17 - remark it in one year
                     $res = $mysqli->query("SHOW FIELDS FROM usrReportSchedule where Field='rps_IntervalMinutes'");
                     $struct = $res->fetch_assoc();
@@ -289,12 +291,12 @@ exit;
 
                     if ($rows==0 || is_string($rows) ) {
                         $oper = (($isInsert)?"inserting":"updating");
-                        $ret = "error $oper in updateReportSchedule - ".$rows.' '.$query; //$msqli->error;
+                        $ret = "error $oper in updateReportSchedule - ".$rows.' '.$query;
                     } else {
                         if($isInsert){
-                            $ret = -$mysqli->insert_id;                
+                            $ret = -$mysqli->insert_id;
                         }else{
-                            $ret = $recID;;
+                            $ret = $recID;
                         }
                     }
                 }

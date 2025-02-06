@@ -4,7 +4,7 @@
 * @package     Heurist academic knowledge management system
 * @link        https://HeuristNetwork.org
 * @copyright   (C) 2005-2023 University of Sydney
-* @author      Artem Osmakov   <artem.osmakov@sydney.edu.au>
+* @author      Artem Osmakov   <osmakov@gmail.com>
 * @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
 * @version     4.0
 */
@@ -34,20 +34,21 @@ $.widget( "heurist.selectFolders", $.heurist.selectMultiValues, {
     _init: function() {
 
         this._super();
+        const that = this;
 
-        var ent_header = this.element.find('.ent_header');        
+        let ent_header = this.element.find('.ent_header');        
 
-        $('<div>').button({label:window.hWin.HR('New folder')}).click(
+        $('<div>').button({label:window.hWin.HR('New folder')}).on('click',
             function() {
-                var node = that._treeview.fancytree('getRootNode');
+                let node = that._treeview.fancytree('getRootNode');
                 node.editCreateNode("child", "new folder");                    
             }        
         ).appendTo(ent_header);
 
-        $('<div>').button({label:window.hWin.HR('New subfolder')}).click(
+        $('<div>').button({label:window.hWin.HR('New subfolder')}).on('click',
             function() {
 
-                var node = that._treeview.fancytree("getActiveNode");
+                let node = that._treeview.fancytree("getActiveNode");
                 if( !node ) {
                     window.hWin.HEURIST4.msg.showMsgFlash('Select parent folder');
                     return;
@@ -60,10 +61,10 @@ $.widget( "heurist.selectFolders", $.heurist.selectMultiValues, {
             }        
         ).appendTo(ent_header);
 
-        $('<div>').button({label:window.hWin.HR('Delete')}).click(
+        $('<div>').button({label:window.hWin.HR('Delete')}).on('click',
             function() {
 
-                var node = that._treeview.fancytree("getActiveNode");
+                let node = that._treeview.fancytree("getActiveNode");
                 if(node){
                     if(node.data.issystem){
                         window.hWin.HEURIST4.msg.showMsgFlash('System folder cannot be deleted');
@@ -71,9 +72,9 @@ $.widget( "heurist.selectFolders", $.heurist.selectMultiValues, {
                         window.hWin.HEURIST4.msg.showMsgFlash('Cannot delete non-empty folder');
                     }else{
 
-                        var path = node.getParent().getKeyPath();
+                        let path = node.getParent().getKeyPath();
                         path = (path=='/')?'':(path+'/');
-                        var currname = path+node.title;
+                        let currname = path+node.title;
 
                         window.hWin.HAPI4.SystemMgr.get_sysfolders({operation:'delete', name:currname}, 
                             function(response){
@@ -90,11 +91,11 @@ $.widget( "heurist.selectFolders", $.heurist.selectMultiValues, {
 
         /*
         $('<label><input type="checkbox">Show system folders</label>').css({'margin-left':'20px'}).appendTo(ent_header);
-        ent_header.find('input').click(
+        ent_header.find('input').on('click',
         function(event){
         that._show_system_folders = $(event.target).is(':checked');
 
-        var wtrr = that._treeview.fancytree("getTree");
+        var wtrr = $.ui.fancytree.getTree(that._treeview);
         wtrr.filterBranches(function(node){
         return that._show_system_folders || !node.data.issystem;
         }, {mode: "hide"});
@@ -113,7 +114,7 @@ $.widget( "heurist.selectFolders", $.heurist.selectMultiValues, {
     //
     _initList: function(){
         
-        if($.isArray(this.options.allValues) && this.options.allValues.length>0){
+        if(Array.isArray(this.options.allValues) && this.options.allValues.length>0){
             
             this._showAsDialog();
             this._initTreeView( this.options.allValues );    
@@ -121,8 +122,8 @@ $.widget( "heurist.selectFolders", $.heurist.selectMultiValues, {
         }else{
 
             //search for folders
-            var that = this;                            
-            var opts = {};
+            let that = this;                            
+            let opts = {};
             if(this.options.root_dir){
                 opts.root_dir = this.options.root_dir;
             }
@@ -131,7 +132,7 @@ $.widget( "heurist.selectFolders", $.heurist.selectMultiValues, {
                 function(response){
                     if(response.status == window.hWin.ResponseStatus.OK){
                         that.options.allValues = response.data;
-                        if($.isArray(that.options.allValues) && that.options.allValues.length>0){
+                        if(Array.isArray(that.options.allValues) && that.options.allValues.length>0){
                             that._initList();
                         }else{
                             window.hWin.HEURIST4.msg.showMsgFlash(window.hWin.HR(that.options.emptyMessage));                

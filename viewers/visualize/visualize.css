@@ -223,22 +223,28 @@ text.shadow {
     bottom: 0px;
     width: 30%;
     height: 40%;
-    min-width: 300px;
+    min-width: 380px;
     min-height: 330px;
-    max-width: 330px;
+    max-width: 380px;
     max-height: 350px;
     box-shadow: 0 3px 10px rgb(0 0 0 / 0.2);
 }
 
-/**Close Node information iframe button
-  *ADDED BY ISH */
-#closeButton {
-    display: block;
+/* Node information iframe buttons */
+.iframeControls {
     position: absolute;
     top: 0px;
     right: 0px;
-    /*overflow: visible;*/
     z-index: 60001;
+}
+#btnCtrlNewtab{
+    right: 36px;
+}
+#btnCtrlPopup{
+    right: 72px;
+}
+.iframeControls .ui-icon{
+    top: 3px;
 }
 
 /** Selection */

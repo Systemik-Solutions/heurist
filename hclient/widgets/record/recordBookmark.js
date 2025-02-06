@@ -4,7 +4,7 @@
 * @package     Heurist academic knowledge management system
 * @link        https://HeuristNetwork.org
 * @copyright   (C) 2005-2023 University of Sydney
-* @author      Artem Osmakov   <artem.osmakov@sydney.edu.au>
+* @author      Artem Osmakov   <osmakov@gmail.com>
 * @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
 * @version     4.0
 */
@@ -26,18 +26,17 @@ $.widget( "heurist.recordBookmark", $.heurist.recordAction, {
         width:  540,
         modal:  true,
         init_scope: 'selected',
-        title:  'Unbookmark selected records',
-        helpContent: 'recordBookmark.html'
+        title:  'Unbookmark selected records'
     },
-
+    
     _initControls:function(){
         
-        this.element.find('#div_header')
+        this._$('#div_header')
             .css({'line-height':'21px'})
             .addClass('heurist-helper1')
             .html(window.hWin.HR('recordUnbookmark_hint'));
         
-        this.element.parents('.ui-dialog').find('#btnDoAction').attr('label', window.hWin.HR('Remove Bookmarks'));
+        this.element.parents('.ui-dialog').find('.btnDoAction').attr('label', window.hWin.HR('Remove Bookmarks'));
         
         return this._super();
     },
@@ -47,10 +46,10 @@ $.widget( "heurist.recordBookmark", $.heurist.recordAction, {
     //
     doAction: function(){
 
-            var scope_val = this.selectRecordScope.val();
+            let scope_val = this.selectRecordScope.val();
             if(scope_val=='') return;
             
-            var scope = [], 
+            let scope = [], 
             rec_RecTypeID = 0;
             
             if(scope_val == 'selected'){
@@ -62,7 +61,7 @@ $.widget( "heurist.recordBookmark", $.heurist.recordAction, {
                 }   
             }
         
-            var request = {
+            let request = {
                 'a'          : 'batch',
                 'entity'     : 'usrBookmarks',
                 'request_id' : window.hWin.HEURIST4.util.random(),
@@ -74,7 +73,7 @@ $.widget( "heurist.recordBookmark", $.heurist.recordAction, {
                 request['rec_RecTypeID'] = rec_RecTypeID;
             }
                 
-                var that = this;                                                
+                let that = this;                                                
                 
                 window.hWin.HAPI4.EntityMgr.doRequest(request, 
                     function(response){

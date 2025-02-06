@@ -4,7 +4,7 @@
 * @package     Heurist academic knowledge management system
 * @link        https://HeuristNetwork.org
 * @copyright   (C) 2005-2023 University of Sydney
-* @author      Artem Osmakov   <artem.osmakov@sydney.edu.au>
+* @author      Artem Osmakov   <osmakov@gmail.com>
 * @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
 * @version     4.0
 */
@@ -33,9 +33,7 @@ $.widget( "heurist.manageSysUsers", $.heurist.manageEntity, {
         
         this.options.layout_mode = 'short';
         this.options.use_cache = false;
-        //this.options.edit_mode = 'popup';
-        
-        //this.options.select_return_mode = 'recordset';
+
         this.options.edit_need_load_fullrecord = true;
         this.options.edit_height = 640;
         this.options.height = 640;
@@ -45,7 +43,7 @@ $.widget( "heurist.manageSysUsers", $.heurist.manageEntity, {
             this.options.select_mode = 'manager';
             this.options.layout_mode = 'editonly';
             this.options.width = 790;
-            //this.options.height = 640;
+           
         }else
         //for selection mode set some options
         if(this.options.select_mode!='manager'){
@@ -71,8 +69,9 @@ $.widget( "heurist.manageSysUsers", $.heurist.manageEntity, {
         }
         
         //update dialog title
-        var title = null;
-        var usr_ID = 0;
+        let title = null;
+        let usr_ID = 0;
+        let that = this;
         
         
         if(this.options.title){
@@ -101,13 +100,12 @@ $.widget( "heurist.manageSysUsers", $.heurist.manageEntity, {
             if(window.hWin.HAPI4.is_admin()){
                 title = 'Manage All Users as Database Administrator';    
             }else{                    
-                //usr_ID = window.hWin.HAPI4.currentUser['ugr_ID'];
+               
                 title = 'Manage Users';    
             }
         }
         
         if(usr_ID>0 && title){
-            var that = this;
             function __set_dlg_title(res){
                 if(res && res.status==window.hWin.ResponseStatus.OK){
                     that.setTitle( title+res.data[usr_ID] );    
@@ -121,7 +119,7 @@ $.widget( "heurist.manageSysUsers", $.heurist.manageEntity, {
         // init search header
         this.searchForm.searchSysUsers(this.options);
         
-        var iheight = 7;
+        let iheight = 7;
         if(this.options.edit_mode=='inline'){            
             iheight = iheight + 6;
         }
@@ -132,7 +130,6 @@ $.widget( "heurist.manageSysUsers", $.heurist.manageEntity, {
         this.searchForm.css({'height':iheight+'em',padding:'10px', 'min-width': '730px'});
         this.recordList.css({'top':iheight+0.5+'em', 'min-width': '730px'});
         //init viewer 
-        var that = this;
         
         if(this.options.select_mode=='manager'){
             this.recordList.parent().css({'border-right':'lightgray 1px solid'});
@@ -149,7 +146,7 @@ $.widget( "heurist.manageSysUsers", $.heurist.manageEntity, {
 
                         if (window.hWin.HAPI4.is_admin()){
                             s += `<div style="flex:0 0 4.5em;${center_cols}">Edit</div>`;
-                            s += `<div style="flex:0 0 6em;${center_cols}">Delete</div>`;
+                            s += `<div style="flex:0 0 6em;${center_cols}">${!that.options.ugl_GroupID ? 'Delete' : 'Remove'}</div>`;
                         }
 
                         s += `<div style="flex:0 1 8em;${center_cols}">Membership</div>`;
@@ -164,55 +161,54 @@ $.widget( "heurist.manageSysUsers", $.heurist.manageEntity, {
                         return s;
                     }
                 );
-            //this.recordList.resultList('applyViewMode');
+           
         }
 
         this._on( this.searchForm, {
-                "searchsysusersonresult": this.updateRecordList,
-                "searchsysusersonadd": function() { this.addEditRecord(-1); },
-                "searchsysusersonfind": function() { 
-                    
-                        var ugl_GroupID = this.searchForm.find('#input_search_group').val(); 
+            "searchsysusersonresult": this.updateRecordList,
+            "searchsysusersonadd": function() { this.addEditRecord(-1); },
+            "searchsysusersonfind": function() { 
 
-                        var options = {select_mode: 'select_multi',
-                                ugl_GroupID: -ugl_GroupID,
-                                edit_mode:'none',
-                                title: ("Select Users to add to Workgroup #"+ugl_GroupID),
-                                onselect:function(event, data){
-                        
-                                    if(data && window.hWin.HEURIST4.util.isArrayNotEmpty(data.selection))
-                                    {
-                                        var request = {};
-                                        request['a']        = 'action'; //batch action
-                                        request['entity']   = 'sysGroups';
-                                        request['role']     = 'member';
-                                        request['userIDs']  = data.selection;
-                                        request['groupID']  = ugl_GroupID;
-                                        request['request_id'] = window.hWin.HEURIST4.util.random();
-                                        
-                                        window.hWin.HAPI4.EntityMgr.doRequest(request, 
-                                            function(response){
-                                                if(response.status == window.hWin.ResponseStatus.OK){
-                                                    //reload
-                                                    that.searchForm.searchSysUsers('startSearch');
-                                                    
-                                                    if(data.selection.indexOf(window.hWin.HAPI4.currentUser['ugr_ID'])>=0){
-                                                        window.hWin.HAPI4.currentUser['ugr_Groups'][ugl_GroupID] = 'member';
-                                                        $(window.hWin.document).trigger(window.hWin.HAPI4.Event.ON_CREDENTIALS); 
-                                                    }
-                                                    
-                                                }else{
-                                                    window.hWin.HEURIST4.msg.showMsgErr(response);      
-                                                }
-                                            });
-                                    
-                                    }                                    
-                                }};                    
-                        
-                        window.hWin.HEURIST4.ui.showEntityDialog('sysUsers', options);
-                    }
-                });
-        
+                let ugl_GroupID = this.searchForm.find('#input_search_group').val(); 
+
+                let options = {select_mode: 'select_multi',
+                        ugl_GroupID: -ugl_GroupID,
+                        edit_mode:'none',
+                        title: ("Select Users to add to Workgroup #"+ugl_GroupID),
+                        onselect:function(event, data){
+                
+                            if(data && window.hWin.HEURIST4.util.isArrayNotEmpty(data.selection))
+                            {
+                                let request = {};
+                                request['a']        = 'action'; //batch action
+                                request['entity']   = 'sysGroups';
+                                request['role']     = 'member';
+                                request['userIDs']  = data.selection;
+                                request['groupID']  = ugl_GroupID;
+                                request['request_id'] = window.hWin.HEURIST4.util.random();
+                                
+                                window.hWin.HAPI4.EntityMgr.doRequest(request, 
+                                    function(response){
+                                        if(response.status == window.hWin.ResponseStatus.OK){
+                                            //reload
+                                            that.searchForm.searchSysUsers('startSearch');
+                                            
+                                            if(data.selection.indexOf(window.hWin.HAPI4.currentUser['ugr_ID'])>=0){
+                                                window.hWin.HAPI4.currentUser['ugr_Groups'][ugl_GroupID] = 'member';
+                                                $(window.hWin.document).trigger(window.hWin.HAPI4.Event.ON_CREDENTIALS); 
+                                            }
+                                            
+                                        }else{
+                                            window.hWin.HEURIST4.msg.showMsgErr(response);      
+                                        }
+                                    });
+                            
+                            }                                    
+                        }};                    
+                
+                window.hWin.HEURIST4.ui.showEntityDialog('sysUsers', options);
+            }
+        });
 
         this._on( this.recordList, {
             "resultlistonpagerender": function(event){
@@ -220,18 +216,17 @@ $.widget( "heurist.manageSysUsers", $.heurist.manageEntity, {
                 //init role dropdown selector
                 this.recordList.find('select.user-role')
                 .each(function(idx,item){$(item).val($(item).attr('data-value'))})
-                .change(function(event){
+                .on('change', function(event){
 
-                    var ugl_GroupID = that.searchForm.find('#input_search_group').val(); 
+                    let ugl_GroupID = that.searchForm.find('#input_search_group').val(); 
                     if(!(ugl_GroupID>0)) return;
                     /*if(!(ugl_GroupID>0)) {
                         
-                        var that = this;
                         this.recordList.find('.user-list-edit')
                         .each(function(idx,item){
                             $(item).attr('title','Edit user membership');
                         })
-                        .click(function(event){
+                        .on('click', function(event){
                             alert('Need open group mgr')
                         });
                         return;   
@@ -239,11 +234,11 @@ $.widget( "heurist.manageSysUsers", $.heurist.manageEntity, {
 
                     //apply new role to user
                     
-					var selector = $(event.target);
-                    var usr_ID = selector.parents('.recordDiv').attr('recid');  
-                    var newRole = selector.val();
+					let selector = $(event.target);
+                    let usr_ID = selector.parents('.recordDiv').attr('recid');  
+                    let newRole = selector.val();
 
-                    var request = {};
+                    let request = {};
                     request['a']        = 'action';
                     request['entity']   = 'sysGroups';
                     request['role']     = newRole;
@@ -255,9 +250,9 @@ $.widget( "heurist.manageSysUsers", $.heurist.manageEntity, {
                         function(response){             
                             if(response.status == window.hWin.ResponseStatus.OK){
                                 //reload
-                                //that.searchForm.searchSysUsers('startSearch');
+                               
                                 if(newRole=='remove'){
-                                    var recset = that.recordList.resultList('getRecordSet');
+                                    let recset = that.recordList.resultList('getRecordSet');
                                     recset.removeRecord(usr_ID);
                                     that.recordList.resultList('refreshPage');  
                                     window.hWin.HEURIST4.msg.showMsgFlash('User removed from group');
@@ -285,9 +280,9 @@ $.widget( "heurist.manageSysUsers", $.heurist.manageEntity, {
 
                 //manage membership of user in all groups
                 this.recordList.find('.edit-members')
-                .click(function(event){
-                    var user_ID = $(event.target).parents('.recordDiv').attr('recid');
-                    var enabled = $(event.target).parents('.recordDiv').attr('usr_status');
+                .on('click', function(event){
+                    let user_ID = $(event.target).parents('.recordDiv').attr('recid');
+                    let enabled = $(event.target).parents('.recordDiv').attr('usr_status');
                     
                     if (enabled=='n')
                     {
@@ -295,15 +290,16 @@ $.widget( "heurist.manageSysUsers", $.heurist.manageEntity, {
                         return;                        
                     }
 
-                    var options = {select_mode: 'manager',
+                    let options = {select_mode: 'manager',
                         ugl_UserID: user_ID,
                         edit_mode:'popup',
                         title: ("Manage Membership for User #"+user_ID),
                         //before close - count for membership and refresh
                         beforeClose:function(){
-                            
+
+                            let membership_popup = this;
                             //count user memebrship in groups
-                            var request = {
+                            let request = {
                                 'a'          : 'search',
                                 'entity'     : 'sysUsers',
                                 'details'    : 'count',
@@ -312,16 +308,19 @@ $.widget( "heurist.manageSysUsers", $.heurist.manageEntity, {
                             window.hWin.HAPI4.EntityMgr.doRequest(request, 
                                 function(response){
                                     if(response.status == window.hWin.ResponseStatus.OK){
-                                        var resp = new hRecordSet( response.data );
-                                        var rec_updated = resp.getFirstRecord();
-                                        var cnt = resp.fld(rec_updated, 'ugr_Member');
+                                        let resp = new HRecordSet( response.data );
+                                        let rec_updated = resp.getFirstRecord();
+                                        let cnt = resp.fld(rec_updated, 'ugr_Member');
                                         if(cnt>0){
-                                            var record = that.getRecordSet().getById(user_ID);
+                                            let record = that.getRecordSet().getById(user_ID);
                                             that.getRecordSet().setFld(record, 'ugr_Member', cnt);
-                                            that.recordList.resultList('refreshPage');  
-                                            $('body').find('div[id^="heurist-dialog-SysGroups-"]').manageSysGroups('closeDialog', true);
+                                            that.recordList.resultList('refreshPage');
+                                            $(membership_popup).manageSysGroups('closeDialog', true);
                                         }else{
-                                            window.hWin.HEURIST4.msg.showMsgErr('User must belong to one group at least');
+                                            window.hWin.HEURIST4.msg.showMsgErr({
+                                                message: 'User must belong to one group at least',
+                                                error_title: 'Select a workgroup'
+                                            });
                                         }
                                     }else{
                                         window.hWin.HEURIST4.msg.showMsgErr(response);
@@ -339,7 +338,6 @@ $.widget( "heurist.manageSysUsers", $.heurist.manageEntity, {
             }
         });
 
-        
         return true;
     }
     
@@ -354,7 +352,7 @@ $.widget( "heurist.manageSysUsers", $.heurist.manageEntity, {
             return window.hWin.HEURIST4.util.htmlEscape(recordset.fld(record, fldname));
         }
         function fld2(fldname, sstyle){
-            swidth = '';
+            let swidth = '';
             if(!window.hWin.HEURIST4.util.isempty(sstyle)){
                 swidth = ` style="${sstyle}"`;
             }
@@ -376,6 +374,12 @@ $.widget( "heurist.manageSysUsers", $.heurist.manageEntity, {
 
         let name_width = navigator.userAgent.toLowerCase().includes('firefox') ? 7.5 : 8.5;
 
+        let mail_link = !window.hWin.HEURIST4.util.isempty(fld('ugr_eMail')) ? ` href="mailto:${fld('ugr_eMail')}" ` : '';
+
+        let user_content = window.hWin.HEURIST4.util.isempty(fld('ugr_Name'))
+            ? ''
+            : `<a class="truncate" style="flex:0 1 ${name_width}em"${mail_link}title="${fld('ugr_eMail')}">${fld('ugr_Name')}</a>`;
+
         let html = '<div class="recordDiv" id="rd'+recID+'" recid="'+recID+'" usr_status="'+fld('ugr_Enabled')+'" style="display: flex;">'
         + html_thumb
         + '<div class="recordSelector"><input type="checkbox"></div>'
@@ -384,13 +388,13 @@ $.widget( "heurist.manageSysUsers", $.heurist.manageEntity, {
         +     '" style="background-image: url(&quot;'+rtIcon+'&quot;);opacity:'+recOpacity+'">'
         + '</div>'
         + fld2('ugr_ID','flex:0 2 4em;')
-        + `<a class="truncate" style="flex:0 1 ${name_width}em" href="mailto:'+fld('ugr_eMail')+'" title="'+fld('ugr_eMail')+'">`
-            + fld('ugr_Name')
-        + '</a>'
+        + user_content
         + '<div class="truncate" style="flex:0 3 10em;">'+fld('ugr_FirstName')+' '+fld('ugr_LastName')+'</div>';
 
+        let show_buttons = this.options.edit_mode !== 'none';
+
         // add edit/remove action buttons
-        if(recID == 2 && window.hWin.HAPI4.has_access(2)){ // only db owner can edit db owner
+        if(recID == 2 && window.hWin.HAPI4.has_access(2) && show_buttons){ // only db owner can edit db owner
 
             html += '<div title="Click to edit user" class="ui-button ui-widget ui-state-default ui-corner-all ui-button-icon-only" role="button" aria-disabled="false" data-key="edit" '
                   + 'style="height:16px;margin: 0px 15px;flex:0 0 25px;">'
@@ -399,21 +403,24 @@ $.widget( "heurist.manageSysUsers", $.heurist.manageEntity, {
                 + '<div style="width: 75px;"></div>';
 
         }else
-        if( window.hWin.HAPI4.is_admin() ) {//current user is admin of database managers
-            
+        if(window.hWin.HAPI4.is_admin() && show_buttons){//current user is admin of database managers
+
+            let icon = !this.options.ugl_GroupID ? 'circle-close' : 'arrowrefresh-1-n';
+            let action = !this.options.ugl_GroupID ? 'delete' : 'remove';
+
             html += '<div title="Click to edit user" class="ui-button ui-widget ui-state-default ui-corner-all ui-button-icon-only" role="button" aria-disabled="false" data-key="edit" '
                   + 'style="height:16px;margin: 0px 15px;flex:0 0 25px;">'
                     + '<span class="ui-button-icon-primary ui-icon ui-icon-pencil"></span><span class="ui-button-text"></span>'
                 + '</div>'
-                + '<div title="Click to delete user" class="ui-button ui-widget ui-state-default ui-corner-all ui-button-icon-only" role="button" aria-disabled="false" data-key="delete" '
+                + `<div title="Click to ${action} user" class="ui-button ui-widget ui-state-default ui-corner-all ui-button-icon-only" role="button" aria-disabled="false" data-key="${action}" `
                   + 'style="height:16px;margin: 0px 25px;flex:0 0 25px;">'
-                    + '<span class="ui-button-icon-primary ui-icon ui-icon-circle-close"></span><span class="ui-button-text"></span>'
+                    + `<span class="ui-button-icon-primary ui-icon ui-icon-${icon}"></span><span class="ui-button-text"></span>`
                 + '</div>';
-           
+
         }
-        
+
         // add edit group memberships
-        if(this.options.select_mode=='manager' && this.options.edit_mode=='popup'){
+        if(this.options.select_mode=='manager' && show_buttons){
         
             const ugl_GroupID = this.searchForm.find('#input_search_group').val(); 
             if(window.hWin.HAPI4.is_admin() && !(ugl_GroupID>0)){  //all groups - show count of groups where user is a member
@@ -457,19 +464,42 @@ $.widget( "heurist.manageSysUsers", $.heurist.manageEntity, {
         return html;
         
     },
-    
+
+    _onActionListener: function(event, action){
+
+        let is_resolved = this._super(event, action);
+
+        if(is_resolved){
+            return true;
+        }else if(!window.hWin.HEURIST4.util.isObject(action)){
+            return false;
+        }
+
+        let usr_ID = action.recID;
+        action = action.action;
+
+        if(action == 'remove' && this.options.ugl_GroupID > 0){
+
+            let $select = this.recordList.find(`.recordDiv[recID="${usr_ID}"] select.user-role`);
+            $select.val('remove').trigger('change');
+
+            is_resolved = true;
+        }
+
+        return is_resolved;
+    },
+
     //overwritten    
     _recordListGetFullData:function(arr_ids, pageno, callback){
 
-        var request = {
-                'a'          : 'search',
-                'entity'     : this.options.entity.entityName,
-                'details'    : 'list',
-                'pageno'     : pageno,
-                'db'         : this.options.database  
-                
+        let request = {
+            'a': 'search',
+            'entity': this.options.entity.entityName,
+            'details': 'list',
+            'pageno': pageno,
+            'db': this.options.database                
         };
-        var ugl_GroupID = this.searchForm.find('#input_search_group').val();
+        let ugl_GroupID = this.searchForm.find('#input_search_group').val();
         if(ugl_GroupID>0){
             request['ugl_GroupID'] = ugl_GroupID;
         }
@@ -486,28 +516,28 @@ $.widget( "heurist.manageSysUsers", $.heurist.manageEntity, {
 
         this._super();
 
-        var ugl_GroupID = this.searchForm.find('#input_search_group').val();
+        let ugl_GroupID = this.searchForm.find('#input_search_group').val();
         if(ugl_GroupID>0 && !this._currentEditRecordset){ //insert       
 
-            var ele = this._editing.getFieldByName('ugl_GroupID');
+            let ele = this._editing.getFieldByName('ugl_GroupID');
             ele.editing_input('setValue', ugl_GroupID);
             //hide save button
             if(this._toolbar){
-                this._toolbar.find('#btnRecSave').css('visibility', 'visible');
+                this._toolbar.find('.btnRecSave').css('visibility', 'visible');
             }
         }else
         //hide after edit init btnRecRemove for dbowner (user #2)
         if(this._currentEditID==2 || !window.hWin.HAPI4.is_admin()){
-            var ele = this._toolbar;
-            ele.find('#btnRecRemove').hide();
+            let ele = this._toolbar;
+            ele.find('.btnRecRemove').hide();
         }
         
-        var btnTrOwner = this._toolbar.find('#btnTransferOwnership');
+        let btnTrOwner = this._toolbar.find('.btnTransferOwnership');
         
         if(this._currentEditID>0 && this._currentEditID!=2 && window.hWin.HAPI4.user_id()==2){
             //add ownershup transfer button
             if(btnTrOwner.length==0){
-                btnTrOwner = $('<button id="btnTransferOwnership">')
+                btnTrOwner = $('<button class="btnTransferOwnership">')
                         .appendTo(this._toolbar);
             }
             btnTrOwner.button({
@@ -520,16 +550,16 @@ $.widget( "heurist.manageSysUsers", $.heurist.manageEntity, {
         }
         
         if(!window.hWin.HAPI4.is_admin() || window.hWin.HAPI4.currentUser['ugr_ID']==this._currentEditID){
-            var input_ele = this._editing.getFieldByName('ugr_Enabled');
+            let input_ele = this._editing.getFieldByName('ugr_Enabled');
             input_ele.hide();
-            //input_ele.editing_input('f', 'rst_Display', 'hidden');
+           
         }
         
         //fill SAML service providers list
-        var saml_sel = this._editing.getFieldByName('ugl_SpID').find('select');
-        var has_saml = false;
+        let saml_sel = this._editing.getFieldByName('ugl_SpID').find('select');
+        let has_saml = false;
         if($.isPlainObject(window.hWin.HAPI4.sysinfo.saml_service_provides)){
-            var sp_keys = Object.keys(window.hWin.HAPI4.sysinfo.saml_service_provides);
+            let sp_keys = Object.keys(window.hWin.HAPI4.sysinfo.saml_service_provides);
             if(sp_keys.length>0){
                 saml_sel.empty();
                 
@@ -551,17 +581,17 @@ $.widget( "heurist.manageSysUsers", $.heurist.manageEntity, {
                //assign new one
                this._Saml_To_UI( $(event.target).val() );
             }});
-            
-            saml_sel.change();
-            
+
+            this._editing.setModified(0); // avoid triggering modified flag
+
+            saml_sel.trigger('change');
+
         }else{
             let content = saml_sel.parents('.ui-accordion-content');
             content.hide();
             this.editForm.find('#'+content.attr('aria-labelledby')).hide(); // .ui-accordion-header 
         }
-        
-
-    },    
+    },
     
     //
     // save current saml values
@@ -625,8 +655,8 @@ $.widget( "heurist.manageSysUsers", $.heurist.manageEntity, {
         // close on addition of new record in select_single mode    
         if(this._currentEditID<0 && this.options.select_mode=='select_single'){
             
-                this._selection = new hRecordSet();
-                //{fields:{}, order:[recID], records:[fieldvalues]});
+                this._selection = new HRecordSet();
+               
                 this._selection.addRecord(recID, fieldvalues);
                 this._selectAndClose();
                 return;        
@@ -636,11 +666,11 @@ $.widget( "heurist.manageSysUsers", $.heurist.manageEntity, {
         }
         
         this._super( recID, fieldvalues );
-        this.getRecordSet().setRecord(recID, fieldvalues);
         
         if(this.options.edit_mode == 'editonly'){
             this.closeDialog(true); //force to avoid warning
         }else{
+            this.getRecordSet().setRecord(recID, fieldvalues);
             this.recordList.resultList('refreshPage');  
         }
     },
@@ -650,7 +680,7 @@ $.widget( "heurist.manageSysUsers", $.heurist.manageEntity, {
         if(unconditionally===true){
             this._super(); 
         }else{
-            var that = this;
+            let that = this;
             window.hWin.HEURIST4.msg.showMsgDlg(
                 'Are you sure you wish to delete this user?', function(){ that._deleteAndClose(true) }, 
                 {title:'Warning',yes:'Proceed',no:'Cancel'});        
@@ -667,8 +697,9 @@ $.widget( "heurist.manageSysUsers", $.heurist.manageEntity, {
 
         if(this._currentEditID==null || this._currentEditID<1) return;
 
-        var isEnabled = this._editing.getValue('ugr_Enabled')[0];
-        var isModified = this._editing.isModified();
+        const isEnabled = this._editing.getValue('ugr_Enabled')[0];
+        const isModified = this._editing.isModified();
+        let that = this;
 
         if(isModified){
 
@@ -682,7 +713,7 @@ $.widget( "heurist.manageSysUsers", $.heurist.manageEntity, {
 
         if(unconditionally===true){
             
-            var request = {
+            const request = {
                 'a': 'action',
                 'transferOwner': true,
                 'entity'     : this.options.entity.entityName,
@@ -690,13 +721,11 @@ $.widget( "heurist.manageSysUsers", $.heurist.manageEntity, {
                 'recID'      : this._currentEditID 
             };
 
-            var that = this;
-
             window.hWin.HAPI4.EntityMgr.doRequest(request,
                 function(response){
                     if(response.status == window.hWin.ResponseStatus.OK){
 
-                        var recID = that._currentEditID;
+                        let recID = that._currentEditID;
                         that._afterTransferOwnerHandler(recID);
                     
                     }else{
@@ -706,7 +735,6 @@ $.widget( "heurist.manageSysUsers", $.heurist.manageEntity, {
             );
             
         }else{
-            var that = this;
             window.hWin.HEURIST4.msg.showMsgDlg(
                 'Are you sure you wish to transfer the ownership of this database to the selected user? This action can only be undone by the new owner.<br>'
                 +' <p style="font-size: 1.1em; font-weight: bold;">'
@@ -728,13 +756,10 @@ $.widget( "heurist.manageSysUsers", $.heurist.manageEntity, {
         window.hWin.HAPI4.SystemMgr.logout(
             function(response){
                 if(response.status == window.hWin.ResponseStatus.OK){
-                    window.hWin.HAPI4.setCurrentUser(null);
                     window.location.reload();  // page reload
-                }else{
-                    window.hWin.HEURIST4.msg.showMsgErr(response + ' <br> Heurist is unable to refresh the page!');
                 }
             }
         );
-    }  
+    }
     
 });

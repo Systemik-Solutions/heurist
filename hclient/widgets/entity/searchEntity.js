@@ -4,7 +4,7 @@
 * @package     Heurist academic knowledge management system
 * @link        https://HeuristNetwork.org
 * @copyright   (C) 2005-2023 University of Sydney
-* @author      Artem Osmakov   <artem.osmakov@sydney.edu.au>
+* @author      Artem Osmakov   <osmakov@gmail.com>
 * @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
 * @version     4.0
 */
@@ -44,6 +44,7 @@ $.widget( "heurist.searchEntity", {
     },
     
     _need_load_content:true, // do not load search form html content
+    _search_request:{},
 
     // the widget's constructor
     _create: function() {
@@ -55,14 +56,18 @@ $.widget( "heurist.searchEntity", {
     // the widget is initialized; this includes when the widget is created.
     _init: function() {
 
-            var that = this;
+            let that = this;
             
             if(this._need_load_content && this.options.entity.searchFormContent){        
                 this.element.load(window.hWin.HAPI4.baseURL+'hclient/widgets/entity/'+this.options.entity.searchFormContent+'?t'+window.hWin.HEURIST4.util.random(), 
                 function(response, status, xhr){
                     that._need_load_content = false;
                     if ( status == "error" ) {
-                        window.hWin.HEURIST4.msg.showMsgErr(response);
+                        window.hWin.HEURIST4.msg.showMsgErr({
+                            message: response,
+                            error_title: 'Failed to load HTML content',
+                            status: window.hWin.ResponseStatus.UNKNOWN_ERROR
+                        });
                     }else{
                         that._initControls();
                     }
@@ -105,18 +110,16 @@ $.widget( "heurist.searchEntity", {
             // summary button - to show various counts for entity 
             // number of group members, records by rectypes, tags usage
             this.btn_summary = this.element.find('#btn_summary')
-                .button({label: window.hWin.HR("Show/refresh counts"), text:false, icons: {
-                    secondary: "ui-icon-retweet"
-                }});
+                .button({label: window.hWin.HR("Show/refresh counts"), showLabel:false, iconPosition:'end', icon:'ui-icon-retweet'});
             if(this.btn_summary.length>0){
                 this._on( this.btn_summary, { click: this.startSearch });
             }
                 
-            var right_padding = window.hWin.HEURIST4.util.getScrollBarWidth()+4;
+            let right_padding = window.hWin.HEURIST4.util.getScrollBarWidth()+4;
             this.element.find('#div-table-right-padding').css('min-width',right_padding);
         
         
-            //EXTEND this.startSearch();
+           
             window.hWin.HEURIST4.ui.disableAutoFill( this.element.find( 'input' ) );
             
     },  
@@ -126,7 +129,7 @@ $.widget( "heurist.searchEntity", {
     //
     startSearchOnEnterPress: function(e){
         
-        var code = (e.keyCode ? e.keyCode : e.which);
+        let code = (e.keyCode ? e.keyCode : e.which);
         if (code == 13) {
             window.hWin.HEURIST4.util.stopEvent(e);
             e.preventDefault();
@@ -144,7 +147,7 @@ $.widget( "heurist.searchEntity", {
         
             this._trigger( "onstart" );
             
-            var that = this;
+            let that = this;
             window.hWin.HAPI4.EntityMgr.getEntityData(this.options.entity.entityName, false,
                 function(response){
                         that._trigger( "onresult", null, {recordset:response} );
@@ -158,7 +161,35 @@ $.widget( "heurist.searchEntity", {
     // public methods
     //
     startSearch: function(){
-        //TO EXTEND        
+        
+            if(!this._search_request){
+                this._search_request = {};
+            }
+                    
+            this._trigger( "onstart" );
+    
+            this._search_request['a']          = 'search'; //action
+            this._search_request['entity']     = this.options.entity.entityName;
+            this._search_request['request_id'] = window.hWin.HEURIST4.util.random();
+            if(!this._search_request['details']){
+                this._search_request['details'] = 'id';
+            }
+            if(this.options.database){
+                this._search_request['db'] = this.options.database;    
+            }
+            
+
+            let that = this;                                                
+       
+            window.hWin.HAPI4.EntityMgr.doRequest(this._search_request, 
+                function(response){
+                    if(response.status == window.hWin.ResponseStatus.OK){
+                        that._trigger( "onresult", null, 
+                            {recordset:new HRecordSet(response.data), request:this._search_request} );
+                    }else{
+                        window.hWin.HEURIST4.msg.showMsgErr(response);
+                    }
+                });      
     },
     
 

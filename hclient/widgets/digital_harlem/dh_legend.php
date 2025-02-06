@@ -22,6 +22,7 @@
 */
 
 require_once dirname(__FILE__).'/../../../hserv/System.php';
+use hserv\System;
 
 define('PLACE_ICON', 4326);
 define('PERSON_ROLE', 3306);
@@ -56,7 +57,7 @@ define('HEURIST_TERM_ICON_URL', HEURIST_BASE_URL.'?db='.HEURIST_DBNAME.'&entity=
         <tbody>
             <?php
             $query = 'SELECT trm_ID, trm_Label, trm_Code from defTerms where trm_ParentTermID='.EVENT_TYPE.' ORDER BY trm_Label';
-            $res = $system->get_mysqli()->query($query);
+            $res = $system->getMysqli()->query($query);
             while($row = $res->fetch_assoc()) {
                 list($filename, $ctype, $url) = resolveEntityFilename('trm', $row['trm_ID'], 'icon');
                 if($filename && file_exists($filename)){
@@ -74,7 +75,7 @@ define('HEURIST_TERM_ICON_URL', HEURIST_BASE_URL.'?db='.HEURIST_DBNAME.'&entity=
         <tbody>
             <?php
             $query = 'SELECT trm_ID, trm_Label, trm_Code from defTerms where trm_ParentTermID='.PERSON_ROLE.' ORDER BY trm_Label';
-            $res = $system->get_mysqli()->query($query);
+            $res = $system->getMysqli()->query($query);
             while($row = $res->fetch_assoc()) {
 
                 list($filename, $ctype, $url) = resolveEntityFilename('trm', $row['trm_ID'], 'icon');

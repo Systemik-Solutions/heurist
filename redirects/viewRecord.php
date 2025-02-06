@@ -18,8 +18,8 @@
 * /redirects/viewRecord.php
 * acts as a PID redirector to viewRecord.php
 *
-* @author      Ian Johnson   <ian.johnson@sydney.edu.au>
-* @author      Artem Osmakov   <artem.osmakov@sydney.edu.au>
+* @author      Ian Johnson   <ian.johnson.heurist@gmail.com>
+* @author      Artem Osmakov   <osmakov@gmail.com>
 * @copyright   (C) 2005-2023 University of Sydney
 * @link        https://HeuristNetwork.org
 * @version     3.1.0
@@ -31,10 +31,10 @@
 // Redirect to .../viewers/record/viewRecord.php
 // TODO: change to use /records/view/renderRecordAsXML.php (XML with parameterisation for human-readable view)
 
-//to avoid "Open Redirect" security warning    
+//to avoid "Open Redirect" security warning
 parse_str($_SERVER['QUERY_STRING'], $vars);
 $query_string = http_build_query($vars);
 
-header('Location: ../viewers/record/viewRecord.php?'.$query_string);
+redirectURL('../viewers/record/viewRecord.php?'.$query_string);
 exit;
 ?>

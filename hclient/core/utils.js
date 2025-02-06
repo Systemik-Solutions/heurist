@@ -9,7 +9,7 @@
 * @package     Heurist academic knowledge management system
 * @link        https://HeuristNetwork.org
 * @copyright   (C) 2005-2023 University of Sydney
-* @author      Artem Osmakov   <artem.osmakov@sydney.edu.au>
+* @author      Artem Osmakov   <osmakov@gmail.com>
 * @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
 * @version     4.0
 */
@@ -21,6 +21,8 @@
 * distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied
 * See the License for the specific language governing permissions and limitations under the License.
 */
+
+/* global ActiveXObject,Temporal,TDate */
 
 if (!window.hWin.HEURIST4){
     window.hWin.HEURIST4 = {};
@@ -39,7 +41,7 @@ window.hWin.HEURIST4.util = {
     isempty: function(obj){
         if (window.hWin.HEURIST4.util.isnull(obj)){
             return true;
-        }else if(window.hWin.HEURIST4.util.isArray(obj)){
+        }else if(Array.isArray(obj)){
             return obj.length<1;
         }else{
             return (obj==="") || (obj==="null");
@@ -67,19 +69,22 @@ window.hWin.HEURIST4.util = {
         if (window.hWin.HEURIST4.util.isempty(strColor)) {
             return false
         }
-        var s = new Option().style;
+        let s = new Option().style;
         s.color = strColor;
         return s.color == strColor;
     },   
 
     byteLength: function(str) {
       // returns the byte length of an utf8 string
-      var s = str.length;
-      for (var i=str.length-1; i>=0; i--) {
-        var code = str.charCodeAt(i);
+      let s = str.length;
+      let i=str.length-1;
+      while (i>=0)
+      {
+        let code = str.charCodeAt(i);
         if (code > 0x7f && code <= 0x7ff) s++;
         else if (code > 0x7ff && code <= 0xffff) s+=2;
         if (code >= 0xDC00 && code <= 0xDFFF) i--; //trail surrogate
+        i--;
       }
       return s;
     },    
@@ -97,12 +102,26 @@ window.hWin.HEURIST4.util = {
             }
     },
     
-
+    isFunction: function(f){
+        return typeof f === 'function';
+    },
+    
     isNumber: function (n) {
-        //return typeof n === 'number' && isFinite(n);
+       
         return !isNaN(parseFloat(n)) && isFinite(n);
     },
     
+    isPositiveInt: function (n) {
+        if(window.hWin.HEURIST4.util.isempty(n) || !(typeof n === 'string' || typeof n === 'number')){
+            return false;
+        }
+
+        if(typeof n === 'string'){
+            n = parseInt(n);    
+        }
+        
+        return !isNaN(n) && n>0;
+    },
 
     //
     //
@@ -141,7 +160,7 @@ window.hWin.HEURIST4.util = {
 
     // get current font size in em
     em: function(input) {
-        var emSize = parseFloat($("body").css("font-size"));
+        let emSize = parseFloat($("body").css("font-size"));
         return (emSize * input);
     },
 
@@ -149,12 +168,11 @@ window.hWin.HEURIST4.util = {
         
         if(!ele) {
             ele = $("body");   
-            fs = ele.css('font-size')
         }
-        else {
-            fs = ele.css('font-size')
-            ele = ele.parent();
-        }
+        //else {
+           
+        //}
+        const fs = ele.css('font-size');
         /*
         var rele = $('<span>').html(input).css('font-size', fs).appendTo(ele);
         var res = rele.width();
@@ -167,48 +185,57 @@ window.hWin.HEURIST4.util = {
     
     // get current font size in pixels
     px: function(input, ele) {
-        var emSize = window.hWin.HEURIST4.util.em2px(ele);
+        let emSize = window.hWin.HEURIST4.util.em2px(ele);
         return (input.length * emSize);
     },
 
     //
     // enable or disable element
     //
-    setDisabled: function(element, mode){
-        if(element){
-            if(!$.isArray(element)){
-                element = [element];
-            }
-            $.each(element, function(idx, ele){
-                ele = $(ele);
-                
-                //if(mode !== (ele.prop('disabled')=='disabled')){
-                
-                if( ($.heurist.hSelect !=="undefined") && $.isFunction($.heurist.hSelect) && ele.hSelect("instance")!=undefined){              
-
-                    if (mode) {
-                        ele.hSelect( "disable" );
-                    }else{
-                        ele.hSelect( "enable" );    
-                    }
-
-                }else{
-                    if (mode) {
-                        ele.prop('disabled', 'disabled');
-                        ele.addClass('ui-state-disabled');
-                    }else{
-                        ele.removeProp('disabled');
-                        ele.removeClass('ui-state-disabled ui-button-disabled');
-                    }
-                }
-                
-                //}
-            });
+    setDisabled: function(element, is_disabled){
+        if(!element){
+            return;    
         }
+        
+        if(!Array.isArray(element) && !element.jquery){
+            element = [element];
+        }
+        
+        $.each(element, function(idx, ele){
+            
+            if (!ele.jquery) {
+                ele = $(ele);    
+            }
+               
+            // ($.heurist.hSelect !=='undefined') && window.hWin.HEURIST4.util.isFunction($.heurist.hSelect)    
+                                                                                                             
+            if(window.hWin.HEURIST4.util.isFunction(ele?.hSelect) && ele.hSelect('instance')!=undefined){              
+
+                if (is_disabled) {
+                    ele.hSelect( 'disable' );
+                }else{
+                    ele.hSelect( 'enable' );    
+                }
+
+            }else if (ele.length>0){
+                
+                ele = ele[0];
+                
+                if (is_disabled) {
+                    ele.setAttribute('disabled', 'disabled'); // Disable the element
+                    ele.classList.add('ui-state-disabled');   // Add the 'ui-state-disabled' class
+                } else {
+                    ele.removeAttribute('disabled');      // Enable the element
+                    ele.classList.remove('ui-state-disabled', 'ui-button-disabled'); // Remove specified classes
+                }                    
+                
+            }
+        });
+        
     },
     
     isIE: function () {
-        var myNav = navigator.userAgent.toLowerCase();
+        let myNav = navigator.userAgent.toLowerCase();
         return (myNav.indexOf('msie') != -1) ? parseInt(myNav.split('msie')[1]) : false;
     },
     
@@ -228,14 +255,13 @@ window.hWin.HEURIST4.util = {
             }
                 
             try {
-                var flash = new ActiveXObject("Plugin.mailto");
+                new ActiveXObject("Plugin.mailto");
             } catch (e) {
                 //not installed
             }
         } else { //firefox,chrome,opera
-            //navigator.plugins.refresh(true);
-            var mimeTypes = navigator.mimeTypes;
-            var mime = navigator.mimeTypes['application/x-mailto'];
+           
+            let mime = navigator.mimeTypes['application/x-mailto'];
             if(mime) {
                 //installed
             } else {
@@ -258,17 +284,17 @@ window.hWin.HEURIST4.util = {
         }
         
         if(need_encode>0){
-            var f_encode = null;
+            let f_encode = null;
             
             if(need_encode==2 || need_encode==1){
                 f_encode = encodeURIComponent;
-                //f_encode = window.hWin.HEURIST4.util.encodeSuspectedSequences;
+               
             }else if(need_encode==3){
                 f_encode = JSON.stringify;
             }
                 
             if(f_encode != null){
-                for(var i=0; i<params.length; i++){
+                for(let i=0; i<params.length; i++){
                     if(request[params[i]]){
                         request[params[i]] = f_encode(request[params[i]]);
                     }
@@ -284,7 +310,7 @@ window.hWin.HEURIST4.util = {
     //
     encodeSuspectedSequences: function (val) {
         
-        if(typeof val !== 'string' && ($.isArray(val) || $.isPlainObject(val))) {
+        if(typeof val !== 'string' && (Array.isArray(val) || $.isPlainObject(val))) {
             val = JSON.stringify(val);
         }
         return encodeURIComponent(val.replace(/(\.\.\/)/g, '^^/').replace(/( style=)/g,' xxx_style='));
@@ -295,19 +321,21 @@ window.hWin.HEURIST4.util = {
     //
     isJSON: function(value){
         
+            let res = false;
             try {
                 if(typeof value === 'string'){
                     value = value.replace(/[\n\r]+/g, '');
-                    value = $.parseJSON(value);    
+                    value = JSON.parse(value);    
                 }
-                if($.isArray(value) || $.isPlainObject(value)){
-                    return value;
+                if(Array.isArray(value) || $.isPlainObject(value)){
+                    res = value;
                 }
             }
             catch (err) {
+                res = false;
             } 
             
-            return false;       
+            return res;       
     },
     
     //
@@ -353,25 +381,25 @@ window.hWin.HEURIST4.util = {
      */
     getUrlParams: function (url) {
         
-        var parser = document.createElement('a');
+        let parser = document.createElement('a');
         parser.href = url;
-        var query = parser.search.substring(1);
+        let query = parser.search.substring(1);
         
-        var params = window.hWin.HEURIST4.util.getParamsFromString(query, '&', true);
+        let params = window.hWin.HEURIST4.util.getParamsFromString(query, '&', true);
         
-        var vars = query.split('&');
-        for (var i = 0; i < vars.length; i++) {
-            var pair = vars[i].split('=');
+        let vars = query.split('&');
+        for (let i = 0; i < vars.length; i++) {
+            let pair = vars[i].split('=');
             params[pair[0]] = decodeURIComponent(pair[1]);
         }
         return params;
     },
 
     getParamsFromString: function (url, sep='&', decode=true) {
-        var params = {};
-        var vars = url.split(sep);
-        for (var i = 0; i < vars.length; i++) {
-            var pair = vars[i].split('=');
+        let params = {};
+        let vars = url.split(sep);
+        for (let i = 0; i < vars.length; i++) {
+            let pair = vars[i].split('=');
             if(decode){
                 params[pair[0]] = decodeURIComponent(pair[1]);    
             }else{
@@ -383,17 +411,17 @@ window.hWin.HEURIST4.util = {
     
     
     isArrayNotEmpty: function (a){
-        return (window.hWin.HEURIST4.util.isArray(a) && a.length>0);
+        return (Array.isArray(a) && a.length>0);
     },
 
     isArray: function (a)
     {
-        return $.isArray(a); //Object.prototype.toString.apply(a) === '[object Array]';
+        return Array.isArray(a);
     },
     
     isGeoJSON: function(a, allowempty){
         
-        if(allowempty && $.isArray(a) && a.length==0){
+        if(allowempty && Array.isArray(a) && a.length==0){
             return true;   
         }else if($.isPlainObject(a)){
             return (a['type']=='Feature' || a['type']=='FeatureCollection' || a['type']=='GeometryCollection');
@@ -412,7 +440,7 @@ window.hWin.HEURIST4.util = {
     // see php htmlspecialchars
     //
     htmlEscape: function (text) {
-      var map = {
+      let map = {
         '&': '&amp;',
         '<': '&lt;',
         '>': '&gt;',
@@ -437,19 +465,19 @@ window.hWin.HEURIST4.util = {
             return window.hWin.HEURIST4.util.htmlEscape(text);             
         }else{
             
-            var link = document.createElement("span");
+            let link = document.createElement("span");
             link.style.display = "none";
             link.innerHTML = text;
             document.body.appendChild(link);
             
             //find('*')
-            var eles = $(link).find('*');
+            let eles = $(link).find('*');
             if(!window.hWin.HEURIST4.util.isempty(whitelist)){
                 eles = eles.not(whitelist);
             }
             
             eles.each(function() {
-                var content = $(this).contents();
+                let content = $(this).contents();
                 $(this).replaceWith(content);
             });   
             
@@ -465,6 +493,23 @@ window.hWin.HEURIST4.util = {
             return text;
         }
         
+    },
+    
+    stripFirstElement: function(text){
+        
+            let link = document.createElement("span");
+            link.style.display = "none";
+            link.innerHTML = text;
+            document.body.appendChild(link);
+            
+            let eles = $(link).find('*');
+            eles.first().remove();
+            text =  $(link).html();
+                
+            document.body.removeChild(link); 
+            link = null;
+            
+            return text;
     },
     
     //
@@ -502,6 +547,7 @@ window.hWin.HEURIST4.util = {
         if (e) {
             e.cancelBubble = true;
             if (e.stopPropagation) e.stopPropagation();
+            e.returnValue = false;
             e.preventDefault();
         }
         return e;
@@ -512,6 +558,7 @@ window.hWin.HEURIST4.util = {
     //                    
     interpretServerError: function(jqXHR, url, request_code){
     
+        let err_message = '';
         if(window.hWin.HEURIST4.util.isempty(jqXHR.responseText)){
             
             //403 Forbidden
@@ -542,7 +589,7 @@ window.hWin.HEURIST4.util = {
     //
     sendRequest: function(url, request, caller, callback, dataType, timeout){
         
-        var action = '';
+        let action = '';
         
         if(request){
         
@@ -550,16 +597,16 @@ window.hWin.HEURIST4.util = {
                 request.db = window.hWin.HAPI4.database;
             }
             
-            var action = url.substring(url.lastIndexOf('/')+1);
+            action = url.substring(url.lastIndexOf('/')+1);
             if(action.indexOf('.php')>0) {
                 action = action.substring(0,action.indexOf('.php'));   
             }
         }
         
-        var request_code = {script:action, action:''};
+        let request_code = {script:action, action:''};
         
         //note jQuery ajax does not properly in the loop - success callback does not work often
-        var options = {
+        let options = {
             url: url,
             type: "POST",
             data: request,
@@ -567,13 +614,7 @@ window.hWin.HEURIST4.util = {
             error: function(jqXHR, textStatus, errorThrown ) {
                 if(callback){
                     
-                    //var UNKNOWN_ERROR = (window.hWin)
-                    //        ?window.hWin.ResponseStatus.UNKNOWN_ERROR:'unknown';
-                    if(textStatus=='timeout'){
-                        
-                    }
-                    
-                    var response = window.hWin.HEURIST4.util.interpretServerError(jqXHR, url, request_code);
+                    let response = window.hWin.HEURIST4.util.interpretServerError(jqXHR, url, request_code);
                     
                     if(caller){
                         callback(caller, response);
@@ -598,7 +639,7 @@ window.hWin.HEURIST4.util = {
             fail: function(  jqXHR, textStatus, errorThrown )
             {
                 
-                var response = window.hWin.HEURIST4.util.interpretServerError(jqXHR, url, request_code);
+                let response = window.hWin.HEURIST4.util.interpretServerError(jqXHR, url, request_code);
                 
                 if(callback){
                     if(caller){
@@ -622,8 +663,39 @@ window.hWin.HEURIST4.util = {
         $.ajax(options);
     },
 
+    
+    //
+    //
+    //
+    windowOpenInPost: function(actionUrl, windowName, windowFeatures, params) 
+    {
+        let mapForm = document.createElement("form");
+        let milliseconds = new Date().getTime();
+        windowName = windowName+milliseconds;
+        mapForm.target = windowName;
+        mapForm.method = "POST";
+        mapForm.action = actionUrl;
+        
+        for (const key in params){
+            let mapInput = document.createElement("input");
+                mapInput.type = "hidden";
+                mapInput.name = key;
+                mapInput.value = params[key];
+                mapForm.appendChild(mapInput);
+
+        }
+        document.body.appendChild(mapForm);
+
+        let map = window.open('', windowName, windowFeatures);
+        if (map) {
+            mapForm.submit();
+        } else {
+            alert('You must allow popups for this map to work.');
+        }
+    },    
+    
     getScrollBarWidth: function() {
-        var $outer = $('<div>').css({visibility: 'hidden', width: 100, overflow: 'scroll'}).appendTo('body'),
+        let $outer = $('<div>').css({visibility: 'hidden', width: 100, overflow: 'scroll'}).appendTo('body'),
             widthWithScroll = $('<div>').css({width: '100%'}).appendTo($outer).outerWidth();
         $outer.remove();
         return 100 - widthWithScroll;
@@ -650,14 +722,7 @@ window.hWin.HEURIST4.util = {
                         dt.setDay(1)
                     }
 
-                    var res = dt.toString('yyyy-MM-ddTHH:mm:ssz');
-                    /*
-                    if(res.indexOf('-')==0){ //BCE
-                        res = res.substring(1);
-                        //for proper parsing need 6 digit year
-                        res = '-00'+res;//.substring(res.length));
-                    }
-                    */
+                    let res = dt.toString('yyyy-MM-ddTHH:mm:ssz');
                     return res;
                 }else{
                     return '';
@@ -667,17 +732,17 @@ window.hWin.HEURIST4.util = {
 
 
             try{
-                var temporal;
-                if(start!="" && $.type( start ) === "string"){
+                let temporal;
+                if(start!='' && typeof start === 'string'){
 
                     if(start.search(/VER=/)!==-1){
                         temporal = new Temporal(start);
                         if(temporal){
-                            var dt = temporal.getTDate('TPQ');  
+                            let dt = temporal.getTDate('TPQ');  
                             if(!dt) dt = temporal.getTDate('PDB'); //probable begin
 
                             if(dt){ //this is range - find end date
-                                var dt2 = temporal.getTDate('TAQ'); 
+                                let dt2 = temporal.getTDate('TAQ'); 
                                 if(!dt2) dt2 = temporal.getTDate('PDE'); //probable end
                                 end = __forVis(dt2);
                             }else{
@@ -695,11 +760,11 @@ window.hWin.HEURIST4.util = {
                     }
                 }
 
-                if(end!="" && $.type( end ) === "string") {
+                if(end!='' && typeof end === 'string') {
                     if(end.search(/VER=/)!==-1){
                         temporal = new Temporal(end);
                         if(temporal){
-                            var dt = temporal.getTDate('TAQ'); 
+                            let dt = temporal.getTDate('TAQ'); 
                             if(!dt) dt = temporal.getTDate('PDE');//probable end
                             if(!dt) dt = temporal.getTDate('DAT');
                             end = __forVis(dt);
@@ -720,7 +785,7 @@ window.hWin.HEURIST4.util = {
     // Get CSS property value for a not yet applied class
     //
     getCSS: function (prop, fromClass) {
-        var $inspector = $("<div>").css('display', 'none').addClass(fromClass);
+        let $inspector = $("<div>").css('display', 'none').addClass(fromClass);
         $("body").append($inspector); // add to DOM, in order to read the CSS property
         try {
             return $inspector.css(prop);
@@ -734,25 +799,24 @@ window.hWin.HEURIST4.util = {
     //
     cssToJson: function(css){
 
-        var json = {};
+        let json = {};
 
         if(css){
 
-            var styles = css.split(';'),
+            let styles = css.split(';'),
             i= styles.length,
-            style, k, v;
-
+            k, v;
 
             while (i--)
             {
-                var pos = styles[i].indexOf(':');
+                let pos = styles[i].indexOf(':');
                 if(pos>1){
-                    k = $.trim(styles[i].substr(0,pos));
-                    v = $.trim(styles[i].substr(pos+1));
+                    k = String(styles[i].substr(0,pos)).trim();
+                    v = String(styles[i].substr(pos+1)).trim();
                 }
                 /*style = styles[i].split(':');
-                k = $.trim(style[0]);
-                v = $.trim(style[1]);*/
+                k = String(style[0]).trim();
+                v = String(style[1]).trim();*/
                 if (k && v && k.length > 0 && v.length > 0)
                 {
                     if(v==='true')v=true;
@@ -776,8 +840,8 @@ window.hWin.HEURIST4.util = {
 
     hashString: function(str) {
 
-        var hash = 0, i, c;
-        var strlen = str?str.length:0;
+        let hash = 0, i, c;
+        let strlen = str?str.length:0;
         if (strlen == 0) return hash;
 
         for (i = 0; i < strlen; i++) {
@@ -806,12 +870,12 @@ window.hWin.HEURIST4.util = {
     // download given url as a file (repalcement of usage A)
     //
     downloadURL: function(url, callback) {
-        $idown = $('#idown');
+        let $idown = $('#idown');
 
         if ($idown.length==0) {
             $idown = $('<iframe>', { id:'idown' }).hide().appendTo('body');
         }
-        if ($.isFunction(callback)) {
+        if (window.hWin.HEURIST4.util.isFunction(callback)) {
             $idown.on('load', callback);   
         }
         $idown.attr('src',url);
@@ -822,7 +886,7 @@ window.hWin.HEURIST4.util = {
     //
     downloadInnerHtml: function (filename, ele, mimeType) {
 
-        var elHtml = $(ele).html();
+        let elHtml = $(ele).html();
         window.hWin.HEURIST4.util.downloadData(filename, elHtml, mimeType);
     }, 
 
@@ -832,44 +896,54 @@ window.hWin.HEURIST4.util = {
     downloadData: function (filename, data, mimeType) {
 
         mimeType = mimeType || 'text/plain';
-        var  content = 'data:' + mimeType  +  ';charset=utf-8,' + encodeURIComponent(data);
+        let  content = 'data:' + mimeType  +  ';charset=utf-8,' + encodeURIComponent(data);
 
-        var link = document.createElement("a");
+        let link = document.createElement("a");
         link.setAttribute('download', filename);
         link.setAttribute('href', content);
         if (window.webkitURL != null)
         {
             // Chrome allows the link to be clicked
             // without actually adding it to the DOM.
-            link.click();        
+            link.click();
             link = null;
         }
         else
         {
             // Firefox requires the link to be added to the DOM
             // before it can be clicked.
-            link.onclick = function(){ document.body.removeChild(link); link=null;} //destroy link;
+            link.onclick = function(){ document.body.removeChild(link); link=null;} //destroy link
             link.style.display = "none";
             document.body.appendChild(link);
-            link.click();        
+            link.click();
         }
 
     },    
 
 
     isRecordSet: function(recordset){
-        return !window.hWin.HEURIST4.util.isnull(recordset) && $.isFunction(recordset.isA) && recordset.isA("hRecordSet");   
+        return !window.hWin.HEURIST4.util.isnull(recordset) && window.hWin.HEURIST4.util.isFunction(recordset.isA) && recordset.isA("HRecordSet");   
     },
 
     random: function(){
-        //Math.round(new Date().getTime() + (Math.random() * 100));
-        return Math.floor((Math.random() * 10000) + 1);
+       
+       
+        if(window.crypto){
+            const typedArray = new Uint8Array(10);
+            const randomValues = window.crypto.getRandomValues(typedArray);
+            return randomValues.join('').substr(0,15);        
+        }else{
+            return ''+Math.floor(Date.now() * Math.random())
+           
+            //return Math.ceil( arng.quick() * 99999999 ); //1~87  
+        }
+        
     },
 
     //scan all frames of current window and return object by name
     findObjInFrame: function(name){
 
-        var i, frames;
+        let i, frames;
         frames = document.getElementsByTagName("iframe");
         for (i = 0; i < frames.length; ++i)
         {  
@@ -894,11 +968,11 @@ window.hWin.HEURIST4.util = {
     },
 
     getFileExtension:function(filename){
-        // (/[.]/.exec(filename)) ? /[^.]+$/.exec(filename)[0] : undefined;
-        // filename.split('.').pop();
-        //filename.slice((filename.lastIndexOf(".") - 1 >>> 0) + 2);
+       
+       
+       
         if(filename){
-            var res = filename.match(/\.([^\./\?]+)($|\?)/);
+            let res = filename.match(/\.([^\./\?]+)($|\?)/);
             return (res && res.length>1)?res[1]:'';
         }else{
             return '';
@@ -913,7 +987,7 @@ window.hWin.HEURIST4.util = {
         // determines if the version in the cache (v1) is older than the version in configIni.php (v2)
         // used to detect change in version so that user is prompted to clear cache and reload
         // returns -1 if v1 is older, -2 v1 is newer, +1 if they are the same
-        var lexicographical = options && options.lexicographical,
+        let lexicographical = options && options.lexicographical,
         zeroExtend = options && options.zeroExtend,
         v1parts = v1.split('.'),
         v2parts = v2.split('.');
@@ -936,7 +1010,7 @@ window.hWin.HEURIST4.util = {
             v2parts = v2parts.map(Number);
         }
 
-        var i = 0;
+        let i = 0;
         for (; i < v1parts.length; ++i) {
 
             if (v1parts[i] == v2parts[i]) {
@@ -963,8 +1037,8 @@ window.hWin.HEURIST4.util = {
 
     uniqueArray: function(arr){
 
-        var n = {},r=[];
-        for(var i = 0; i < arr.length; i++) 
+        let n = {},r=[];
+        for(let i = 0; i < arr.length; i++) 
         {
             if($.isPlainObject(arr[i])){
                 r.push(arr[i]);
@@ -982,9 +1056,9 @@ window.hWin.HEURIST4.util = {
     {
         if( window.hWin.HEURIST4.util.isempty(arr) ) return -1;
 
-        var len = arr.length;
+        let len = arr.length;
 
-        var from = Number(arguments[2]) || 0;
+        let from = Number(arguments[2]) || 0;
         from = (from < 0)
         ? Math.ceil(from)
         : Math.floor(from);
@@ -1000,11 +1074,24 @@ window.hWin.HEURIST4.util = {
         return -1;
     },
 
+    sameArrays: function(arr1, arr2){
+
+        if(!Array.isArray(arr1) || !Array.isArray(arr2)){
+            return false;
+        }else if(arr1.length == 0 || arr2.length == 0 || arr1.length != arr2.length){
+            return arr1.length == arr2.length;
+        }else if(arr1 === arr2){
+            return true;
+        }
+
+        return arr1.every((value, index) => value == arr2[index]);
+    },
+
     //
     // assumed that sdate is in UTC
     //
     getTimeForLocalTimeZone: function (sdate){
-        var date = new Date(sdate+"+00:00");
+        let date = new Date(sdate+"+00:00");
         return (''+date.getHours()).padStart(2, "0")
         +':'+(''+date.getMinutes()).padStart(2, "0")
         +':'+(''+date.getSeconds()).padStart(2, "0");
@@ -1029,7 +1116,7 @@ window.hWin.HEURIST4.util = {
     //
     get_youtube_id: function(url){
 
-        var matches = url.match(/^(?:http(?:s)?:\/\/)?(?:www\.)?(?:m\.)?(?:youtu\.be\/|youtube\.com\/(?:(?:watch)?\?(?:.*&)?v(?:i)?=|(?:embed|v|vi|user)\/))([^\?&\"'>]+)/);
+        let matches = url.match(/^(?:http(?:s)?:\/\/)?(?:www\.)?(?:m\.)?(?:youtu\.be\/|youtube\.com\/(?:(?:watch)?\?(?:.*&)?v(?:i)?=|(?:embed|v|vi|user)\/))([^\?&\"'>]+)/);
 
         return matches[1];
     },
@@ -1041,24 +1128,24 @@ window.hWin.HEURIST4.util = {
     //
     merge_sort: function(array, compare){
 
-        if(!window.hWin.HEURIST4.util.isArray(array) || array.length < 2){
+        if(!Array.isArray(array) || array.length < 2){
             return array;
         }
         if(!compare){
             compare = (a, b) => {
                 return a < b;
             };
-        }else if(!$.isFunction(compare)){
+        }else if(!window.hWin.HEURIST4.util.isFunction(compare)){
             return array;
         }
 
         let arr_len = array.length;
         let mid = Math.floor(arr_len / 2);
 
-        var left_array = window.hWin.HEURIST4.util.merge_sort(array.slice(0, mid), compare);
-        var right_array = window.hWin.HEURIST4.util.merge_sort(array.slice(mid), compare);
+        let left_array = window.hWin.HEURIST4.util.merge_sort(array.slice(0, mid), compare);
+        let right_array = window.hWin.HEURIST4.util.merge_sort(array.slice(mid), compare);
 
-        var sorted_array = [];
+        let sorted_array = [];
 
         while(left_array.length != 0 && right_array.length != 0){
             if(compare(left_array[0], right_array[0])){
@@ -1067,7 +1154,7 @@ window.hWin.HEURIST4.util = {
                 sorted_array.push(right_array.shift());
             }
         }
-        var results = sorted_array.concat(left_array.concat(right_array));
+        let results = sorted_array.concat(left_array.concat(right_array));
 
         return results;
     },
@@ -1078,10 +1165,10 @@ window.hWin.HEURIST4.util = {
     restoreRelativeURL: function(ele)
     {
         
-        var src = ele.getAttribute('src');
-        var file_id = ele.getAttribute('data-id');
-        var db = window.hWin.HAPI4.database;
-        var extra_params = '';
+        let src = ele.getAttribute('src');
+        let file_id = ele.getAttribute('data-id');
+        let db = window.hWin.HAPI4.database;
+        let extra_params = '';
 
         //extract params from image src and recreate new url pointed to  baseURL_pro
         if(!window.hWin.HEURIST4.util.isempty(src)){
@@ -1151,10 +1238,15 @@ window.hWin.HEURIST4.util = {
           }else{
               return false;
           }
-    }    
-        
+    },
     
+    //constants for saved searches\
+    _NAME: 0, 
+    _QUERY: 1,
+    _GRPID: 2
 }//end util
+
+window.Hul = window.hWin.HEURIST4.util;
 
 //-------------------------------------------------------------
 
@@ -1174,7 +1266,7 @@ String.prototype.capitalize = function() {
     return this.charAt(0).toUpperCase() + this.slice(1);
 }
 String.prototype.lpad = function(padString, length) {
-    var str = this;
+    let str = this;
     while (str.length < length)
         str = padString + str;
     return str;
@@ -1184,9 +1276,9 @@ if (!Array.prototype.indexOf)
 {
     Array.prototype.indexOf = function(elt /*, from*/)
     {
-        var len = this.length;
+        let len = this.length;
 
-        var from = Number(arguments[1]) || 0;
+        let from = Number(arguments[1]) || 0;
         from = (from < 0)
         ? Math.ceil(from)
         : Math.floor(from);
@@ -1212,8 +1304,8 @@ if (!Array.prototype.unique){
     {
         
         //return $.grep(this, function(el, index) {
-        //    return index === $.inArray(el, this);
-        //});
+       
+       
         
         
             var n = {},r=[];
@@ -1244,6 +1336,7 @@ $.getMultiScripts2 = function(arr, path) {
           _resolve();
         })()
         .catch((err) => {
+            //console.log(err);            
             // Something went wrong
             _reject(err);
         });
@@ -1253,7 +1346,7 @@ $.getMultiScripts2 = function(arr, path) {
 }
 
 $.getMultiScripts = function(arr, path) {
-    var _arr = $.map(arr, function(scr) {
+    let _arr = $.map(arr, function(scr) {
         return $.getScript( (path||"") + scr );
     });
 
@@ -1264,19 +1357,15 @@ $.getMultiScripts = function(arr, path) {
     return $.when.apply($, _arr);
 }
 
-//constants for saved searches\
-const _NAME = 0, _QUERY = 1, _GRPID = 2;
-
-
 function tinymceURLConverter(url, node, on_save, name)
 {
     if(url.indexOf(window.hWin.HAPI4.baseURL_pro)===0)
     {
-        url = url.replace(window.hWin.HAPI4.baseURL_pro, './'); //'../heurist/');
+        url = url.replace(window.hWin.HAPI4.baseURL_pro, './');
         
     }else if(url.indexOf(window.hWin.HAPI4.baseURL)===0)
     {
-        url = url.replace(window.hWin.HAPI4.baseURL, './'); //../heurist/');
+        url = url.replace(window.hWin.HAPI4.baseURL, './');
     }
 
     // Return URL

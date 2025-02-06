@@ -5,8 +5,8 @@
 * @package     Heurist academic knowledge management system
 * @link        http://HeuristNetwork.org
 * @copyright   (C) 2005-2023 University of Sydney
-* @author      Artem Osmakov   <artem.osmakov@sydney.edu.au>
-* @author      Ian Johnson     <ian.johnson@sydney.edu.au>
+* @author      Artem Osmakov   <osmakov@gmail.com>
+* @author      Ian Johnson     <ian.johnson.heurist@gmail.com>
 * @license     http://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
 * @version     4
 */
@@ -298,6 +298,9 @@ div.input-div > .show-onhover, .show-onhover {
 div.input-div > .btn_input_move, .btn_input_move {
     display: none;
     cursor: grab;
+
+    vertical-align: top;
+    margin-top: 3px;
 }
 div.input-div:active > .btn_input_move, .btn_input_move:active {
     cursor: grabbing;
@@ -765,12 +768,12 @@ div .selected_last{
 }
 
 .thumbs .recordDiv .recordTitle {
-    bottom: 2px;
+    bottom: 1px;
     left: 3px;
     right: 3px;
     font-size: 9px;
     line-height: 10px;
-    height: 32px;    
+    height: 30px;    
 }
 
 .thumbs .recordDiv .recordSelector {
@@ -1000,7 +1003,7 @@ div.div-result-list-content.icons_list{
 }
 
 .icons .rt-icon{
-    display: none;
+    vertical-align: middle;
 }
 
 .rt-icon{
@@ -1462,6 +1465,10 @@ div.saved-search > .edit-delete-buttons, .recordDiv > .edit-delete-buttons {
     margin: 0px 2px;
 }
 
+.horizontalmenu  a.ui-state-active{
+    margin:0px;
+}
+
 /* List view - Datatable */
 table.dataTable th{
     text-align: left;
@@ -1647,6 +1654,7 @@ span.fancytree-checkbox{
 }
 .rtt-tree .fancytree-has-children span.fancytree-expander{
     display: inline-block;
+    transform: scale(1.5) translate(1px, -1px);
 }
 
 /* Fancytree: Change individual checkboxes to radio buttons */
@@ -1694,6 +1702,11 @@ ul.fancytree-container ul{
     font-size: 0.9em;
     vertical-align:top;
 }
+.heurist-helper1{
+    font-style:normal;
+}
+
+
 /* nearly same as helper but nor affected to help status*/
 .heurist-prompt{
     font-size:0.9em;
@@ -2036,7 +2049,7 @@ background: #8ea9b9
     padding: 5px 0px 5px 0px;
     width: 100%;
     border-top: 1px solid #7D9AAA;
-    font-size: 11px;
+    font-size: 1em;
     overflow: visible;
     text-align: left;
     color: #7D9AAA;
@@ -2113,6 +2126,19 @@ background: #8ea9b9
     background-size: contain;
 }
 
+.ui-icon-clear-formatting { 
+    background-image: url(hclient/assets/clear_formatting.svg) !important; 
+    width: 18px;
+    height: 18px;
+    background-size: contain;
+}
+
+.ui-icon-opacity { 
+    background-image: url(hclient/assets/opacity.svg) !important; 
+    width: 18px;
+    height: 18px;
+    background-size: contain;
+}
 
 .ui-icon-filter-form { background-image: url(hclient/assets/filter_form_icon_black.png) !important; }
 
@@ -2186,7 +2212,7 @@ div.coverall-div, div.coverall-div-bare
     margin: 0px;
 }
 div.coverall-div {
-    background-color: #000;
+    background-color: rgb(0, 0, 0);
     opacity: 0.6;
     /*filter: progid:DXImageTransform.Microsoft.Alpha(opacity=60);*/
     background-image: url(hclient/assets/loading-animation-white.gif);
@@ -2668,3 +2694,16 @@ li.edit-form-tab > a{
 .input-with-invisible-text{color:transparent !important;}
 .input-with-invisible-text::selection {background: transparent;}
 .input-with-invisible-text::-moz-selection {background: transparent;}
+
+
+.table {
+    display: table;
+    width: 100%;
+}
+.row {
+    display: table-row;
+}
+.cell {
+    display: table-cell;
+    padding: 8px;
+}

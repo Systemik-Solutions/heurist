@@ -5,7 +5,7 @@
 * @package     Heurist academic knowledge management system
 * @link        https://HeuristNetwork.org
 * @copyright   (C) 2005-2023 University of Sydney
-* @author      Artem Osmakov   <artem.osmakov@sydney.edu.au>
+* @author      Artem Osmakov   <osmakov@gmail.com>
 * @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
 * @version     4.0
 */
@@ -20,7 +20,7 @@
 
 /*
 
-There are 3 color themes in Heurist. 
+There are 3 color themes in Heurist.
 Main (gray) with option of different bg (white) for lists and popups
 Editor (light blue)
 Header (iron head flower color)
@@ -33,51 +33,20 @@ Select linked record button   bg:#f0ecf0 - can be changed to button light gray o
 Scrollbar tracks and thumbs  rgba(0,0,0,0.3)/#bac4cb
 
 */
-if(isset($system) && $system->is_inited()){
-    $current_user = $system->getCurrentUser();
-    $layout_theme = @$current_user['ugr_Preferences']['layout_theme'];
-}else{    
-    $layout_theme = 'base';
-}
-
-if($layout_theme==null || $layout_theme=='' || $layout_theme=="heurist" || $layout_theme=="base"){
-    $cssLink = PDIR.'external/jquery-ui-themes-1.12.1/themes/base/jquery-ui.css';
-}else{
-    //load one of standard themes from jquery web resource
-    $cssLink = 'https://code.jquery.com/ui/1.12.1/themes/'.$layout_theme.'/jquery-ui.css';
-}
 ?>
 <!-- jQuery UI CSS -->
-<link rel="stylesheet" type="text/css" href="<?php echo $cssLink;?>">
+<link rel="stylesheet" type="text/css" href="https://code.jquery.com/ui/1.12.1/themes/base/jquery-ui.css">
 <!-- Heurist CSS -->
 <link rel="stylesheet" type="text/css" href="<?php echo PDIR;?>h4styles.css" />
-<?php 
+<?php
     $lt = @$_REQUEST['ll'];
     if(!($lt=='H5Default' || $lt=='Beyond1914' ||  $lt=='UAdelaide')){
 
 //special webfont for database
-$font_styles = '';
-if(isset($system) && $system->is_inited()){
-    $webfonts = $system->getDatabaseSetting('Webfonts');
-    if(is_array($webfonts) && count($webfonts)>0){
-        foreach($webfonts as $font_family => $src){
-            $src = str_replace("url('settings/", "url('".HEURIST_FILESTORE_URL.'settings/',$src);
-            if(strpos($src,'@import')===0){
-                $font_styles = $font_styles . $src;
-            }else{
-                $font_styles = $font_styles . ' @font-face {font-family:"'.$font_family.'";src:'.$src.';} ';    
-            }
-            $font_families[] = $font_family;
-        }
-    }
-}  
-if(!empty($font_styles)){ // add extra font-faces
-    echo "<style> $font_styles </style>";
-    
-    if(count($font_families)>0){
-        $font_families[] = 'sans-serif';
-        echo '<style>body,.ui-widget,.ui-widget input,.ui-widget textarea,.ui-widget select{font-family: '
-            .implode(',',$font_families).'}</style>';
+if(isset($system) && $system->isInited()){
+    $font_styles = $system->settings->getWebFontsLinks('ui-sans-serif');
+    if(!isEmptyStr($font_styles)){
+         echo "<style> $font_styles </style>";
     }
 }
 ?>

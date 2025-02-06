@@ -6,7 +6,7 @@
 * @package     Heurist academic knowledge management system
 * @link        https://HeuristNetwork.org
 * @copyright   (C) 2005-2023 University of Sydney
-* @author      Artem Osmakov   <artem.osmakov@sydney.edu.au>
+* @author      Artem Osmakov   <osmakov@gmail.com>
 * @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
 */
 
@@ -17,12 +17,14 @@
 * distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied
 * See the License for the specific language governing permissions and limitations under the License.
 */
+use hserv\utilities\USanitize;
+
 $is_inlcuded = false;
 
 if(!defined('PDIR')) {
     $is_inlcuded = true;
-    define('PDIR','../../');   
-    require_once dirname(__FILE__).'/../../hserv/System.php';
+    define('PDIR','../../');
+    require_once dirname(__FILE__).'/../../autoload.php';
 }
 
 //variable is_error can be defined as global
@@ -34,12 +36,21 @@ $is_error_unknown = false;
 
 //variable message can be defined as global
 if(!isset($message)){
-    if( @$_REQUEST['error'] ){
-        $message = $_REQUEST['error'];
-    }else if( @$_REQUEST['message'] ){
-        $message = $_REQUEST['message'];
+    
+    $req_params = USanitize::sanitizeInputArray();
+    
+    if( @$req_params['error'] ){
+        $message = $req_params['error'];
+        if(is_array($message)){
+            $message = @$message['message'];
+            if(@$message['sysmsg'] && $message!=null){
+                $message = $message.$message['sysmsg'];
+            }
+        }
+    }elseif( @$req_params['message'] ){
+        $message = $req_params['message'];
         $is_error = false;
-    }else{ 
+    }else{
         //take error message from system
         if(isset($system)){
             $err = $system->getError();
@@ -48,35 +59,37 @@ if(!isset($message)){
             $message = 'Heurist core engine is not initialized.';
             $is_error_unknown = true;
         }
-        
+
     }
     if(!$message){
         $message ='Unknown error.';
         $is_error_unknown = true;
     }
-            
+    USanitize::purifyHTML($message);
+
     if($is_error_unknown){
         if(defined('CONTACT_HEURIST_TEAM')){
-            $message = $message.' Please '.CONTACT_SYSADMIN.' or '.CONTACT_HEURIST_TEAM; 
+            $message = $message.' Please '.CONTACT_SYSADMIN.' or '.CONTACT_HEURIST_TEAM;
         }else{
             $message = $message.' Please contact Heurist team';
         }
     }
 }
 
-    $dbname = $_REQUEST['db'];
+    $dbname = @$_REQUEST['db'];
     $dbname = (preg_match('[\W]', $dbname))?'':$dbname;
 ?>
 <!DOCTYPE html>
 <html lang="en">
     <head>
-        <title><?php print defined('HEURIST_TITLE')?HEURIST_TITLE:"Heurist"; ?></title>
+        <title><?php print defined('HEURIST_TITLE')?HEURIST_TITLE:"Heurist";?></title>
         <meta http-equiv="content-type" content="text/html; charset=utf-8">
+        <meta name="robots" content="noindex,nofollow">
 
         <link rel=icon href="<?php echo PDIR;?>favicon.ico" type="image/x-icon">
 
         <!-- CSS -->
-        <?php include_once dirname(__FILE__).'/initPageCss.php'; ?>
+        <?php include_once dirname(__FILE__).'/initPageCss.php';?>
         <link rel="stylesheet" type="text/css" href="<?php echo PDIR;?>external/jquery-ui-iconfont-master/jquery-ui.icon-font.css" />
 
         <style>
@@ -89,31 +102,18 @@ if(!isset($message)){
     <?php
     if(isset($try_login) && $try_login === true){ // Does a login link need to be handled
 
-        if (($_SERVER["SERVER_NAME"]=='localhost'||$_SERVER["SERVER_NAME"]=='127.0.0.1'))  {
-        ?>
-
-            <script type="text/javascript" src="<?php echo PDIR;?>external/jquery-ui-1.12.1/jquery-1.12.4.js"></script>
-            <script type="text/javascript" src="<?php echo PDIR;?>external/jquery-ui-1.12.1/jquery-ui.js"></script>
-
-        <?php
-        }else{
-        ?>
-
-            <script src="https://code.jquery.com/jquery-1.12.2.min.js" integrity="sha256-lZFHibXzMHo3GGeehn1hudTAP3Sc0uKXBXAzHX1sjtk=" crossorigin="anonymous"></script>
-            <script src="https://code.jquery.com/ui/1.12.1/jquery-ui.min.js" integrity="sha256-VazP97ZCwtekAsvgPBSUwPFKdrwD3unUfSGVYrahUqU=" crossorigin="anonymous"></script>
-
-        <?php
-        }
-        ?>
+            includeJQuery();
+    ?>
 
         <script>window.hWin = window;</script>
         <script type="text/javascript" src="<?php echo PDIR;?>hclient/core/detectHeurist.js"></script>
-    
+
         <script type="text/javascript" src="<?php echo PDIR;?>hclient/core/hapi.js"></script>
+        <script type="text/javascript" src="<?php echo PDIR;?>hclient/core/HSystemMgr.js"></script>
         <script type="text/javascript" src="<?php echo PDIR;?>hclient/core/utils.js"></script>
         <script type="text/javascript" src="<?php echo PDIR;?>hclient/core/utils_ui.js"></script>
         <script type="text/javascript" src="<?php echo PDIR;?>hclient/core/utils_msg.js"></script>
-        <script type="text/javascript" src="<?php echo PDIR;?>hclient/widgets/profile/profile_login.js"></script>   
+        <script type="text/javascript" src="<?php echo PDIR;?>hclient/widgets/profile/profile_login.js"></script>
         <script type="text/javascript" src="<?php echo PDIR;?>hclient/widgets/profile/profile_edit.js"></script>
 
         <script>
@@ -121,10 +121,16 @@ if(!isset($message)){
             function onHapiInit() {
                 let $login_ele = $(document).find('.login-link');
                 if($login_ele.length > 0 && window.hWin && window.hWin.HEURIST4){
+                    let reload_target = $login_ele.attr('reload');
                     $login_ele.on('click', () => {
                         if(window.hWin && window.hWin.HEURIST4){
                             window.hWin.HEURIST4.ui.checkAndLogin(true, () => {
-                                location.reload();
+                                if(reload_target=='home'){
+                                    document.location = window.hWin.HAPI4.baseURL+'?db='+window.hWin.HAPI4.database;
+                                }else{
+                                    location.reload();
+                                }
+
                             });
                         }
                     });
@@ -139,7 +145,7 @@ if(!isset($message)){
     }else{
         print '<script>if(window.history && typeof history.pushState === "function") {window.history.pushState({}, document.title, window.location.pathname)}</script>';
     }
-    
+
     ?>
     </head>
     <body style="padding:44px;" class="ui-heurist-header1">
@@ -147,9 +153,9 @@ if(!isset($message)){
 
             <div class="logo" style="background-color:#2e3e50;width:100%"></div>
 
-            <div class="<?php echo $is_error?'ui-state-error':''; ?>" 
+            <div class="<?php echo $is_error?'ui-state-error':'';?>"
                 style="width:90%;margin:auto;margin-top:10px;padding:10px;">
-                <span class="ui-icon <?php echo $is_error?'ui-icon-alert':'ui-icon-info'; ?>" 
+                <span class="ui-icon <?php echo $is_error?'ui-icon-alert':'ui-icon-info';?>"
                       style="float: left; margin-right:.3em;font-weight:bold"></span>
                 <?php echo USanitize::sanitizeString($message);?>
             </div>
