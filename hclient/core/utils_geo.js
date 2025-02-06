@@ -398,6 +398,200 @@ window.hWin.HEURIST4.geo = {
         
     
     },
+
+    //
+    // OLD WAY to parse coordinates from WKT to timemap or google
+    // it is still in use in Digital Harlem search
+    //
+    parseCoordinates: function(type, wkt, format, google) {
+
+        if(type==1 && typeof google.maps.LatLng != "function") {
+            return null;
+        }
+
+        var matches = null;
+
+        switch (type) {
+            case "p":
+            case "point":
+                matches = wkt.match(/POINT\s?\((\S+)\s+(\S+)\)/i);
+                break;
+
+            case "c":  //circle
+            case "circle":
+                matches = wkt.match(/LINESTRING\s?\((\S+)\s+(\S+),\s*(\S+)\s+\S+,\s*\S+\s+\S+,\s*\S+\s+\S+\)/i);
+                break;
+
+            case "l":  //polyline
+            case "polyline":
+            case "path":
+                matches = wkt.match(/LINESTRING\s?\((.+)\)/i);
+                if (matches){
+                    matches = matches[1].match(/\S+\s+\S+(?:,|$)/g);
+                }
+                break;
+
+            case "r":  //rectangle
+            case "rect":
+                //matches = wkt.match(/POLYGON\(\((\S+)\s+(\S+),\s*(\S+)\s+(\S+),\s*(\S+)\s+(\S+),\s*(\S+)\s+(\S+),\s*\S+\s+\S+\)\)/i);
+                //break;
+            case "pl": //polygon
+            case "polygon":
+                matches = wkt.match(/POLYGON\s?\(\((.+)\)\)/i);
+                if (matches) {
+                    matches = matches[1].match(/\S+\s+\S+(?:,|$)/g);
+                }
+                
+                break;
+        }
+
+
+        var bounds = null, southWest, northEast,
+        shape  = null,
+        points = []; //google points
+
+        if(matches && matches.length>0){
+
+            switch (type) {
+                case "p":
+                case "point":
+                
+                    var x0 = parseFloat(matches[1]);
+                    var y0 = parseFloat(matches[2]);
+                    
+                    if(format==0){
+                        shape = { point:{lat: y0, lon:x0 } };
+                    }else{
+                        point = new google.maps.LatLng(y0, x0);
+                        points.push(point);
+                        bounds = new google.maps.LatLngBounds(
+                            new google.maps.LatLng(y0 - 0.5, x0 - 0.5),
+                            new google.maps.LatLng(y0 + 0.5, x0 + 0.5));
+                    }
+                    
+                    
+
+                    break;
+
+                /*
+                case "r":  //rectangle
+                case "rect":
+
+                    if(matches.length<6){
+                        matches.push(matches[3]);
+                        matches.push(matches[4]);
+                    }
+
+                    var x0 = parseFloat(matches[0]);
+                    var y0 = parseFloat(matches[2]);
+                    var x1 = parseFloat(matches[5]);
+                    var y1 = parseFloat(matches[6]);
+
+                    if(format==0){
+                        shape  = [
+                            {lat: y0, lon: x0},
+                            {lat: y0, lon: x1},
+                            {lat: y1, lon: x1},
+                            {lat: y1, lon: x0},
+                        ];
+
+                        shape = {polygon:shape};
+                    }else{
+
+                        southWest = new google.maps.LatLng(y0, x0);
+                        northEast = new google.maps.LatLng(y1, x1);
+                        bounds = new google.maps.LatLngBounds(southWest, northEast);
+
+                        points.push(southWest, new google.maps.LatLng(y0, x1), northEast, new google.maps.LatLng(y1, x0));
+                    }
+
+                    break;
+                */
+                case "c":  //circle
+                case "circle":  //circle
+
+                    if(format==0){
+
+                        var x0 = parseFloat(matches[1]);
+                        var y0 = parseFloat(matches[2]);
+                        var radius = parseFloat(matches[3]) - parseFloat(matches[1]);
+
+                        shape = [];
+                        for (var i=0; i <= 40; ++i) {
+                            var x = x0 + radius * Math.cos(i * 2*Math.PI / 40);
+                            var y = y0 + radius * Math.sin(i * 2*Math.PI / 40);
+                            shape.push({lat: y, lon: x});
+                        }
+                        shape = {polygon:shape};
+                        /*
+                        bounds = new google.maps.LatLngBounds(
+                            new google.maps.LatLng(y0 - radius, x0 - radius),
+                            new google.maps.LatLng(y0 + radius, x0 + radius));
+                         */
+                        
+                    }else{
+                        /* ARTEM TODO
+                        var centre = new google.maps.LatLng(parseFloat(matches[2]), parseFloat(matches[1]));
+                        var oncircle = new google.maps.LatLng(parseFloat(matches[2]), parseFloat(matches[3]));
+                        setstartMarker(centre);
+                        createcircle(oncircle);
+
+                        //bounds = circle.getBounds();
+                        */
+                    }
+
+                    break;
+
+                case "l":  ///polyline
+                case "path":
+                case "polyline":
+
+                case "r":  //rectangle
+                case "rect":
+                case "pl": //polygon
+                case "polygon":
+
+                    shape = [];
+
+                    var j;
+                    var minLat = 9999, maxLat = -9999, minLng = 9999, maxLng = -9999;
+                    for (j=0; j < matches.length; ++j) {
+                        var match_matches = matches[j].match(/(\S+)\s+(\S+)(?:,|$)/);
+
+                        var point = {lat:parseFloat(match_matches[2]), lon:parseFloat(match_matches[1])};
+
+                        if(format==0){
+                            shape.push(point);
+                        }else{
+                            points.push(new google.maps.LatLng(points.lat, points.lon));
+                        }
+                        
+                        if (point.lat < minLat) minLat = point.lat;
+                        if (point.lat > maxLat) maxLat = point.lat;
+                        if (point.lon < minLng) minLng = point.lon;
+                        if (point.lon > maxLng) maxLng = point.lon;
+                        
+                    }
+
+                    if(format==0){
+                        shape = (type=="l" || type=="polyline")?{polyline:shape}:{polygon:shape};
+                    }else{
+                        southWest = new google.maps.LatLng(minLat, minLng);
+                        northEast = new google.maps.LatLng(maxLat, maxLng);
+                        bounds = new google.maps.LatLngBounds(southWest, northEast);
+                    }
+                    
+            }
+
+        }
+        
+        if(format==0){
+            return shape; //{bounds:bounds, shape:shape};
+        }else{
+            return {bounds:bounds, points:points};
+        }
+
+    },//end parseCoordinates
     
     //
     // geodata = _recordset.getFieldGeoValue(_record, window.hWin.HAPI4.sysinfo['dbconst']['DT_GEO_OBJECT']);           

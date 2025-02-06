@@ -236,7 +236,7 @@ function HMappingControls( mapping, startup_mapdocument_id ) {
             let bounds = null, err_msg_all = '';
 
             map_bookmarks = [];
-            window.hWin.HEURIST4.ui.addoption(selBookmakrs, -1, 'bookmarks...');
+            window.hWin.HEURIST4.ui.addoption(document.getElementById('selMapBookmarks'), -1, 'bookmarks...');
 
             // Longitude,Latitude centrepoint, Initial minor span
             // add initial bookmarks based on long lat  minorSpan
