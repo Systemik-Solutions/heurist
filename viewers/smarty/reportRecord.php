@@ -58,7 +58,7 @@ class ReportRecord {
        global $system;
 
        $this->system = $system;
-       $this->rty_Names = dbs_GetRectypeNames($system->get_mysqli());
+       $this->rty_Names = dbs_GetRectypeNames($system->getMysqli());
        $this->dty_Types = dbs_GetDetailTypes($system, null, 4);
        /* loads on first request
        $this->dtTerms = dbs_GetTerms($system);
@@ -1044,7 +1044,7 @@ class ReportRecord {
     public function getFileField($file_details, $field = 'name'){
 
         global $system;
-        $mysqli = $system->get_mysqli();
+        $mysqli = $system->getMysqli();
 
         switch ($field) {
             case 'desc':

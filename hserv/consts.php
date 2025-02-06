@@ -1,6 +1,6 @@
 <?php
 use \hserv\utilities\USystem;
-
+require_once dirname(__FILE__).'/utilities/USystem.php';
 /**
 * List of system constants
 *

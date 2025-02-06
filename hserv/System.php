@@ -22,9 +22,20 @@ use hserv\utilities\USystem;
 use hserv\utilities\USanitize;
 use hserv\SystemSettings;
 
-
+require_once dirname(__FILE__).'/SystemSettings.php';
+require_once dirname(__FILE__).'/../configIni.php';
+require_once dirname(__FILE__).'/consts.php';
 require_once dirname(__FILE__).'/structure/dbsUsersGroups.php';
 require_once dirname(__FILE__).'/structure/import/dbsImport.php';
+
+require_once dirname(__FILE__).'/dbaccess/utils_db.php';
+require_once dirname(__FILE__).'/utilities/UFile.php';
+require_once dirname(__FILE__).'/utilities/USanitize.php';
+require_once dirname(__FILE__).'/utilities/UMail.php';
+require_once dirname(__FILE__).'/utilities/ULocale.php';
+require_once dirname(__FILE__).'/structure/ConceptCode.php';
+
+
 
 set_error_handler('bootErrorHandler');   //see const.php
 

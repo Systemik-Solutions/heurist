@@ -22,6 +22,7 @@
 */
 
     require_once dirname(__FILE__).'/../../../hserv/System.php';
+    use hserv\System;
     require_once dirname(__FILE__).'/../../../hserv/records/search/recordSearch.php';
     require_once dirname(__FILE__).'/../../../hserv/structure/search/dbsData.php';
     require_once dirname(__FILE__).'/../../../hserv/dbaccess/utils_db.php';
@@ -461,7 +462,7 @@ function recordSearch_2( $query ){
 //
 function recordGetRealtionship($system, $sourceID, $targetID ){
 
-    $mysqli = $system->get_mysqli();
+    $mysqli = $system->getMysqli();
 
     //find all target related records
     $query = 'SELECT rl_RelationID FROM recLinks '
@@ -491,7 +492,7 @@ function recordGetRealtionship($system, $sourceID, $targetID ){
 //
 function recordGetRealtionshipType($system, $sourceID, $targetID ){
 
-    $mysqli = $system->get_mysqli();
+    $mysqli = $system->getMysqli();
 
     //find all target related records
     $query = 'SELECT rl_RelationTypeID FROM recLinks '

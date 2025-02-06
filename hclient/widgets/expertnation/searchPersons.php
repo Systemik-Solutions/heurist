@@ -31,6 +31,7 @@
 */
 
 require_once dirname(__FILE__).'/../../../hserv/System.php';
+use hserv\System;
 require_once dirname(__FILE__).'/../../../hserv/records/search/recordSearch.php';
 require_once dirname(__FILE__).'/../../../hserv/dbaccess/utils_db.php';
 

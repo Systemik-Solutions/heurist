@@ -58,7 +58,7 @@ private static function initialize()
 
     global $system;
     self::$system  = $system;
-    self::$mysqli = $system->get_mysqli();
+    self::$mysqli = $system->getMysqli();
     self::$initialized = true;
     self::$version = 3;
 }
@@ -68,7 +68,7 @@ private static function initialize()
 //
 public static function setSession($system){
     self::$system  = $system;
-    self::$mysqli = $system->get_mysqli();
+    self::$mysqli = $system->getMysqli();
     self::$initialized = true;
 }
 
@@ -811,7 +811,7 @@ IIIF;
 /*
                 if($need_rec_type && $rty_ID>0){ // Add record type to details
                    $query = 'select rty_Name from defRecTypes where rty_ID = ' . $rty_ID . ' LIMIT 1';
-                   $type = mysql__select_value(self::$system->get_mysqli(), $query);
+                   $type = mysql__select_value(self::$system->getMysqli(), $query);
                    $record['typename'] = $type;
                 }
 */
@@ -1049,7 +1049,7 @@ XML;
             $query = 'select rty_ID,rty_Name,'
             ."if(rty_OriginatingDBID, concat(cast(rty_OriginatingDBID as char(5)),'-',cast(rty_IDInOriginatingDB as char(5))), concat('$dbID-',cast(rty_ID as char(5)))) as rty_ConceptID"
             .' from defRecTypes where rty_ID in ('.implode(',',array_keys($rt_counts)).')';
-            $rectypes = mysql__select_all(self::$system->get_mysqli(),$query,1);
+            $rectypes = mysql__select_all(self::$system->getMysqli(),$query,1);
 
             foreach($rt_counts as $rtid => $cnt){
                 //include record types that are in output - name, ccode and count
