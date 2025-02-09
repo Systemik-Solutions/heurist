@@ -157,7 +157,7 @@ class ReportRecord
      * @param mixed|null $smarty_obj Unused Smarty object reference.
      * @return array|null The record information formatted for Smarty.
      */
-    public function getRecord($rec, $details=true, $smarty_obj = null)
+    public function getRecord($rec, $details=true, $smarty_obj = null , $extended=null)
     {
         $rec_ID = is_array($rec) && $rec['recID'] ? $rec['recID'] : $rec;
 
@@ -165,7 +165,7 @@ class ReportRecord
             return $this->recordsCache[$rec_ID];
         }
 
-        $rec = recordSearchByID($this->system, $rec_ID, $details);
+        $rec = recordSearchByID($this->system, $rec_ID, $details , null , $extended = null);
         if ($details===true && $rec) {
             $rec['rec_Tags'] = recordSearchPersonalTags($this->system, $rec_ID);
             if (is_array($rec['rec_Tags'])) {
@@ -175,7 +175,7 @@ class ReportRecord
         }
         
         //converts to array suitable for smarty  r.title, r.fNNN
-        $record = $this->getRecordForSmarty($rec);
+        $record = $this->getRecordForSmarty($rec , $extended = null); 
         if($record){
             $this->recordsCache[$recordID] = $record;
         }
@@ -347,7 +347,7 @@ class ReportRecord
      * @param array $rec The record array to convert.
      * @return array|null The converted record array or null if the record is invalid.
      */
-    private function getRecordForSmarty($rec)
+    private function getRecordForSmarty($rec , $extended=null)
     {
         if (!$rec) {
             return null;
@@ -367,7 +367,7 @@ class ReportRecord
             if (strpos($key, "rec_") === 0) {
                 $this->processRecordField($record, $key, $value, $recTypeID);
             } elseif ($key == "details") {
-                $this->processRecordDetails($record, $value, $recTypeID, $recordID, $lang);
+                $this->processRecordDetails($record, $value, $recTypeID, $recordID, $lang , $extended);
             }
         }
 
@@ -393,14 +393,83 @@ class ReportRecord
         }
     }
 
-    private function processRecordDetails(&$record, $details, $recTypeID, $recordID, $lang)
+    private function processRecordDetails(&$record, $details, $recTypeID, $recordID, $lang , $extended = null)
     {
-        foreach ($details as $dtKey => $dtValue) {
-            $dt = $this->getDetailForSmarty($dtKey, $dtValue, $recTypeID, $recordID, $lang);
-            if ($dt != null) {
-                $record = array_merge($record, $dt);
+        if ($extended != null && $extended == 2) {
+            foreach ($details as $dtValue) {
+                $fieldName = $dtValue['fieldName'];
+                $fieldValue = $this->getExtendedDetailsForSmarty($dtValue);
+        
+                if($fieldValue){
+                    if (!isset($record[$fieldName])) {
+                        $record[$fieldName] = $fieldValue;
+                    } else {
+                        if (is_array($record[$fieldName])) {
+                            $record[$fieldName][] = $fieldValue;
+                        } else {
+                            $record[$fieldName] = [$record[$fieldName], $fieldValue];
+                        }
+                    }
+                }
+                ksort($record);
+            }
+        }else{
+            foreach ($details as $dtKey => $dtValue) {
+                $dt = $this->getDetailForSmarty($dtKey, $dtValue, $recTypeID, $recordID, $lang);
+                if ($dt != null) {
+                    $record = array_merge($record, $dt);
+                }
             }
         }
+    }
+
+    private function getExtendedDetailsForSmarty($value)
+    {
+
+        $fieldValue = null;
+        switch ($value['fieldType']) {
+            case 'blocktext':
+                $fieldValue = $value['value'];
+                break;
+            case 'freetext':
+                $fieldValue = $value['value'];
+                break;
+            case 'float':
+                $fieldValue = $value['value'];
+                break;
+            case 'date':
+                $dateValue = $value['value'];
+                // For handling timestamps
+                if (isset($dateValue) && isset($dateValue->timestamp)) {
+                    $fieldValue = $dateValue->timestamp->in;
+                }
+                // For handling range of years
+                elseif (isset($dateValue) && isset($dateValue->start) && isset($dateValue->end)) {
+                    $fieldValue = $dateValue->start->earliest . ' to ' . $dateValue->end->latest;
+                } else {
+                    $fieldValue = $dateValue;
+                }
+                break;
+            case 'enum':
+                $fieldValue = $value['termLabel'];
+                break;
+            case 'resource':
+                if ($value['dty_ID'] == 386) {
+                    $fieldValue = $value['value']['title'];
+                } else {
+                    $fieldValue = $value;
+                }
+                break;
+            case 'file':
+                if (isset($value['value']['file']['fxm_MimeType']) && $value['value']['file']['fxm_MimeType'] === "image/jpeg") {
+                    $fieldValue = '<img width="400" src="https://heurist-usyd.cloud.edu.au/heurist/?db=balipaintings&file=' . $value['value']['fileid'] . '&fancybox=1">';
+                }
+                break;
+            default:
+                break;
+        }
+
+        return $fieldValue;
     }
 
     /**
