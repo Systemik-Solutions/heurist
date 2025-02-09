@@ -165,7 +165,7 @@ class ReportRecord
             return $this->recordsCache[$rec_ID];
         }
 
-        $rec = recordSearchByID($this->system, $rec_ID, $details , null , $extended = null);
+        $rec = recordSearchByID($this->system, $rec_ID, $details , null , $extended);
         if ($details===true && $rec) {
             $rec['rec_Tags'] = recordSearchPersonalTags($this->system, $rec_ID);
             if (is_array($rec['rec_Tags'])) {
@@ -175,9 +175,9 @@ class ReportRecord
         }
         
         //converts to array suitable for smarty  r.title, r.fNNN
-        $record = $this->getRecordForSmarty($rec , $extended = null); 
+        $record = $this->getRecordForSmarty($rec , $extended); 
         if($record){
-            $this->recordsCache[$recordID] = $record;
+            $this->recordsCache[$rec_ID] = $record;
         }
         return $record;
 

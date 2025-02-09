@@ -95,7 +95,7 @@
     *                      1 - only structure (@TODO NO NAMES!!!!)
     *                      2 - full, both headers and structures
     */
-    function dbs_GetRectypeStructures($system, $rectypeids=null, $imode=0) { //$useCachedData = false) {
+    function dbs_GetRectypeStructures($system, $rectypeids=null, $imode=0 , $addSystem = false) { //$useCachedData = false) {
 
 
         if($imode<0 || $imode>2){
@@ -281,7 +281,12 @@
                     //convert concept code title mask to human readable
                     $mask_concept_codes = $commonFields[$ind_TitleMask];
                     $commonFields[$ind_CanonicalTitleMask] = $mask_concept_codes; //keep
-                    $commonFields[$ind_TitleMask] = TitleMask::execute($mask_concept_codes, $rtyID, 2, null, ERROR_REP_SILENT);
+
+                    if($addSystem){
+                        $commonFields[$ind_TitleMask] = TitleMask::execute($mask_concept_codes, $rtyID, 2, null, ERROR_REP_SILENT , $system);
+                    }else{
+                        $commonFields[$ind_TitleMask] = TitleMask::execute($mask_concept_codes, $rtyID, 2, null, ERROR_REP_SILENT);
+                    }
 
                     $rtStructs['typedefs'][$rtyID]['commonFields'] = $commonFields;
                 }

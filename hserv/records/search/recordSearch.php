@@ -3327,7 +3327,7 @@ function _getJsonFeature($system, $record, $extended_mode){
     if($extended_mode==2){ //extended - with concept codes and names/labels
     
         
-        $defRecTypes = dbs_GetRectypeStructures($system, null, 2);
+        $defRecTypes = dbs_GetRectypeStructures($system, null, 2 , true) ;
             
         $defTerms = dbs_GetTerms($system);
         $defTerms = new DbsTerms($system, $defTerms);

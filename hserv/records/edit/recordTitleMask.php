@@ -162,9 +162,13 @@ public static function fill($rec_id, $mask=null){
 * @param mixed $rep_mode - output in case failure: 0 - general message(ERROR_REP_WARN), 1- detailed message, 2 - empty string (ERROR_REP_SILENT)
 * @return string
 */
-public static function execute($mask, $rt, $mode, $rec_id=null, $rep_mode=ERROR_REP_WARN) {
+public static function execute($mask, $rt, $mode, $rec_id=null, $rep_mode=ERROR_REP_WARN , $system=null) {
 
-    self::initialize();
+    if($system){
+        self::initialize($system);
+    }else{
+        self::initialize();
+    }
 
     if(self::$fields_correspondence!=null){
         self::$rdr = null;
