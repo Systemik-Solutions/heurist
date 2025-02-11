@@ -19,6 +19,33 @@
 * See the License for the specific language governing permissions and limitations under the License.
 */
 
+window.addEventListener("load", function () {
+    setTimeout(function () {
+        var iframe = document.querySelector(
+            'iframe[src="https://heurist-usyd.cloud.edu.au/heurist/viewers/gmap/map.php?w=a&mapdocument=59920&ll=Beyond1914&db=ExpertNation&header=off&legend=off"]'
+        );
+
+        if (iframe) {
+            console.log("Reloading iframe");
+            var iframeSrc = iframe.src;
+            iframe.src = "";
+            iframe.src = iframeSrc;
+        }
+
+        var iframe2 = document.querySelector(
+            'iframe[src="https://heurist-usyd.cloud.edu.au/heurist/viewers/gmap/map.php?w=a&mapdocument=73645&ll=UAdelaide&db=ExpertNation&header=off&legend=off"]'
+        );
+
+        if (iframe2) {
+            console.log("Reloading iframe");
+            var iframeSrc = iframe.src;
+            iframe.src = "";
+            iframe.src = iframeSrc;
+        }
+
+    }, 8500);
+});
+
 $.widget( "heurist.expertnation_place", $.heurist.resultList, {
     
   _initControls:function(){
