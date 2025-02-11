@@ -464,6 +464,11 @@ th {
 .glyphicon-indent-right:before {
   content: "\e058"; }
 
+
+#mapping .ui-layout-center.ui-layout-pane.ui-layout-pane-center {
+    height: 100% !important;
+}
+
 .glyphicon-facetime-video:before {
   content: "\e059"; }
 

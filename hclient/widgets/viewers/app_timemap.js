@@ -261,7 +261,8 @@ $.widget( "heurist.app_timemap", {
                     this.options.mapdocument = mapdoc;    
                 }
                 let url;
-                if(this.options.leaflet){
+
+                if(this.options.leaflet ||  window.hWin.HAPI4.sysinfo['layout'] == 'DigitalHarlem'){
                     url = window.hWin.HAPI4.baseURL + 'viewers/map/map.php?';
                 }else{
                     url = window.hWin.HAPI4.baseURL + 'viewers/gmap/map.php?';
