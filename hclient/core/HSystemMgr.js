@@ -4,7 +4,7 @@
 *
 * @package     Heurist academic knowledge management system
 * @link        https://HeuristNetwork.org
-* @copyright   (C) 2005-2023 University of Sydney
+* @copyright   (C) 2005-2023 University of Sydney, (C) 2024 onwards Heurist Network
 * @author      Artem Osmakov   <osmakov@gmail.com>
 * @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
 * @version     4.0
@@ -176,10 +176,10 @@ class HSystemMgr {
                   //
                   window.hWin.HEURIST4.msg.showPrompt(
                       '<div style="padding:20px 0px">'
-                      + 'Only an administrator (server manager) or the owner (for<br>'
-                      + 'actions on a single database) can carry out this action.<br>'
-                      + 'This action requires a special system administrator password (not a normal login password)'
-                      + '</div><span style="display: inline-block;padding: 10px 0px;">Enter password:&nbsp;</span>',
+                      + 'Only the System Administrator (server manager) can access the Manage Databases function.<br>'
+                      + 'This action requires a special system administrator password (NOT a normal login password).<br>'
+                      + 'If you receive this message elsewhere the function is only available to the OWNER of the database (user #2)<br>'
+                      + '</div><span style="display: inline-block;padding: 10px 0px;">Enter system administrator password:&nbsp;</span>',
                       (password_entered)=>{
 
                           let on_passwordcheck = 
@@ -934,6 +934,17 @@ class HSystemMgr {
   }
 
   /**
+   * Upload file to Nakala
+   * @param {Request} request 
+   * @param {callserverCallback} callback 
+   */
+  upload_to_nakala(request, callback){
+      if (!request) callback.call(this, false);
+      if (!request.a) request.a = 'upload_file_nakala';
+      window.hWin.HAPI4.callserver('usr_info', request, callback);
+  }
+
+  /**
   * 1. verifies that given rty_IDs (concept codes) exist in this database
   * 2. If rectype is missed - download from given db_ID (registration ID)
   * 3. Show warning of info report
@@ -1149,6 +1160,25 @@ class HSystemMgr {
       }
       return false;
   }
+
+  /*
+  *
+  */  
+  async loadHtmlContent(target, url){
+
+        let that = this;
+
+        try {
+            const response = await fetch(url);
+            if (!response.ok) {
+                throw new Error(response.statusText);
+            }
+            target[0].innerHTML = await response.text();
+        } catch (error) {
+            window.hWin.HEURIST4.msg.showMsgErr(`Failed to load content from ${url}: {error.message}`);
+        }
+    }
+
   
   
 }

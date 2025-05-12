@@ -8,7 +8,7 @@
 *
 * @package     Heurist academic knowledge management system
 * @link        https://HeuristNetwork.org
-* @copyright   (C) 2005-2023 University of Sydney
+* @copyright   (C) 2005-2023 University of Sydney, (C) 2024 onwards Heurist Network
 * @author      Artem Osmakov   <osmakov@gmail.com>
 * @author      Ian Johnson     <ian.johnson.heurist@gmail.com>
 * @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
@@ -82,10 +82,12 @@ of the codebase and rename it to index.html
 // ---------------------------------------------------------------------------------
 // *** DO NOT CHANGE VERSION NUMBER, THIS IS SET BY THE HEURIST DEVELOPMENT TEAM ***
 
-$version = "6.6.5";// sets current program version number, determined by Heurist development lead
+$version = "6.7.0";// sets current program version number, determined by Heurist development lead
 
 // ---------------------------------------------------------------------------------
 
+// 6.7.0  22 March 2025
+// 6.6.6  16 Feb 2025
 // 6.6.5  05 Feb 2025
 // 6.6.3  21 Dec 2024
 // 6.6.2  3 Dec 2024
@@ -96,6 +98,8 @@ $version = "6.6.5";// sets current program version number, determined by Heurist
 // Version 6 released early 2021. Version 5 released 25 Jul 2018  Version 4.2.20 5 Jun 2017. Not recorded prior.
 
 $heuristReferenceServer = "https://heuristref.net";// DO NOT CHANGE THIS as it is critical for a number of functions
+
+$heuristReferenceServerMirror = ''; //reserve mirror server, if it is set, it owerwrites mian reference server settings
 
 // *** DO NOT SET THESE UNLESS YOU KNOW WHAT YOU ARE DOING ***
 //     they override the values set in ../heuristConfigIni.php

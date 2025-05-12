@@ -12,7 +12,7 @@
 *
 * @package     Heurist academic knowledge management system
 * @link        https://HeuristNetwork.org
-* @copyright   (C) 2005-2023 University of Sydney
+* @copyright   (C) 2005-2023 University of Sydney, (C) 2024 onwards Heurist Network
 * @author      Artem Osmakov   <osmakov@gmail.com>
 * @author      Ian Johnson     <ian.johnson.heurist@gmail.com>
 * @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
@@ -2484,7 +2484,7 @@ $mysqli->commit();
      * @param array $indexes - array of indexes to access values from $definition [conceptCode, originDBID, originID, originName]
      * @return void
      */
-    private function _setConceptValues($definition, $concept_values, $indexes){
+    private function _setConceptValues(&$definition, $concept_values, $indexes){
 
         $source_DBID = @$concept_values[0];
         $source_ID = @$concept_values[1];
@@ -2492,17 +2492,18 @@ $mysqli->commit();
 
         if(!ctype_digit($source_DBID) || intval($source_DBID) < 0
         || !ctype_digit($source_ID) || intval($source_ID) <= 0){
-            return;
-        }
+         
 
-        $missing_conceptID = empty($definition[$indexes[0]]);
-        // Use the existing concept codes for source IDs
-        if(!$missing_conceptID){
-            $parts = explode('-', $definition[$indexes[0]]);
-            if(count($parts) == 2 && ctype_digit($parts[0]) && ctype_digit($parts[1])){
-                $source_DBID = intval($parts[0]);
-                $source_ID = intval($parts[1]);
+            $missing_conceptID = empty($definition[$indexes[0]]);
+            // Use the existing concept codes for source IDs
+            if(!$missing_conceptID){
+                $parts = explode('-', $definition[$indexes[0]]);
+                if(count($parts) == 2 && ctype_digit($parts[0]) && ctype_digit($parts[1])){
+                    $source_DBID = intval($parts[0]);
+                    $source_ID = intval($parts[1]);
+                }
             }
+            
         }
 
         // Check if either original ID is missing

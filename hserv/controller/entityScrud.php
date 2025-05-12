@@ -9,7 +9,7 @@
     *
     * @package     Heurist academic knowledge management system
     * @link        https://HeuristNetwork.org
-    * @copyright   (C) 2005-2023 University of Sydney
+    * @copyright   (C) 2005-2023 University of Sydney, (C) 2024 onwards Heurist Network
     * @author      Artem Osmakov   <osmakov@gmail.com>
     * @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
     * @version     4.0
@@ -41,6 +41,7 @@
     $system = new hserv\System();
 
     $dbdef_cache = null;
+    $db_time = 0;
 
     $db_check_error = mysql__check_dbname( $dbname );//validate db name
 
@@ -62,6 +63,14 @@
     // relevance - compare filetime with timestamp,
     //                      if filetime is later - returns definitions
     //                      otherwise file time
+    if( @$req_params['a']=='structure' && @$req_params['entity']=='relevance' &&
+            ($dbdef_cache==null || !file_exists($dbdef_cache)) ){
+            //ignore relevance check if file is missed
+            header(CTYPE_JSON);
+                print json_encode( array('uptodate'=>1, 'cachefile'=>$dbdef_cache));
+            exit;
+    }
+    
     if( @$req_params['a']=='structure'
         && (@$req_params['entity']=='all' || @$req_params['entity']=='relevance')
         && $dbdef_cache!=null && file_exists($dbdef_cache)
@@ -74,11 +83,13 @@
                     $req_params['entity'] = 'all';
                     $file_time = filemtime($dbdef_cache);
 
-                    if($file_time - intval($req_params['timestamp']) < 10){
+                    if($file_time - intval($req_params['timestamp']) < 100){
                         //compare file time with time of db defs on client side
                         //defintions are up to date on client side
                         header(CTYPE_JSON);
-                        print json_encode( array('uptodate'=>$file_time));
+                        print json_encode( array('uptodate'=>$file_time, 
+                                'req_timestamp'=>$req_params['timestamp']) );
+                                //'cachefile'=>$dbdef_cache) );
                         exit;
                         //otherwise download dbdef cache
                     }
@@ -163,9 +174,10 @@
 
             //update dbdef cache
             if(@$req_params['entity']=='all' && $res!==false && $dbdef_cache!=null){
-                $res['timestamp'] = time();//update time on client side
+                //$res['db_time'] = $db_time;
                 //update db defintion cache file
                 file_put_contents($dbdef_cache, json_encode($res));
+                $res['timestamp'] = filemtime($dbdef_cache);//it will be stored on client side
             }
 
         }else {

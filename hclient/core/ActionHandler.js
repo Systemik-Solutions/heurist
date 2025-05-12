@@ -4,7 +4,7 @@
 *
 * @package     Heurist academic knowledge management system
 * @link        https://HeuristNetwork.org
-* @copyright   (C) 2005-2023 University of Sydney
+* @copyright   (C) 2005-2023 University of Sydney, (C) 2024 onwards Heurist Network
 * @author      Artem Osmakov   <osmakov@gmail.com>
 * @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
 * @version     4.0
@@ -209,6 +209,7 @@ class ActionHandler {
              container = dialog_options['container'];
          } else if (action_container) {
              let section = action_container;
+             
              $('.ui-menu6').slidersMenu('switchContainer', section, true);
              container = $('.ui-menu6 > .ui-menu6-widgets.ui-heurist-'+section);
              container.removeClass('ui-suppress-border-and-shadow');
@@ -408,6 +409,15 @@ class ActionHandler {
         if (action_log) {
             window.hWin.HAPI4.SystemMgr.user_log(action_log);
         }
+        
+        if (actionid == 'data-heurist-pageid') {
+            if (!this.cmsManager) {
+                this.cmsManager = new CmsManager();
+            }
+            this.cmsManager.executeAction(actionid, dialog_options);
+            return true;
+        }
+        
 
         if (actionid.indexOf('menu-cms') == 0) {
             if (!this.cmsManager) {
@@ -419,7 +429,7 @@ class ActionHandler {
 
         // Prepare dialog options
         let popup_dialog_options = this.#prepareDialogOptions(action, dialog_options);
-
+        
         let is_supported = true;
         let contentURL;
 
@@ -607,7 +617,7 @@ class ActionHandler {
 
             case "menu-help-online":
             
-                action.href = window.hWin.HAPI4.sysinfo.referenceServerURL+'?db=Heurist_Help_System&website';
+                action.href = window.hWin.HAPI4.sysinfo.referenceServerURL+'?website&db='+window.hWin.HAPI4.sysinfo.referenceServerHelpDatabase;
                  // fall through
             default:
                 is_supported = this.#handleHrefAction(action, popup_dialog_options);

@@ -4,7 +4,7 @@
 *
 * @package     Heurist academic knowledge management system
 * @link        https://HeuristNetwork.org
-* @copyright   (C) 2005-2023 University of Sydney
+* @copyright   (C) 2005-2023 University of Sydney, (C) 2024 onwards Heurist Network
 * @author      Artem Osmakov   <osmakov@gmail.com>
 * @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
 * @version     4.0
@@ -17,8 +17,6 @@
 * distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied
 * See the License for the specific language governing permissions and limitations under the License.
 */
-
-/* global hLayoutMgr */
 
 /**
  * Class: CmsManager
@@ -75,10 +73,17 @@ class CmsManager {
      * 
      * @param {string} actionid - The ID of the action to execute.
      */
-    executeAction(actionid) {
+    executeAction(actionid, options) {
         if (!this.isCmsAllowedOnThisServer()) {
             return;
         }
+        
+        if(actionid=='data-heurist-pageid'){ //load webpage
+            this.#initDefCodes();
+            this.#loadWebPage(options);
+            return;
+        }
+        
 
         if (!this.checkRequiredRecordTypes(() => {
             this.executeAction(actionid);
@@ -195,7 +200,7 @@ class CmsManager {
      */
     #createPage() {
         let that = this;
-        let $dlg = window.hWin.HEURIST4.msg.showPrompt(
+        window.hWin.HEURIST4.msg.showPrompt(
             window.hWin.HR('Name for new page') + ':',
             function(value) {
                 if (window.hWin.HEURIST4.util.isempty(value)) {
@@ -584,11 +589,8 @@ class CmsManager {
         let sURL = window.hWin.HAPI4.baseURL + 'hclient/widgets/cms/templates/snippets/' + template_name + '.json';
 
         $.getJSON(sURL, function(new_element_json) {
-            if (!window.layoutMgr) {
-                hLayoutMgr();
-            }
 
-            window.layoutMgr.prepareTemplate(new_element_json, function(updated_json) {
+            window.hWin.HAPI4.layoutMgr.prepareTemplate(new_element_json, function(updated_json) {
                 let request = {
                     a: 'replace',
                     recIDs: affected_page_id,
@@ -602,5 +604,70 @@ class CmsManager {
                 });
             });
         });
+    }
+    
+    /**
+    * Loads given RT_CMS_MENU into container (by default main (v3) or #main-content (v2) )
+    */
+    #loadWebPage(options){
+        
+        let page_target = $(options.container??'main');
+        if(page_target.length==0){
+            page_target = $('#main-content');
+        }
+        if(page_target.length==0){
+            window.hWin.HEURIST4.msg.showMsgErr('Web Page can not be loaded. Targer element not found');
+            return;
+        }
+        
+        const DT_NAME = window.hWin.HAPI4.sysinfo['dbconst']['DT_NAME'];
+        const DT_EXTENDED_DESCRIPTION = window.hWin.HAPI4.sysinfo['dbconst']['DT_EXTENDED_DESCRIPTION'];
+        const supp_options = options.supp_options;
+        
+        const server_request = {
+                        q: 'ids:'+options.page_id,
+                        restapi: 1,
+                        columns: ['rec_ID', DT_NAME, DT_EXTENDED_DESCRIPTION],
+                        zip: 1,
+                        format:'json'};
+                        
+        //perform search see record_output.php       
+        window.hWin.HAPI4.RecordMgr.search_new(server_request,
+            function(response){
+              
+                if(window.hWin.HEURIST4.util.isJSON(response)) {
+                    let record = response['records'];
+                    if(record && record.length>0){
+                        record = record[0];
+                        let res = record['details'];
+                        let keys = Object.keys(res);
+                        for(let idx in keys){
+                            let key = keys[idx];
+                            res[key] = res[key][ Object.keys(res[key])[0] ];
+                        }
+                        res['rec_ID'] = record['rec_ID'];
+                        //res[DT_NAME] = res[DT_NAME]
+                        //res[DT_NAME, DT_EXTENDED_DESCRIPTION, DT_CMS_SCRIPT, DT_CMS_CSS, DT_CMS_PAGETITLE]
+                        
+                        //reload content of page_target
+                        const pageTreeData = window.hWin.HAPI4.layoutMgr.layoutInit( res[DT_EXTENDED_DESCRIPTION], page_target, supp_options );
+                        
+                        res['pageTreeData'] = pageTreeData;
+                        
+                        if (window.hWin.HEURIST4.util.isFunction(options.callback)) options.callback.call(this, res);
+                         
+
+                    }else{
+                        window.hWin.HEURIST4.msg.showMsgErr({
+                            message: `Web Page not found (record #${options.page_id})`,
+                            error_title: 'Failed to load page'
+                        });
+                    }
+                }else{
+                    window.hWin.HEURIST4.msg.showMsgErr(response);
+                }
+            });
+        
+
     }
 }

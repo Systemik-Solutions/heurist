@@ -3,7 +3,7 @@
 *
 * @package     Heurist academic knowledge management system
 * @link        https://HeuristNetwork.org
-* @copyright   (C) 2005-2023 University of Sydney
+* @copyright   (C) 2005-2023 University of Sydney, (C) 2024 onwards Heurist Network
 * @author      Artem Osmakov   <osmakov@gmail.com>
 * @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
 * @version     4.0
@@ -17,7 +17,7 @@
 * See the License for the specific language governing permissions and limitations under the License.
 */
 
-/*global Temporal, TDate, fixCalendarPickerCMDs, temporalToHumanReadableString, tinymce, EditorCodeMirror, 
+/*global Temporal, TDate, fixCalendarPickerCMDs, temporalToHumanReadableString, tinyMCE, EditorCodeMirror, 
 translationSupport, selectRecord,browseRecords,browseTerms, correctionOfInvalidTerm, calculateImageExtentFromWorldFile */
 
 $.widget( "heurist.editing_input", {
@@ -68,6 +68,7 @@ $.widget( "heurist.editing_input", {
     entity_image_already_uploaded: false,
 
     enum_buttons:null, // null = dropdown/selectmenu/none, radio or checkbox
+    isWorkflowStage: false,
 
     is_disabled: false,
     new_value: '', // value for new input
@@ -90,6 +91,8 @@ $.widget( "heurist.editing_input", {
     }, // pre-select a record target, possible relation type and setup a callback for relmarkers handled from external lookup
 
     _isForRecords: false, // is the current entity Records (i.e. the Record Editor)
+
+    _entryMaskedValue: '', // for freetext fields that had an entry mask applied to it
 
     // the constructor
     _create: function() {
@@ -125,9 +128,15 @@ $.widget( "heurist.editing_input", {
             this.options['dtFields']['rst_FieldConfig']= {entity:'DefDetailTypes',csv:true};
         }
 
-        
         if(this.options.dtFields==null){ //field description is not defined
             return;
+        }
+
+        this.isWorkflowStage = window.hWin.HAPI4.sysinfo['dbconst']['DT_WORKFLOW_STAGE'] 
+                            && this.options.dtID == window.hWin.HAPI4.sysinfo['dbconst']['DT_WORKFLOW_STAGE']
+                            && $Db.getSwfByRectype(this.f('rst_RecTypeID')).length > 0;
+        if(this.isWorkflowStage){
+            this.options['dtFields']['rst_MaxValues'] = 1;
         }
         
         if(this.options.suppress_repeat=='force_repeat'){
@@ -313,7 +322,7 @@ $.widget( "heurist.editing_input", {
                                 msg += '<span style="display:inline-block;margin-top:10px;">'
                                         + 'Translate will translate the first value<br>'
                                         + 'You may block translation of some part of the text by adding an html tag with translate="no",<br>'
-                                        + 'for example:  &lt;p translate=”no”&gt;text not to be translated&lt;/p&gt;'
+                                        + 'for example:  &lt;span translate=”no”&gt;text not to be translated&lt;/span&gt;'
                                     + '</span>';
 
                                 btns[window.HR('Translate')] = function(){
@@ -586,6 +595,7 @@ $.widget( "heurist.editing_input", {
                         if(that.input_cell.sortable('instance') !== undefined){ // re-enable sorting inputs
                             that.input_cell.sortable('enable');
                         }
+                        that.element.find('.ui-selectmenu-button').removeClass('ui-state-disabled');
                     }, {title: 'Editing is discouraged', yes: 'Proceed', no: 'Cancel'}, {default_palette_class: 'ui-heurist-populate'});
 
                     window.hWin.HEURIST4.util.setDisabled($dlg.parent().find('.ui-dialog-buttonpane button:first-child'), true);
@@ -594,6 +604,8 @@ $.widget( "heurist.editing_input", {
                     });
                 }
             });
+
+            this.element.find('.ui-selectmenu-button').addClass('ui-state-disabled');
         }else if(this.isReadonly()){
 
             this.input_cell.attr('title', 'This field has been marked as non-editable');
@@ -700,8 +712,8 @@ $.widget( "heurist.editing_input", {
 
                     if(that.detailType=='blocktext'){
                         let eid = '#'+input.attr('id')+'_editor';
-                        //tinymce.remove('#'+input.attr('id')); 
-                        if(typeof tinymce !== 'undefined') { tinymce.remove(eid); }
+                        //tinyMCE.remove('#'+input.attr('id')); 
+                        if(typeof tinyMCE !== 'undefined') { tinyMCE.remove(eid); }
                         $(eid).parent().remove(); //remove editor element
                         //$(eid).remove(); 
 
@@ -987,18 +999,20 @@ $.widget( "heurist.editing_input", {
 
             //IJ 2021-09-09 - from now dheight is max height in lines - otherwise the height is auto
             function __adjustTextareaHeight(){
+
                 $input.attr('rows', 2);
-                let dheight = that.f('rst_DisplayHeight');  //max height 
-                let lht = parseInt($input.css('lineHeight'),10); 
-                if(!(lht>0)) lht = parseInt($input.css('font-size')); //*1.3
-                
+
+                let dheight = parseInt(that.f('rst_DisplayHeight'), 10); // max height
+
+                let lht = parseInt($input.css('lineHeight'), 10);
+                if(!Number.isInteger(lht) || lht <= 0) lht = parseInt($input.css('font-size')); //*1.3
+
                 let cnt = ($input.prop('scrollHeight') / lht).toFixed(); //visible number of lines
-                if(cnt>0){
-                    if(cnt>dheight && dheight>2){
-                        $input.attr('rows', dheight);    
-                    }else{
-                        $input.attr('rows', cnt);        
-                    }
+
+                cnt = parseInt(cnt);
+
+                if(Number.isInteger(cnt) && cnt > 0){
+                    $input.attr('rows', cnt > dheight && dheight > 2 ? dheight : cnt);
                 }
             }
             
@@ -1043,7 +1057,7 @@ $.widget( "heurist.editing_input", {
                 
                 let eid = $input.attr('id')+'_editor';
                 
-                //hidden textarea for tinymce editor
+                //hidden textarea for tinyMCE editor
                 let $editor = $( "<textarea>")
                 .attr("id", eid)
                 //.addClass('text ui-widget-content ui-corner-all')
@@ -1083,25 +1097,6 @@ $.widget( "heurist.editing_input", {
                             .addClass('smallbutton')
                             .css({cursor: 'pointer', 'margin-left': '10px'})
                             .appendTo($btn_edit_switcher);
-                            
-
-                        /*DEBUG  
-                        let btn_debug = $('<span>debug</span>')
-                            .addClass('smallbutton')
-                            .css({cursor: 'pointer', 'margin-left': '10px'})
-                            .appendTo($btn_edit_switcher);
-                            
-                        this._on( btn_debug, {       
-                            click:function(event){
-                            
-                            if(!window.hWin.layoutMgr){
-                                hLayoutMgr(); //init global variable layoutMgr
-                            }
-                                    
-                            //cfg_widgets is from layout_defaults.js
-                            window.hWin.layoutMgr.convertJSONtoHTML(that.getValues()[0]);
-                        }});
-                        */
                             
                     }
                         
@@ -1144,7 +1139,7 @@ $.widget( "heurist.editing_input", {
 
                 function __showEditor(is_manual){
                     
-                    if(typeof tinymce === 'undefined') return false; //not loaded yet
+                    if(typeof tinyMCE === 'undefined') return false; //not loaded yet
 
                     if(!Object.hasOwn(window.hWin.HAPI4.dbSettings, 'TinyMCE_formats')){ // retrieve custom formatting
 
@@ -1202,8 +1197,9 @@ $.widget( "heurist.editing_input", {
                     }
                     
                     let custom_webfonts = `${webfonts} body { font-size: 8pt; font-family: ${font_family}; ${is_grayed} }`;
+                    let editor_height = $input.height() + 125;
 
-                    tinymce.init({
+                    tinyMCE.init({
                         //target: $editor, 
                         //selector: '#'+$input.attr('id'),
                         selector: eid,
@@ -1227,9 +1223,9 @@ $.widget( "heurist.editing_input", {
                         inline_styles: true,    
                         content_style: `${custom_webfonts} ${custom_formatting.content_style}`,
                         
-                        min_height: ($input.height()+110),
-                        max_height: ($input.height()+110),
-                        autoresize_bottom_margin: 10,
+                        min_height: editor_height,
+                        max_height: editor_height,
+                        autoresize_bottom_margin: 15,
                         autoresize_on_init: false,
                         image_caption: true,
 
@@ -1278,14 +1274,14 @@ $.widget( "heurist.editing_input", {
                                             let record = recordset.getFirstRecord();
                                             const record_id = recordset.fld(record,'rec_ID');
                                             let href = `${record_id}_${window.hWin.HEURIST4.util.random()}`;
-                                            tinymce.activeEditor.execCommand('mceInsertLink', false, href);
+                                            tinyMCE.activeEditor.execCommand('mceInsertLink', false, href);
                                             
-                                            let $link = $(tinymce.activeEditor.selection.getNode());
+                                            let $link = $(tinyMCE.activeEditor.selection.getNode());
                                             if(!$link.is('a')){
                                                 $link = $link.find(`a[href="${href}"]`);
                                             }
                                             if($link.length == 0){
-                                                $link = $(tinymce.activeEditor.contentDocument).find(`a[href="${href}"]`);
+                                                $link = $(tinyMCE.activeEditor.contentDocument).find(`a[href="${href}"]`);
                                             }
 
                                             $link.attr('href', record_id).attr('data-mce-href', record_id);
@@ -1331,7 +1327,7 @@ $.widget( "heurist.editing_input", {
                                 editor.ui.registry.addButton('customHRtag', {
                                     text: '&lt;hr&gt;',
                                     onAction: function (_) {
-                                        tinymce.activeEditor.insertContent( '<hr>' );
+                                        tinyMCE.activeEditor.insertContent( '<hr>' );
                                     }
                                 });
                                 // Clear text formatting - to replace the original icon
@@ -1341,7 +1337,7 @@ $.widget( "heurist.editing_input", {
                                     icon: 'clear-formatting',
                                     tooltip: 'Clear formatting',
                                     onAction: function (_) {
-                                        tinymce.activeEditor.execCommand('RemoveFormat');
+                                        tinyMCE.activeEditor.execCommand('RemoveFormat');
                                     }
                                 });
                             }else{
@@ -1385,23 +1381,22 @@ $.widget( "heurist.editing_input", {
                                 // check if editor is 'expanded'
                                 if(editor.settings.max_height != null){
                                     editor.settings.max_height = null;
-                                    tinymce.activeEditor.execCommand('mceAutoResize');
+                                    tinyMCE.activeEditor.execCommand('mceAutoResize');
                                 }
 
-                               
                                 that.onChange();
                             });
 
                             editor.on('focus', (e) => { // expand text area
                                 editor.settings.max_height = null;
-                                tinymce.activeEditor.execCommand('mceAutoResize');
+                                tinyMCE.activeEditor.execCommand('mceAutoResize');
                             });
 
                             editor.on('blur', (e) => { // collapse text area
                                 is_blur = true;
                                 editor.settings.max_height = editor.settings.min_height;
                                 editor.settings.autoresize_min_height = null;
-                                tinymce.activeEditor.execCommand('mceAutoResize');
+                                tinyMCE.activeEditor.execCommand('mceAutoResize');
                             });
 
                             editor.on('ResizeContent', (e) => {
@@ -1419,7 +1414,7 @@ $.widget( "heurist.editing_input", {
 
                                     $(document).find('.tox-menu [title="Open link"]').on('click', function(e){
 
-                                        let node = tinymce.activeEditor.selection.getNode();
+                                        let node = tinyMCE.activeEditor.selection.getNode();
 
                                         __openRecordLink(node);
                                     });
@@ -1429,7 +1424,7 @@ $.widget( "heurist.editing_input", {
 
                             editor.on('click', (e) => {
 
-                                let node = tinymce.activeEditor.selection.getNode();
+                                let node = tinyMCE.activeEditor.selection.getNode();
 
                                 if((e.ctrlKey || e.metaKey) && node.tagName == 'A'){
                                     __openRecordLink(node);
@@ -1562,7 +1557,7 @@ $.widget( "heurist.editing_input", {
 
                             //hide previous
                             if(cur_action=='wysiwyg'){
-                                tinymce.remove(eid);
+                                tinyMCE.remove(eid);
                                 $(eid).parent().hide();
                             }else if(cur_action=='codeeditor'){
                                 codeEditor.hideEditor();
@@ -1592,7 +1587,7 @@ $.widget( "heurist.editing_input", {
                             }else{
                                 $btn_edit_switcher.text('wysiwyg');
                                 $input.show();
-                                tinymce.remove(eid);
+                                tinyMCE.remove(eid);
                                 $(eid).parent().hide();
                                 __adjustTextareaHeight();
                             }
@@ -1604,7 +1599,7 @@ $.widget( "heurist.editing_input", {
                 if( !isCMS_content && this.options.dtID != window.hWin.HAPI4.sysinfo['dbconst']['DT_KML'] ) {
                     let nodes = $.parseHTML(value);
                     if(nodes && (nodes.length>1 || (nodes[0] && nodes[0].nodeName!='#text'))){ //if it has html - show editor at once
-                        setTimeout(__showEditor, 1200); 
+                        setTimeout(__showEditor, 1200);
                     }
                 }
                 
@@ -1767,8 +1762,6 @@ $.widget( "heurist.editing_input", {
                 if (!(window.hWin.HEURIST4.util.isempty(allTerms) && 
                     this.options.dtID==window.hWin.HAPI4.sysinfo['dbconst']['DT_RELATION_TYPE'])) {
 
-                    let isVocabulary = !isNaN(Number(allTerms)); 
-
                     let $btn_termsel = $( '<span>', {title: 'Select Term By Picture'})
                     .addClass('smallicon ui-icon ui-icon-image show-onhover')
                     .css({
@@ -1782,7 +1775,7 @@ $.widget( "heurist.editing_input", {
                         
                         const vocab_id = that.f('rst_FilteredJsonTermIDTree');    
                         that.child_terms = $Db.trm_TreeData(vocab_id, 'set');
-                        
+
                         that._checkTermsWithImages(); //show hide $btn_termsel
                     }else if(that._enumsHasImages){
                         $btn_termsel.show();
@@ -1794,30 +1787,29 @@ $.widget( "heurist.editing_input", {
                         
                         if(this.is_disabled || !(vocab_id>0)) return;
 
-                            let selectmode = that.enum_buttons == 'checkbox' ? 'select_multi' : 'select_single';
-                            let dlg_title = 'Term selection for ' + that.f('rst_DisplayName');
+                        let selectmode = that.enum_buttons == 'checkbox' ? 'select_multi' : 'select_single';
+                        let dlg_title = 'Term selection for ' + that.f('rst_DisplayName');
 
-                            window.hWin.HEURIST4.ui.showEntityDialog('defTerms', {
-                                empty_remark: 'No terms available',
-                                title: dlg_title,
-                                hide_searchForm: true,
-                                select_mode: selectmode, 
-                                view_mode: 'icons',
-                                initial_filter: vocab_id,
-                                default_palette_class: 'ui-heurist-populate',
-                                onselect:function(event, data){
-                                    if(data && data.selection && data.selection.length > 0){
+                        window.hWin.HEURIST4.ui.showEntityDialog('defTerms', {
+                            empty_remark: 'No terms available',
+                            title: dlg_title,
+                            hide_searchForm: true,
+                            select_mode: selectmode, 
+                            view_mode: 'icons',
+                            initial_filter: vocab_id,
+                            default_palette_class: 'ui-heurist-populate',
+                            onselect:function(event, data){
+                                if(data && data.selection && data.selection.length > 0){
 
-                                        if(selectmode == 'select_multi'){
-                                            that.setValue(data.selection, false);
-                                        }else{
-                                            browseTerms(that, $input, data.selection[0]);                                    
-                                        }
-                                        that.onChange();
+                                    if(selectmode == 'select_multi'){
+                                        that.setValue(data.selection, false);
+                                    }else{
+                                        browseTerms(that, $input, data.selection[0]);                                    
                                     }
+                                    that.onChange();
                                 }
-                            });
-                                                                    
+                            }
+                        });
                     }});
 
                     let vocab_id = Number(allTerms);
@@ -1868,45 +1860,46 @@ $.widget( "heurist.editing_input", {
                     }//not guest user                    
                 }
             }//allow edit terms only for true defTerms enum
-            
+
+            this.child_terms = this.child_terms ? this.child_terms : allTerms;
+
             // Display term selector as radio buttons/checkboxes
-            let asButtons = this._isForRecords && this.f('rst_TermsAsButtons') == 1;
-            if(asButtons && this.child_terms  && this.child_terms.length<=20){
+            if(this.f('rst_TermsAsButtons') == 1 && this.child_terms && this.child_terms.length<=20){
 
-                    this.enum_buttons = (Number(this.f('rst_MaxValues')) != 1) ? 'checkbox' : 'radio';
-                    let inpt_id = $input.attr('id');
-                    let dtb_res = false;
+                this.enum_buttons = (Number(this.f('rst_MaxValues')) != 1) ? 'checkbox' : 'radio';
+                let inpt_id = $input.attr('id');
+                let dtb_res = false;
 
-                    if(this.enum_buttons == 'checkbox' && $inputdiv.parent().find('input:checkbox').length > 0){ // Multi value, check if checkboxes exist
+                if(this.enum_buttons == 'checkbox' && $inputdiv.parent().find('input:checkbox').length > 0){ // Multi value, check if checkboxes exist
 
-                        $inputdiv.parent().find('input:checkbox[data-id="'+value+'"]').prop('checked', true); // Check additional value
-                        $inputdiv.hide();
+                    $inputdiv.parent().find('input:checkbox[data-id="'+value+'"]').prop('checked', true); // Check additional value
+                    $inputdiv.hide();
 
-                        dtb_res = true;
-                    }else{ // Create input elements
-                        dtb_res = this._createEnumButtons(false, $inputdiv, [value]);
+                    dtb_res = true;
+                }else{ // Create input elements
+                    dtb_res = this._createEnumButtons(false, $inputdiv, [value]);
+                }
+
+                if(dtb_res){
+
+                    if($input.hSelect('instance') != undefined){
+                        $input.hSelect('destroy');
                     }
+                    this._off($input, 'change');
+                    $input.remove();
 
-                    if(dtb_res){
+                    $input = $('<input type="text" class="text ui-widget-content ui-corner-all">')
+                                .attr('id', inpt_id)
+                                .val(value)
+                                .prependTo($inputdiv)
+                                .hide();
 
-                        if($input.hSelect('instance') != undefined){
-                            $input.hSelect('destroy');
-                        }
-                        this._off($input, 'change');
-                        $input.remove();
+                    this._on( $input, {change:this.onChange} );
 
-                        $input = $('<input type="text" class="text ui-widget-content ui-corner-all">')
-                                    .attr('id', inpt_id)
-                                    .val(value)
-                                    .prependTo($inputdiv)
-                                    .hide();
-
-                        this._on( $input, {change:this.onChange} );
-
-                        if(this.btn_add){
-                            this.btn_add.hide(); // Hide repeat button, removeClass('smallbutton ui-icon-circlesmall-plus')
-                        }
+                    if(this.btn_add){
+                        this.btn_add.hide(); // Hide repeat button, removeClass('smallbutton ui-icon-circlesmall-plus')
                     }
+                }
             }
         }
         else if(this.detailType=='boolean'){//----------------------------------------------------
@@ -3241,6 +3234,7 @@ $.widget( "heurist.editing_input", {
             if( this.detailType=='file' ){ //----------------------------------------------------
                 
                         let fileHandle = null; //to support file upload cancel
+                        let using_temp_file = false;
                 
                         this.options.showclear_button = (this.configMode.hideclear!=1);
                         
@@ -3249,8 +3243,21 @@ $.widget( "heurist.editing_input", {
                         //url for thumb
                         let urlThumb = window.hWin.HAPI4.getImageUrl(this.configMode.entity, 
                                                         this.options.recID, this.configMode.version, 1);
-                        let dt = new Date();
-                        urlThumb = urlThumb+'&ts='+dt.getTime();
+
+                        // Check if value is for a temp file
+                        if(this.configMode.entity === 'sysBugreport'
+                            && !window.hWin.HEURIST4.util.isempty(value)
+                            && value.indexOf(this.configMode.entity) > 0
+                            && value.match(/~\d{10}(?:%20%28\d+%29)?\.(?:png|gif|jpg)\?\d{13}$/)){
+
+                            urlThumb = value;
+                            using_temp_file = true;
+                        }else{
+
+                            let dt = new Date();
+                            urlThumb = urlThumb+'&ts='+dt.getTime();
+                        }
+
                         
                         $input.css({'padding-left':'30px'});
                         $('<span class="ui-icon ui-icon-folder-open"></span>')
@@ -3271,14 +3278,18 @@ $.widget( "heurist.editing_input", {
                            this.input_img.css({'min-height':'320px','min-width':'320px'});
                            this.input_img.find('img').css({'max-height':'320px','max-width':'320px'});
                         }
-                         
-                        window.hWin.HAPI4.checkImage(this.configMode.entity, this.options.recID, 
-                            this.configMode.version,
-                            function(response){
-                                  if(response.data=='ok'){
-                                      that.entity_image_already_uploaded = true;
-                                  }
-                        });
+                        
+                        if(!using_temp_file){
+
+                            window.hWin.HAPI4.checkImage(this.configMode.entity, this.options.recID, 
+                                this.configMode.version,
+                                function(response){
+                                    if(response.data=='ok'){
+                                        that.entity_image_already_uploaded = true;
+                                    }
+                                }
+                            );
+                        }
                         
                         //change parent div style - to allow special style for image selector
                         if(that.configMode.css){
@@ -3347,6 +3358,9 @@ $.widget( "heurist.editing_input", {
                         });
                         
         let max_file_size = Math.min(window.hWin.HAPI4.sysinfo['max_post_size'], window.hWin.HAPI4.sysinfo['max_file_size']);
+        let upload_count = 0; // for paste/drop of multiple files
+        let uploaded_urls = []; // uploaded files, for multiple files at once
+        let keep_existing = false; // whether the upload is from a paste or drop event
 
         let fileupload_opts = {
     url: window.hWin.HAPI4.baseURL + 'hserv/controller/fileUpload.php',
@@ -3366,7 +3380,24 @@ $.widget( "heurist.editing_input", {
     dataType: 'json',
     pasteZone: $input_img,
     dropZone: $input_img,
-    
+    paste: function(e, data){
+        upload_count = that.f('rst_MaxValues') != 1 ? data.files.length : 1;
+        keep_existing = that.f('rst_MaxValues') != 1 && Object.keys(that.newvalues).length > 0;
+    },
+    drop: function(e, data){
+        upload_count = that.f('rst_MaxValues') != 1 ? data.files.length : 1;
+        keep_existing = that.f('rst_MaxValues') != 1 && Object.keys(that.newvalues).length > 0;
+    },
+    always: function(){
+        if(upload_count > 0 && uploaded_urls.length === upload_count){
+
+            let values = Object.values(that.newvalues).concat(...uploaded_urls);
+            that.setValue(values);
+
+            upload_count = 0;
+        }
+        keep_existing = false;
+    },
     add: function (e, data) {
         if (e.isDefaultPrevented()) {
             return false;
@@ -3391,7 +3422,7 @@ $.widget( "heurist.editing_input", {
 
     },
     submit: function (e, data) { //start upload
-    
+
         $progress_dlg = $progress_dlg.dialog({
             autoOpen: false,
             modal: true,
@@ -3403,60 +3434,69 @@ $.widget( "heurist.editing_input", {
         $progress_dlg.parent().find('.ui-dialog-titlebar-close').hide();
     },
     done: function (e, response) {
-        
-            //hide progress bar
-            $progress_dlg.dialog( "close" );
-        
-            if(response.result){//file upload places our data to 'result'
-                response = response.result;
-            }
-            if(response.status==window.hWin.ResponseStatus.OK){
-                let data = response.data;
 
-                $.each(data.files, function (index, file) {
-                    if(file.error){ //it is not possible we should cought it on server side - just in case
-                        $input_img.find('img').prop('src', '');
-                        if(that.linkedImgContainer !== null){
-                            that.linkedImgContainer.find('img').prop('src', '');
-                        }
+        //hide progress bar
+        $progress_dlg.dialog( "close" );
 
-                        window.hWin.HEURIST4.msg.showMsgErr({message: file.error, error_title: 'File upload error'});
-                    }else{
+        if(response.result){//file upload places our data to 'result'
+            response = response.result;
+        }
 
-                        if(file.ulf_ID>0){ //file is registered at once and it returns ulf_ID
-                            that.newvalues[$input.attr('id')] = file.ulf_ID;
-                            if(that.linkedImgInput !== null){
-                                that.newvalues[that.linkedImgInput.attr('id')] = file.ulf_ID;
-                            }
-                        }else{
-                            let urlThumb =
-                            (that.configMode.entity=='recUploadedFiles'
-                                ?file.url
-                                :file[(that.configMode.version=='icon')?'iconUrl':'thumbnailUrl'])
-                                +'?'+(new Date()).getTime();
-                            
-                            // file.thumbnailUrl - is correct but inaccessible for heurist server
-                            // we get image via fileGet.php
-                            $input_img.find('img').prop('src', '');
-                            $input_img.find('img').prop('src', urlThumb);
-                            if(that.configMode.entity=='recUploadedFiles'){
-                                that.newvalues[$input.attr('id')] = file;
-                            }else{
-                                //unique temp name to store uploaded file before record's save - then it will be renamed to recId.ext
-                                that.newvalues[$input.attr('id')] = file.tempname;  //it will be renamed on save
-                            }
-                        }
-                        $input.attr('title', file.name);
-                        that.onChange();//need call it manually since onchange event is redifined by fileupload widget
+        if(response.status == window.hWin.ResponseStatus.OK){
+            let data = response.data;
+
+            $.each(data.files, function (index, file) {
+                if(file.error){ //it is not possible we should cought it on server side - just in case
+                    $input_img.find('img').prop('src', '');
+                    if(that.linkedImgContainer !== null){
+                        that.linkedImgContainer.find('img').prop('src', '');
                     }
+
+                    window.hWin.HEURIST4.msg.showMsgErr({message: file.error, error_title: 'File upload error'});
+
+                    return;
+                }
+
+                if(file.ulf_ID>0){ //file is registered at once and it returns ulf_ID
+                    that.newvalues[$input.attr('id')] = file.ulf_ID;
+                    if(that.linkedImgInput !== null){
+                        that.newvalues[that.linkedImgInput.attr('id')] = file.ulf_ID;
+                    }
+                }else{
+
+                    let urlThumb =
+                    (that.configMode.entity=='recUploadedFiles'
+                        ?file.url
+                        :file[(that.configMode.version=='icon')?'iconUrl':'thumbnailUrl'])
+                        +'?'+(new Date()).getTime();
+
+                    if(upload_count > 1 || keep_existing){
+                        uploaded_urls.push(urlThumb);
+                        return;
+                    }
+
+                    // file.thumbnailUrl - is correct but inaccessible for heurist server
+                    // we get image via fileGet.php
+                    $input_img.find('img').prop('src', '');
+                    $input_img.find('img').prop('src', urlThumb);
+                    if(that.configMode.entity=='recUploadedFiles'){
+                        that.newvalues[$input.attr('id')] = file;
+                    }else{
+                        //unique temp name to store uploaded file before record's save - then it will be renamed to recId.ext
+                        that.newvalues[$input.attr('id')] = file.tempname;  //it will be renamed on save
+                    }
+                }
+                $input.attr('title', file.name);
+                that.onChange();//need call it manually since onchange event is redifined by fileupload widget
                 });
             }else{
                 window.hWin.HEURIST4.msg.showMsgErr(response);// .message
             }
+
             let inpt = this;
             $input_img.off('click');
             $input_img.on({click: function(){
-                        $(inpt).trigger('click');
+                $(inpt).trigger('click');
             }});
     },
     fail: function(e, data){
@@ -3978,19 +4018,20 @@ $.widget( "heurist.editing_input", {
         }
 
         // Freetext value that is a url
-        let freetext_url = this.detailType=="freetext" && ($input.val().indexOf('http://')==0 || $input.val().indexOf('https://')==0);
+        let freetext_url = this.detailType=="freetext" && $input.val().match(/^https?:\/\//) !== null;
         // Semantic url links, separated by semi-colons, for RecTypes, Vocab+Terms, DetailTypes
         let semantic_uri = this.options.dtID && (typeof this.options.dtID === 'string' || this.options.dtID instanceof String)
                             && this.options.dtID.indexOf('ReferenceURL') !== -1;
         if($inputdiv.find('.ui-icon-extlink').length == 0 && (freetext_url || semantic_uri)){
 
-            let $btn_extlink = $( '<span>', {title: 'Open URL(s) in new window'})
-                .addClass('smallicon ui-icon ui-icon-extlink')
+            let $btn_extlink = $( '<span>', {title: 'Open URL(s) in new window', class: 'smallicon ui-icon ui-icon-extlink', style: 'color: blue;'})
                 .appendTo( $inputdiv );
 
             that._on($btn_extlink, { 
                 click: function(){
-                    let cur_val = $input.val();
+
+                    let cur_val = !window.hWin.HEURIST4.util.isempty(that._entryMaskedValue) ? that._entryMaskedValue : $input.val();
+
                     if(!window.hWin.HEURIST4.util.isempty(cur_val)){ // check for value
                         let urls = cur_val.split(';');
                         urls = urls.map((url, idx) => { 
@@ -4033,21 +4074,53 @@ $.widget( "heurist.editing_input", {
                         
                     } );
             }});
-                            
         }
-        if(window.hWin.HAPI4.is_admin() && this._isForRecords && this.options.dtID > 0 && (this.detailType == 'freetext' || this.detailType == 'integer' || this.detailType == 'float')){
 
-            let $btn_entrymask = $('<span>', {title: 'Edit value entry mask', class: 'smallicon ui-icon ui-icon-input btn_entry_mask show-onhover', style: 'margin-top: 2px; cursor: pointer;'});
+        let entryMaskAllowed = this.detailType == 'freetext';
+        if(window.hWin.HAPI4.is_admin() && this._isForRecords && this.options.dtID > 0 && entryMaskAllowed){
+
+            let $btn_entrymask = $('<span>', {title: 'Edit value entry mask', class: 'smallicon ui-icon ui-icon-input btn_entry_mask show-onhover', style: 'cursor: pointer;'});
             $btn_entrymask.appendTo($inputdiv);
 
             this._on($btn_entrymask, {
                 click: () => {
                     this._editEntryMask();
                 }
-            })
+            });
+
+            let mask = this.f('rst_EntryMask') ?? '';
+            let val = $input.val();
+
+            if(!window.hWin.HEURIST4.util.isempty(mask) && !window.hWin.HEURIST4.util.isempty(val)){
+
+                let mask_parts = mask.split(/\$[adimn]\d*(?:\(\d,?\d*\))*\$/);
+
+                this._entryMaskedValue = val.startsWith(mask_parts[0]) && val.endsWith(mask_parts[1])
+                    ? val.substring(mask_parts[0].length, val.length - mask_parts[1].length)
+                    : '';
+
+                $input.val(this._entryMaskedValue);
+            }
+
+            if(this.element.find('.extra_help').length == 0){
+
+                let underline = 'text-decoration: underline;';
+                let display = window.hWin.HEURIST4.util.isempty(mask) ? 'none' : 'block';
+                let filter = '';
+
+                [filter, mask] = display == 'none' ? ['', ''] : $Db.rst_InterpretEntryMask(this.f('rst_EntryMask'));
+
+                $('<div>', {style: `display: ${display}; font-size: 0.8em; color: #999999; padding: 0.3em 0px;`, class: 'extra_help'})
+                    .html(
+                        `Enter 
+                        <span style="${underline}" class="value_filter">${filter}</span> 
+                        <span class="ui-icon ui-icon-arrow-1-e" style="vertical-align: -0.3em; padding: 0px 3px;"></span> 
+                        <span style="${underline}" class="mask">${mask}</span>`
+                    )
+                    .insertAfter(this.input_prompt);
+            }
         }
-        
-        
+
         this.inputs.push($input);
         
         const dwidth = this.f('rst_DisplayWidth');
@@ -4168,7 +4241,7 @@ $.widget( "heurist.editing_input", {
                 });
             }
         }
-        
+
         // add visible icon for dragging/sorting field values
         if(this.is_sortable && !that.isReadonly() && !this.is_disabled 
             && (this.detailType!="relmarker")
@@ -4198,7 +4271,7 @@ $.widget( "heurist.editing_input", {
                 }
             });
         }
-        
+
         //adds individual field visibility button
         let btn_field_visibility = $( '<span>', {title: 'Show/hide value from public'})
                     .addClass('field-visibility smallicon ui-icon ui-icon-eye-open')
@@ -4209,15 +4282,13 @@ $.widget( "heurist.editing_input", {
                         'vertical-align': 'top'
                     });
 
-
         if($inputdiv.find('.btn_input_clear').length > 0){
            btn_field_visibility.insertBefore($inputdiv.find('.btn_input_clear'));
         }else{
-           btn_field_visibility.insertAfter( $input );
+           btn_field_visibility.insertAfter($input);
         }
         btn_field_visibility.hide();
-                    
-                    
+
         let chbox_field_visibility = $( '<div><span class="smallicon ui-icon ui-icon-check-off" style="font-size:1em"></span> '
                     +'Hide this value from public<div>', 
                     {title: 'Per record visibility'})
@@ -4244,8 +4315,7 @@ $.widget( "heurist.editing_input", {
                 
                 btn.trigger('click');
             }});
-                    
-                    
+
         this._on(btn_field_visibility, {
             'click': function(e){
 
@@ -4268,6 +4338,41 @@ $.widget( "heurist.editing_input", {
             }
         });
 
+        // Add Advance button for workflow field
+        if(this.isWorkflowStage){
+
+            let $after_ele = $inputdiv.find('.ui-selectmenu-button').length > 0 ? $inputdiv.find('.ui-selectmenu-button') : $input.find('.enum_input').last();
+
+            let $btn_advance = $('<button>', {
+                style: 'font-size: 0.9em; margin: 0px 10px;',
+                html: 'Advance <span class="ui-button-icon ui-icon ui-icon-caret-1-e"></span>'
+            }).insertAfter($after_ele);
+
+            this._on($btn_advance.button(), {
+                click: () => {
+
+                    let swf_terms = $Db.getSwfByRectype(this.f('rst_RecTypeID'));
+                    let cur_swf = this.getValues()[0];
+                    let new_swf;
+
+                    for(const swf of swf_terms){
+
+                        if(swf.swf_Stage == cur_swf){
+                            new_swf = true;
+                        }else if(new_swf === true){
+                            new_swf = swf.swf_Stage;
+                            break;
+                        }
+                    }
+
+                    if(!window.hWin.HEURIST4.util.isPositiveInt(new_swf)){
+                        return;
+                    }
+
+                    this.setValue(new_swf);
+                }
+            });
+        }
 
         //move term error message to last 
         let trm_err = $inputdiv.find('.term-error-message');
@@ -5898,15 +6003,15 @@ $.widget( "heurist.editing_input", {
             is_insert = true;
         }else{
 
-            node = tinymce.activeEditor.selection.getNode();
+            node = tinyMCE.activeEditor.selection.getNode();
             if(node.parentNode.nodeName.toLowerCase() == 'figure'){ // insert new figcaption
                 node = document.createElement('figcaption');
-                tinymce.activeEditor.selection.getNode().parentNode.appendChild(node);
+                tinyMCE.activeEditor.selection.getNode().parentNode.appendChild(node);
             }else{ // replace selected content with new wrapper
                 node = null;
             }
 
-            content = tinymce.activeEditor.selection.getContent();
+            content = tinyMCE.activeEditor.selection.getContent();
         }
 
         let $dlg;
@@ -5926,9 +6031,9 @@ $.widget( "heurist.editing_input", {
                 content = '<figure>'+ content +'<figcaption>'+ caption +'</figcaption></figure>';
 
                 if(is_insert){
-                    tinymce.activeEditor.insertContent( content );
+                    tinyMCE.activeEditor.insertContent( content );
                 }else{
-                    tinymce.activeEditor.selection.setContent( content );
+                    tinyMCE.activeEditor.selection.setContent( content );
                 }
             }
 
@@ -5936,7 +6041,7 @@ $.widget( "heurist.editing_input", {
         };
         btns[window.HR('No caption')] = () => {
             if(is_insert){
-                tinymce.activeEditor.insertContent( content );
+                tinyMCE.activeEditor.insertContent( content );
             }
             $dlg.dialog('close');
         };
@@ -6022,11 +6127,12 @@ $.widget( "heurist.editing_input", {
             that.onChange();
         }
 
-        function translateDate(date, from_calendar, to_calendar){
+        function __translateDate(date, from_calendar, to_calendar){
 
             if(!window.hWin.HEURIST4.util.isFunction($('body').calendarsPicker)){
                 return date;
             }
+            let date_keep = date;
 
             if(typeof date == 'string'){
                 let date_parts = date.split('-');
@@ -6039,15 +6145,20 @@ $.widget( "heurist.editing_input", {
                 if(date_parts.length == 3){
                     date['day'] = date_parts[2];
                 }
+            }else{
+                date_keep = date['year']+'-'+date['month']+'-'+date['day'];
             }
 
-            let new_cal = from_calendar.newDate(date['year'], date['month'], date['day']);
-            if(!new_cal){
-                return date;
+            try{    
+                let new_cal = from_calendar.newDate(date['year'], date['month'], date['day']);
+                if(!new_cal){
+                    return date_keep;
+                }
+                let julian_date = new_cal._calendar.toJD(Number(new_cal.year()), Number(new_cal.month()), Number(new_cal.day()));
+                return to_calendar.fromJD(julian_date);
+            }catch(e){
+                return date_keep;
             }
-
-            let julian_date = new_cal._calendar.toJD(Number(new_cal.year()), Number(new_cal.month()), Number(new_cal.day()));
-            return to_calendar.fromJD(julian_date);
         }
 
         let defDate = $input.val();
@@ -6110,7 +6221,7 @@ $.widget( "heurist.editing_input", {
                     let month = hasMonth ? tDate.getMonth() : 1;
                     let day = hasDay ? tDate.getDay() : 1;
 
-                    defDate = translateDate({'year': tDate.getYear(), 'month': month, 'day': day}, g_calendar, calendar);
+                    defDate = __translateDate({'year': tDate.getYear(), 'month': month, 'day': day}, g_calendar, calendar);
                 }
             }else if(tDate){
                 // remove padding zeroes from year
@@ -6214,7 +6325,7 @@ $.widget( "heurist.editing_input", {
 
                     if(window.hWin.HEURIST4.util.isArrayNotEmpty(val_parts) && val_parts.length == 3 && cur_cal.local.name.toLowerCase() != 'gregorian'){
 
-                        let g_value = translateDate({'year': val_parts[0], 'month': val_parts[1], 'day': val_parts[2]}, cur_cal, g_calendar);
+                        let g_value = __translateDate({'year': val_parts[0], 'month': val_parts[1], 'day': val_parts[2]}, cur_cal, g_calendar);
                         g_value = g_calendar.formatDate('yyyy-mm-dd', g_value);
 
                         if(g_value != ''){//translated value
@@ -6423,7 +6534,7 @@ $.widget( "heurist.editing_input", {
                                     let g_calendar = $.calendars.instance('gregorian');
 
                                     gregorian_date = `${new_date.getYear()}-${month}-${day}`;
-                                    new_date = translateDate({'year': new_date.getYear(), 'month': month, 'day': day}, g_calendar, new_cal);
+                                    new_date = __translateDate({'year': new_date.getYear(), 'month': month, 'day': day}, g_calendar, new_cal);
                                     new_date = new_date.formatDate('yyyy-mm-dd', new_cal);
                                 }
 
@@ -6627,7 +6738,6 @@ $.widget( "heurist.editing_input", {
                 
                 if(window.hWin.HEURIST4.util.isempty(that.f('rst_FieldConfig'))) {
 
-
                     if(that.selObj) {
                         that.selObj.remove();    
                         that.selObj = null;
@@ -6738,8 +6848,10 @@ $.widget( "heurist.editing_input", {
 
         for(let i = 0; i < terms_list.length; i++){
 
-            let trm_label = $Db.trm(terms_list[i], 'trm_Label');
-            let trm_id = terms_list[i];
+            let [trm_id, trm_label] = window.hWin.HEURIST4.util.isPositiveInt(terms_list[i])
+                ? [terms_list[i], $Db.trm(terms_list[i], 'trm_Label')]
+                : [terms_list[i]['key'], terms_list[i]['title']];
+
             let isChecked = (values && values.includes(trm_id)) ? true : false;
 
             let $btn = $('<input>', {'type': this.enum_buttons, 'title': trm_label, 'value': trm_id, 'data-id': trm_id, 'checked': isChecked, name: this.options.dtID})
@@ -7051,72 +7163,6 @@ $.widget( "heurist.editing_input", {
 
     _editEntryMask: function(){
 
-        function handleNumbers(type, to_replace, value, length, range){
-
-            let output = type === 'i' ? Number.parseInt(value) : Number.parseFloat(value);
-            output = length > 0 ? Number(output).toFixed(length) : output;
-
-            let as_int = Number.parseInt(output);
-
-            let type_text = type === 'i' ? 'integer' : 'numeric';
-            type_text = type === 'd' ? 'decimal' : type_text;
-
-            if(output === 'NaN'){
-                output = `Input is not a ${type_text}`;
-            }else if(range?.length == 2 && (as_int < range[0] || as_int > range[1])){
-                output = `Input is out of range ${range[0]} - ${range[1]}`;
-            }else{
-                output = mask.replace(to_replace, output);
-            }
-
-            return output;
-        }
-
-        function getTestOutput(to_replace, mask_type, value, length){
-
-            let output = '';
-            let regex = null;
-            let regex_results = null;
-            let regex_size = '';
-
-            switch(mask_type){
-
-                case 'a':
-
-                    regex_size = length > 0 ? `{1,${length}}` : '';
-                    regex = new RegExp(String.raw`[\w]${regex_size}`);
-                    regex_results = value.match(regex);
-
-                    output = regex_results === null ? 'Input is not alphabetic' : mask.replace(to_replace, regex_results[0]);
-
-                    break;
-
-                case 'd':
-                case 'i':
-                case 'n':
-
-                    output = handleNumbers(mask_type, to_replace, value, length, range);
-
-                    break;
-
-                case 'm':
-                    
-                    regex_size = length > 0 ? `{1,${length}}` : '';
-                    regex = new RegExp(String.raw`[\w\d]${regex_size}`);
-                    regex_results = value.match(regex);
-
-                    output = regex_results === null ? 'Input contains non-alphaetic letters or numbers' : mask.replace(to_replace, regex_results[0]);
-
-                    break;
-
-                default:
-                    output = 'Mask\'s format is invalid';
-                    break;
-            }
-
-            return output;
-        }
-
         let that = this;
         let current_mask = this.f('rst_EntryMask') ?? '';
 
@@ -7144,6 +7190,7 @@ $.widget( "heurist.editing_input", {
             const dty_ID = that.f('rst_DetailTypeID');
             const rty_ID = that.f('rst_RecTypeID');
             const mask = $dlg.find('#inp_Mask').val();
+
             let req = {
                 a: 'save',
                 entity: 'defRecStructure',
@@ -7172,6 +7219,12 @@ $.widget( "heurist.editing_input", {
                     width: 600
                 });
 
+                let parts = $Db.rst_InterpretEntryMask(mask);
+                if(parts[0] !== '' && parts[1] !== ''){
+                    that.input_cell.find('.extra_help .value_filter').text(parts[0]);
+                    that.input_cell.find('.extra_help .mask').text(parts[1]);
+                }
+
                 $dlg.dialog('close');
             });
 
@@ -7198,19 +7251,7 @@ $.widget( "heurist.editing_input", {
                     return;
                 }
 
-                let length = matches.length > 2 && Number.isInteger(+matches[2]) ? Number.parseInt(matches[2]) : 0;
-
-                let range = matches.length > 2 && matches[2] && !Number.isInteger(+matches[2]) && matches[2][0] == '(' ? matches[2].replaceAll(/\(\)/g, '').split(',') : null;
-                range = matches.length > 3 && matches[3] && !Number.isInteger(+matches[3]) && matches[3][0] == '(' ? matches[3].replaceAll(/\(\)/g, '').split(',') : range;
-
-                let temp = null;
-                if(range?.length == 2 && range[0] > range[1]){
-                    temp = range[0];
-                    range[0] = range[1];
-                    range[1] = temp;
-                }
-
-                let output = getTestOutput(matches[0], matches[1], test_value, length);
+                let output = $Db.rst_RunEntryMask(mask, test_value, false);
 
                 $output.text(output);
             }

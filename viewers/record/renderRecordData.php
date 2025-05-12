@@ -15,7 +15,7 @@
 * @author      Ian Johnson   <ian.johnson.heurist@gmail.com>
 * @author      Stephen White
 * @author      Artem Osmakov   <osmakov@gmail.com>
-* @copyright   (C) 2005-2023 University of Sydney
+* @copyright   (C) 2005-2023 University of Sydney, (C) 2024 onwards Heurist Network
 * @link        https://HeuristNetwork.org
 * @version     3.1.0
 * @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
@@ -793,7 +793,8 @@ if(!$system->hasAccess()){
 
                 $('.media-content').show();
                 if(hide_images == 1){ // hide linked media
-                    $('.linked-media:not(:first)').hide();
+                    let selector = $('.media_container:not(.linked-media)').length == 0 ? '.linked-media:not(:first)' : '.linked-media';
+                    $(selector).hide();
                 }else{
                     $('.linked-media').show();
                 }
@@ -1055,6 +1056,9 @@ if(!empty($import_webfonts)){
         }
         .thumb_image {
             margin: 5px 5px 10px;
+            contain: layout;
+        }
+        .thumb_image img {
             cursor: url('<?=HEURIST_BASE_URL?>hclient/assets/zoom-in.png'),pointer;
         }
         div.thumbnail .fullSize img {
@@ -2078,7 +2082,7 @@ function print_public_details($bib) {
                     .($is_production?'margin-left:100px':'')
                     .($k>0?CSS_HIDDEN:'').'">';
             }else{
-                print '<div class="thumb_image media-content'. ($thumb['linked'] == true ? ' linked-media' : '') .'"  style="'.($isImageOrPdf?'':'cursor:default;')
+                print '<div class="thumb_image media-content media_container'. ($thumb['linked'] === true ? ' linked-media' : '') .'"  style="'.($isImageOrPdf?'':'cursor:default;')
                     .($k>0?CSS_HIDDEN:'').'">';
             }
 
@@ -2087,7 +2091,7 @@ function print_public_details($bib) {
                 $checked_status = $hide_images == 0 ? ' checked="checked"' : '';
                 $media_control_chkbx = " <label class='media-control'><input type='checkbox' id='show-linked-media' onchange='displayImages(false);' $checked_status> show all linked media</label>";
 
-                if($thumb['linked'] == true){
+                if($thumb['linked'] === true){
                     print "<h5 style='margin-block:1.5em'>Linked Media Only: $media_control_chkbx</h5>";
                     $media_control_chkbx = '';
                 }
@@ -2180,13 +2184,13 @@ function print_public_details($bib) {
                     .($k>0?CSS_HIDDEN:'').'">';
             }
 
-            if($thumb['linked'] == true){
+            if($thumb['linked'] === true){
                 print "<h5 style='margin-block:0.5em;'>LINKED MEDIA</h5>";
             }else{
                 print "<h5 style='margin-block:0.5em;'>MEDIA $media_control_chkbx</h5>";
             }
 
-            if($thumb['player'] && !$is_map_popup){
+            if($thumb['player'] && ($noclutter || !$is_map_popup)){
 
                 if($isAudioVideo){
                     //audio or video is maximized at once
@@ -2206,13 +2210,13 @@ function print_public_details($bib) {
                 }
             }else{  //for usual image
                 print '<img src="'.htmlspecialchars($thumb['thumb']).'" '
-                    .(($is_map_popup || $without_header)
+                    .($is_map_popup || $without_header
                         ?''
                         :'onClick="zoomInOut(this,\''. htmlspecialchars($thumb['thumb']) .'\',\''. htmlspecialchars($url) .'\')"').'>';
             }
             print DIV_E;
             print '</div><!--CLOSE THUMB SECTION-->';
-            if($is_map_popup){
+            if(!$noclutter && $is_map_popup){
                 print '<br>';
                 break; //in map popup show the only thumbnail
             }
@@ -2576,7 +2580,7 @@ function print_relation_details($bib) {
 
     //$move_details - array of related records without particular relmarker field
     if(is_array($move_details) && !empty($move_details)){
-        echo '<script>moveRelatedDetails(', json_encode($move_details, JSON_FORCE_OBJECT), ');</script>';
+        echo '<script>if(typeof moveRelatedDetails === "function"){ moveRelatedDetails(', json_encode($move_details, JSON_FORCE_OBJECT), '); }</script>';
     }
 
     return $link_cnt;

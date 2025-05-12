@@ -21,7 +21,7 @@ namespace hserv\utilities;
 *
 * @package     Heurist academic knowledge management system
 * @link        https://HeuristNetwork.org
-* @copyright   (C) 2005-2023 University of Sydney
+* @copyright   (C) 2005-2023 University of Sydney, (C) 2024 onwards Heurist Network
 * @author      Artem Osmakov   <osmakov@gmail.com>
 * @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
 * @version     4.0
@@ -161,7 +161,8 @@ class USanitize {
             $message = '';
         }else{
             if($allowed_tags==null) {
-                $allowed_tags = '<a><u><i><div><em><b><strong><sup><sub><small><br><h1><h2><h3><h4><h5><h6><p><ul><li><img><blockquote><pre><span>';
+                $allowed_tags = '<a><u><i><div><em><b><strong><sup><sub><small><br><h1><h2><h3><h4><h5><h6><p><ul><li><img><blockquote><pre><span><bibl><persName><audio><video><iframe><source><table><th><tr><td><article><aside><details><figcaption><figure><footer><header><main><mark><nav><section><summary><time>';
+                
             }elseif($allowed_tags===false){
                 $allowed_tags = null;
             }

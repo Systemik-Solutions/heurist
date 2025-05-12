@@ -1,6 +1,6 @@
 <?php
     /*
-    * Copyright (C) 2005-2023 University of Sydney
+    * Copyright (C) 2005-2023 University of Sydney, (C) 2024 onwards Heurist Network
     *
     * Licensed under the GNU License, Version 3.0 (the "License"); you may not use this file except
     * in compliance with the License. You may obtain a copy of the License at
@@ -17,7 +17,7 @@
     * Find orphaned file folders ie without databases
     *
     * @author      Artem Osmakov   <osmakov@gmail.com>
-    * @copyright   (C) 2005-2023 University of Sydney
+    * @copyright   (C) 2005-2023 University of Sydney, (C) 2024 onwards Heurist Network
     * @link        https://HeuristNetwork.org
     * @version     3.1
     * @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
@@ -60,7 +60,7 @@ if(!@$_REQUEST['mail']){
     $root = $system->getFileStoreRootFolder();
 
     //get all subfolder in HEURIST_FILESTORE
-    $folders = folderSubs($root, array('AAA_LOGS','_PURGES_IMPORTS', '_PURGES_SYSARCHIVE', 'DELETED_DATABASES', '_BATCH_PROCESS_ARCHIVE_PACKAGE'), false);
+    $folders = folderSubs($root, ['AAA_LOGS','_PURGES_IMPORTS', '_PURGES_SYSARCHIVE', 'DELETED_DATABASES', '_BATCH_PROCESS_ARCHIVE_PACKAGE', '_DB_STATS', '_ALL_SERVER_STATS'], false);
 
     $rep = '';
     $orphaned = array();

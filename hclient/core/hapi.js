@@ -11,7 +11,7 @@
 *
 * @package     Heurist academic knowledge management system
 * @link        https://HeuristNetwork.org
-* @copyright   (C) 2005-2023 University of Sydney
+* @copyright   (C) 2005-2023 University of Sydney, (C) 2024 onwards Heurist Network
 * @author      Artem Osmakov   <osmakov@gmail.com>
 * @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
 * @version     4.0
@@ -87,7 +87,6 @@ function hAPI(_db, _oninit, _baseURL) { //, _currentUser
     function _init(_db, _oninit, _baseURL) { //, _currentUser) {
 
         that.SystemMgr = new HSystemMgr(that);
-        //2024-12-08 that.LayoutMgr2 = new HLayoutMgr();
 
         //@todo - take  database from URL
         if (_db) {
@@ -109,9 +108,14 @@ function hAPI(_db, _oninit, _baseURL) { //, _currentUser
         }
 
         // layout and configuration arrays are defined (from layout_default.js)    
+       
         if (typeof HLayout !== 'undefined' && window.hWin.HEURIST4.util.isFunction(HLayout)
-            && typeof cfg_widgets !== 'undefined' && typeof cfg_layouts !== 'undefined') {
-            that.LayoutMgr = new HLayout();
+            && typeof window.hWin.cfg_widgets !== 'undefined' && typeof window.hWin.cfg_layouts !== 'undefined') {
+            that.LayoutMgr = new HLayout(); //old layout manager
+        }
+        if (typeof HLayoutMgr !== 'undefined' && window.hWin.HEURIST4.util.isFunction(HLayoutMgr)
+            && typeof window.hWin.cfg_widgets !== 'undefined') {
+            that.layoutMgr = new HLayoutMgr(); //new layout manager
         }
         if (typeof HRecordSearch !== 'undefined' && window.hWin.HEURIST4.util.isFunction(HRecordSearch)) {
             that.RecordSearch = new HRecordSearch();
@@ -188,10 +192,10 @@ function hAPI(_db, _oninit, _baseURL) { //, _currentUser
             //actions for redirection https://hist/heurist/[dbname]/web/
             if(script_name.search(/\/([A-Za-z0-9_]+)\/(website|web|hml|tpl|view|edit|adm|test)\/.*/)>=0){
                 installDir = script_name.replace(/\/([A-Za-z0-9_]+)\/(website|web|hml|tpl|view|edit|adm|test)\/.*/, '')+'/';
-                if(installDir=='/') installDir = '/h6-alpha/';/* to change back to '/heurist/'; */
+                if(installDir=='/') installDir = '/heurist/';/* to change back to '/heurist/'; */
             }else{
                 //removed top folders: applications|common|search|records|
-                installDir = script_name.replace(/(((\?|admin|context_help|export|hapi|hclient|hserv|import|startup|test|redirects|viewers|help|ext|external)\/.*)|(index.*|test.php))/, ""); // Upddate in utils_host.php also
+                installDir = script_name.replace(/(((\?|admin|documentation|export|hapi|hclient|hserv|import|startup|test|redirects|viewers|help|ext|external)\/.*)|(index.*|test.php))/, ""); // Upddate in utils_host.php also
             }
         }
 
@@ -257,8 +261,8 @@ function hAPI(_db, _oninit, _baseURL) { //, _currentUser
 
         _is_callserver_in_progress = true;
         
-        if(window.hWin.HAPI4 && action!='entityScrud' && action!='usr_info'
-            && (new Date().getTime())-_last_check_dbcache_relevance> 3000){ //7 seconds
+        if(window.hWin.HAPI4 && action!='entityScrud' && action!='usr_info' && !request.remote
+            && (new Date().getTime())-_last_check_dbcache_relevance> 7000){ //7 seconds
             _last_check_dbcache_relevance = new Date().getTime();
             
             //ignore if record structure editor or Design panel is opened
@@ -662,6 +666,15 @@ function hAPI(_db, _oninit, _baseURL) { //, _currentUser
             }
 
             //
+            // standard search without event triggers
+            //
+            , search2: function (request, callback) {
+                window.hWin.HEURIST4.util.encodeRequest(request, ['q']);
+                // start search
+                _callserver('record_search', request, callback);    //standard search
+            }
+            
+            //
             // prepare result in required format
             //
             , search_new: function (request, callback) {
@@ -938,7 +951,7 @@ function hAPI(_db, _oninit, _baseURL) { //, _currentUser
                 let s_time = new Date().getTime() / 1000;
                 if(_msgOnRefreshEntityData) clearTimeout(_msgOnRefreshEntityData);
                 _msgOnRefreshEntityData = setTimeout(function(){
-                    window.hWin.HEURIST4.msg.showMsgFlash('Database definitions refresh', false, { position: {my: 'left+100 top+100', at: 'left top', of: $(document)} });
+                    window.hWin.HEURIST4.msg.showMsgFlash('Database definitions refresh', false, null, { position: {my: 'left+100 top+100', at: 'left top', of: $(document)} });
                 }, 1000);
 
                  
@@ -951,6 +964,7 @@ function hAPI(_db, _oninit, _baseURL) { //, _currentUser
                         
                         if (response && response['uptodate']) { //relevance db definitions
                             //definitions are up to date
+                            entity_timestamp = response['uptodate'];
                             if (window.hWin.HEURIST4.util.isFunction(callback)) callback(this, true);
                             
                         }else if (response && response.status == window.hWin.ResponseStatus.OK || response['defRecTypes']) {
@@ -1643,7 +1657,7 @@ function hAPI(_db, _oninit, _baseURL) { //, _currentUser
 *
 *For widgets we use json from /hlcient/assets/localization/localization[_lang3].js  (function window.hWin.HR)
 *To localize entity edit forms (record types, fields, terms etc) we use localized json from /hserv/entity/defRecTypes[_lang3].json
-*For static context help or html snippets  we take html snippets from /context_help/resultListEmptyMsg_fre.htm  (function window.hWin.HRes )
+*For static context help or html snippets  we take html snippets from /documentation/context_help/resultListEmptyMsg_fre.htm  (function window.hWin.HRes )
 * 
 *In other words, where content is created dynamically (widgets, edit forms) we take localized strings (mostly for labels and hints) from json arrays 
 *For large static content with a lot of text we load the entire translated html snippet. 
@@ -1755,11 +1769,13 @@ Automatic translation
         *
         *   @param needIds if it is true  it returns array of record ids
         */
-        getSelection: function (selection, needIds) {
+        getSelection: function (selection, needIds, recordset) {
+            
+            recordset = recordset??this.currentRecordset;
 
             if (selection == "all") {
-                if (this.currentRecordset) {
-                    selection = needIds ? this.currentRecordset.getIds() : this.currentRecordset;
+                if (recordset) {
+                    selection = needIds ? recordset.getIds() : recordset;
                 } else {
                     return null;
                 }
@@ -1771,7 +1787,7 @@ Automatic translation
                     }
                 } else {  //selection is array of ids
                     return (needIds) ? selection
-                        : ((that.currentRecordset) ? that.currentRecordset.getSubSetByIds(selection) : null);
+                        : ((recordset) ? recordset.getSubSetByIds(selection) : null);
                 }
             }
             return null;

@@ -49,7 +49,7 @@
 *
 * @package Heurist academic knowledge management system
 * @link https://HeuristNetwork.org
-* @copyright (C) 2005-2023 University of Sydney
+* @copyright (C) 2005-2023 University of Sydney, (C) 2024 onwards Heurist Network
 * @author Artem Osmakov <osmakov@gmail.com>
     * @license https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
     * @version 4.0
@@ -221,12 +221,12 @@ if($isWebPage){ //set in websiteRecord.php
                 </div>
                 <div class="footer-content">
                     <div class="container">
-                        <div class="row">
+                        <div class="t-row">
                             <div class="col-md-2"><img class="logo"
                                     src="https://heurist.huma-num.fr/heurist/?db=MBH_Manuscripta_Bibliae_Hebraicae&file=791d3bd1e6a1bce0dd6292610c1c1bde4882d637"
                                     alt="Manuscripta Bibliae Hebraicae"></div>
                             <div class="col-md-6">
-                                <div class="row">
+                                <div class="t-row">
                                     <div class="col-md-6 address">
                                         <address>Maison Méditerranéenne des Sciences de l'Homme<br>
                                             5 rue du château de l'horloge, BP 647<br>

@@ -5,7 +5,7 @@
 *
 * @package     Heurist academic knowledge management system
 * @link        https://HeuristNetwork.org
-* @copyright   (C) 2005-2023 University of Sydney
+* @copyright   (C) 2005-2023 University of Sydney, (C) 2024 onwards Heurist Network
 * @author      Artem Osmakov   <osmakov@gmail.com>
 * @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
 * @version     4.0
@@ -178,7 +178,7 @@ if($response!=null){
         $options = array(
                 'upload_dir' => $entityDir,
                 'upload_url' => $system->getSysUrl(DIR_ENTITY.$entity_name),
-                'unique_filename' => false,
+                'unique_filename' => $entity_name === 'sysBugreport',
                 'newfilename' => $temp_file_name,
                 'correct_image_extensions' => true,
                 'image_versions' => array(

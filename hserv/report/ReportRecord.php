@@ -1159,6 +1159,8 @@ class ReportRecord
         
         $sepKey = '';
         $cntGroups = 0;
+        $isEmpty = false;
+
         foreach ($rts as $dty_ID=>$label){
   
             $dtyKey ='f'.$dty_ID;

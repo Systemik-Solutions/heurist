@@ -3,7 +3,7 @@
 *
 * @package     Heurist academic knowledge management system
 * @link        https://HeuristNetwork.org
-* @copyright   (C) 2005-2023 University of Sydney
+* @copyright   (C) 2005-2023 University of Sydney, (C) 2024 onwards Heurist Network
 * @author      Artem Osmakov   <osmakov@gmail.com>
 * @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
 * @version     4.0
@@ -712,6 +712,7 @@ $.widget( "heurist.manageRecords", $.heurist.manageEntity, {
                     }else{
                         this._currentEditRecTypeID = data;
                     }
+                    this.options.selectOnSave = true;
                     this.addEditRecord(-1);
                 },
                 "searchrecordsonlinkscount": function( event, data ){
@@ -821,7 +822,7 @@ $.widget( "heurist.manageRecords", $.heurist.manageEntity, {
                          'Cancel':function(){ 
                                 $__dlg.dialog( "close" );
                             }},  
-                            {title:'Confirm'});
+                            {title:'Confirm'}, {dialogId: 'warn-navigate', height: 154});
                            
                          let dlged = that._as_dialog.parent('.ui-dialog');   
                          $__dlg.parent('.ui-dialog').css({
@@ -883,6 +884,30 @@ $.widget( "heurist.manageRecords", $.heurist.manageEntity, {
                           click: function() { 
                             let recset = $Db.rst(that._currentEditRecTypeID);
                             let hasField = false;
+                            let btns = {};
+                            let $dlg;
+
+                            if(that.options.rts_editor && that.options.rts_editor.manageDefRecStructure('checkIfEditing')){
+
+                                btns[window.hWin.HR('Save changes')] = () => {
+                                    that.element.find('.btnRecSaveAndClose_rts').trigger('click');
+                                    $dlg.dialog('close');
+                                    setTimeout(() => { that.closeEditDialog() }, 2000);
+                                };
+                                btns[window.hWin.HR('Close without saving')] = () => {
+                                    $dlg.dialog('close');
+                                    that.closeEditDialog();
+                                };
+
+                                $dlg = window.hWin.HEURIST4.msg.showMsgDlg(
+                                    'You have un-saved structure changes which will be lost if not saved<br>Would you like to save your changes before closing?',
+                                    btns,
+                                    {title: 'Un-saved structure changes', no: window.hWin.HR('Close without saving'), yes: window.hWin.HR('Save changes')},
+                                    {default_palette_class: 'ui-heurist-design'}
+                                );
+
+                                return;
+                            }
 
                             if(!window.hWin.HEURIST4.util.isempty(recset)){
 
@@ -894,17 +919,15 @@ $.widget( "heurist.manageRecords", $.heurist.manageEntity, {
 
                             if(!hasField){ // check if any fields have been added to rectype
 
-                                let btns = {};
                                 btns[window.hWin.HR('Continue editing')] = function(){
-                                    let $dlg = window.hWin.HEURIST4.msg.getMsgDlg();
                                     $dlg.dialog('close');
                                 };
                                 btns[window.hWin.HR('Exit with no fields')] = function(){
-                                    let $dlg = window.hWin.HEURIST4.msg.getMsgDlg();
                                     $dlg.dialog('close');
                                     that.closeEditDialog();
                                 };
-                                window.hWin.HEURIST4.msg.showMsgDlg('You need to define fields to make this record type usable.', 
+
+                                $dlg = window.hWin.HEURIST4.msg.showMsgDlg('You need to define fields to make this record type usable.', 
                                     btns, 
                                     {title:'No fields defined', no:window.hWin.HR('Continue editing'), yes:window.hWin.HR('Exit with no fields')},
                                     {default_palette_class: 'ui-heurist-design'}); 
@@ -3388,7 +3411,10 @@ $Db.rty(rectypeID, 'rty_Name') + ' is defined as a child of <b>'+names.join(', '
 
                             +'We strongly recommend putting a little thought into this, as well-designed constructed titles can<br>'
                             +'greatly improve the clarity and ease of use of the database.<br>'
-                            +'We recommend you read the <a href="https://heuristref.net/heurist/?db=Heurist_Help_System&website&id=39&pageid=773" target="_blank">help for Constructed titles</a>', 
+                            +'We recommend you read the <a href="'
+                                +window.hWin.HAPI4.sysinfo.referenceServerURL
+                                +'?db='+window.hWin.HAPI4.sysinfo.referenceServerHelpDatabase
+                                +'&website=39&pageid=773" target="_blank">help for Constructed titles</a>', 
                             { 'Proceed': function(){ that.editRecordTypeTitle(); $dlg.dialog('close'); } },
                             {title:'Constructed title not yet configured', yes:'Proceed'},
                             {default_palette_class: 'ui-heurist-design'});
@@ -3466,7 +3492,7 @@ $Db.rty(rectypeID, 'rty_Name') + ' is defined as a child of <b>'+names.join(', '
                 let hasCustomJsOrCss = false, hasScriptTag = false;
                 
                 let hasValue = false, hasDtlField = false;
-                let ambig_dates = [];
+                let ambig_dates = [], invalid_entries = {};
 
                 let rty_ConceptCode = $Db.getConceptID('rty', this._currentEditRecTypeID);
                 //verify max lengtn in 64kB per value
@@ -3554,6 +3580,8 @@ $Db.rty(rectypeID, 'rty_Name') + ' is defined as a child of <b>'+names.join(', '
                             if(fields['no_validation'] == 1){
                                 continue;
                             }
+
+                            let entry_mask = $Db.rst(that._currentEditRecTypeID, dtyID, 'rst_EntryMask');
 
                             if(dt == 'date'){
 
@@ -3740,6 +3768,15 @@ $Db.rty(rectypeID, 'rty_Name') + ' is defined as a child of <b>'+names.join(', '
                                         continue;
                                     }
                                 }
+                            }else if(entry_mask){
+
+                                let output = $Db.rst_RunEntryMask(entry_mask, values[k]); // don't update value here, this is handled in recordModify::updateMaskFields
+                                if(output.indexOf(values[k]) === -1){
+                                    if(!Object.hasOwn(invalid_entries, dtyID)){
+                                        invalid_entries[dtyID] = [];
+                                    }
+                                    invalid_entries[dtyID].push({value: values[k], index: k, error: output});
+                                }
                             }
                         }
 
@@ -3765,6 +3802,9 @@ $Db.rty(rectypeID, 'rty_Name') + ' is defined as a child of <b>'+names.join(', '
                 }else if(fields != null && ambig_dates.length > 0){
                     that._handleAmbiguousDates(ambig_dates);
                     return;
+                }else if(fields != null && Object.keys(invalid_entries).length > 0){
+                    that._handleInvalidEntry(invalid_entries);
+                    return;
                 }
                 
                 //show warning for disabled javascript
@@ -3784,7 +3824,7 @@ $Db.rty(rectypeID, 'rty_Name') + ' is defined as a child of <b>'+names.join(', '
                     let swf_mode = this.element.find('.sel_workflow_stages').val();
                     if(swf_mode=='on' || (swf_mode=='new' && this._isInsert)){
                         
-                        this._showSwfPopup(fields);
+                        this._showSwfPopup(fields, afterAction);
                         return;
                     }
                 } //END assign workflow stage field 2-9453
@@ -3832,7 +3872,7 @@ $Db.rty(rectypeID, 'rty_Name') + ' is defined as a child of <b>'+names.join(', '
             // See rst_NonOwnerVisibility=pending and dtl_HideFromPublic=1
             //
             let fields_visibility = this._editing.getFieldsVisibility(); 
-            
+
             let request = {ID: this._currentEditID, 
                            RecTypeID: this._currentEditRecTypeID, 
                            URL: rec_URL,
@@ -3842,7 +3882,7 @@ $Db.rty(rectypeID, 'rty_Name') + ' is defined as a child of <b>'+names.join(', '
                            ScratchPad: rec_ScratchPad,
                            details: fields, //it will be encoded in encodeRequest
                            details_visibility: fields_visibility}; //{dty_ID:[1,1,0,0,1],.....  } 
-            
+
             if(fields['no_validation']){
                 request['no_validation'] = 1;
             }
@@ -3922,37 +3962,97 @@ $Db.rty(rectypeID, 'rty_Name') + ' is defined as a child of <b>'+names.join(', '
             return;
         }
 
-        // <div> The following issues were found when saving the record, please note that the record has been saved and that these issues are more minor problems that Heurist deals with as possible </div>
         // Message not needed right now as only one issue is handled, probably separate issues into tabs within the message dialog
 
-        /*
-        FOR type IN response.issues:
-            issues = response.issues[type]
-            IF issue IS EMPTY:
-                CONTINUE
-            END IF
-            ...
-        END FOR
-        */
+        let has_msg = false;
+        let headers = 'The following issues were found when saving the record, please note that the record has been saved and that these issues are considered minor problems<br><br>'
+                    + '<div class="issues-tabs"><ul>';
+        let contents = '';
+        let handlers = {};
 
-        let parent_issues = response.issues['parents'] ?? {};
-        if(Object.keys(parent_issues).length > 0){
+        let parent = null;
+        let readded_parents = null;
 
-            let parent = Object.keys(parent_issues)[0];
-            parent_issues[parent]['restored'] = [{
-                field: parent_issues[parent]['field'],
-                type: this._currentEditRecTypeID,
-                id: this._currentEditID,
-                title: response.rec_Title
-            }];
+        for(const issue_type in response.issues){
 
-            let readded_parents = window.hWin.HEURIST4.msg.prepareParentRecordMsg(response.issues['parents']);
-            if(typeof readded_parents === 'object'){
-                let $dlg = window.hWin.HEURIST4.msg.showMsgDlg(readded_parents.message, null, {title: readded_parents.title}, {default_palette_class: 'ui-heurist-populate'});
-                for(const selector in readded_parents.handlers){
-                    $dlg.find(selector).on('click', readded_parents.handlers[selector]);
-                }
+            const issues = response.issues[issue_type];
+            const id = `issue-${issue_type}`;
+            let msg = '';
+
+            if(window.hWin.HEURIST4.util.isempty(issues) || (typeof issues === 'object' && Object.keys(issues).length == 0)){
+                continue;
             }
+
+            switch(issue_type){
+
+                case 'parents':
+
+                    parent = Object.keys(issues)[0];
+                    issues[parent]['restored'] = [{
+                        field: issues[parent]['field'],
+                        type: this._currentEditRecTypeID,
+                        id: this._currentEditID,
+                        title: response.rec_Title
+                    }];
+
+                    readded_parents = window.hWin.HEURIST4.msg.prepareParentRecordMsg(response.issues['parents']);
+                    if(typeof readded_parents === 'object'){
+
+                        handlers = $.extend({}, handlers, readded_parents.handlers);
+
+                        headers += `<li><a href="#${id}">${readded_parents.title}</a></li>`;
+
+                        contents += `<div id="${id}" style="margin: 7.5px 10px;">${readded_parents.message}</div>`;
+
+                        has_msg = true;
+                    }
+
+                    break;
+
+                case 'entryMask':
+
+                    // { dty_ID =>  [{value, reason}, ...], ... }
+                    for(const dty_ID in issues){
+
+                        msg += `<div>
+                        <strong style="display: block; padding-bottom: 7.5px;">${$Db.rst(this._currentEditRecTypeID, dty_ID, 'rst_DisplayName')}</strong>`;
+
+                        let value_issues = issues[dty_ID];
+                        for(const issue of value_issues){
+                            msg += `<span class="truncate" title="${issue.value}" style="display: inline-block; width: 150px; max-width: 150px;">${issue.value}</span>
+                                    <span>Error: ${issue.reason}</span><br>`;
+                        }
+
+                        msg += '</div><hr style="margin: 15px 0px;">';
+                    }
+
+                    if(!window.hWin.HEURIST4.util.isempty(msg)){
+                        
+                        headers += `<li><a href="#${id}">Failed entry masks</a></li>`;
+    
+                        contents += `<div id="${id}" style="margin: 7.5px 10px;">${msg}</div>`;
+    
+                        has_msg = true;
+                    }
+
+                    break;
+            
+                default:
+                    break;
+            }
+        }
+
+        if(has_msg){
+
+            headers += '</ul>';
+
+            let $dlg = window.hWin.HEURIST4.msg.showMsgDlg(headers + contents + '</div>', null, {title: 'Record issues'}, {default_palette_class: 'ui-heurist-populate'});
+
+            for(const selector in handlers){
+                $dlg.find(selector).on('click', readded_parents.handlers[selector]);
+            }
+
+            $dlg.find('.issues-tabs').tabs();
         }
 
         delete response.issues;
@@ -4997,7 +5097,7 @@ $Db.rty(rectypeID, 'rty_Name') + ' is defined as a child of <b>'+names.join(', '
 
                 let $group = $(group);
                 let $tabs = $group.find('ul[role="tablist"]');
-                let last_dtid = $group.find('fieldset:last-child div[data-dtid]:last-child').attr('data-dtid');
+                let last_dtid = $group.find('fieldset.ui-tabs-panel:last-child div[data-dtid]').last().attr('data-dtid');
 
                 let $empty_cont = $('<div>').uniqueId();
                 let $new_tab = $('<li>').addClass('add_new_tab').append('<a href="#'+ $empty_cont.attr('id') +'"></a>').appendTo($tabs);
@@ -5176,10 +5276,6 @@ $Db.rty(rectypeID, 'rty_Name') + ' is defined as a child of <b>'+names.join(', '
         let that = this;
 
         if(!ambiguous_dates || ambiguous_dates.length == 0){
-
-            // Run save again
-           
-
             return;
         }
 
@@ -5360,6 +5456,33 @@ $Db.rty(rectypeID, 'rty_Name') + ' is defined as a child of <b>'+names.join(', '
         $dlg = window.hWin.HEURIST4.msg.showMsgDlg(content, btns, labels, options);
     },
 
+    _handleInvalidEntry: function(invalid_entries){
+
+        if(!invalid_entries || invalid_entries.length == 0){
+            return;
+        }
+
+        let msg = '';
+        let value_style = 'display: inline-block; width: 150px; max-width: 150px;';
+
+        for(const dty_ID in invalid_entries){
+
+            const fld_Name = $Db.rst(this._currentEditRecTypeID, dty_ID, 'rst_DisplayName');
+            let values = invalid_entries[dty_ID];
+
+            msg += `<div style="padding-bottom: 5px;"><strong>${fld_Name}</strong>:</div>`;
+
+            for(const value of values){
+                msg += `<span class="truncate" title="${value.value}" style="${value_style}">${value.value}</span>&nbsp;&nbsp;&rarr;&nbsp;&nbsp;
+                <span title="${value.error}">${value.error}</span><br>`;
+            }
+
+            msg += '<hr style="margin: 15px 0px;">';
+        }
+
+        window.hWin.HEURIST4.msg.showMsgDlg(msg, null, {title: 'Invalid values for entry masks'}, {default_palette_class: 'ui-heurist-populte'});
+    },
+
     _showSwfPopup: function(fields, _callback){
 
         const that = this;
@@ -5398,7 +5521,7 @@ $Db.rty(rectypeID, 'rty_Name') + ' is defined as a child of <b>'+names.join(', '
         let $dlg;
         let btns = {};
 
-        btns[window.hWin.HR('Save change')] = function(){
+        btns[window.hWin.HR('Continue')] = function(){
 
             fields[dtyID] = $dlg.find('.sel_current_stage').val();
             that._saveEditAndClose( fields, _callback );
@@ -5414,7 +5537,7 @@ $Db.rty(rectypeID, 'rty_Name') + ' is defined as a child of <b>'+names.join(', '
         +'<p style="margin: 20px 0px 0px"><label>Workflow stage: </label><select class="text ui-corner-all sel_current_stage">'
             + opts_swf_stages
         +'</select>&nbsp;&nbsp;<button id="btn_advance">Advance</button></p>', btns, 
-        {title: window.hWin.HR('Set workflow stage'), yes: window.hWin.HR('Save change'), no: window.hWin.HR('Cancel')},
+        {title: window.hWin.HR('Set workflow stage'), yes: window.hWin.HR('Continue'), no: window.hWin.HR('Cancel')},
         {default_palette_class: this.options.default_palette_class}); //'ui-heurist-populate'
 
         if($ele.length == 1){
@@ -5452,13 +5575,13 @@ $Db.rty(rectypeID, 'rty_Name') + ' is defined as a child of <b>'+names.join(', '
 
         // Disable save button until the values are changed
         let $save_btn = $($dlg.parent().find('.ui-dialog-buttonpane .ui-button')[0]);
-        window.hWin.HEURIST4.util.setDisabled($save_btn, true);
 
         let stage_popup = $swf_popup.val();
         let stage = $stage.val();
 
         $dlg.find('select').on('change', () => {
-            window.hWin.HEURIST4.util.setDisabled($save_btn, $stage.val() == stage && $swf_popup.val() == stage_popup);
+            let swf_changed = $stage.val() != stage || $swf_popup.val() != stage_popup;
+            $save_btn.button('option', 'label', window.hWin.HR(swf_changed ? 'Save change' : 'Continue'));
         });
     },
 	

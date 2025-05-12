@@ -5,7 +5,7 @@
 *
 * @package     Heurist academic knowledge management system
 * @link        https://HeuristNetwork.org
-* @copyright   (C) 2005-2023 University of Sydney
+* @copyright   (C) 2005-2023 University of Sydney, (C) 2024 onwards Heurist Network
 * @author      Artem Osmakov   <osmakov@gmail.com>
 * @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
 * @version     4.0
@@ -65,24 +65,32 @@ if( @$_REQUEST['isalive']==1){
         $format = filter_var($_REQUEST['fmt'], FILTER_SANITIZE_STRING);
     }elseif(@$_REQUEST['format']){
         $format = filter_var($_REQUEST['format'], FILTER_SANITIZE_STRING);
+        
     }elseif (array_key_exists('website', $_REQUEST) || array_key_exists('embed', $_REQUEST)
     || (array_key_exists('field', $_REQUEST) && $_REQUEST['field']>0) )
     {
         $format = 'website';
 
-        //embed - when heurist is run on page on non-heurist server
-        if(array_key_exists('embed', $_REQUEST)){
-            //require_once dirname(__FILE__).'/hserv/System.php';
-            define('PDIR', HEURIST_INDEX_BASE_URL);
+        if(@$_REQUEST['ver']==3){
+            $controller = new FrontController(isset($params)?$params:null);
+            $controller->run();
         }else{
-            if(!defined('PDIR')) {define('PDIR','');}
+            //embed - when heurist is run on page on non-heurist server
+            if(array_key_exists('embed', $_REQUEST)){
+                //require_once dirname(__FILE__).'/hserv/System.php';
+                define('PDIR', HEURIST_INDEX_BASE_URL);
+            }else{
+                if(!defined('PDIR')) {define('PDIR','');}
+            }
+            include_once dirname(__FILE__).'/hclient/widgets/cms/websiteRecord.php';
         }
-        include_once dirname(__FILE__).'/hclient/widgets/cms/websiteRecord.php';
+        
         exit;
 
-        if(intval(@$_REQUEST['field'])>0){
-            $redirect = $redirect.'&field='.intval($_REQUEST['field']);
-        }
+        // old way to retrieve the content of particular page
+        //if(intval(@$_REQUEST['field'])>0){
+        //    $redirect = $redirect.'&field='.intval($_REQUEST['field']);
+        //}
 
 
     }elseif (array_key_exists('field', $_REQUEST) && intval($_REQUEST['field'])>0) {
@@ -141,7 +149,7 @@ if( @$_REQUEST['isalive']==1){
     header( 'Location: '.$script_name.'?'.$query_string );
     return;
 
-}elseif (@$_REQUEST['asset']){ //only from context_help - download localized help or documentation
+}elseif (@$_REQUEST['asset']){ //only from documentation/context_help - download localized help or documentation
 
     $params = USanitize::sanitizeInputArray();
 
@@ -157,7 +165,7 @@ if( @$_REQUEST['isalive']==1){
         $name = $name . '.htm';
     }
 
-    $help_folder = 'context_help/';
+    $asset_folder = 'documentation/context_help/';
 
     $locale = $params['lang'];//locale
     if($locale && preg_match('/^[A-Za-z]{3}$/', $locale)){
@@ -167,14 +175,14 @@ if( @$_REQUEST['isalive']==1){
         $locale = '';
     }
 
-    $asset = $help_folder.$locale.basename($name);
+    $asset = $asset_folder.$locale.basename($name);
     if(!file_exists($asset)){
         //without locale - default is English
         $locale = '';
-        $asset = $help_folder.basename($name);
+        $asset = $asset_folder.basename($name);
     }
 
-    if(file_exists($help_folder.$name)){
+    if(file_exists($asset_folder.$name)){
         //download
         header( 'Location: '.$asset.' '.$part );
         return;
@@ -295,7 +303,6 @@ require_once dirname(__FILE__).'/hclient/framecontent/initPage.php';
 <script type="text/javascript" src="<?php echo PDIR;?>hclient/widgets/editing/editing_exts.js"></script>
 <script type="text/javascript" src="<?php echo PDIR;?>hclient/widgets/editing/editTheme.js"></script>
 
-<script type="text/javascript" src="<?php echo PDIR;?>hclient/widgets/cms/hLayoutMgr.js"></script>
 <script type="text/javascript" src="<?php echo PDIR;?>hclient/widgets/cms/CmsManager.js"></script>
 
 <script type="text/javascript" src="<?php echo PDIR;?>hclient/widgets/entity/configEntity.js"></script>

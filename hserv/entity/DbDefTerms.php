@@ -10,7 +10,7 @@ use hserv\utilities\USanitize;
 *
 * @package     Heurist academic knowledge management system
 * @link        https://HeuristNetwork.org
-* @copyright   (C) 2005-2023 University of Sydney
+* @copyright   (C) 2005-2023 University of Sydney, (C) 2024 onwards Heurist Network
 * @author      Artem Osmakov   <osmakov@gmail.com>
 * @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
 * @version     4.0
@@ -311,8 +311,13 @@ class DbDefTerms extends DbEntityBase
 
         $trm_sep = @$this->data['term_separator'];
 
-        if($trm_sep==null){
+        if($trm_sep === null){
             $trm_sep = '.';
+        }
+
+        $trm_extendLabel = @$this->data['term_RetainParentLabel'];
+        if($trm_extendLabel != 1){
+            $trm_extendLabel = false;
         }
 
         foreach ($input as $path) {
@@ -323,6 +328,8 @@ class DbDefTerms extends DbEntityBase
             if($trm_sep!=''){
                 $s = strtok($path, $trm_sep);
 
+                $hierarchy = "{$s}{$trm_sep}";
+
                 //iterate path
                 while (($next = strtok($trm_sep)) !== false) {
                     if (!isset($prev[$s])) {
@@ -330,8 +337,10 @@ class DbDefTerms extends DbEntityBase
                     }
 
                     $prev = &$prev[$s];
-                    $s = $next;
+                    $s = !$trm_extendLabel ? $next : "{$hierarchy}{$next}";
+                    $hierarchy .= "{$next}{$trm_sep}";
                 }
+
             }else{
                 $s = $path;
             }
@@ -836,8 +845,9 @@ class DbDefTerms extends DbEntityBase
             //check usage
             $ret = $this->isTermNotInUse($merge_id, true, false);//check detailtypes, do not check in records
             if(is_array($ret)){
+                $trm_Label = mysql__select_value($mysqli, "SELECT trm_Label FROM defTerms WHERE trm_ID = ?", ['i', $merge_id]);
                 $this->system->addError(HEURIST_ACTION_BLOCKED,
-                    'Cannot merge '.$merge_id.'. This term has references', $ret);
+                    "Cannot merge {$trm_Label} (#{$merge_id}). This term has references", $ret);
                 $ret = false;
             }
 
@@ -1105,13 +1115,15 @@ class DbDefTerms extends DbEntityBase
             }
 
             $children = array();
+            $mysqli = $this->system->getMysqli();
 
             foreach($this->recordIDs as $trm_ID)
             {
                 $ret = $this->isTermNotInUse($trm_ID, true, true);//check both records and defs
                 if(is_array($ret)){
+                    $trm_Label = mysql__select_value($mysqli, "SELECT trm_Label FROM defTerms WHERE trm_ID = ?", ['i', $trm_ID]);
                     $this->system->addError(HEURIST_ACTION_BLOCKED,
-                        'Cannot delete '.$trm_ID.'. This term has references', $ret);//$ret
+                        "Cannot delete {$trm_Label} (#{$trm_ID}). This term has references", $ret);//$ret
                     return false;
                 }elseif($ret===false){ //mysql error
                     return false;

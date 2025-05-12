@@ -4,7 +4,7 @@
 * 
 * @package     Heurist academic knowledge management system
 * @link        https://HeuristNetwork.org
-* @copyright   (C) 2005-2023 University of Sydney
+* @copyright   (C) 2005-2023 University of Sydney, (C) 2024 onwards Heurist Network
 * @author      Artem Osmakov   <osmakov@gmail.com>
 * @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
 * @version     4.0
@@ -672,11 +672,8 @@ $.widget( "heurist.search_faceted", {
 
                     //first level can be multi rectype
                     //add recordtype
-                    if(rtid>0 ||  rtid.indexOf(',')>0){  //AA!!  ||  rtid.indexOf(',')>0
-                    
-                        if(rtid!=1){ //not relationship 
-                            curr_level = __checkEntry(curr_level,"t",rtid);
-                        }
+                    if(rtid > 0 || rtid.indexOf(',') > 0){  //AA!!  ||  rtid.indexOf(',')>0
+                        curr_level = __checkEntry(curr_level,"t",rtid);
                     }
                     const linktype = dtid.substr(0,2);
                     let slink = null;
@@ -1928,7 +1925,7 @@ let s_time = new Date().getTime() / 1000;
      
                 let query, needcount = 2;
                 if( (typeof field['facet'] === 'string') && (field['facet'] == '$IDS') ){ //this is field form target record type
-                
+
                     if(this.options.params.ui_temporal_filter_initial || this._isInited || this._current_recordset_ids==null){
                         //replace with current query   - @todo check for empty 
                         query = this._first_query;
@@ -1950,12 +1947,12 @@ let s_time = new Date().getTime() / 1000;
                     }
                 
                     needcount = 1;
-                    
+
                 }else{
                     query = window.hWin.HEURIST4.util.cloneJSON(field['facet']); //clone 
                     //change $IDS for current set of target record type
                     __fillQuery(query);                
-                    
+
                 }
                 
                 let count_query = window.hWin.HEURIST4.util.cloneJSON(this.options.params.q);
@@ -2094,7 +2091,8 @@ let s_time = new Date().getTime() / 1000;
                             width: '100%',
                             padding: '10px 5px 5px',
                             'border-top': '1px black solid', // or <hr>
-                            'font-size': 'smaller'
+                            'font-size': 'smaller',
+                            cursor: 'default'
                           })
                           .appendTo(this.facets_list);
 
@@ -2105,7 +2103,7 @@ let s_time = new Date().getTime() / 1000;
                     'vertical-align': 'top',
                     'margin-left': '5px',
                     'max-width': max_w + 'px'
-                }).text(empty_facets).appendTo($ele);
+                }).html(empty_facets).appendTo($ele);
 
             }
 
@@ -3440,9 +3438,9 @@ let s_time = new Date().getTime() / 1000;
                     else if( (field['type']=='enum' || field['type']=='reltype') && field['groupby']=='firstlevel' 
                                 && !window.hWin.HEURIST4.util.isnull(field['selectedvalue'])){
                         
-                                    let cterm = field.selectedvalue;
-                                    let f_link = this._createFacetLink(facet_index, 
-                                            {title:cterm.title, value:cterm.value, count:'reset'}, 'block');
+                        let cterm = field.selectedvalue;
+                        let f_link = this._createFacetLink(facet_index, 
+                                {title:cterm.title, value:cterm.value, count:'reset'}, 'block');
                         
                         let ditem = $("<div>").css({'display':'block',"padding-right":"0px"})
                                                 .addClass('facet-item')
@@ -3666,7 +3664,7 @@ let s_time = new Date().getTime() / 1000;
 
                 //for enum get term label w/o code
                 if((field['type']=='enum' || field['type']=='reltype') && value[0]>0){
-                    title = $Db.getTermValue(value[0], false);    
+                    title = $Db.getTermValue(value[0], false);
                 }else if( field['type']=='date' && field['groupby']=='month' ){
                     
                     let tDate = new TDate((new Date(''+value[0])).toISOString());

@@ -4,7 +4,7 @@
 * 
 * @package     Heurist academic knowledge management system
 * @link        https://HeuristNetwork.org
-* @copyright   (C) 2005-2023 University of Sydney
+* @copyright   (C) 2005-2023 University of Sydney, (C) 2024 onwards Heurist Network
 * @author      Artem Osmakov   <osmakov@gmail.com>
 * @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
 * @version     4.0
@@ -407,7 +407,8 @@
                         <label><input type="checkbox" id="smooth_zoom">Smooth zoom</label> 
                         <label title="step (in levels) for zoom buttons">&nbsp; step: 
                             <input id="zoom_delta" type="number" step="1" min="0" max="10" value="1" style="width:30px">
-                        </label>
+                        </label><br>
+                        <label><input type="checkbox" id="showCurrentResults" checked="checked">Show result set (may need to turn off for story maps)</label>
 
                     </div>
 
@@ -739,9 +740,9 @@
                         <label><input type="radio" name="popup_behaviour" value="fixed_width">Fixed width</label>&nbsp;
                         <label><input type="radio" name="popup_behaviour" value="scale">Scale to content</label><br>
                         <label><span id="pw_label">Width:</span> <input name="popup_width" maxlength="3" size="3" value="300"></label>&nbsp;
-                        <select name="popup_hunit"><option value="px">px</option><option value="%">%</option></select>
+                        <select name="popup_hunit"><option value="px">px</option><option value="em">em</option><option value="%">%</option></select>
                         <label>&nbsp;<span id="ph_label">Length:</span> <input name="popup_height" maxlength="3" size="3" value="400"></label>&nbsp;
-                        <select name="popup_wunit"><option value="px">px</option><option value="%">%</option></select>
+                        <select name="popup_wunit"><option value="px">px</option><option value="em">em</option><option value="%">%</option></select>
                         </p>
                         <!-- Temp hide -->
                         <p style="display: none;"><span style="min-width: 105px;display: none;text-align: right;">Other settings&nbsp;</span>
@@ -779,9 +780,9 @@
                     </div>
 
                     <label>&nbsp;&nbsp;&nbsp;<span>Width:</span> <input name="dialog_width" maxlength="3" size="3" value="300"></label>&nbsp;
-                    <select name="dialog_hunit"><option value="px">px</option><option value="%">%</option></select>
+                    <select name="dialog_hunit"><option value="px">px</option><option value="em">em</option><option value="%">%</option></select>
                     <label>&nbsp;<span>Height:</span> <input name="dialog_height" maxlength="3" size="3" value="400"></label>&nbsp;
-                    <select name="dialog_wunit"><option value="px">px</option><option value="%">%</option></select>
+                    <select name="dialog_wunit"><option value="px">px</option><option value="em">em</option><option value="%">%</option></select>
 
                 </div>
 
@@ -792,9 +793,9 @@
                     </div>
 
                     <label>&nbsp;&nbsp;&nbsp;<span id="pt_label">Top:</span> <input name="dialog_top" maxlength="3" size="3" value="300"></label>&nbsp;
-                    <select name="dialog_tunit"><option value="px">px</option><option value="%">%</option></select>
+                    <select name="dialog_tunit"><option value="px">px</option><option value="em">em</option><option value="%">%</option></select>
                     <label>&nbsp;<span id="pl_label">Left:</span> <input name="dialog_left" maxlength="3" size="3" value="400"></label>&nbsp;
-                    <select name="dialog_lunit"><option value="px">px</option><option value="%">%</option></select>
+                    <select name="dialog_lunit"><option value="px">px</option><option value="em">em</option><option value="%">%</option></select>
 
                 </div>
 

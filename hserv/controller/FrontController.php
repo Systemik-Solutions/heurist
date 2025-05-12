@@ -26,6 +26,7 @@ use hserv\records\import\ImportAnnotations;
 use hserv\System;
 use hserv\utilities\USanitize;
 use hserv\structure\ConceptCode;
+use hserv\web\WebSite;
 
 /**
  * Class FrontController
@@ -58,7 +59,7 @@ class FrontController
     public function __construct($params=null)
     {
         // Take from GET or POST
-        $this->req_params = $this->req_params = is_array($params) ? $params : USanitize::sanitizeInputArray();
+        $this->req_params = is_array($params) ? $params : USanitize::sanitizeInputArray();
 
         $system = new System();
         if (!$system->init(@$this->req_params['db'])) {
@@ -94,6 +95,12 @@ class FrontController
 
             $controller = new ReportController($this->system, $this->req_params);
             $controller->handleRequest(@$this->req_params['action']);
+
+        }elseif(@$this->req_params['website']){
+
+            $controller = new WebSite($this->system, $this->req_params);
+            $controller->execute();
+
             
         }elseif(@$this->req_params['controller'] == 'ImportAnnotations'){
             

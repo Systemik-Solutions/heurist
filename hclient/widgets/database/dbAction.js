@@ -4,7 +4,7 @@
 *
 * @package     Heurist academic knowledge management system
 * @link        https://HeuristNetwork.org
-* @copyright   (C) 2005-2023 University of Sydney
+* @copyright   (C) 2005-2023 University of Sydney, (C) 2024 onwards Heurist Network
 * @author      Artem Osmakov   <osmakov@gmail.com>
 * @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
 * @version     4.0
@@ -31,7 +31,6 @@ $.widget( "heurist.dbAction", $.heurist.baseAction, {
     _progressInterval:0,
     _session_id:0,
     _select_file_dlg:null,
-    Heurist_Reference_Index: 'Heurist_Reference_Index',
 
     
     _init: function() {
@@ -103,7 +102,7 @@ $.widget( "heurist.dbAction", $.heurist.baseAction, {
                 this._$('a.dbLink').attr('href',
                     window.hWin.HAPI4.sysinfo['referenceServerURL']
                         +'?fmt=edit&recID='+window.hWin.HAPI4.sysinfo['db_registeredid']
-                        +'&db='+this.Heurist_Reference_Index)
+                        +'&db='+window.hWin.HAPI4.sysinfo.referenceServerIndexDatabase)
                        
                 this._$('.ent_wrapper').hide();
                 this._$("#div_result").show();
@@ -448,7 +447,7 @@ $.widget( "heurist.dbAction", $.heurist.baseAction, {
             this._$('a.dbLink').attr('href',
                 window.hWin.HAPI4.sysinfo['referenceServerURL']
                     +'?fmt=edit&recID='+response.dbID
-                    +'&db='+this.Heurist_Reference_Index);
+                    +'&db='+window.hWin.HAPI4.sysinfo.referenceServerIndexDatabase);
             
             
             //reload page

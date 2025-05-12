@@ -19,7 +19,7 @@
 *
 * @package     Heurist academic knowledge management system
 * @link        https://HeuristNetwork.org
-* @copyright   (C) 2005-2023 University of Sydney
+* @copyright   (C) 2005-2023 University of Sydney, (C) 2024 onwards Heurist Network
 * @author      Artem Osmakov   <osmakov@gmail.com>
 * @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
 * @version     4.0
@@ -921,7 +921,7 @@ class RecordsBatch
                     foreach($splitValues as $val){
                         $dtl['dtl_ID'] = -1;
                         $dtl['dtl_RecID'] = $recID;
-                        $dtl['dtl_DetailTypeID'] = $dtyID;
+                        $dtl['dtl_DetailTypeID'] = intval($dtyID);
                         $dtl['dtl_Value'] = $val;
                         $ret = mysql__insertupdate($mysqli, 'recDetails', 'dtl', $dtl);
                     }
@@ -2074,14 +2074,32 @@ public methods
         }
 
         $rec_count = count($record_ids);// this is to avoid multiple swf emails when creating records
+        $cur_count = 0;
+        if($this->session_id != null){
+            mysql__update_progress($mysqli, $this->session_id, true, "0,{$rec_count}");
+        }
 
-        $new_records = array();// final array of newly created records
+        $new_records = [];// final array of newly created records
 
         $keep_autocommit = mysql__begin_transaction($mysqli);
 
+        if(!$this->checkRecordStructure($target_rty, $source_ids, $source_rty)){
+            $mysqli->rollback();
+            if($keep_autocommit===true) {$mysqli->autocommit(true);}
+            return false;
+        }
+
         foreach($record_ids as $rec_id){
 
+            $cur_count ++;
             $rec_id = intval($rec_id);//snyk does not see intval in mysql__select_list2
+
+            if($this->session_id != null){
+                $current_val = mysql__update_progress($mysqli, $this->session_id, true, "{$cur_count},{$rec_count}");
+                if($current_val == 'terminate'){
+                    break;
+                }
+            }
 
             // 1. Get values -----
             $details_to_transfer = array();
@@ -2120,14 +2138,14 @@ public methods
 
             // 2. Create new sub-records -----
             // Include references to the parent record
-            $record = array(
+            $record = [
                 'ID' => 0,
                 'no_validation' => 'ignore_all',
                 'rec_RecTypeID' => $target_rty,
-                'details' => array(
-                    DT_PARENT_ENTITY => array($rec_id)
-                )
-            );
+                'details' => [
+                    DT_PARENT_ENTITY => [$rec_id]
+                ]
+            ];
 
             $new_rec_ids = array();
             if($split_values == 0){
@@ -2226,7 +2244,60 @@ public methods
 
         $final_count = count($new_records);// get final count of new records
 
-        return array('count' => $final_count, 'record_ids' => implode(',', $new_records));
+        return ['count' => $final_count, 'record_ids' => implode(',', $new_records)];
+    }
+
+    private function checkRecordStructure($rtyID, $dtyIDs, $importFromRty = 0){
+
+        $dtyIDs = prepareIds($dtyIDs);
+        $rtyID = intval($rtyID);
+        $importFromRty = intval($importFromRty);
+
+        if($rtyID <= 0 || empty($dtyIDs)){
+            $this->system->addError(HEURIST_ACTION_BLOCKED, $rtyID <= 0 ? 'Invalid record type to check has been provided' : 'No fields have been provided to check for');
+            return false;
+        }
+
+        $mysqli = $this->system->getMysqli();
+        $hasAllFields = true;
+
+        foreach($dtyIDs as $dtyID){
+
+            $hasFld = mysql__select_value($mysqli, "SELECT rst_ID FROM defRecStructure WHERE rst_DetailTypeID = ? AND rst_RecTypeID = ?", ['ii', $dtyID, $rtyID]);
+
+            if($hasFld > 0){
+                continue;
+            }
+
+            if($importFromRty <= 0){
+                $hasAllFields = $dtyID;
+                break;
+            }
+
+            $fieldDetails = mysql__select_row_assoc($mysqli, "SELECT * FROM defRecStructure WHERE rst_DetailTypeID = {$dtyID} AND rst_RecTypeID = {$importFromRty}");
+            if(empty($fieldDetails)){
+                $hasAllFields = $dtyID;
+                break;
+            }
+
+            unset($fieldDetails['rst_ID']);
+
+            $fieldDetails['rst_RecTypeID'] = $rtyID;
+
+            $rstID = mysql__insertupdate($mysqli, 'defRecStructure', 'rst', $fieldDetails, true);
+
+            if(!$rstID){
+                $hasAllFields = $dtyID;
+                break;
+            }
+        }
+
+        if(is_int($hasAllFields)){
+            $this->system->addError(HEURIST_ACTION_BLOCKED, "Record structure is missing field type {$hasAllFields}");
+            return false;
+        }
+
+        return true;
     }
 
     /**
@@ -2368,10 +2439,10 @@ public methods
 
                     foreach($text_nodes as $node){
 
-                        $text = $operation == 1 || $operation == 3 ? mb_strtolower($node->data) : $node->data;
+                        $text = $operation == 1 || $operation == 3 ? mb_strtolower($node->textContent) : $node->textContent;
                         $text = $operation == 4 ? mb_strtoupper($text) : $text;
 
-                        $node->data = $use_reg ? mb_ereg_replace_callback($regex, $callback, $text) : $text;
+                        $node->textContent = $use_reg ? mb_ereg_replace_callback($regex, $callback, $text) : $text;
                     }
 
                     $value = $doc->saveHTML();// save new value

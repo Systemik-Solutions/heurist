@@ -9,7 +9,7 @@ require_once dirname(__FILE__).'/utilities/USystem.php';
 *
 * @package     Heurist academic knowledge management system
 * @link        https://HeuristNetwork.org
-* @copyright   (C) 2005-2023 University of Sydney
+* @copyright   (C) 2005-2023 University of Sydney, (C) 2024 onwards Heurist Network
 * @author      Artem Osmakov   <osmakov@gmail.com>
 * @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
 * @version     4.0
@@ -35,13 +35,21 @@ if(!@$heuristReferenceServer){
 }
 
 define('HEURIST_DEF_DIR', '/heurist/'); //default Heurist folder
-define('HEURIST_MAIN_SERVER', $heuristReferenceServer);
-define('HEURIST_INDEX_BASE_URL', $heuristReferenceServer.HEURIST_DEF_DIR);//central index and template databases url
+if(isset($heuristReferenceServerMirror) && $heuristReferenceServerMirror!=''){
+    define('HEURIST_MAIN_SERVER', $heuristReferenceServerMirror);
+    define('HEURIST_INDEX_DATABASE', 'Heurist_Reference_Index_MIRROR');
+    define('HEURIST_BUGREPORT_DATABASE', 'Heurist_Job_Tracker_MIRROR');
+    define('HEURIST_HELP_DATABASE', 'Heurist_Help_System_MIRROR');
+}else{
+    define('HEURIST_MAIN_SERVER', $heuristReferenceServer);
+    define('HEURIST_INDEX_DATABASE', 'Heurist_Reference_Index');
+    define('HEURIST_BUGREPORT_DATABASE', 'Heurist_Job_Tracker');
+    define('HEURIST_HELP_DATABASE', 'Heurist_Help_System');
+}
+define('HEURIST_INDEX_BASE_URL', HEURIST_MAIN_SERVER.HEURIST_DEF_DIR);//central index and template databases url
 define('HEURIST_INDEX_DBREC', '1-22');//concept code for record type "Registered Database" in Heurist Reference Index (HEURIST_INDEX_DATABASE)
 
-define('HEURIST_INDEX_DATABASE', 'Heurist_Reference_Index');
-define('HEURIST_BUGREPORT_DATABASE', 'Heurist_Job_Tracker');
-define('HEURIST_HELP', $heuristReferenceServer.HEURIST_DEF_DIR.'help');
+define('HEURIST_HELP', HEURIST_MAIN_SERVER.HEURIST_DEF_DIR.'help');
 
 if (@$httpProxy != '') {
     define('HEURIST_HTTP_PROXY_ALWAYS_ACTIVE', (isset($httpProxyAlwaysActive) && $httpProxyAlwaysActive===true));//always use proxy for CURL
@@ -203,7 +211,7 @@ $glb_lang_codes = null;
 
 //common languages for translation database definitions (ISO639-2 codes)
 if(!isset($common_languages_for_translation)){
-    $common_languages_for_translation = array('ENG','FRE','CHI','SPA','ARA','GER','POR','LAT','GRE','GRC');
+    $common_languages_for_translation = array('ENG','FRE','CHI','SPA','ITA','ARA','GER','POR','LAT','GRE','GRC');
 }
 
 //---------------------------------
@@ -229,6 +237,7 @@ define('DIR_FILEUPLOADS','file_uploads/');
 define('DIR_WEBIMAGECACHE','webimagecache/');
 define('DIR_BLURREDIMAGECACHE','blurredimagescache/');
 define('DIR_GENERATED_REPORTS','generated-reports/');
+define('DIR_GENERATED_HTML','html-output/');
 define('DIR_SMARTY_TEMPLATES', 'smarty-templates/');
 
 
@@ -556,9 +565,9 @@ function dataOutput($data, $filename=null, $mimeType=null)
     echo $data;
 }
 
-function includeJQuery(){
+function includeJQuery($useVersion3=false){
 
-   $useVersion3 =  false;
+   //$useVersion3 =  false;
 
    if ($useVersion3) {
            // integrity has been got with https://www.srihash.org/

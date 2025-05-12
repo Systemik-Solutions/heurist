@@ -3,7 +3,7 @@
 *
 * @package     Heurist academic knowledge management system
 * @link        https://HeuristNetwork.org
-* @copyright   (C) 2005-2023 University of Sydney
+* @copyright   (C) 2005-2023 University of Sydney, (C) 2024 onwards Heurist Network
 * @author      Artem Osmakov   <osmakov@gmail.com>
 * @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
 * @version     4.0
@@ -1222,7 +1222,7 @@ $.widget( "heurist.manageDefRecTypes", $.heurist.manageEntity, {
                 
             let $s = $('<div style="margin: 15px 0 20px 175px;'
             +'padding: 10px 10px 5px;display: block;">'
-            +'<div class="input-cell"><span style="display:inline-block"><button></button></span>'
+            +'<div class="input-cell"><span style="display: inline-block; padding-left: 20px; padding-bottom: 10px;"><button></button></span>'
             +'<span class="heurist-helper3" style="display:inline-block;vertical-align: middle;padding-left: 20px;">'
             + window.hWin.HR('manageDefRectypes_edit_fields_hint')
             +'</span>'

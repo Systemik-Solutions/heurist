@@ -21,7 +21,7 @@ use hserv\report\ReportRecord;
 *
 * @package     Heurist academic knowledge management system
 * @link        https://HeuristNetwork.org
-* @copyright   (C) 2005-2023 University of Sydney
+* @copyright   (C) 2005-2023 University of Sydney, (C) 2024 onwards Heurist Network
 * @author      Artem Osmakov   <osmakov@gmail.com>
 * @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
 * @version     4.0
@@ -812,19 +812,25 @@ function recordSave($system, $record, $use_transaction=true, $suppress_parent_ch
         $stage_name = mysql__select_value($mysqli, 'select trm_Label from defTerms where trm_ID='.$new_swf_stage);
         $user = $system->getCurrentUser();
         $user = @$user['ugr_FullName'];
+        $user = $user ?: $system->getUserId();
 
         $title = HEURIST_DBNAME . ", ID: $recID >> workflow: $stage_name";
         $msg = !empty($swf_body) ? $swf_body : '<b>'.$title.'</b> '
         .'<a href="'.HEURIST_BASE_URL.'hclient/framecontent/recordEdit.php?db='.HEURIST_DBNAME.'&recID='.$recID.'">Record #'.$recID
         .'  "'.USanitize::sanitizeString($newTitle, false).'"</a><br>'
         .' has been changed to "'.$stage_name
-        .'"<br><br> by user: '.($user?$user:$system->getUserId());
+        .'"<br><br> by user: '.$user;
 
         if($total_record_count > 1){
             $msg = $msg . '<br><br><i>This is the first of multiple records'. ($modeImport > 0 ? ' imported' : '') .'. Please visit database for additional records.</i>';
         }
 
-        $msg = str_replace('#title#', $newTitle, $msg);
+        $rec_view = $system->recordLink($recID);
+        $rec_edit = strpos($rec_view, '/view/') !== false
+                        ? str_replace('/view/', '/edit/', $rec_view)
+                        : HEURIST_BASE_URL_PRO . "?fmt=edit&recID={$recID}&db=" . HEURIST_DBNAME;
+
+        $msg = str_replace(['#title#', '#link_v#', '#link_e#'], [$newTitle, $rec_view, $rec_edit], $msg);
 
         $res = sendPHPMailer(HEURIST_MAIL_TO_ADMIN, 'Heurist DB '.HEURIST_DBNAME.'. ID: '.$recID, //'Workflow stage update notification',
                     $swf_emails, $title, $msg, null, true);
@@ -2192,6 +2198,8 @@ function recordUpdateTitle($system, $recID, $rectype_or_mask, $recTitleDefault)
         $mask = $rectype_or_mask;
     }
 
+    $recID = intval($recID);
+
     if($mask == null)
     {
         if(!isPositiveInt($rectype)){
@@ -2227,12 +2235,12 @@ function recordUpdateTitle($system, $recID, $rectype_or_mask, $recTitleDefault)
         $new_title = mb_substr($new_title,0,1023);
     }
 
-    $res = mysql__exec_param_query($mysqli, 'UPDATE Records set rec_Title=? where rec_ID='.intval($recID), array('s',$new_title) );
+    $params = ['ss', $new_title, date(DATE_8601)];
+    $res = mysql__exec_param_query($mysqli, "UPDATE Records set rec_Title=?, rec_Modified=? where rec_ID={$recID}", $params );
     if($res!==true){
         $system->addError(HEURIST_DB_ERROR, 'Cannot save record title', $res);
         return false;
     }
-
 
     return $new_title;
 }
@@ -3251,6 +3259,8 @@ function _getRtConstraintNames($system, $dtyID, $rectype)
         $allowed_names = array();
 
         foreach($allowed_rectypes as $rty_ID){
+            $rty_ID = intval($rty_ID);
+            if(!isPositiveInt($rty_ID)) continue;
             $recstr = dbs_GetRectypeStructure($system, $recstructures, $rty_ID);
             array_push( $allowed_names, $recstructures[$rty_ID]['commonFields'][$idx_name] );
         }
@@ -3405,7 +3415,8 @@ function recordWorkFlowStage($system, &$record, $new_value, $is_insert){
 
         $recordField = intval($rule['swf_RecEmailField']);
         if($recordField > 0 && array_key_exists($recordField, $record['details'])){
-            foreach($record['details'][$recordField] as $email){
+            $emails = is_array($record['details'][$recordField]) ? $record['details'][$recordField] : [$record['details'][$recordField]];
+            foreach($emails as $email){
                 if(!filter_var($email, FILTER_VALIDATE_EMAIL) || array_search($email, $res['emails']) !== false){
                     continue;
                 }
@@ -3418,7 +3429,7 @@ function recordWorkFlowStage($system, &$record, $new_value, $is_insert){
             $new_stage_name = mysql__select_value($mysqli, "select trm_Label from defTerms where trm_ID = {$new_value}");
             $cur_user = $system->getCurrentUser()['ugr_FullName'];
 
-            $res['body'] = str_replace(['#stage#', '#user#'], [$new_stage_name, $cur_user], $rule['swf_EmailText']);
+            $res['body'] = str_replace(['#stage#', '#user#', '#url#'], [$new_stage_name, $cur_user, $record['URL']], $rule['swf_EmailText']);
 
             $res['body'] = mb_ereg_replace_callback('#(\d+)#', function($matches) use ($record, $mysqli){
 
@@ -3521,8 +3532,8 @@ function validateParentRecords($system, $child_record, &$new_child_details){
 
         $rectype_list_query = "SELECT dty_PtrTargetRectypeIDs, rst_ID FROM defDetailTypes INNER JOIN defRecStructure ON rst_DetailTypeID = dty_ID WHERE dty_ID = {$parent_dty_ID} AND dty_Type = 'resource' AND rst_RecTypeID = {$parent_type} AND rst_CreateChildIfRecPtr = 1";
         [$rectype_list, $rst_ID] = mysql__select_row($mysqli, $rectype_list_query);
-        $rst_ID ??= 0;
-        $rectype_list ??= '';
+        $rst_ID = $rst_ID ?? 0;
+        $rectype_list = $rectype_list ?? '';
         $rectype_list = explode(',', $rectype_list);
 
         if($rst_ID <= 0 || !empty($rectype_list) && !in_array($rectype_ID, $rectype_list)){
@@ -3626,7 +3637,7 @@ function recordUpdateMaskFields($system, $recID, $rtyID = 0, $verbose = false){
                 continue;
             }elseif(!empty($reason)){ // value doesn't match the mask, leave value unchanged
                 if(!array_key_exists($dtyID, $result)){
-                    $result[$dtyID] = [ 'mask' => $mask ];
+                    $result[$dtyID] = [];
                 }
 
                 $result[$dtyID][] = ['value' => $org_value, 'reason' => $reason];
@@ -3642,7 +3653,7 @@ function recordUpdateMaskFields($system, $recID, $rtyID = 0, $verbose = false){
             $res = mysql__insertupdate($mysqli, 'recDetails', 'dtl', ['dtl_ID' => $dtl_ID, 'dtl_Value' => $value]);
             if(!$res){ // failed to update record detail
                 if(!array_key_exists($dtyID, $result)){
-                    $result[$dtyID] = [ 'mask' => $mask ];
+                    $result[$dtyID] = [];
                 }
 
                 $result[$dtyID][] = ['value' => $value, 'reason' => 'Failed to update record detail'];
@@ -3683,7 +3694,8 @@ function updateMaskFieldsNumeric($type, $value, $length, $range) {
     $type_text = $type === 'd' ? 'a decimal number' : $type_text;
 
     if(is_numeric($value)){
-        $value = $type === 'i' ? intval($value) : floatval($value);
+        $value_str = strval($value);
+        $value = ($type === 'n' && substr_count($value_str, '.') == 1) || $type === 'd' ? floatval($value) : intval($value);
     }
 
     $reason = '';
@@ -3693,7 +3705,7 @@ function updateMaskFieldsNumeric($type, $value, $length, $range) {
     }elseif(count($range) === 2 && ($value < $range[0] || $value > $range[1])){
         $reason = "Out of range: {$range[0]} - {$range[1]}";
     }elseif(is_float($value)){
-        $value = number_format($value, $length);
+        $value = number_format($value, $length, '.', '');
     }
 
     return [$value, $reason];
@@ -3712,18 +3724,18 @@ function updateMaskFieldsNumeric($type, $value, $length, $range) {
 function updateMaskFields($type, $value, $length, $range){
 
     $reason = '';
+    $_PUNCTUATION = '.,\'"?!()\[\]-`:;/ ';
 
     switch($type){
 
         case 'a': // alphabetic, letters only
 
-            $leng_regex = $length > 0 ? "{{1,$length}}" : '';
-            $leng_regex = "~\w{$leng_regex}~";
+            $validate_alpha = "[^\w{$_PUNCTUATION}]";
 
-            if(preg_match($leng_regex, $value, $word) === 1){
-                $value = $word[0];
-            }else{
-                $reason = 'Not alphabetic';
+            if(mb_ereg_match($validate_alpha, $value)){
+                $reason = 'Contains non-alphabetic characters';
+            }elseif($length > 0 && strlen($value) > $length){
+                $reason = "Size exceeds set length {$length}";
             }
 
             break;
@@ -3738,14 +3750,12 @@ function updateMaskFields($type, $value, $length, $range){
 
         case 'm': // mixed, alphanumeric no special characters
 
-            $mixed_regex = '~[^\w\d]~';
-            $leng_regex = $length > 0 ? "{{1,$length}}" : '';
-            $leng_regex = "~[\w\d]{$leng_regex}~";
+            $validate_mixed = "[^\w\d{$_PUNCTUATION}]";
 
-            if(preg_match($mixed_regex, $value) !== 1){
+            if(mb_ereg_match($validate_mixed, $value)){
                 $reason = 'Contains non-alphanumeric characters';
-            }elseif(preg_match($leng_regex, $value, $mixed) === 1){
-                $value = $mixed[0];
+            }elseif($length > 0 && strlen($value) > $length){
+                $reason = "Size exceeds set length {$length}";
             }
 
             break;

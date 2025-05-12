@@ -2,7 +2,7 @@
 /**
 * @package     Heurist academic knowledge management system
 * @link        https://HeuristNetwork.org
-* @copyright   (C) 2005-2023 University of Sydney
+* @copyright   (C) 2005-2023 University of Sydney, (C) 2024 onwards Heurist Network
 * @author      Artem Osmakov   <osmakov@gmail.com>
 * @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
 * @version     4.0
@@ -522,7 +522,7 @@ class System {
             $folders['entity']        = array(null,'used to store icons and images for record types users,groups,terms', $allowWebAccessEntityFiles);
             $folders['backup']        = array(null,'used to write files for user data dump');
             $folders['uploaded_tilestacks'] = array('TILESTACKS','used to store uploaded map tiles', true, false);
-            //since 2023-06-02 $folders['documentation_and_templates'] = array('','', false, false);
+            //since 2023-06-02 $folders['documentation'] = array('','', false, false);
             $folders['faims']    = array('','');
             $folders['blurredimagescache'] = array(null,'(for blurred due to visibility settings)', true, false);
             $folders['webimagecache'] = array(null,'(for cached web images)', true, false);
@@ -891,14 +891,14 @@ class System {
         $mysql_gone_away_error = $this->mysqli && $this->mysqli->errno==2006;
         if($mysql_gone_away_error){
             $message =  $message
-            .' There is database server intermittens. '.CRITICAL_DB_ERROR_CONTACT_SYSADMIN;
+            .' There is database server interruption. '.CRITICAL_DB_ERROR_CONTACT_SYSADMIN;
         }else{
-            $message = 'Heurist was unable to process this request. ' . $message;
-            $sysmsg = 'Although errors are emailed to the Heurist team (for servers maintained directly by the project), there are several thousand Heurist databases, so we are unable to review all automated reports. If this is the first time you have seen this error, please try again in a few minutes in case it is a temporary network outage. Please contact us if this error persists and is causing you a problem, as this will help us identify important issues. We apologise for any inconvenience';
-        }
-
-        if(!$mysql_gone_away_error){
-            $message = "Heurist was unable to process this request.<br><strong>$message</strong><br>";
+            $message = "Heurist was unable to process this request. <br><strong>$message</strong><br>";
+            $sysmsg = 'Although errors are emailed to the Heurist team (for servers maintained directly by the project),'
+            .' there are several thousand Heurist databases, so we are unable to review all automated reports.'
+            .'If this is the first time you have seen this error, please try again in a few minutes in case it is '
+            .'a temporary network outage. Please contact us if this error persists and is causing you a problem,' 
+            .'as this will help us identify important issues. We apologise for any inconvenience';
         }
 
         $this->errors = array("status"=>$status, "message"=>$message, "sysmsg"=>$sysmsg, 'error_title'=>$title);
@@ -1031,6 +1031,9 @@ class System {
                         "baseURL"=>HEURIST_BASE_URL,
                         'baseURL_pro'=>HEURIST_BASE_URL_PRO,
                         "referenceServerURL"=>HEURIST_INDEX_BASE_URL,
+                        "referenceServerIndexDatabase"=>HEURIST_INDEX_DATABASE,
+                        "referenceServerBugreportDatabase"=>HEURIST_BUGREPORT_DATABASE,
+                        "referenceServerHelpDatabase"=>HEURIST_HELP_DATABASE,
                         'database_prefix'=>HEURIST_DB_PREFIX),
                     'host_logo'=>$host_logo,
                     'host_url'=>$host_url,
@@ -1078,6 +1081,9 @@ class System {
                     'database_prefix'=>HEURIST_DB_PREFIX,
                     //"serverURL"=>HEURIST_SERVER_URL,
                     "referenceServerURL"=>HEURIST_INDEX_BASE_URL,
+                    "referenceServerIndexDatabase"=>HEURIST_INDEX_DATABASE,
+                    "referenceServerBugreportDatabase"=>HEURIST_BUGREPORT_DATABASE,
+                    "referenceServerHelpDatabase"=>HEURIST_HELP_DATABASE,
                     "dbconst"=>$this->getLocalConstants( $include_reccount_and_dashboard_count ), //some record and detail types constants with local values specific for current db
                     "service_config"=>$this->settings->get('sys_ExternalReferenceLookups'), //get 3d part web service mappings
                     "services_list"=>$this->getWebServiceConfigs(), //get list of all implemented lookup services
@@ -1127,6 +1133,15 @@ class System {
                 $res['sysinfo']['db_total_records'] = $res2[0];
                 $res['sysinfo']['db_has_active_dashboard'] = $res2[1];
                 $res['sysinfo']['db_workset_count'] = $res2[2];
+            }
+
+            $filestoreRoot = $this->getFileStoreRootFolder();
+            if(!empty($filestoreRoot)){
+
+                $statsFile = "{$filestoreRoot}_DB_STATS/db_stats.txt";
+                $lastUpdate = file_exists($statsFile) ? filemtime($statsFile) : false;
+
+                $res['sysinfo']['refreshStatistics'] = !$lastUpdate || $lastUpdate < strtotime('-1 month') ? 1 : 0;
             }
 
             recreateRecLinks( $this, false );//see utils_db

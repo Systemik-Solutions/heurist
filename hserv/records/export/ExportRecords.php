@@ -14,7 +14,7 @@
 *
 * @package     Heurist academic knowledge management system
 * @link        https://HeuristNetwork.org
-* @copyright   (C) 2005-2023 University of Sydney
+* @copyright   (C) 2005-2023 University of Sydney, (C) 2024 onwards Heurist Network
 * @author      Artem Osmakov   <osmakov@gmail.com>
 * @author      Ian Johnson     <ian.johnson.heurist@gmail.com>
 * @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
@@ -482,6 +482,8 @@ abstract class ExportRecords {
                 header('Access-Control-Max-Age: 5');// default value 5 sec
             }
             //2024-02-23 else header(HEADER_CORS_POLICY);
+        }elseif($format=='iiif'){
+            header(HEADER_CORS_POLICY);            
         }
 
         header($mimeType);

@@ -1,7 +1,7 @@
 /**
 * @package     Heurist academic knowledge management system
 * @link        https://HeuristNetwork.org
-* @copyright   (C) 2005-2023 University of Sydney
+* @copyright   (C) 2005-2023 University of Sydney, (C) 2024 onwards Heurist Network
 * @author      Artem Osmakov   <osmakov@gmail.com>
 * @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
 * @version     4.0
@@ -37,7 +37,7 @@
 * @type Array
 */
 
-window.cfg_widgets = [
+window.hWin.cfg_widgets = [
 
     {id:'heurist_Search', name:'Search', widgetname:'search', script:'hclient/widgets/search/search.js', minh:80, minw:150},
     {id:'heurist_SearchInput', name:'Filter', widgetname:'searchInput', script:'hclient/widgets/search/searchInput.js', minh:27, minw:150},
@@ -49,6 +49,11 @@ window.cfg_widgets = [
     {id:'heurist_controlPanel', name:'Control Panel', widgetname:'controlPanel', script:'hclient/widgets/cpanel/controlPanel.js'},
     {id:'heurist_slidersMenu', name:'Main Side Menu', widgetname:'slidersMenu', script:'hclient/widgets/cpanel/slidersMenu.js'},
     {id:'heurist_resultList', name:'Search Result', widgetname:'resultList', script:'hclient/widgets/viewers/resultList.js', minh:150, minw:150},
+    
+    {id:'HRecordView', name:'RecordView', widgetname:'HRecordView', script:'hclient/widgets/HRecordList/HRecordView.js'},
+    {id:'HRecordList', name:'Records', widgetname:'HRecordList', script:'hclient/widgets/HRecordList/HRecordList.js'},
+    {id:'HMenu', name:'Menu', widgetname:'HMenu', script:'hclient/widgets/HMenu/HMenu.js'},
+    
     {id:'heurist_resultListDataTable', name:'List View', widgetname:'resultListDataTable', script:'hclient/widgets/viewers/resultListDataTable.js'},
     {id:'heurist_resultListExt', name:'&nbsp;&nbsp;&nbsp;', widgetname:'recordListExt', script:'hclient/widgets/viewers/recordListExt.js'},
     {id:'heurist_resultListCollection', name:'Records Collection', widgetname:'resultListCollection', script:'hclient/widgets/viewers/resultListCollection.js'},
@@ -102,7 +107,7 @@ options - parameters to init application
 
 */
 
-window.cfg_layouts = [
+window.hWin.cfg_layouts = [
 
     // Default layout - the standard Heurist interface, used if no parameter provided
     // TODO: change the id and name to jsut HeuristDefault and Heurist Default - h4 and h3 are hangovers from old versions

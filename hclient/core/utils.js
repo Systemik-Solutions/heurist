@@ -8,7 +8,7 @@
 *
 * @package     Heurist academic knowledge management system
 * @link        https://HeuristNetwork.org
-* @copyright   (C) 2005-2023 University of Sydney
+* @copyright   (C) 2005-2023 University of Sydney, (C) 2024 onwards Heurist Network
 * @author      Artem Osmakov   <osmakov@gmail.com>
 * @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
 * @version     4.0
@@ -30,7 +30,9 @@ if (!window.hWin.HEURIST4){
 //init only once
 if (!window.hWin.HEURIST4.util) 
 {
-
+    
+window.hWin.HEURIST4.cssFilesAdded = [];
+    
 window.hWin.HEURIST4.util = {
 
 
@@ -332,6 +334,7 @@ window.hWin.HEURIST4.util = {
                 }
             }
             catch (err) {
+//console.log(err);                
                 res = false;
             } 
             
@@ -345,6 +348,10 @@ window.hWin.HEURIST4.util = {
 
         if(!query){
             query = window.location.search;
+        }else if(query.startsWith('http')){
+            let parts = query.split('?');
+            parts.shift();
+            query = parts.join('?');
         }
 
         const urlParams = new URLSearchParams(query);
@@ -1321,6 +1328,48 @@ if (!Array.prototype.unique){
     };
 }
 */
+}
+
+
+$.getStyles = function(path){
+
+    /*
+    if(window.hWin.HEURIST4.cssFilesAdded.indexOf(path) !== -1) {
+       return    
+    }
+    window.hWin.HEURIST4.cssFilesAdded.push(path);
+    */
+
+    var head = document.getElementsByTagName('head')[0] 
+    // Creating link element 
+    var style = document.createElement('link');
+    style.href = path;
+    style.type = 'text/css';
+    style.rel = 'stylesheet';
+    head.append(style); 
+}
+
+function selectorExists(selector) { 
+    
+    function getAllSelectors() { 
+        var ret = [];
+        for(var i = 0; i < document.styleSheets.length; i++) {
+            if(document.styleSheets[i].href!=null) continue;
+            try{
+                var rules = document.styleSheets[i].rules || document.styleSheets[i].cssRules;
+                for(var x in rules) {
+                    if(typeof rules[x].selectorText == 'string') ret.push(rules[x].selectorText);
+                }
+            }catch(e){} //to avoid security error
+        }
+        return ret;
+    }
+    
+    var selectors = getAllSelectors();
+    for(var i = 0; i < selectors.length; i++) {
+        if(selectors[i] == selector) return true;
+    }
+    return false;
 }
 
 
