@@ -84,6 +84,11 @@ $system->defineConstants();
 
 
 <style>
+
+html, body{
+        height: 100%;
+    }
+
     .ui-map-document { background-image: url('<?php echo PDIR;?>hclient/assets/mapdocument.png') !important;}
     .ui-map-layer { background-image: url('<?php echo PDIR;?>hclient/assets/maplayer.png') !important;}
 
