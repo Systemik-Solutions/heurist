@@ -3,7 +3,7 @@
 * 
 * @package     Heurist academic knowledge management system
 * @link        https://HeuristNetwork.org
-* @copyright   (C) 2005-2023 University of Sydney
+* @copyright   (C) 2005-2023 University of Sydney, (C) 2024 onwards Heurist Network
 * @author      Artem Osmakov   <osmakov@gmail.com>
 * @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
 * @version     4.0
@@ -134,7 +134,9 @@ function editCMS_SelectElement( callback ){
             },
             open: function(){
                 $dlg.find('.heurist-online-help').attr('href',
-                window.hWin.HAPI4.sysinfo.referenceServerURL+'?db=Heurist_Help_System&website&id=39&pageid=708');
+                window.hWin.HAPI4.sysinfo.referenceServerURL
+                +'?db='+window.hWin.HAPI4.sysinfo.referenceServerHelpDatabase
+                +'&website=39&pageid=708');
 
                 //load list of groups and elements and init selector
                 let sel = $dlg.find('#components');

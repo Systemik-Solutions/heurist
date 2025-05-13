@@ -3,7 +3,7 @@
 *
 * @package     Heurist academic knowledge management system
 * @link        https://HeuristNetwork.org
-* @copyright   (C) 2005-2023 University of Sydney
+* @copyright   (C) 2005-2023 University of Sydney, (C) 2024 onwards Heurist Network
 * @author      Artem Osmakov   <osmakov@gmail.com>
 * @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
 * @version     4.0
@@ -273,9 +273,10 @@ window.hWin.HEURIST4.dbs = {
      * @param {number} $mode - $mode 
      *    3 - for record title mask editor - without reverse, enum (id,label,code,internal id) - max levels depth is calculated
      *    4 - find reverse links and relations   
-     *    5 - for faceted search wiz, filter builder - lazy treeview with reverse links
+     *    5 - filter builder - lazy treeview with reverse links
      *    6 - for import structure, export csv - lazy tree without reverse
      *    7 - for smarty - lazy tree without reverse, with relationship stub and enum (id,label,code,internal id)
+     *    8 - for faceted search wiz - same as mode 5 minus record exists options
      * @param {Array} rectypeids - set of rty ids 
      * @param {Array} fieldtypes - array of fieldtypes, 
      *               all
@@ -469,6 +470,13 @@ window.hWin.HEURIST4.dbs = {
                             
                         });
 
+                        if($mode == 5){ // for search builder only
+                            const rty_Name = $Db.rty($recTypeId, 'rty_Name');
+                            $grouped.push(
+                                {title: `${rty_Name} relationship records`, code: `${$recTypeId}:exists`, key: 'exists', type: 'freetext', name: rty_Name}
+                            );
+                        }
+
                         $grouped.push(
                             {title:'<span style="font-style:italic">Relationship Fields</span>', folder:true, 
                                         is_generic_fields:true, children:$rl_children});
@@ -638,7 +646,7 @@ window.hWin.HEURIST4.dbs = {
 
                     //--------------------------------------------
                     //find all reverse links and relations
-                    if( ($mode==4 && $recursion_depth<2) || ($mode==5 && $recursion_depth==0) )
+                    if( ($mode==4 && $recursion_depth<2) || (($mode==5 || $mode==8) && $recursion_depth==0) )
                     {
                         let rev_fields = {};
                         let reverse_fields = rst_links.reverse[$recTypeId]; //all:, dty_ID:[rty_ID,...]
@@ -709,7 +717,7 @@ window.hWin.HEURIST4.dbs = {
 
                 $res['children'] = $children;
                 
-            }else if($mode==5 || $mode==6) //----------------------------------- for query builder and facet search tree
+            }else if($mode==5 || $mode==6 || $mode==8) //----------------------------------- for query builder and facet search tree
             {
                 //record type is array - add common fields only
                 
@@ -870,7 +878,7 @@ window.hWin.HEURIST4.dbs = {
                 
                 if ($mode==4 || $mode==3){ //record titlemask
                    //max_allowed_depth = 3; calculated
-                }else if ($mode==5 || $mode==6 || $mode==7) //make it 1 for lazy load
+                }else if ($mode==5 || $mode==6 || $mode==7 || $mode==8) //make it 1 for lazy load
                    max_allowed_depth = 1; 
                                                                 
                 if($recursion_depth<max_allowed_depth){
@@ -885,7 +893,7 @@ window.hWin.HEURIST4.dbs = {
                                 $dt_title = "<span>&lt;&lt; <span style='font-weight:bold'>" 
                                         + $Db.rty($recTypeId, 'rty_Name') + "</span> . " + $dt_title + '</span>';
                                 
-                                if($mode==5 || $mode==6){
+                                if($mode==5 || $mode==6 || $mode==8){
                                     $res['lazy'] = true;
                                 }
 
@@ -905,11 +913,11 @@ window.hWin.HEURIST4.dbs = {
                             let $is_required = ($dtValue['rst_RequirementType']=='required');
                             let $rectype_ids = $pointerRecTypeId.split(",");
                              
-                            if($mode==4 || $mode==5 || $mode==6){
+                            if($mode==4 || $mode==5 || $mode==6 || $mode==8){
                                 
                                 let $type_name = $Db.baseFieldType[$detailType];
                                 
-                                $dt_title = ' <span'+($mode!=5?' style="font-style:italic"':'')
+                                $dt_title = ' <span'+($mode!=5 && $mode!=8?' style="font-style:italic"':'')
                                     +'>' + $dt_title 
                                     +'</span> <span style="font-size:0.7em">(' + $type_name + ')</span>';
                             }else{
@@ -921,7 +929,7 @@ window.hWin.HEURIST4.dbs = {
                             if($pointerRecTypeId=="" || $rectype_ids.length==0){ //unconstrainded
                                                     //
                                
-                                if($mode==5){
+                                if($mode==5 || $mode==8){
                                     $res['rt_ids'] = '';
                                     $res['lazy'] = true;
                                 }else{
@@ -935,7 +943,7 @@ window.hWin.HEURIST4.dbs = {
                                     $res['constraint'] = $rectype_ids.length;
                                     if($mode<5) $res['children'] = [];
                                 }
-                                if($mode==5 || $mode==6 || $mode==7){ 
+                                if($mode==5 || $mode==6 || $mode==7 || $mode==8){ 
                                     $res['rt_ids'] = $pointerRecTypeId;
                                     $res['lazy'] = true;
                                     
@@ -989,7 +997,7 @@ window.hWin.HEURIST4.dbs = {
                 
             } 
             $res['key'] = "f:"+$dtID;
-            if($mode==4 || $mode==5 || $mode==6){
+            if($mode==4 || $mode==5 || $mode==6 || $mode==8){
                     
                 let $stype = ($detailType=='resource' || $detailType=='relmarker' || $detailType=='separator')?'':$Db.baseFieldType[$detailType];
                 if($reverseRecTypeId!=null){
@@ -2174,7 +2182,7 @@ window.hWin.HEURIST4.dbs = {
                         trn_Source: 'trm_Label', 
                         trn_Code: term_id}).getFirstRecord();
                     if(rec && Object.keys(rec).length > 0){
-                        return  translations.fld(rec, 'trn_Translation');
+                        return translations.fld(rec, 'trn_Translation');
                     }
                 }
             }
@@ -3020,6 +3028,252 @@ window.hWin.HEURIST4.dbs = {
 
         return dty_IDs;
 
+    },
+
+    /**
+     * Interpret entry mask into human readable text, to be shown to users
+     *
+     * @param {string} mask - Entry mask to interpret
+     *
+     * @returns {[string, string]} [mask in human readable text, mask with "vaule" inserted]
+     */
+    rst_InterpretEntryMask: function(mask){
+
+        /**
+         * Mask as help text
+         *
+         * @param {string} type - single character representing the mask's type
+         * @param {string|integer} length - value length
+         * @param {[string|integer, string|integer]} range - [min, max] value for number values
+         *
+         * @returns {string} help text
+         */
+        function getHelpText(type, length, range){
+
+            let help_text = '';
+
+            switch(type){
+
+                case 'a':
+                    help_text = 'a string';
+                    break;
+
+                case 'd':
+                    help_text = `a decimal`;
+                    break;
+
+                case 'i':
+                    help_text = `an integer`;
+                    break;
+
+                case 'm':
+                    help_text = `a mixed (alphanumeric) value`;
+                    break;
+
+                case 'n':
+                    help_text = `a numeric value`;
+                    break;
+
+                default:
+                    break;
+            }
+            
+            if(range?.length == 2){
+                
+                switch(type){
+
+                    case 'd':
+                    case 'i':
+                    case 'n':
+                        help_text = ` ${range[0]} to ${range[1]}`;
+                        break;
+
+                    default:
+                        break;
+                }
+            }
+
+            if(length > 0){
+
+                switch(type){
+
+                    case 'a':
+                        help_text += ` with a maximum of ${length} characters`;
+                        break;
+
+                    case 'd':
+                    case 'n':
+                        help_text += `, rounded to ${length} decimal places`;
+                        break;
+
+                    default:
+                        break;
+                }
+            }
+
+            return help_text;
+        }
+        
+        let matches = mask.match(/\$([adimn])(\d)*(\(\d,?\d*\))*\$/);
+        let rtn = ['', ''];
+
+        if(!matches){
+            return rtn;
+        }
+
+        let length = matches.length > 2 && Number.isInteger(+matches[2]) ? Number.parseInt(matches[2]) : 0;
+
+        let range = matches.length > 2 && matches[2] && !Number.isInteger(+matches[2]) && matches[2].startsWith('(') ? matches[2].replaceAll(/\(\)/g, '').split(',') : null;
+        range = matches.length > 3 && matches[3] && !Number.isInteger(+matches[3]) && matches[3].startsWith('(') ? matches[3].replaceAll(/\(\)/g, '').split(',') : range;
+
+        let temp = null;
+        if(range?.length == 2 && range[0] > range[1]){
+            temp = range[0];
+            range[0] = range[1];
+            range[1] = temp;
+        }
+
+        rtn[0] = getHelpText(matches[1], length, range);
+
+        rtn[1] = mask.replace(matches[0], '&lt;value&gt;');
+
+        return rtn;
+    },
+
+    /**
+     * Test entry mask against provided value
+     *
+     * @param {string} mask - entry mask
+     * @param {string} value - value to test
+     * @param {boolean} true_on_success - returns true on success instead of the actual answer
+     *
+     * @returns whether the value is valid for the provided mask
+     */
+    rst_RunEntryMask: function(mask, value, true_on_success = false){
+
+        function handleNumbers(type, mask, to_replace, value, length, range){
+
+            if(value.match(/[^\d.]/) !== null){
+                return 'Input contains non-numeric characters';
+            }
+
+            let output_length = value.length;
+            let output = type === 'i' ? Number.parseInt(value) : Number.parseFloat(value);
+            output = type !== 'i' && length > 0 ? Number(output).toFixed(length) : output;
+
+            let as_int = Number.parseInt(output);
+
+            let type_text = type === 'i' ? 'an integer' : 'numeric';
+            type_text = type === 'd' ? 'decimal' : type_text;
+
+            if(output === 'NaN'){
+                output = `Input is not ${type_text}`;
+            }else if(range?.length == 2 && (as_int < range[0] || as_int > range[1])){
+                output = `Input is out of range ${range[0]} - ${range[1]}`;
+            }else if(type === 'i' && length > 0 && output_length > length){
+                output = `Input has too many digits, limited to ${length} digits`;
+            }else{
+                output = mask.replace(to_replace, output);
+            }
+
+            return output;
+        }
+
+        function getTestOutput(to_replace, mask, mask_type, value, length, range){
+
+            let output = '';
+            let regex_results = null;
+
+            switch(mask_type){
+
+                case 'a':
+
+                    regex_results = value.match(/^[\w.,'"?!()[\]\-`:;/ ]+$/);
+
+                    output = regex_results === null ? 'Input is not alphabetic' : mask.replace(to_replace, regex_results[0]);
+                    output = length > 0 && regex_results !== null && output.length > length ? `Input is larger than ${length} characters` : output;
+
+                    break;
+
+                case 'd':
+                case 'i':
+                case 'n':
+
+                    output = handleNumbers(mask_type, mask, to_replace, value, length, range);
+
+                    break;
+
+                case 'm':
+
+                    regex_results = value.match(/^[\w\d.,'"?!()[\]\-`:;/ ]+$/);
+
+                    output = regex_results === null ? 'Input contains non-alphaetic letters or numbers' : mask.replace(to_replace, regex_results[0]);
+                    output = length > 0 && regex_results !== null && output.length > length ? `Input is larger than ${length} characters` : output;
+
+                    break;
+
+                default:
+                    output = `Mask's format is invalid, unknown type`;
+                    break;
+            }
+
+            return output;
+        }
+
+        let matches = mask.match(/\$([adimn])(\d)*(\(\d,?\d*\))*\$/);
+
+        if(!matches){
+            return 'Invalid entry mask provided';
+        }
+
+        let length = matches.length > 2 && Number.isInteger(+matches[2]) ? Number.parseInt(matches[2]) : 0;
+
+        let range = matches.length > 2 && matches[2] && !Number.isInteger(+matches[2]) && matches[2].startsWith('(') ? matches[2].replaceAll(/\(\)/g, '').split(',') : null;
+        range = matches.length > 3 && matches[3] && !Number.isInteger(+matches[3]) && matches[3].startsWith('(') ? matches[3].replaceAll(/\(\)/g, '').split(',') : range;
+
+        let temp = null;
+        if(range?.length == 2 && range[0] > range[1]){
+            temp = range[0];
+            range[0] = range[1];
+            range[1] = temp;
+        }
+
+        let output = getTestOutput(matches[0], mask, matches[1], value, length, range);
+
+        let mask_parts = mask.split(matches[0]);
+
+        let bool_output = output.startsWith(mask_parts[0])
+            && (mask_parts.length == 1 || window.hWin.HEURIST4.util.isempty(mask_parts[1]) || output.endsWith(mask_parts[1]));
+
+        return true_on_success && bool_output === true ? true : output;
+    },
+
+    trm_RemoveDupHierarchy: function(label, trm_separator = '.'){
+
+        if(window.hWin.HEURIST4.util.isempty(label) || label.indexOf(trm_separator) === -1){
+            return label;
+        }
+
+        trm_separator = window.hWin.HEURIST4.util.isempty(trm_separator) ? '.' : trm_separator;
+
+        let parts = label.split(trm_separator);
+        let i = 1;
+
+        while(i < parts.length){
+
+            let prefix = parts.slice(0, i).join(trm_separator);
+            let remainder = parts.slice(i).join(trm_separator);
+
+            // check if prefix appears at start
+            if(remainder.startsWith(prefix)){ // remove repeated prefix and restart
+                parts = parts.slice(i);
+                i = 1;
+            }else{ // no repeat, continue searching
+                i++;
+            }
+        }
+
+        return parts.join(trm_separator);
     }
 
 }//end dbs

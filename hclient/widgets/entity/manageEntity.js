@@ -3,7 +3,7 @@
 *
 * @package     Heurist academic knowledge management system
 * @link        https://HeuristNetwork.org
-* @copyright   (C) 2005-2023 University of Sydney
+* @copyright   (C) 2005-2023 University of Sydney, (C) 2024 onwards Heurist Network
 * @author      Artem Osmakov   <osmakov@gmail.com>
 * @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
 * @version     4.0
@@ -796,8 +796,6 @@ $.widget( "heurist.manageEntity", {
         };
         
         request[this.options.entity.keyField] = arr_ids;
-        
-       
         
         window.hWin.HAPI4.EntityMgr.doRequest(request, callback);
     },
@@ -1646,6 +1644,13 @@ $.widget( "heurist.manageEntity", {
             }*/
         }
     },
+
+    //
+    // to override
+    //
+    onEditFormNewInput: function(added_element){
+        return;
+    },
     
     //
     //
@@ -1719,6 +1724,9 @@ $.widget( "heurist.manageEntity", {
                 oninit:function(){
                     that._editing = this;
                     that._initEditForm_step2(recID);        
+                },
+                onrecreate: function(){
+                    that.onEditFormNewInput(this);
                 }
             }); //pass container
             

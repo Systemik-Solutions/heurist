@@ -132,23 +132,11 @@
 
 
 /** SVG */
-#d3svg {
-    /* border: 1px dashed #423896; */
-}
-
-/** Record hover */
-g:hover {
-    /*cursor: pointer;*/
-}
 
 /** Lines between records */
 .link {
     fill: none;    
     stroke-opacity: 0.7;  
-}
-
-.link:hover {
-    /*cursor: pointer;*/
 }
 
 /** Circle around icon */
@@ -168,6 +156,10 @@ circle.selected {
 }
 
 /** Text above circle */
+text {
+    cursor: default !important;
+}
+
 text.center {
     font-weight: bold;
     text-anchor: middle;   
@@ -216,17 +208,14 @@ text.shadow {
 
 /**Node information iframe
   *ADDED BY ISH */
-  #iframeDiv {
+  #infoDiv {
     display: none;
     position: absolute;
-    right: 16px;
-    bottom: 0px;
+    right: 10px;
+    top: 3.5em;
     width: 30%;
-    height: 40%;
     min-width: 380px;
-    min-height: 330px;
     max-width: 380px;
-    max-height: 350px;
     box-shadow: 0 3px 10px rgb(0 0 0 / 0.2);
 }
 
@@ -302,7 +291,7 @@ text.shadow {
 .dropdown-content2, 
 .dropdown-content3 {
     padding: 5px;
-    margin-top: 10px;
+    margin-top: 5px;
     display: none;
     position: relative;
     background-color: #f1f1f1;

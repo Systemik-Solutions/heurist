@@ -3,7 +3,7 @@
 *
 * @package     Heurist academic knowledge management system
 * @link        https://HeuristNetwork.org
-* @copyright   (C) 2005-2023 University of Sydney
+* @copyright   (C) 2005-2023 University of Sydney, (C) 2024 onwards Heurist Network
 * @author      Artem Osmakov   <osmakov@gmail.com>
 * @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
 * @version     4.0
@@ -575,11 +575,62 @@ window.hWin.HEURIST4.query = {
         return result;
     },
 
+    stringQueryToPlainText: function(query){
+
+        const getSubquery = /\(([^[)])*\)/g;
+        const removeParenthesis = /(?:^[\s(]+)|(?:[\s)]+$)/g;
+
+        query = typeof query === 'string' ? query.replaceAll(/\s+/g, ' ').trim() : query; // remove double spacing, and leading + trailing spaces
+        let is_invalid = typeof query !== 'string' || query === '' || /^[^\w]/.exec(query) !== null;
+
+        if(window.hWin.HEURIST4.util.isJSON(query) || is_invalid){
+            return is_invalid ? '' : window.hWin.HEURIST4.query.jsonQueryToPlainText(json_query);
+        }
+
+        let subqueries = [...query.matchAll(getSubquery)];
+        for(const idx in subqueries){
+
+            let subquery = subqueries[idx].replaceAll(removeParenthesis, '');
+            
+            let result = window.hWin.HEURIST4.query.stringQueryToPlainText(subquery);
+            query = query.replace(subqueries[idx], result);
+        }
+
+        let parts = [...query.matchAll(/(?:".*?"|[^"\s]+)+(?=\s*|\s*$)/g)]; // extract via spaces, not within double quotes
+
+        // Convert plain query to json query, validation will be performed within jsonQueryToPlainText
+        let json_query = [];
+        for(const part of parts){
+
+            if(part?.length == 0 || part[0].indexOf(':') <= 0){
+                continue;
+            }
+
+            let pieces = part[0].split(':');
+            if(pieces.length == 2){
+                json_query.push({ [pieces[0]]: pieces[1] });
+                continue;
+            }
+
+            let key = Number.isNaN(pieces[1]) ? pieces.shift() : `${pieces.shift()}:${pieces.shift()}`;
+            let search = pieces.join(':').replaceAll(/(?:^")|(?:"$)/g, '');
+
+            json_query.push({ [key]: search });
+        }
+
+        if(json_query.length == 0){
+            return '';
+        }
+
+        return window.hWin.HEURIST4.query.jsonQueryToPlainText(json_query);
+    },
+
     jsonQueryToPlainText: function(query, is_sub_query = false, use_or = false){
 
+        const commaListRegex = /^\d+(?:,\d+)*$/;
         let plain_text = '';
         if(window.hWin.HEURIST4.util.isempty(query) || !window.hWin.HEURIST4.util.isJSON(query)){
-            return plain_text;
+            return window.hWin.HEURIST4.util.isempty(query) ? plain_text : window.hWin.HEURIST4.query.stringQueryToPlainText(query);
         }
 
         query = window.hWin.HEURIST4.util.isJSON(query);
@@ -590,8 +641,8 @@ window.hWin.HEURIST4.query = {
 
         function handleRectype(rty_IDs){
 
-            if(rty_IDs.match(/\d, ?\d/)){
-                rty_IDs = window.hWin.HEURIST4.util.isPositiveInt(rty_IDs) ? [rty_IDs] : rty_IDs.split(',').filter((id) => window.hWin.HEURIST4.util.isPositiveInt(id) && id > 0);
+            if(window.hWin.HEURIST4.util.isPositiveInt(rty_IDs) || ( typeof rty_IDs === 'string' && commaListRegex.exec(rty_IDs) )){
+                rty_IDs = window.hWin.HEURIST4.util.isPositiveInt(rty_IDs) ? [rty_IDs] : rty_IDs.split(',').filter((id) => window.hWin.HEURIST4.util.isPositiveInt(id));
             }else{
                 rty_IDs = [rty_IDs];
             }
@@ -600,9 +651,9 @@ window.hWin.HEURIST4.query = {
             for(const id of rty_IDs){
                 labels.push($Db.rty(id, 'rty_Name') ?? id);
             }
-            rty_ID = rty_IDs.join(',');
 
-            deconstructed.unshift(`Searching for <em>${window.hWin.HEURIST4.util.stripTags(labels.join(', '))}</em> records`);
+            rty_ID = rty_IDs.join(',');
+            deconstructed.unshift(`Find: <strong>${window.hWin.HEURIST4.util.stripTags(labels.join(' | '))}</strong><br>`);
         }
 
         function handleDefault(key, field, value){
@@ -613,23 +664,27 @@ window.hWin.HEURIST4.query = {
             if(field.indexOf(':') > 0){
                 field = field.split(':');
                 field = field[field.length-1];
+            }else if(key != 'f' && key.startsWith('f')){
+                let match = key.match(/\d/);
+                field = match === null ? 'Any field' : key.substring(1);
+            }else if(window.hWin.HEURIST4.util.isPositiveInt(key)){
+                field = value;
             }
 
             if(window.hWin.HEURIST4.util.isPositiveInt(field)){
                 type = $Db.dty(field, 'dty_Type');
-                let field_name = $Db.rst(rty_ID, field, 'rst_DisplayName');
-                field_name = field_name ?? $Db.dty(field, 'dty_Name');
+                let field_name = $Db.rst(rty_ID, field, 'rst_DisplayName') ?? $Db.dty(field, 'dty_Name');
                 field = field_name;
             }
 
             if(key === 'r' && !field){ // Relation type field handling
 
                 let cond = value.startsWith('-') ? 'not' : '';
-                if(window.hWin.HEURIST4.util.isPositiveInt(value) || value.match(/\d, ?\d/)){
+                if(window.hWin.HEURIST4.util.isPositiveInt(value) || commaListRegex.exec(value)){
                     value = value.split(',');
                     value = value.filter((id) => window.hWin.HEURIST4.util.isPositiveInt(id));
                     value = value.map((id) => $Db.trm(id, 'trm_Label'));
-                    value = value.filter((trm) => !window.hWin.HEURIST4.util.isempty(trm)).join(', ');
+                    value = value.filter((trm) => !window.hWin.HEURIST4.util.isempty(trm)).join(' | ');
                 }
 
                 conditional = `<em>Relationship type</em> that is ${cond} a match or is ${cond} a child of "${value}"`;
@@ -639,10 +694,17 @@ window.hWin.HEURIST4.query = {
 
             if(key.startsWith('link') || key.startsWith('related')){ // linked_to,linkedfrom,related_to,relatedfrom,links
 
-                let sub_query = window.hWin.HEURIST4.query.jsonQueryToPlainText(value, true) ?? 'Missing sub query';
                 let linking = key.indexOf('link') >= 0 ? 'Linked' : 'Related';
                 let direction = key.indexOf('from') >= 0 ? 'from' : 'to';
-                conditional = `<br>Search ${linking} Records ${direction} ${field}:<br><div style="padding:5px;">${sub_query}</div>`;
+
+                if(window.hWin.HEURIST4.util.isPositiveInt(value) || ( typeof value === 'string' && commaListRegex.exec(value) )){
+                    let recIDs = window.hWin.HEURIST4.util.isPositiveInt(value) ? value : value.split(',').filter((id) => window.hWin.HEURIST4.util.isPositiveInt(id)).join(',');
+                    conditional = `<br>Search for ${linking} Records ${direction} record ID: ${recIDs}`;
+                }else{
+                    let sub_query = window.hWin.HEURIST4.query.jsonQueryToPlainText(value, true) ?? 'Missing sub query';
+                    conditional = `<br>Search ${linking} Records ${direction} ${field}:<br><div style="padding:5px;">${sub_query}</div>`;
+                }
+
                 field = '';
             }
 
@@ -659,6 +721,8 @@ window.hWin.HEURIST4.query = {
         if(idx > 0){
             query.unshift(query.splice(idx, 1)[0]);
         }
+
+        let multi_rectype = false;
 
         for(const idx in query){
 
@@ -721,23 +785,35 @@ window.hWin.HEURIST4.query = {
                     field = 'Record Accessibility';
                     break;
                 case 'user':
-                    cond = `Records Bookmarked by user(s) in "${value}"`;
+                    value = value.split(',');
+                    value = value.length == 0 || value[0] == '' ? ' User' : `: "${value.filter((usr_ID) => window.hWin.HEURIST4.util.isPositiveInt(usr_ID)).join(',')}"`;
+                    cond = `Records Bookmarked by${value}`;
                     break;
                 case 'before':
                 case 'after':
-                    cond = `Records last modified ${field_key} the ${value}`;
+                    cond = `Records last modified ${field_key} ${value}`;
                     break;
                 case 'sortby':
-                    value = window.hWin.HEURIST4.query.sortbyValue(value, rty_ID);
+                    value = typeof value !== 'string' ? '' : window.hWin.HEURIST4.query.sortbyValue(value, rty_ID);
                     !value || sortby.push(value);
+                    break;
+                case 'exists':
+                    cond = `${window.hWin.HEURIST4.util.isempty(value) ? 'Existing' : 'Missing'} connected records`;
                     break;
                 case 't':
                 case 'type':
-                    handleRectype(value);
+                    if(deconstructed.length > 0){
+                        multi_rectype = true;
+                    }else{
+                        handleRectype(value);
+                    }
                     break;
                 case 'all':
                 case 'any':
                     handleAnyAll(field_key, value);
+                    break;
+                case 'plain':
+                    cond = window.hWin.HEURIST4.query.stringQueryToPlainText(value);
                     break;
 
                 default:
@@ -760,73 +836,107 @@ window.hWin.HEURIST4.query = {
         }
 
         if(rty_ID){
-            plain_text = `${deconstructed.shift()}${deconstructed.length > 0 ? ', refined by:<br>' : ''}`;
+            plain_text = `${deconstructed.shift()}${deconstructed.length > 0 || sortby.length > 0 ? '<div style="padding: 5px 10px;">' : ''}`;
         }else if(!is_sub_query){
-            plain_text = `Searching all records${deconstructed.length > 0 ? ', refined by:<br>' : ''}`;
+            plain_text = `Searching all records${deconstructed.length > 0 || sortby.length > 0 ? '<div style="padding: 5px 10px;">' : ''}`;
         }
 
-        plain_text += deconstructed.join(`, ${use_or ? 'OR' : 'AND'} <br>`);
+        plain_text += deconstructed.join(`<br>${use_or ? 'OR ' : 'AND '}`);
+        plain_text += sortby.length == 0 ? '' : `<br><strong>SORT BY</strong> ${sortby.join(', ')}`;
+        plain_text += deconstructed.length > 0 || sortby.length > 0 ? '</div>' : '';
 
-        return window.hWin.HEURIST4.util.stripTags(plain_text, 'br, em, b, strong, u, i, div');
+        plain_text = window.hWin.HEURIST4.util.stripTags(plain_text, 'br, em, b, strong, u, i, div');
+
+        if(!is_sub_query){
+
+            let legend = [];
+            if(plain_text.indexOf(' == ') > 0){
+                legend.push('== Exact match');
+            }
+            if(plain_text.indexOf(' ≠≠ ') > 0){
+                legend.push('≠≠ Not exact match');
+            }
+            if(plain_text.indexOf(' <> ') > 0){
+                legend.push('<> overlap/between');
+            }
+            if(plain_text.indexOf(' >< ') > 0){
+                legend.push('>< falls between');
+            }
+            plain_text += legend.length > 0 ? `<br>[Key: ${legend.join(', ')}]` : '';
+    
+            if(multi_rectype){
+                plain_text += `<br><hr><br><strong>Warning</strong>:<br>
+                    You appear to be attempting to filter by multiple individual record types; as it's impossible for a record to be multiple types at the same time, this will always provide an empty result.<br>
+                    Please remove the un-necessary record type filterings or combine them into one as a comma separated list (e.g. {"t":"10,11,12"}).`;
+            }
+        }
+
+        return plain_text;
     },
 
     extractCondition: function(value, type){
 
-        let res = 'Filter by ';
-        let ext = '<em>__FIELD__</em> values';
+        const commaListRegex = /^\d+(?:,\d+)*$/;
+        let res = '';
 
         if(typeof value !== 'string' && typeof value !== 'number'){
-            return '';
+            return res;
         }
 
-        if(type === 'enum' && (window.hWin.HEURIST4.util.isPositiveInt(value) || value.match(/\d, ?\d/))){
+        if(type === 'enum' && (window.hWin.HEURIST4.util.isPositiveInt(value) || ( typeof value === 'string' && commaListRegex.exec(value) ))){
+
             value = value.split(',');
             value = value.filter((id) => window.hWin.HEURIST4.util.isPositiveInt(id));
-            value = value.map((id) => $Db.trm(id, 'trm_Label'));
-            value = value.filter((trm) => !window.hWin.HEURIST4.util.isempty(trm)).join(', ');
+
+            value = value.map((id) => {
+                let trm_Code = $Db.trm(id, 'trm_Code') !== '' ? ` [code ${$Db.trm(id, 'trm_Code')}]` : '';
+                return `${$Db.trm(id, 'trm_Label')}${trm_Code}`;
+            });
+
+            value = value.filter((trm) => !window.hWin.HEURIST4.util.isempty(trm)).join(' | ');
         }
 
         let val = '';
         if(value === 'NULL'){
-            res += 'records that do not have any <em>__FIELD__</em>';
+            res = `Missing`;
         }else if(window.hWin.HEURIST4.util.isempty(value)){
-            res += 'records that have a <em>__FIELD__</em> value';
+            res = `Exists`;
         }else if(value.startsWith('=') || value.startsWith('-')){
             val = value.substring(1);
-            res += `${ext} that ${value.startsWith('-') ? 'do not' : ''} extactly match "<em>${val}</em>"`;
+            res = `${value.startsWith('-') ? '≠≠' : '=='} "${val}"`;
         }else if(value.startsWith('@++') || value.startsWith('@--')){
             val = value.substring(3);
-            res = `${ext} that contain ${value.startsWith('@++') ? 'all' : 'none'} of the words in "<em>${val}</em>"`;
+            res = `contains ${value.startsWith('@++') ? 'all' : 'none'} of: ${val}`;
         }else if(value.startsWith('@')){
             val = value.substring(1);
-            res = `${ext} that contain all of the words in "<em>${val}</em>"`;
+            res = `contains any of: ${val}`;
         }else if(value[0] === '%' || value.endsWith('%')){
             val = value[0] === '%' ? value.substring(1) : value.slice(0, -1);
-            res = `${ext} that ${value[0] === '%' ? 'start' : 'end'} with "<em>${val}</em>"`;
-        }else if(value.startsWith('<=') || value.startsWith('>=')){
-            val = value.substring(2);
-            let compare = '';
-            if(value.startsWith('<')){
-                compare = type == 'date' ? 'before' : 'less than';
+            res = `${value[0] === '%' ? 'starts' : 'ends'} with: ${val}`;
+        }else if(value.startsWith('<') || value.startsWith('>')){
+            let compare = value.slice(0, value.indexOf('=') == 1 ? 2 : 1);
+            value = value.substring(value.indexOf('=') == 1 ? 2 : 1);
+            res = `${compare} ${value}`;
+        }else if(value.startsWith('<>') || value.startsWith('><')){
+            let compare = value.indexOf('<>') > 0 ? '<>' : '><';
+            value = value.substring(2).split('/');
+            res = `${value[0]} ${compare} ${value[1]}`;
+        }else if(type == 'date'){
+
+            let parts = value.split('/');
+            if(parts.length > 0){
+                let mid = Math.floor(parts.length / 2);
+                value = [parts.slice(0, mid).join('/'), parts.slice(mid).join('/')];
+                res = `${value[0]} <> ${value[1]}`;
             }else{
-                compare = type == 'date' ? 'after' : 'greater than';
+                res = `is ${value}`;
             }
-            res = `${ext} that are ${compare} ${val}`;
-        }else if(value.indexOf('<>') > 0 || value.indexOf('><') > 0){
-            let compare = '';
-            if(value.indexOf('<>') > 0){
-                compare = type == 'date' ? 'overlaps within' : 'between';
-                value = value.split('<>');
-            }else{
-                compare = type == 'date' ? 'falls between' : '???';
-                value = value.split('><');
-            }
-            res = `${ext} that ${compare} ${value[0]} and ${value[1]}`;
         }else{
-            res = `${ext} that contains "<em>${value}</em>"`;
+
+            res = `contains ${value}`;
         }
 
-        return res;
+        return `<em>__FIELD__</em> ${res}`;
     },
 
     sortbyValue: function(value, rty_ID){
@@ -885,6 +995,8 @@ window.hWin.HEURIST4.query = {
                 }
                 break;
         }
+
+        res += ` ${is_negate ? 'descending' : 'ascending'} order`;
 
         return res;
     }

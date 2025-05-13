@@ -21,27 +21,14 @@
 
 window.addEventListener("load", function () {
     setTimeout(function () {
-        var iframe = document.querySelector(
-            'iframe[src="https://heurist-usyd.cloud.edu.au/heurist/viewers/gmap/map.php?w=a&mapdocument=59920&ll=Beyond1914&db=ExpertNation&header=off&legend=off"]'
-        );
+        var iframes = document.querySelectorAll('.mapframe');
 
-        if (iframe) {
+        iframes.forEach(function (iframe) {
             console.log("Reloading iframe");
             var iframeSrc = iframe.src;
             iframe.src = "";
             iframe.src = iframeSrc;
-        }
-
-        var iframe2 = document.querySelector(
-            'iframe[src="https://heurist-usyd.cloud.edu.au/heurist/viewers/gmap/map.php?w=a&mapdocument=73645&ll=UAdelaide&db=ExpertNation&header=off&legend=off"]'
-        );
-
-        if (iframe2) {
-            console.log("Reloading iframe");
-            var iframeSrc = iframe.src;
-            iframe.src = "";
-            iframe.src = iframeSrc;
-        }
+        });
 
     }, 8500);
 });

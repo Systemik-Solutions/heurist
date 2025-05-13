@@ -9,7 +9,7 @@ use hserv\utilities\UArchive;
 *
 * @package     Heurist academic knowledge management system
 * @link        https://HeuristNetwork.org
-* @copyright   (C) 2005-2023 University of Sydney
+* @copyright   (C) 2005-2023 University of Sydney, (C) 2024 onwards Heurist Network
 * @author      Artem Osmakov   <osmakov@gmail.com>
 * @author      Ian Johnson     <ian.johnson.heurist@gmail.com>
 * @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
@@ -241,7 +241,7 @@ class DbUtils {
             $destination = $archiveFolder.$database_name.'_'.$datetime1->format('Y-m-d_H_i_s');
 
             $filestore_dir = HEURIST_FILESTORE_ROOT.$database_name.'/';
-            $folders_to_copy = folderSubs($filestore_dir, array('backup', 'scratch', 'documentation_and_templates',
+            $folders_to_copy = folderSubs($filestore_dir, array('backup', 'scratch', 'documentation',
             //'uploaded_files', 'uploaded_tilestacks',
             'rectype-icons','term-images','webimagecache','blurredimagescache'));
             foreach($folders_to_copy as $idx=>$folder_name){
@@ -982,7 +982,7 @@ class DbUtils {
             }else{
                 $path = realpath(dirname(__FILE__).'/../../../');
                 $now = getNow();
-                fileAdd("{$database_name} # restore {$now->format('Y-m-d')}\n",
+                fileAdd("{$database_name} # restored {$now->format('Y-m-d')}\n",
                             $path.'/databases_not_to_purge.txt');
             }
 
@@ -1154,12 +1154,12 @@ class DbUtils {
             $warnings[] = "Unable to create/copy xsl-templates folder to $database_folder";
         }
 */
-    //since 2023-06-02 documentation_and_templates is not created
+    //since 2023-06-02 documentation is not created
     /*
     if(false){
-        if(folderRecurseCopy( HEURIST_DIR."documentation_and_templates", $database_folder."documentation_and_templates" )){
+        if(folderRecurseCopy( HEURIST_DIR."documentation", $database_folder."documentation" )){
 
-            folderAddIndexHTML($database_folder."documentation_and_templates");// index file to block directory browsing
+            folderAddIndexHTML($database_folder."documentation");// index file to block directory browsing
         }else{
             $warnings[] = "Unable to create/copy documentation folder to $database_folder";
         }
@@ -1378,7 +1378,7 @@ class DbUtils {
                         echo "<b>Adding records to tables: </b>";
                     }
                     while ($table = $tables->fetch_row()) { //loop for all tables
-                        $table = $table[0];
+                        $table = $mysqli->real_escape_string($table[0]);
 
                         if($nodata && in_array(strtolower($table), $data_tables)){
                             continue;

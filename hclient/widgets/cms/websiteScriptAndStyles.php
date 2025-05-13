@@ -12,7 +12,7 @@ use hserv\utilities\USystem;
     *
     * @package     Heurist academic knowledge management system
     * @link        https://HeuristNetwork.org
-    * @copyright   (C) 2005-2023 University of Sydney
+    * @copyright   (C) 2005-2023 University of Sydney, (C) 2024 onwards Heurist Network
     * @author      Artem Osmakov   <osmakov@gmail.com>
     * @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
     * @version     4.0
@@ -112,19 +112,21 @@ if (isLocalHost() && !@$_REQUEST['embed'])  {
 
 <script type="text/javascript" src="<?php echo PDIR;?>hclient/widgets/baseAction.js"></script>
 
+<script type="text/javascript" src="<?php echo PDIR;?>hclient/core/temporalObjectLibrary.js"></script>
 <script type="text/javascript" src="<?php echo PDIR;?>hclient/core/utils.js"></script>
-<script type="text/javascript" src="<?php echo PDIR;?>hclient/core/utils_query.js"></script>
-<script type="text/javascript" src="<?php echo PDIR;?>hclient/core/utils_dbs.js"></script>
 <script type="text/javascript" src="<?php echo PDIR;?>hclient/core/utils_ui.js"></script>
+<script type="text/javascript" src="<?php echo PDIR;?>hclient/core/utils_dbs.js"></script>
+<script type="text/javascript" src="<?php echo PDIR;?>hclient/core/utils_query.js"></script>
 <script type="text/javascript" src="<?php echo PDIR;?>hclient/core/utils_msg.js"></script>
+<script type="text/javascript" src="<?php echo PDIR;?>hclient/core/utils_geo.js"></script>
 <script type="text/javascript" src="<?php echo PDIR;?>hclient/core/utilsCollection.js"></script>
+
 <script type="text/javascript" src="<?php echo PDIR;?>hclient/core/hapi.js"></script>
 <script type="text/javascript" src="<?php echo PDIR;?>hclient/core/HSystemMgr.js"></script>
-<script type="text/javascript" src="<?php echo PDIR;?>hclient/core/ActionHandler.js"></script>
+<script type="text/javascript" src="<?php echo PDIR;?>hclient/core/HLayoutMgr.js"></script>
+<script type="text/javascript" src="<?php echo PDIR;?>hclient/core/layout.js"></script>
 <script type="text/javascript" src="<?php echo PDIR;?>hclient/core/hRecordSearch.js"></script>
 <script type="text/javascript" src="<?php echo PDIR;?>hclient/core/recordset.js"></script>
-<script type="text/javascript" src="<?php echo PDIR;?>hclient/core/layout.js"></script>
-<script type="text/javascript" src="<?php echo PDIR;?>hclient/core/temporalObjectLibrary.js"></script>
 
 <script type="text/javascript" src="<?php echo PDIR;?>layout_default.js"></script>
 
@@ -152,9 +154,6 @@ if($_is_new_cms_editor){
 <script type="text/javascript" src="<?php echo PDIR;?>hclient/widgets/cms/editCMS_WidgetCfg.js"></script>
 <script type="text/javascript" src="<?php echo PDIR;?>hclient/widgets/cms/editCMS_ElementCfg.js"></script>
 <script type="text/javascript" src="<?php echo PDIR;?>hclient/widgets/cms/editCMS_SiteMenu.js"></script>
-
-<!-- script type="text/javascript" src="<?php echo PDIR;?>hclient/widgets/cms/hLayoutMgr.js"></script -->
-<script type="text/javascript" src="<?php echo PDIR;?>hclient/core/HLayoutMgr.js"></script>
 
 <link rel="stylesheet" type="text/css" href="<?php echo PDIR;?>external/jquery.fancybox/jquery.fancybox.css" />
 <script type="text/javascript" src="<?php echo PDIR;?>external/jquery.fancybox/jquery.fancybox.js"></script>
@@ -304,7 +303,7 @@ var timeout_count = 0;
 // Inits page for publication version
 // It is invoked from onHapiInit
 //
-//  1. Inits hLayoutMgr
+//  1. Inits layout
 //  2. Calls initMainMenu
 //
 function onPageInit(success)
@@ -335,11 +334,8 @@ function onPageInit(success)
     
     window.hWin.HAPI4.is_publish_mode = true;
     
-    //hLayoutMgr();//init global var layoutMgr
-    window.layoutMgr = new HLayoutMgr();
-
     //cfg_widgets is from layout_defaults.js
-    window.hWin.HAPI4.LayoutMgr.init(cfg_widgets, null);
+    window.hWin.HAPI4.LayoutMgr.init(window.hWin.cfg_widgets, null);
 
     //reload website by click on logo or title, opens first page with content
     $("#main-logo,#custom-logo,#main-title").on('click', function(event){
@@ -579,7 +575,7 @@ function loadPageContent(pageid, eventdata){
                     }
 
                 }else{
-                    layoutMgr.layoutInit( page_cache[pageid][DT_EXTENDED_DESCRIPTION], '#main-content', supp_options );
+                    window.hWin.HAPI4.layoutMgr.layoutInit( page_cache[pageid][DT_EXTENDED_DESCRIPTION], '#main-content', supp_options );
                 }
 
                 current_page_id = pageid;
@@ -803,7 +799,7 @@ function assignPageTitle(pageid){
 function afterPageLoad(document, pageid, eventdata){
 
     //waiting till all widgets are inited
-    var is_inited = layoutMgr.layoutCheckWidgets();
+    var is_inited = window.hWin.HAPI4.layoutMgr.layoutCheckWidgets();
     if (is_inited===false) {
         timeout_count++;
         if(timeout_count<100){
@@ -1183,9 +1179,9 @@ function initLinksAndImages($container, search_data){
             var rec_id = 0;
 
             if(window.hWin.HEURIST4.util.isArrayNotEmpty(parts)
-                && parts.length>2 && parts[parts.length-2]=='view'){
-
-                rec_id = parts[parts.length-1];
+                && parts.length>2 && !parts[parts.length-2].startsWith('web')){
+                // Record link to non cms webpage, e.g. record viewer/editor, output, or backend
+                return;
             }else if(  (href.indexOf(window.hWin.HAPI4.baseURL)===0 || href[0] == '?'
                 || href.indexOf('../heurist/?')===0  || href.indexOf('./?')===0)
                 && window.hWin.HEURIST4.util.getUrlParameter('db',href) == window.hWin.HAPI4.database )
@@ -1197,6 +1193,9 @@ function initLinksAndImages($container, search_data){
                         if($(link).attr('target')!='_blank'){
                             return;
                         }
+                    }else if(!window.hWin.HEURIST4.util.getUrlParameter('fmt',href).startsWith('web')){
+                        // Record link to non cms webpage, e.g. record viewer/editor, output, or backend
+                        return;
                     }else{
                         rec_id  = window.hWin.HEURIST4.util.getUrlParameter('recID',href);
                     }
@@ -1270,10 +1269,12 @@ function onHapiInit(success){
                                                 window.hWin.HAPI4.sysinfo.db_version);
     if(res==-2){ //-2= db_version_req newer
         window.hWin.HEURIST4.msg.showMsgErr({
-            message: '<h3>Old version database</h3>'
-                    +'<p>You are trying to load a website using a more recent version of Heurist than the one used for the database being accessed.</p>'
-                    +'<p>Please ask the owner of the database to open it in the latest version of Heurist which will apply the necessary updates.</p>',
-            error_title: 'Database is out-of-date'
+            message: '<p>You are trying to load a website using a more recent version of Heurist than the one used for the database being accessed.</p>'
+                    +'<p>Please ask the owner of the database to <a href="'
+                    +window.hWin.HAPI4.baseURL+'?db='+window.hWin.HAPI4.database
+                    +'">open the database in Heurist</a> which will apply the necessary updates.</p>'
+                    +'<p>We apologise for this temporary inconvenience</p>',
+            error_title: 'Database format requires updating'
         });
         window.hWin.HEURIST4.msg.sendCoverallToBack();
         return;

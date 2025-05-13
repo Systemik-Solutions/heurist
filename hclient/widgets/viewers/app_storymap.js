@@ -6,7 +6,7 @@
 *
 * @package     Heurist academic knowledge management system
 * @link        https://HeuristNetwork.org
-* @copyright   (C) 2005-2023 University of Sydney
+* @copyright   (C) 2005-2023 University of Sydney, (C) 2024 onwards Heurist Network
 * @author      Artem Osmakov   <osmakov@gmail.com>
 * @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
 * @version     4.0
@@ -19,7 +19,6 @@
 * distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied
 * See the License for the specific language governing permissions and limitations under the License.
 */
-/* global layoutMgr, hLayoutMgr */
 
 $.widget( "heurist.app_storymap", {
 
@@ -205,8 +204,7 @@ $.widget( "heurist.app_storymap", {
             }]
         }];
         
-        if(!layoutMgr) hLayoutMgr();
-        layoutMgr.layoutInit(layout, this.element);
+        window.hWin.HAPI4.layoutMgr.layoutInit(layout, this.element);
 
         let placeholder = !window.hWin.HEURIST4.util.isempty(this.options.storyPlaceholder) && this.options.storyPlaceholder != 'def' ? 
                             this.options.storyPlaceholder : '';
@@ -470,7 +468,6 @@ $.widget( "heurist.app_storymap", {
                         placeholder = `<br><h3 class="not-found" style="color:teal;display:inline-block">${placeholder}</h3>`;
                     }
                     
-console.log('on  search finish ', placeholder);
                     if(that._initial_div_message.html()!=placeholder){
                         that._initial_div_message.html(placeholder).show();    
                     }
@@ -1735,6 +1732,11 @@ console.log('on  search finish ', placeholder);
                         if(DT_END_PLACES>0 && that._cache_story_places[recID][DT_END_PLACES]){
                             that._cache_story_places[recID]['places'] = that._cache_story_places[recID]['places']
                                     .concat(that._cache_story_places[recID][DT_END_PLACES]);
+                        }
+                        if(that._cache_story_places[recID]['places'].length == 0 && response.data.rectypes[0] == RT_PLACE){
+                            // use the current record if it is a place record
+                            that._cache_story_places[recID][DT_BEGIN_PLACES] = [recID];
+                            that._cache_story_places[recID]['places'] = [recID];
                         }
                         
                         

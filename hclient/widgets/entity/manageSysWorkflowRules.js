@@ -3,7 +3,7 @@
 *
 * @package     Heurist academic knowledge management system
 * @link        https://HeuristNetwork.org
-* @copyright   (C) 2005-2023 University of Sydney
+* @copyright   (C) 2005-2023 University of Sydney, (C) 2024 onwards Heurist Network
 * @author      Artem Osmakov   <osmakov@gmail.com>
 * @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
 * @version     4.0
@@ -25,6 +25,10 @@ $.widget( "heurist.manageSysWorkflowRules", $.heurist.manageEntity, {
     _entityName:'sysWorkflowRules',
     
     is_first: true,
+
+    options: {
+        edit_height: 600
+    },
     
     //keep to refresh after modifications
     _keepRequest:null,
@@ -434,55 +438,17 @@ $.widget( "heurist.manageSysWorkflowRules", $.heurist.manageEntity, {
             ele1.editing_input('isChanged', false);
             ele.editing_input('option', 'change', __onChangeVisType);
             __onChangeVisType(true);
-            
-            //
-            //ownership     
-            /*
-            function __onChangeOwnerType(is_first){ 
-                let ele = that._editing.getFieldByName('swf_Ownership');
-                let ele1 = that._editing.getFieldByName('swf_SetOwnership');
-                
-                let res = ele.editing_input('getValues'); 
-                if(res[0]=='group'){
-                        ele1.show();
-                        if(is_first!==true) ele1.find('.entity_selector').trigger('click');
-                }else{
-                        ele1.hide();
-                }
-                
-                if(is_first!==true){
-                    ele.editing_input('isChanged', true);
-                    that.onEditFormChange();  
-                } 
-            }
 
-            ele = that._editing.getFieldByName('swf_Ownership');
-            ele1 = that._editing.getFieldByName('swf_SetOwnership');        
-            res = ele1.editing_input('getValues'); 
-            
-            //assign value to swf_Ownership
-            if(res[0]==''){
-                ele.editing_input('setValue', 'null');
-            }else if(res[0]=='0'){
-                ele.editing_input('setValue', '0');
-            }else{
-                ele.editing_input('setValue', 'group');
-            }
-            if(res[0]=='' || res[0]=='0'){
-                ele1.editing_input('setValue', '');    
-            }
-            ele.editing_input('isChanged', false);
-            ele1.editing_input('isChanged', false);
-            ele.editing_input('option', 'change', __onChangeOwnerType);
-            __onChangeOwnerType(true);
-            */
 
             let rty_ID = this.searchForm.searchSysWorkflowRules('getSelectedRty');
             let has_FreetextFld = rty_ID > 0;
             let list_Fields = {
                 title: 'Record title',
                 stage: 'Workflow stage',
-                user: 'Modifying user'
+                user: 'Modifying user',
+                link_v: 'Record viewer link',
+                link_e: 'Record editor link',
+                url: 'Record url'
             };
             !has_FreetextFld || $Db.rst(rty_ID).each2((rst_ID, record) => {
                 switch ($Db.dty(rst_ID, 'dty_Type')) {
@@ -507,56 +473,7 @@ $.widget( "heurist.manageSysWorkflowRules", $.heurist.manageEntity, {
             });
 
             // Hide and replace input with checkbox & dropdown combo
-            ele = that._editing.getFieldByName('swf_RecEmailField');
-            if(has_FreetextFld){
-
-                let $input = ele.find('input');
-
-                let $chk_Enabled = $('<input>', {
-                    type: 'checkbox',
-                    class: 'chkbx_EnableFld'
-                }).insertAfter($input);
-
-                let $sel_Field = $('<select>', {
-                    class: 'sel_RecField'
-                }).insertAfter($chk_Enabled);
-
-                this._on($chk_Enabled, {
-                    change: () => {
-                        window.hWin.HEURIST4.util.setDisabled($sel_Field, !$chk_Enabled.is(':checked'));
-                        if(!$chk_Enabled.is(':checked')){
-                            $input.val('').trigger('change');
-                        }
-                    }
-                });
-
-                // Consider: should add rec owner? current user?
-                window.hWin.HEURIST4.ui.createRectypeDetailSelect($sel_Field[0], rty_ID, ['freetext'],
-                    [ {key: '', title: window.hWin.HR('Select field...')} ], {
-                        useHtmlSelect: false,
-                        selectedValue: $input.val(),
-                        eventHandlers: {
-                            onSelectMenu: (event) => {
-                                let new_fld = $chk_Enabled.is(':checked') ? $sel_Field.val() : '';
-                                $input.val(new_fld).trigger('change');
-                            }
-                        }
-                    }
-                );
-
-                let def_value = $Db.getLocalID('dty', '1317-242');
-                if($sel_Field.val() !== ''){
-                    $chk_Enabled.prop('checked', true);
-                }else if($sel_Field.find(`option[value="${def_value}"]`).length == 1){
-                    $sel_Field.val(def_value).hSelect('refresh');
-                }
-
-                window.hWin.HEURIST4.util.setDisabled($sel_Field, !$chk_Enabled.is(':checked'));
-
-                $input.hide();
-            }else{
-                ele.hide(); // hide field completely
-            }
+            this._setupRecordEmailField(has_FreetextFld);
 
             ele = that._editing.getFieldByName('swf_EmailText');
             let $extra_help = $('<div>', {style: 'cursor: default;'})
@@ -573,20 +490,29 @@ $.widget( "heurist.manageSysWorkflowRules", $.heurist.manageEntity, {
             });
 
             let list = '<div style="cursor: default;">List of available fields:<br><br>';
-            let shared_styles = 'display: inline-block; vertical-align: -0.2em;';
+            
+            function createFieldList(list_Fields){
 
-            for(const dty_ID in list_Fields){
+                let list = '';
+                let shared_styles = 'display: inline-block; vertical-align: -0.2em;';
 
-                let id = Number.isInteger(dty_ID) ? `ID #${dty_ID}` : dty_ID;
-                let type = Number.isInteger(dty_ID) ? $Db.dty(dty_ID, 'dty_Type') : 'freetext';
+                for(const dty_ID in list_Fields){
 
-                list += `<span style="display: inline-block; padding-bottom: 7.5px;">
-                    <button class="ui-icon ui-icon-plus" data-dtyid="${dty_ID}" title="Add field code to message"></button>
-                    <span style="${shared_styles} width: 150px; padding-left: 5px;" class="truncate" title="${list_Fields[dty_ID]}">${list_Fields[dty_ID]}</span> 
-                    <span style="${shared_styles} width: 65px;" class="truncate" title="${id}">(ID #${id})</span> 
-                    <span style="${shared_styles} width: 65px;" class="truncate">[ ${type} ]</span>
-                </span><br>`;
+                    let id = Number.isInteger(dty_ID) ? `ID #${dty_ID}` : dty_ID;
+                    let type = Number.isInteger(dty_ID) ? $Db.dty(dty_ID, 'dty_Type') : 'freetext';
+
+                    list += `<span style="display: inline-block; padding-bottom: 7.5px;">
+                        <button class="ui-icon ui-icon-plus" data-dtyid="${dty_ID}" title="Add field code to message"></button>
+                        <span style="${shared_styles} width: 150px; padding-left: 5px;" class="truncate" title="${list_Fields[dty_ID]}">${list_Fields[dty_ID]}</span> 
+                        <span style="${shared_styles} width: 65px;" class="truncate" title="${id}">(${id})</span> 
+                        <span style="${shared_styles} width: 65px;" class="truncate">[ ${type} ]</span>
+                    </span><br>`;
+                }
+
+                return list;
             }
+
+            list += createFieldList(list_Fields);
 
             list += '</div>';
 
@@ -680,7 +606,7 @@ $.widget( "heurist.manageSysWorkflowRules", $.heurist.manageEntity, {
                 }
 
                 if(field){
-                    extra_val += `${val === '' ? '' : '<br>'}Values from: ${$Db.rst(rty_ID, field, 'rst_DisplayName')}`;
+                    extra_val += `${extra_val === '' ? '' : '<br>'}Values from: ${$Db.rst(rty_ID, field, 'rst_DisplayName')}`;
                 }
             }
 
@@ -762,6 +688,64 @@ $.widget( "heurist.manageSysWorkflowRules", $.heurist.manageEntity, {
 
         return html;
 
+    },
+
+    _setupRecordEmailField: function(has_freetext){
+
+        let rty_ID = this.searchForm.searchSysWorkflowRules('getSelectedRty');
+        let ele = this._editing.getFieldByName('swf_RecEmailField');
+
+        if(!has_freetext){
+            ele.hide();
+            return;
+        }
+        
+        let $input = ele.find('input');
+
+        let $chk_Enabled = $('<input>', {
+            type: 'checkbox',
+            class: 'chkbx_EnableFld'
+        }).insertAfter($input);
+
+        let $sel_Field = $('<select>', {
+            class: 'sel_RecField'
+        }).insertAfter($chk_Enabled);
+
+        this._on($chk_Enabled, {
+            change: () => {
+                window.hWin.HEURIST4.util.setDisabled($sel_Field, !$chk_Enabled.is(':checked'));
+                if(!$chk_Enabled.is(':checked')){
+                    $input.val('').trigger('change');
+                }else if(!window.hWin.HEURIST4.util.isempty($sel_Field.val())){
+                    $input.val($sel_Field.val()).trigger('change');
+                }
+            }
+        });
+
+        // Consider: should add rec owner? current user?
+        window.hWin.HEURIST4.ui.createRectypeDetailSelect($sel_Field[0], rty_ID, ['freetext'],
+            [ {key: '', title: window.hWin.HR('Select field...')} ], {
+                useHtmlSelect: false,
+                selectedValue: $input.val(),
+                eventHandlers: {
+                    onSelectMenu: (event) => {
+                        let new_fld = $chk_Enabled.is(':checked') ? $sel_Field.val() : '';
+                        $input.val(new_fld).trigger('change');
+                    }
+                }
+            }
+        );
+
+        let def_value = $Db.getLocalID('dty', '1317-242');
+        if($sel_Field.val() !== ''){
+            $chk_Enabled.prop('checked', true);
+        }else if($sel_Field.find(`option[value="${def_value}"]`).length == 1){
+            $sel_Field.val(def_value).hSelect('refresh');
+        }
+
+        window.hWin.HEURIST4.util.setDisabled($sel_Field, !$chk_Enabled.is(':checked'));
+
+        $input.hide();
     }
 
 });

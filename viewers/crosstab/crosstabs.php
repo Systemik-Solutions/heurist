@@ -1,6 +1,6 @@
 <?php
 /*
-* Copyright (C) 2005-2023 University of Sydney
+* Copyright (C) 2005-2023 University of Sydney, (C) 2024 onwards Heurist Network
 *
 * Licensed under the GNU License, Version 3.0 (the "License"); you may not use this file except
 * in compliance with the License. You may obtain a copy of the License at
@@ -17,7 +17,7 @@
  *   Corsstabs analysis UI
  *
  * @author      Artem Osmakov   <osmakov@gmail.com>
- * @copyright   (C) 2005-2023 University of Sydney
+ * @copyright   (C) 2005-2023 University of Sydney, (C) 2024 onwards Heurist Network
  * @link        https://HeuristNetwork.org
  * @version     3.1.0
  * @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
@@ -33,7 +33,7 @@ require_once dirname(__FILE__) . '/../../hclient/framecontent/initPage.php';
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.4.1/font/bootstrap-icons.css">
 <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/responsive/2.2.7/css/responsive.dataTables.min.css"/>
 <!-- script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.2.0/chart.min.js"></script> -->
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.9/dist/chart.umd.js" integrity="sha384-4W8gMhOYqk0FPg9sAMkb3g/P2fXtzbUyDUUgMlA1EEig8z/U/13EYUjErc1H382b" crossorigin="anonymous"></script>
 <script src="<?php echo PDIR; ?>hclient/widgets/entity/configEntity.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0-beta3/dist/js/bootstrap.bundle.min.js" integrity="sha384-JEW9xMcG8R+pH31jmWH6WWP0WintQrMb4s7ZOdauHnUtxwoG2vI5DkLtS3qm9Ekf" crossorigin="anonymous"></script>
 <script src="https://cdn.datatables.net/1.10.24/js/jquery.dataTables.js"></script>
@@ -83,7 +83,7 @@ require_once dirname(__FILE__) . '/../../hclient/framecontent/initPage.php';
     <div style="padding: 0.5em; height: 100%;"> <!-- margin:0px auto; overflow: auto; -->
         <div class="container-fluid">
             <!-- Page container -->
-            <div class="row">
+            <div class="t-row">
                 <div class="col-12 col-mb-2 d-none output-content" id="errorContainerFilter"></div>
                 <div class="col-12 col-mb-2 d-none" id="errorContainerRecChange"></div>
                 <div class="col-12 col-mb-2 d-none" id="errorContainer"></div>

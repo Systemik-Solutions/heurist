@@ -12,7 +12,7 @@ namespace hserv\utilities;
 *
 * @package     Heurist academic knowledge management system
 * @link        https://HeuristNetwork.org
-* @copyright   (C) 2005-2023 University of Sydney
+* @copyright   (C) 2005-2023 University of Sydney, (C) 2024 onwards Heurist Network
 * @author      Artem Osmakov   <osmakov@gmail.com>
 * @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
 * @version     4.0
@@ -191,7 +191,7 @@ class USystem {
 
                 // calculate the dir where the Heurist code is installed, for example /h5 or /h5-ij
                 // removed root folders: pi|applications|common|search|records|
-                $topdirs = 'admin|context_help|export|hapi|hclient|hserv|import|startup|redirects|viewers|help|ext|external';
+                $topdirs = 'admin|documentation|export|hapi|hclient|hserv|import|startup|redirects|viewers|help|ext|external';
 
                 $installDir = preg_replace("/\/(" . $topdirs . ")\/.*/", "", @$_SERVER["SCRIPT_NAME"]);// remove "/top level dir" and everything that follows it.
                 if ($installDir == @$_SERVER["SCRIPT_NAME"]) { // no top directories in this URI must be a root level script file or blank

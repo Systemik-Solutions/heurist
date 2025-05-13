@@ -11,7 +11,7 @@
 *
 * @package     Heurist academic knowledge management system
 * @link        https://HeuristNetwork.org
-* @copyright   (C) 2005-2023 University of Sydney
+* @copyright   (C) 2005-2023 University of Sydney, (C) 2024 onwards Heurist Network
 * @author      Artem Osmakov   <osmakov@gmail.com>
 * @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
 * @version     4.0
@@ -329,6 +329,10 @@ if(!$invalid_access && (defined('CREATE_RECORDS') || defined('DELETE_RECORDS')))
                     window.onAboutInit();//init about dialog
             }
 
+            if(window.hWin.HAPI4.sysinfo.refreshStatistics == 1){
+                updateDatabaseStatistics();
+            }
+
             if(initialLoadDatabaseDefintions(null, window.onPageInit)){
                 return;
             }
@@ -344,6 +348,34 @@ if(!$invalid_access && (defined('CREATE_RECORDS') || defined('DELETE_RECORDS')))
         if(window.hWin.HEURIST4.util.isFunction(window.onPageInit)){
             window.onPageInit(success);
         }
+    }
+
+    function updateDatabaseStatistics(){
+        
+        return; //2025-04-11 TEMP DISABLED since heuristref is down
+        
+        let ajax_opts = {
+            "url": `${window.hWin.HAPI4.baseURL}/admin/describe/dbStatsBackground.php`,
+            "type": "POST",
+            "data": {
+                "refresh": 1
+            },
+            "dataType": "json",
+            "cache": false,
+            "xhrFields": {
+                "withCredentials": true
+            }
+            /* Don't bother the user
+            ,success: (response, status, jqXHR) => {
+                console.log('success', response);
+            },
+            error: (jqXHR, status, errorThrown) => {
+                console.log('error', jqXHR?.responseJSON?.status);
+            }*/
+        };
+
+        $.ajax(ajax_opts);
+        delete window.hWin.HAPI4.sysinfo.refreshStatistics;
     }
 
     //
@@ -365,6 +397,10 @@ if(!$invalid_access && (defined('CREATE_RECORDS') || defined('DELETE_RECORDS')))
                     if(arguments){
                     if(arguments[1]){
 
+                        /* ARTEM - this feature is disabled since it duplicate
+                        db defs check in hapi.js. see _callserver. It checks dbdef relevance 
+                        before each request (3 seconds cooldown)
+                        
                         //verify definitions relevance every 20 seconds
                         if(!window.hWin.RefreshCacheInterval){
                             window.hWin.RefreshCacheInterval = setInterval(function(){window.hWin.HAPI4.EntityMgr.relevanceEntityData(null, (response) => {
@@ -385,6 +421,7 @@ if(!$invalid_access && (defined('CREATE_RECORDS') || defined('DELETE_RECORDS')))
 
                             })}, 600000);
                         }
+                        */
 
                         if(!window.hWin.HEURIST4.util.isnull(callback) && window.hWin.HEURIST4.util.isFunction(callback)){
                             callback(true);

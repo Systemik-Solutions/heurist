@@ -4,7 +4,7 @@
 * 
 * @package     Heurist academic knowledge management system
 * @link        https://HeuristNetwork.org
-* @copyright   (C) 2005-2023 University of Sydney
+* @copyright   (C) 2005-2023 University of Sydney, (C) 2024 onwards Heurist Network
 * @author      Artem Osmakov   <osmakov@gmail.com>
 * @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
 * @version     4.0
@@ -444,8 +444,8 @@ function editCMS_ElementCfg( element_cfg, _layout_content, _layout_container, $c
         function __setDim(name){
             let ele = cont.find('input[name="'+name+'"]');
             let val = ele.val();
-            if( (val!='' || val!='auto') && parseInt(val)>0){
-                if(!(val.indexOf('%')>0 || val.indexOf('px')>0)){
+            if( (val != '' || val != 'auto') && parseInt(val)>0){
+                if(!val.endsWith('%') && !val.endsWith('px') && !val.endsWith('em')){
                     val = val + 'px';
                 }
                 css[name] = val;
@@ -597,12 +597,12 @@ function editCMS_ElementCfg( element_cfg, _layout_content, _layout_container, $c
                     // Width
                     if(parts.length == 3 || part_one_style){
 
-                        if(parts[0].indexOf('px') === -1 && isNaN(parts[0])){ // something else
+                        if(parts[0].indexOf('px') === -1 && !window.hWin.HEURIST4.util.isNumber(parts[0])){ // something else
                             s.push(`${style}: ${value}`);
                             continue;
                         }
 
-                        let px = parts[0].indexOf('px') === -1 ? `${parts[0]}px` : parts[0];
+                        let px = window.hWin.HEURIST4.util.isNumber(parts[0]) ? `${parts[0]}px` : parts[0];
                         s.push(`border-width: ${px}`);
 
                         l_cfg.css['border-width'] = px;
@@ -1006,20 +1006,22 @@ function editCMS_ElementCfg( element_cfg, _layout_content, _layout_container, $c
         
         if($container.find('.btn-save-element').attr('disabled')!='disabled'){
             
+            let that = this;
+            
             let $dlg;
             let _buttons = [
                 {text:window.hWin.HR('Save'), 
                     click: function(){
                         $container.find('.btn-save-element').trigger('click');
                         $dlg.dialog('close');
-                        if(window.hWin.HEURIST4.util.isFunction(callback)) callback.call(this);
+                        if(window.hWin.HEURIST4.util.isFunction(callback)) callback.call(that, true);
                     }
                 },
                 {text:window.hWin.HR('Discard'), 
                     click: function(){
                         $container.find('.btn-cancel').trigger('click');
                         $dlg.dialog('close'); 
-                        if(window.hWin.HEURIST4.util.isFunction(callback)) callback.call(this);
+                        if(window.hWin.HEURIST4.util.isFunction(callback)) callback.call(that, false);
                     }
                 },
                 {text:window.hWin.HR('Cancel'), 

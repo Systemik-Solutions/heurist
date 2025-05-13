@@ -3,7 +3,7 @@
 *
 * @package     Heurist academic knowledge management system
 * @link        https://HeuristNetwork.org
-* @copyright   (C) 2005-2023 University of Sydney
+* @copyright   (C) 2005-2023 University of Sydney, (C) 2024 onwards Heurist Network
 * @author      Artem Osmakov   <osmakov@gmail.com>
 * @designer    Ian Johnson     <ian.johnson.heurist@gmail.com>
 * @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
@@ -833,8 +833,7 @@ $.widget( "heurist.searchBuilder", {
                         $(data.node.span.childNodes[1]).hide();
                         $(data.node.span.childNodes[3]).css('font-weight', 'normal');
 
-                        if(data.node.parent && data.node.parent.type == 'resource' || data.node.parent.type == 'relmarker'){ 
-                            // add left border+margin
+                        if(data.node.parent && data.node.parent.type == 'resource' || data.node.parent.type == 'relmarker'){ // add left border+margin
                             $(data.node.li).attr('style', 'border-left: black solid 1px !important;margin-left: 9px;');
                         }
                     }
@@ -1381,9 +1380,7 @@ $.widget( "heurist.searchBuilder", {
 
                             //add new branch 
                             if(not_found){
-                                
-                               
-                                
+
                                 let newbranch = {};
                                 newbranch[key] = [];
                                 branch.push(newbranch);

@@ -3,7 +3,7 @@
 * 
 * @package     Heurist academic knowledge management system
 * @link        https://HeuristNetwork.org
-* @copyright   (C) 2005-2023 University of Sydney
+* @copyright   (C) 2005-2023 University of Sydney, (C) 2024 onwards Heurist Network
 * @author      Artem Osmakov   <osmakov@gmail.com>
 * @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
 * @version     4.0
@@ -16,8 +16,6 @@
 * distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied
 * See the License for the specific language governing permissions and limitations under the License.
 */
-
-/* global layoutMgr */
 
 //
 // widget_cfg -json cfg for widget to be edited 
@@ -186,7 +184,7 @@ function editCMS_WidgetCfg( widget_cfg, _layout_content, $dlg, main_callback, on
             //find map widget on this page
             if(widget_name=='heurist_StoryMap'){
                 if(!opts.map_widget_id){
-                    const ele = layoutMgr.layoutContentFindWidget(_layout_content, 'heurist_Map');
+                    const ele =  window.hWin.HAPI4.layoutMgr.layoutContentFindWidget(_layout_content, 'heurist_Map');
                     
                     if(ele && ele.options.search_realm=='' && ele.dom_id){
                         opts.map_widget_id = ele.dom_id;
@@ -197,8 +195,8 @@ function editCMS_WidgetCfg( widget_cfg, _layout_content, $dlg, main_callback, on
             //find and assign prevail search group (except heurist_Map if heurist_StoryMap exists)
             if(!opts.search_realm){ //not defined yet
             
-                if(!(widget_name=='heurist_Map' && layoutMgr.layoutContentFindWidget(_layout_content, 'heurist_StoryMap')!=null)){
-                    let sg = layoutMgr.layoutContentFindMainRealm(_layout_content);    
+                if(!(widget_name=='heurist_Map' &&  window.hWin.HAPI4.layoutMgr.layoutContentFindWidget(_layout_content, 'heurist_StoryMap')!=null)){
+                    let sg =  window.hWin.HAPI4.layoutMgr.layoutContentFindMainRealm(_layout_content);    
                     if(sg=='') sg = 'search_group_1';
                     opts.search_realm = sg;
                 }
@@ -297,8 +295,8 @@ function editCMS_WidgetCfg( widget_cfg, _layout_content, $dlg, main_callback, on
                     if(opts.layout_params['popup_width']){
 
                         let value = opts.layout_params['popup_width'];
-                        const unit = (value.indexOf('px') > 0) ? value.slice(-2) : value.slice(-1);
-                        value = (value.indexOf('px') > 0) ? value.slice(0, -2) : value.slice(0, -1);
+                        const unit = value.endsWith('%') ? value.slice(-1) : value.slice(-2);
+                        value = value.endsWith('%') ? value.slice(0, -1) : value.slice(0, -2);
 
                         $dlg.find('input[name="popup_width"]').val(value); // first index
                         $dlg.find('select[name="popup_wunit"]').val(unit); // second index
@@ -306,8 +304,8 @@ function editCMS_WidgetCfg( widget_cfg, _layout_content, $dlg, main_callback, on
                     if(opts.layout_params['popup_height']){
 
                         let value = opts.layout_params['popup_height'];
-                        const unit = (value.indexOf('px') > 0) ? value.slice(-2) : value.slice(-1);
-                        value = (value.indexOf('px') > 0) ? value.slice(0, -2) : value.slice(0, -1);
+                        const unit = value.endsWith('%') ? value.slice(-1) : value.slice(-2);
+                        value = value.endsWith('%') ? value.slice(0, -1) : value.slice(0, -2);
 
                         $dlg.find('input[name="popup_height"]').val(value); // first index
                         $dlg.find('select[name="popup_hunit"]').val(unit); // second index
@@ -345,6 +343,9 @@ function editCMS_WidgetCfg( widget_cfg, _layout_content, $dlg, main_callback, on
                 }
                 if(opts['current_search_filter']){
                     $dlg.find('input[name="current_search_filter"]').val(opts['current_search_filter']);    
+                }
+                if(opts['showCurrentResults']){
+                    $dlg.find('input[name="showCurrentResults"]').prop('checked', opts['showCurrentResults']);
                 }
 
                 $dlg.find('button[name="basemap_filter"]')
@@ -417,10 +418,10 @@ function editCMS_WidgetCfg( widget_cfg, _layout_content, $dlg, main_callback, on
 
                         let popup_dims = opts['recview_dimensions'];
 
-                        let h_unit = popup_dims.height.indexOf('px') !== -1 ? 'px' : '%';
-                        let w_unit = popup_dims.width.indexOf('px') !== -1 ? 'px' : '%';
-                        let l_unit = popup_dims.left.indexOf('px') !== -1 ? 'px' : '%';
-                        let t_unit = popup_dims.top.indexOf('px') !== -1 ? 'px' : '%';
+                        let h_unit = popup_dims.height.endsWith('%') ? '%' : popup_dims.height.slice(-2);
+                        let w_unit = popup_dims.width.endsWith('%') ? '%' : popup_dims.width.slice(-2);
+                        let l_unit = popup_dims.left.endsWith('%') ? '%' : popup_dims.left.slice(-2);
+                        let t_unit = popup_dims.top.endsWith('%') ? '%' : popup_dims.top.slice(-2);
 
                         $dlg.find('[name="dialog_hunit"]').val(h_unit);
                         $dlg.find('[name="dialog_wunit"]').val(w_unit);
@@ -613,6 +614,8 @@ function editCMS_WidgetCfg( widget_cfg, _layout_content, $dlg, main_callback, on
                                             $dlg.find('input[name="OwnerUGrpID"]').val(context.OwnerUGrpID);
                                             $dlg.find('input[name="NonOwnerVisibility"]').val(context.NonOwnerVisibility);
                                             __human_readble();
+
+                                            $dlg.find('input[name="RecTypeID"], input[name="OwnerUGrpID"], input[name="NonOwnerVisibility"]').trigger('input');
                                         }
 
                                     },
@@ -1266,10 +1269,12 @@ function editCMS_WidgetCfg( widget_cfg, _layout_content, $dlg, main_callback, on
             if($dlg.find('input[name="basemaps"]').val()){
                 layout_params['basemaps'] = $dlg.find('input[name="basemaps"]').val();    
             }
-            
+
+            opts['showCurrentResults'] = $dlg.find('input[name="showCurrentResults"]').is(':checked');
+
             opts['custom_links'] = $dlg.find('textarea[name="custom_links"]').val(); 
             opts['current_search_filter'] = $dlg.find('input[name="current_search_filter"]').val();   
-            
+
             layout_params['style'] = $dlg.find('#map_default_style').val();   
             layout_params['selection_style'] = $dlg.find('#map_select_style').val();   
             

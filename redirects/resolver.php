@@ -12,7 +12,7 @@
 *
 * @package     Heurist academic knowledge management system
 * @link        https://HeuristNetwork.org
-* @copyright   (C) 2005-2023 University of Sydney
+* @copyright   (C) 2005-2023 University of Sydney, (C) 2024 onwards Heurist Network
 * @author      Artem Osmakov   <osmakov@gmail.com>
 * @author      Ian Johnson     <ian.johnson.heurist@gmail.com>
 * @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
@@ -185,19 +185,19 @@ RewriteEngine On
 RewriteRule ^heurist/web/(.*)$ /heurist/redirects/resolver.php
 RewriteRule ^web/(.*)$ /heurist/redirects/resolver.php
 
-https://HeuristRef.net/web/johns_test_63/1463/2382
-→ https://heuristref.net/heurist/?db=johns_test_063&website&id=1463&pageid=2382
+https://HeuristRef.net/johns_test_63/web/1463/2382
+→ https://heuristref.net/heurist/?db=johns_test_063&website=1463&pageid=2382
 
 The IDs for the website and the pageid are optional, so in most cases, w
 here the website is the first or only one for the database,
 all that is needed is the database name like this:
 
-https://HeuristRef.net/web/johns_test_63
+https://HeuristRef.net/johns_test_63/web
 
 $requestUri:
 0 - "heurist"
-1 - "web"
-2 - database
+1 - database
+2 - "web"
 3 - website id
 4 - page id
 */
@@ -236,6 +236,8 @@ $requestUri:
             
             $redirect .= '?db='.$database.'&website';
 
+            $params['db'] = $database;    
+            
             if(intval(@$requestUri[3])>0){
                 $redirect .= '&website='.intval($requestUri[3]);
                 $params['website'] = intval($requestUri[3]);
@@ -248,6 +250,9 @@ $requestUri:
             }
             if(@$_REQUEST['edit']){
                 $params['edit'] = $_REQUEST['edit'];    
+            }
+            if(@$_REQUEST['ver']){
+                $params['ver'] = $_REQUEST['ver'];    
             }
             if(@$_REQUEST['newlycreated']){
                 $params['newlycreated'] = $_REQUEST['newlycreated'];    
@@ -336,6 +341,9 @@ $requestUri:
                 //$rewrite_path = dirname(__FILE__).'/../index.php';
             }
             elseif($action=='tpl'){ // call FrontController from index.php
+            
+                //   /tpl/template-name/query    /tpl/person-all/t:10 or /tpl/person-view/123
+            
                 $query = null;
 
                 if(@$requestUri[3]){

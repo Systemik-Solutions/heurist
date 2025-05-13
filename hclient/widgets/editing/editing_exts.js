@@ -10,7 +10,7 @@
 * 
 * @package     Heurist academic knowledge management system
 * @link        https://HeuristNetwork.org
-* @copyright   (C) 2005-2023 University of Sydney
+* @copyright   (C) 2005-2023 University of Sydney, (C) 2024 onwards Heurist Network
 * @author      Artem Osmakov   <osmakov@gmail.com>
 * @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
 * @version     4.0
@@ -939,6 +939,7 @@ function openSearchMenu(that, $select, has_filter=true, is_terms=false){
                 if(val.length<2){
                     $mnu.find('li').css('display','list-item');
                     $mnu.find('div.not-found').hide();
+                    that.selObj.hSelect('openAllGroupings');
                 }else{ //start search from 3 characters
                     if(_timeout==0){
                         $mnu.find('.ui-menu-item-wrapper').css('cursor','progress');
@@ -1049,13 +1050,11 @@ function openSearchMenu(that, $select, has_filter=true, is_terms=false){
  
             let start_pos = 0;
 
-			that._on($menu.find('li.ui-menu-item:first'), {
-				click: function(event){ // stop click for menu filter option
-                    if ($(event.target).parents('.show-select-dialog').length==0){
-					    window.hWin.HEURIST4.util.stopEvent(event);
-					    return false;
-                    }
-				},
+            let $search_li = $menu.find('li.ui-menu-item:first');
+            $search_li.removeClass('ui-menu-item').addClass('ui-menu-search');
+            $search_li.find('[role="option"]').attr('role', '');
+
+            that._on($search_li, {
                 keydown: function(event){ // allow hotkeys for input filter
 
                     /**
@@ -1088,25 +1087,35 @@ function openSearchMenu(that, $select, has_filter=true, is_terms=false){
                         window.hWin.HEURIST4.util.stopEvent(event);
                         event.stopImmediatePropagation();
 
-                        $input.val(cur_val + ' ');
-                        start_pos = ++cur_val.length;
+                        let value = $input.val();
+                        let start = $input[0].selectionStart;
+                        let end = $input[0].selectionEnd;
+
+                        // Add space and update value
+                        value = `${value.substring(0, start)} ${value.substring(end)}`;
+                        $input.val(value);
+
+                        // Correct cursor position
+                        start_pos = ++start;
+                        $input[0].setSelectionRange(start_pos, start_pos);
                     }else if(is_enter && $menu.find('.ui-menu-item:visible').length == 2){ // auto select only result
 
                         window.hWin.HEURIST4.util.stopEvent(event);
                         event.stopImmediatePropagation();
 
-                        $($menu.find('.ui-menu-item:visible')[1]).trigger('click');
+                        $($menu.find('.ui-menu-item:visible')[1]).trigger('click'); // trigger selection
                     }else if(is_tab && $menu.find('.ui-menu-item:visible').length > 1){ // focus first item
 
                         window.hWin.HEURIST4.util.stopEvent(event);
                         event.stopImmediatePropagation();
 
-                        $($menu.find('.ui-menu-item:visible')[1]).trigger('mouseover');
+                        $($menu.find('.ui-menu-item:visible')[1]).trigger('mouseover'); // change focus to options
                     }else if((event.key == "A" || code == 13) && ctrl_pressed){
 
                         window.hWin.HEURIST4.util.stopEvent(event);
                         event.stopImmediatePropagation();
 
+                        // Highlight input text
                         $input[0].setSelectionRange(0, cur_val.length);
                         start_pos = cur_val.length;
                     }else if(left_arrow || right_arrow){
@@ -1799,6 +1808,8 @@ function browseTerms(_editing_input, $input, value){
                     trm_Label = label + '.' +  trm_Label;
                 }
             }
+
+            trm_Label = $Db.trm_RemoveDupHierarchy(trm_Label);
         
             window.hWin.HEURIST4.ui.addoption($input[0], trm_ID, trm_Label);
             $input.css('min-width', '');
@@ -1816,89 +1827,87 @@ function browseTerms(_editing_input, $input, value){
     function __createTermTooltips($input){
 
         let $menu = $input.hSelect('menuWidget');
-        if(!$input.attr('data-tooltips')){
-
-            let $tooltip = null;
-            $input.attr('data-tooltips', 1);
-
-            $menu.find('div.ui-menu-item-wrapper')//.filter(() => { return $(this).children().length == 0; })
-                 .on('mouseenter', (event) => { // create tooltip
-
-                    let $target_ele = $(event.target);
-
-                    if(($target_ele.children().length != 0 && $target_ele.find('img').length != 1) || $target_ele.text() == '<blank>'){
-                        return;
-                    }
-
-                    let name = $target_ele.text();
-                    let vocab_id = that.f('rst_FilteredJsonTermIDTree');
-
-                    let term_id = $Db.getTermByLabel(vocab_id, name);
-                    let details = '';
-
-                    if(term_id){
-
-                        let term = $Db.trm(term_id);
-                        if(!window.hWin.HEURIST4.util.isempty(term.trm_Code)){
-                            details += "<span style='text-align: center;'>Code &rArr; " + term.trm_Code + "</span>";
-                        }
-
-                        if(!window.hWin.HEURIST4.util.isempty(term.trm_Description)){
-
-                            if(details == ''){
-                                details = "<span style='text-align: center;'>Code &rArr; N/A </span>";
-                            }
-                            details += "<hr><span>" + term.trm_Description + "</span>";
-                        }
-                    }
-
-                    if(details == ''){
-                        details = "No Description Provided";
-                    }
-
-                    $tooltip = $menu.tooltip({
-                        items: "div.ui-state-active",
-                        position: { // Post it to the right of menu item
-                            my: "left+20 center",
-                            at: "right center",
-                            collision: "none"
-                        },
-                        show: { // Add slight delay to show
-                            delay: 2000,
-                            duration: 0
-                        },
-                        content: function(callback){ // Check for image, then provide text
-
-                            const ele_context = this;
-
-                            window.hWin.HAPI4.checkImage('defTerms', term_id, 'icon', function(response){
-
-                                if(response.status == window.hWin.ResponseStatus.OK && response.data == 'ok'){
-
-                                    let icon = window.hWin.HAPI4.getImageUrl('defTerms', term_id, 'icon', null, null, true);
-                                    details += `<br><br><img src='${window.hWin.HAPI4.baseURL}hclient/assets/16x16.gif' style='background-image: url("${icon}")' height=64 width=64 />`;
-                                }
-
-                                callback.call(ele_context, details);
-                            });
-
-                            return '';
-                        },
-                        open: function(event, ui){ // Add custom CSS + class
-                            ui.tooltip.css({
-                                "width": "200px",
-                                "background": "rgb(209, 231, 231)",
-                                "font-size": "1.1em"
-                            });
-                        }
-                    });
-                 })
-                 .on('mouseleave', (event) => { // ensure tooltip is gone
-                    if($tooltip && $tooltip.tooltip('instance') != undefined){
-                        $tooltip.tooltip('destroy');
-                    }
-                 });
+        if($input.attr('data-tooltips')){
+            return;
         }
+
+        let $tooltip = null;
+        $input.attr('data-tooltips', 1);
+
+        $menu.find('li.ui-menu-item')
+             .on('mouseenter', (event) => { // create tooltip
+
+                let $target_ele = $(event.target);
+
+                if(($target_ele.children().length != 0 && $target_ele.find('img').length != 1) || $target_ele.find('div.ui-menu-item-wrapper').text() == '<blank>'){
+                    return;
+                }
+
+                let term_id = $target_ele.attr('data-hid');
+                let details = '';
+
+                if(window.hWin.HEURIST4.util.isPositiveInt(term_id)){
+
+                    let term = $Db.trm(term_id);
+                    if(!window.hWin.HEURIST4.util.isempty(term.trm_Code)){
+                        details += "<span style='text-align: center;'>Code &rArr; " + term.trm_Code + "</span>";
+                    }
+
+                    if(!window.hWin.HEURIST4.util.isempty(term.trm_Description)){
+
+                        if(details == ''){
+                            details = "<span style='text-align: center;'>Code &rArr; N/A </span>";
+                        }
+                        details += "<hr><span>" + term.trm_Description + "</span>";
+                    }
+                }
+
+                if(details == ''){
+                    details = "No Description Provided";
+                }
+
+                $tooltip = $menu.tooltip({
+                    items: "div.ui-state-active",
+                    position: { // Post it to the right of menu item
+                        my: "left+20 center",
+                        at: "right center",
+                        collision: "none"
+                    },
+                    show: { // Add slight delay to show
+                        delay: 1500,
+                        duration: 0
+                    },
+                    content: function(callback){ // Check for image, then provide text
+
+                        const ele_context = this;
+
+                        window.hWin.HAPI4.checkImage('defTerms', term_id, 'icon', function(response){
+
+                            if(response.status == window.hWin.ResponseStatus.OK && response.data == 'ok'){
+
+                                let icon = window.hWin.HAPI4.getImageUrl('defTerms', term_id, 'icon', null, null, true);
+                                details += `<br><br><img src='${window.hWin.HAPI4.baseURL}hclient/assets/16x16.gif' style='background-image: url("${icon}")' height=64 width=64 />`;
+                            }
+
+                            callback.call(ele_context, details);
+                        });
+
+                        return '';
+                    },
+                    open: function(event, ui){ // Add custom CSS + class
+                        ui.tooltip.css({
+                            "width": "200px",
+                            "background": "rgb(209, 231, 231)",
+                            "font-size": "1.1em"
+                        });
+                    }
+                });
+             })
+             .on('mouseleave', (event) => { // ensure tooltip is gone
+                if($tooltip && $tooltip.tooltip('instance') != undefined){
+                    $tooltip.tooltip('destroy');
+                }
+             });
     }
 
     function __recreateSelector(){
@@ -1946,6 +1955,7 @@ function browseTerms(_editing_input, $input, value){
         events['onOpenMenu'] = function(){
             __createTermTooltips(that.selObj);
             openSearchMenu(that, that.selObj, true, true);
+            that.selObj.hSelect('refreshGroupings', true);
         };
 
         events['onSelectMenu'] = function ( event ){
@@ -1994,6 +2004,7 @@ function browseTerms(_editing_input, $input, value){
                 defaultTermID:$input.val(), topOptions:topOptions, supressTermCode:true, 
                 useHtmlSelect:false, eventHandlers:events, language_code: lang_code});
 
+        that.selObj.hSelect('option', { groupings: true, groupingsType: 'trm' });
         $(that.selObj).hide(); //button will be hidden        
     }
     

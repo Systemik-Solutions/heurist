@@ -9,7 +9,7 @@
 *
 * @package     Heurist academic knowledge management system
 * @link        https://HeuristNetwork.org
-* @copyright   (C) 2005-2023 University of Sydney
+* @copyright   (C) 2005-2023 University of Sydney, (C) 2024 onwards Heurist Network
 * @author      Artem Osmakov   <osmakov@gmail.com>
 * @author      Ian Johnson     <ian.johnson.heurist@gmail.com>
 * @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
@@ -3324,6 +3324,11 @@ public static function importTerms($params){
         $trm_Separator = '';
     }
 
+    $trm_RetainParentLabel = @$params['trm_RetainParentLabel'];
+    if(empty($trm_RetainParentLabel)){
+        $trm_RetainParentLabel = 0;
+    }
+
     $progress_session_id = @$params['session'];
 
     $results = [
@@ -3404,7 +3409,8 @@ public static function importTerms($params){
 
                 $def_terms->setData([
                     'fields' => $new_terms,
-                    'term_separator' => $trm_Separator
+                    'term_separator' => $trm_Separator,
+                    'term_RetainParentLabel' => $trm_RetainParentLabel
                 ]);
 
                 $res = $def_terms->batch_action();
@@ -3430,7 +3436,8 @@ public static function importTerms($params){
 
             $def_terms->setData([
                 'fields' => $new_terms,
-                'term_separator' => $trm_Separator
+                'term_separator' => $trm_Separator,
+                'term_RetainParentLabel' => $trm_RetainParentLabel
             ]);
 
             $res = $def_terms->batch_action();

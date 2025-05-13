@@ -5,7 +5,7 @@
 *
 * @package     Heurist academic knowledge management system
 * @link        https://HeuristNetwork.org
-* @copyright   (C) 2005-2023 University of Sydney
+* @copyright   (C) 2005-2023 University of Sydney, (C) 2024 onwards Heurist Network
 * @author      Artem Osmakov   <osmakov@gmail.com>
 * @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
 * @version     4.0
@@ -42,7 +42,7 @@ $.widget( "heurist.resultList", {
 
         show_toolbar: true,   //toolbar contains menu,savefilter,counter,viewmode and pagination
         show_search_form: false,
-        show_menu: false,       //@todo ? - replace to action_select and action_buttons
+        show_menu: false,       //resultListMenu   @todo ? - replace to action_select and action_buttons
         support_collection: false,
         support_reorder: false,  // show separate reorder button
         show_counter: true,
@@ -243,7 +243,7 @@ $.widget( "heurist.resultList", {
 
         if(!window.hWin.HEURIST4.util.isempty(rec_ids)){
             this._auto_select_record = Array.isArray(rec_ids) ? rec_ids : rec_ids.split(',');
-            this._auto_select_record = this._auto_select_record.filter((rec_ID) => !window.hWin.HEURIST4.util.isempty(rec_ID) && rec_ID > 0);
+            this._auto_select_record = this._auto_select_record.map(v =>parseInt(v, 10)).filter((v) => v > 0);
         }
 
         this._initControls();
@@ -599,7 +599,7 @@ $.widget( "heurist.resultList", {
         }
         
         
-        //add label to display number of selected, button and selected onlu checkbox
+        //add label to display number of selected, button and selected only checkbox
         if(this.options.select_mode=='select_multi'){
             this.show_selected_only = $( "<div>" )
             .addClass('ent_select_multi')  //ui-widget-content 
@@ -653,6 +653,7 @@ $.widget( "heurist.resultList", {
             'z-index':'99999999', 'background':'url('+window.hWin.HAPI4.baseURL+'hclient/assets/loading-animation-white.gif) no-repeat center center' })
         .appendTo( this.element ).hide();
 
+        // not implemented - to remove
         if(window.hWin.HEURIST4.util.isArrayNotEmpty(this.options.action_buttons)){
 
             this.action_buttons_div.css({'display':'inline-block', 'padding':'0 0 4px 1em'})
@@ -2051,9 +2052,9 @@ $.widget( "heurist.resultList", {
     //
     _recordDivOnClick: function(event){
 
-        let $target = $(event.target),
-        that = this,
-        $rdiv;
+        let $target = $(event.target);
+        let that = this;
+        let $rdiv;
 
         if($target.is('a')) return;
 
@@ -2063,7 +2064,7 @@ $.widget( "heurist.resultList", {
             $rdiv = $target;
         }
 
-        let selected_rec_ID = $rdiv.attr('recid');
+        let selected_rec_ID = parseInt($rdiv.attr('recid'));
 
         let action =  $target.attr('data-key') || $target.parents().attr('data-key');
         if(!window.hWin.HEURIST4.util.isempty(action)){ //action_btn && action_btn.length()>0){
@@ -2473,6 +2474,7 @@ $.widget( "heurist.resultList", {
                         isSmarty = true;
                     }else{
                         //content is record view 
+                        recID = parseInt(recID);
                         infoURL = window.hWin.HAPI4.baseURL + 'viewers/record/renderRecordData.php?recID='
                         +recID
                         +'&db='+window.hWin.HAPI4.database;
@@ -2600,7 +2602,7 @@ $.widget( "heurist.resultList", {
     },
 
     /**
-    * return HRecordSet of selected records
+    * return HRecordSet or array of ids of selected records
     */
     getSelected: function( idsonly ){
 
@@ -3991,8 +3993,8 @@ $.widget( "heurist.resultList", {
                     +'</div>').appendTo(ele);
                     
                     ele.tabs('refresh');
-                    
-                    
+                    ele.tabs('option', 'active', -1);
+
                     $('<div class="ent_header">'
                         +'<span style="padding-top: 5px;display: inline-block;">'
                             +window.hWin.HR('Drag records to position in list, drag into list to add them')+'</span>'
@@ -4444,7 +4446,7 @@ $.widget( "heurist.resultList", {
 
             opts.position = pos;
         }else if(dlg.dialog('instance') !== undefined){
-            dlg.dialog('option', 'title', popup_title);
+            dlg.parent().find('.ui-dialog-titlebar .ui-dialog-title').html(popup_title);
         }
 
         window.hWin.HEURIST4.msg.showDialog(recInfoUrl, opts);
@@ -4457,6 +4459,7 @@ $.widget( "heurist.resultList", {
                         that._closeRecordViewPopup();
                     }
                 });
+
                 let dlg_header = dlg.parent().find('.ui-dialog-titlebar');
                 dlg_header.find('.ui-dialog-title').css({width: '80%', 'font-size': '1em'});
                 this._on(dlg_header,{mouseout:function(){
@@ -4530,11 +4533,13 @@ $.widget( "heurist.resultList", {
 
             this._isCollectionUsed = true;
 
-            this._fullRecordset = this._currentRecordset;
+            this._fullRecordset = this._fullRecordset ?? this._currentRecordset;
 
             let cnt = this._collection.length;
             let rs = {count:cnt,entityName:"Records",offset:0,reccount:cnt,records:this._collection};           
             this._currentRecordset = new HRecordSet(rs);
+
+            this._currentSubset = null; // remove subset
 
         }else{
             this._isCollectionUsed = false;
@@ -4542,6 +4547,8 @@ $.widget( "heurist.resultList", {
         }
 
         const query = this._currentRecordset.length() > 0 ? `ids:${this._currentRecordset.getIds().join(',')}` : '';
+
+        window.hWin.HAPI4.currentRecordset = this._currentRecordset;
 
         $(this.document).trigger(window.hWin.HAPI4.Event.ON_REC_SEARCH_FINISH, {
             recordset: this._currentRecordset,

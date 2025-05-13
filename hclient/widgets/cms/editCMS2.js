@@ -3,7 +3,7 @@
 * 
 * @package     Heurist academic knowledge management system
 * @link        https://HeuristNetwork.org
-* @copyright   (C) 2005-2023 University of Sydney
+* @copyright   (C) 2005-2023 University of Sydney, (C) 2024 onwards Heurist Network
 * @author      Artem Osmakov   <osmakov@gmail.com>
 * @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
 * @version     4.0
@@ -22,8 +22,6 @@
 /* global tinymce, isCMS_InHeuristUI, isWebPage, current_page_id, home_page_record_id, page_cache, 
     editCMS_instance2, editCMS_SiteMenu, editCMS_ElementCfg, editCMS_SelectElement, 
     website_languages, default_language,current_language*/
-
-//  window.hWin.layoutMgr - global variable defined in hLayoutMgr
 
 /*
 
@@ -170,7 +168,7 @@ function editCMS2(website_document){
                             +'<div id="treeWebSite" style="display:none;top:2.5em" class="ent_wrapper ui-cms-mainmenu">'
                                 +'<div class="toolbarWebSite ent_header" style="height:85px;padding-top:15px;">'
 
-                                    +'<span style="display:block;border-top:1px solid gray;padding:4px 8px;margin:4px 0px;">'
+                                    +'<span style="display:block;border-top:1px solid gray;padding:4px 8px;margin:4px 0px;"></span>'
 
                                     +'<span style="display:inline-block;padding-top:7px" class="heurist-helper1" '
                                         +'title="Select menu item and Dblclick (or F2) to edit menu title in place. Drag and drop to reorder menu">'
@@ -200,7 +198,8 @@ function editCMS2(website_document){
                                     :'<h3 class="truncate" style="margin-block-start: 0.3em; margin-block-end: 0.7em; font-size: 10px; font-family: revert; max-width: 85%; display: inline-block"></h3>')
                                     +'<span style="float: right; font-size: 10px;" class="heurist-helper1 element_edit">'
                                         +'<a href="'+window.hWin.HAPI4.sysinfo.referenceServerURL
-                                        +'?db=Heurist_Help_System&website&id=39&pageid=708" target="_blank">website help</a>'
+                                        +'?db='+window.hWin.HAPI4.sysinfo.referenceServerHelpDatabase
+                                        +'&website=39&pageid=708" target="_blank">website help</a>'
                                     +'</span>'
                                         
                                 +'</div>'
@@ -326,14 +325,14 @@ function editCMS2(website_document){
     function _initEditControls(need_callback){
 
         _editor_panel.find('.btn-website-homepage').on('click',_editHomePage);
+
+        _editor_panel.find('.btn-website-edit').on('click', _editHomePageRecord);
         if(!isWebPage){
             _editor_panel.find('.btn-website-edit')
                          .button({classes:{'ui-button': 'ui-button-action'}})
-                         .css({'padding':'5px','font-size':'smaller'})
-                         .on('click', _editHomePageRecord);
-        }else{
-            _editor_panel.find('.btn-website-edit').on('click',_editHomePageRecord);
+                         .css({'padding':'5px','font-size':'smaller'});
         }
+
         _editor_panel.find('.btn-website-addpage').on('click',_addNewRootMenu); // button({icon:'ui-icon-plus'}).
 
         let url = window.hWin.HEURIST4.ui.getCmsLink({websiteid:home_page_record_id});
@@ -409,7 +408,7 @@ function editCMS2(website_document){
 
         if(_warningOnExit( _editHomePageRecord )) return;
 
-        if(!_editCMS_SiteMenu)
+        if(!_editCMS_SiteMenu && !isWebPage)
             _editCMS_SiteMenu = editCMS_SiteMenu( _panel_treeWebSite, that );
         
         //edit menu item
@@ -422,7 +421,7 @@ function editCMS2(website_document){
                 onselect:function(event, data){
                     if( window.hWin.HEURIST4.util.isRecordSet(data.selection) ){
                         //reload entire site
-                        if(_editCMS_SiteMenu) _editCMS_SiteMenu.refreshWebsite();
+                        _editCMS_SiteMenu ? _editCMS_SiteMenu.refreshWebsite() : window.hWin.location.reload();
                     }
         }});
     }
@@ -499,8 +498,8 @@ function editCMS2(website_document){
         _ws_body.layout().hide(options.editor_pos);
         
         //2. reload content
-        window.hWin.layoutMgr.setEditMode(false);
-        window.hWin.layoutMgr.layoutInit(_layout_content, _layout_container, {rec_ID:home_page_record_id, lang:current_language});
+        window.hWin.HAPI4.layoutMgr.setEditMode(false);
+        window.hWin.HAPI4.layoutMgr.layoutInit(_layout_content, _layout_container, {rec_ID:home_page_record_id, lang:current_language});
 
         // Display cms editor button
         _ws_body.find('#btnOpenCMSeditor').show().html('website editor');
@@ -517,8 +516,8 @@ function editCMS2(website_document){
         
         if(tinymce) tinymce.remove('.tinymce-body'); //detach
         
-        if(window.hWin.layoutMgr){
-            window.hWin.layoutMgr.setEditMode(true);
+        if(window.hWin.HAPI4.layoutMgr){
+            window.hWin.HAPI4.layoutMgr.setEditMode(true);
         }else {
             return;
         }
@@ -535,7 +534,7 @@ function editCMS2(website_document){
         if(supress_conversion!==true && typeof _layout_content === 'string' &&
             _layout_content.indexOf('data-heurist-app-id')>0){ //old format with some widgets
 
-                            const res = window.hWin.layoutMgr.convertOldCmsFormat(_layout_content, _layout_container);
+                            const res = window.hWin.HAPI4.layoutMgr.convertOldCmsFormat(_layout_content, _layout_container);
                             if(res!==false){
                                 was_converted_to_new_format = true;
                                 _layout_content = res;
@@ -552,7 +551,9 @@ const sMsg = '<p>The internal storage format of web pages has changed for greate
         
         opts.keep_top_config = true;
         opts.lang = current_language;
-        const res = window.hWin.layoutMgr.layoutInit(_layout_content, _layout_container, opts);
+        const res = window.hWin.HAPI4.layoutMgr.layoutInitFromJSON(_layout_content, _layout_container, opts);
+      
+//console.log(res);      
         
         if(res===false){
             window.hWin.HEURIST4.msg.showMsgFlash('Old format. Edit in Heurist interface', 3000);
@@ -664,7 +665,7 @@ const sMsg = '<p>The internal storage format of web pages has changed for greate
                     if(tinymce.activeEditor && tinymce.activeEditor.targetElm){
                         let key = $(tinymce.activeEditor.targetElm).attr('data-hid');
                         //update in _layout_content
-                        let l_cfg = window.hWin.layoutMgr.layoutContentFindElement(_layout_content, key);
+                        let l_cfg = window.hWin.HAPI4.layoutMgr.layoutContentFindElement(_layout_content, key);
                         if(l_cfg){
                             let new_content = tinymce.activeEditor.getContent();
                             page_was_modified = (page_was_modified || l_cfg.content!=new_content);
@@ -1567,7 +1568,7 @@ function(value){
         }else{
 
             //remove child
-            parent_element = window.hWin.layoutMgr.layoutContentFindElement(_layout_content, parentnode.key);
+            parent_element = window.hWin.HAPI4.layoutMgr.layoutContentFindElement(_layout_content, parentnode.key);
             parent_children = parent_element.children;
             parent_container = _layout_container.find('div[data-hid='+parentnode.key+']');
             
@@ -1591,11 +1592,11 @@ function(value){
         
         //recreate parent element
         if(parent_element && parent_element.type=='accordion'){
-            window.hWin.layoutMgr.layoutInitAccordion(parent_element, parent_container)
+            window.hWin.HAPI4.layoutMgr.layoutInitAccordion(parent_element, parent_container)
         }else if(parent_element && parent_element.type=='tabs'){
-            window.hWin.layoutMgr.layoutInitTabs(parent_element, parent_container)
+            window.hWin.HAPI4.layoutMgr.layoutInitTabs(parent_element, parent_container)
         }else{
-            window.hWin.layoutMgr.layoutInit(parent_children, parent_container, {rec_ID:home_page_record_id, lang:current_language}); 
+            window.hWin.HAPI4.layoutMgr.layoutInit(parent_children, parent_container, {rec_ID:home_page_record_id, lang:current_language}); 
         }
         
         page_was_modified = true;
@@ -1613,10 +1614,10 @@ function(value){
         tinymce.remove('.tinymce-body'); //detach
         _layout_container.find('.lid-actionmenu').remove();
         
-        let affected_element = window.hWin.layoutMgr.layoutContentFindElement(_layout_content, ele_id);
+        let affected_element = window.hWin.HAPI4.layoutMgr.layoutContentFindElement(_layout_content, ele_id);
         
 
-        let oldparent = window.hWin.layoutMgr.layoutContentFindParent(_layout_content, ele_id);
+        let oldparent = window.hWin.HAPI4.layoutMgr.layoutContentFindParent(_layout_content, ele_id);
         let parent_children;
         
         //remove from old parent -----------
@@ -1639,7 +1640,7 @@ function(value){
         let node = tree.getNodeByKey(''+ele_id);
         let prevnode = node.getPrevSibling();
         let parentnode = node.getParent();
-        let parent_element = window.hWin.layoutMgr.layoutContentFindElement(_layout_content, parentnode.key);
+        let parent_element = window.hWin.HAPI4.layoutMgr.layoutContentFindElement(_layout_content, parentnode.key);
         parent_children = parent_element ? parent_element.children : _layout_content;
         
         if(prevnode==null){
@@ -1659,7 +1660,7 @@ function(value){
         }
         
         //redraw page
-        window.hWin.layoutMgr.layoutInit(_layout_content, _layout_container, {rec_ID:home_page_record_id, lang:current_language});
+        window.hWin.HAPI4.layoutMgr.layoutInit(_layout_content, _layout_container, {rec_ID:home_page_record_id, lang:current_language});
         _updateActionIcons(200); //it inits tinyMCE also
         
         page_was_modified = true;
@@ -1679,7 +1680,7 @@ function(value){
             return;
         }
 
-        let affected_cfg = window.hWin.layoutMgr.layoutContentFindElement(_layout_content, ele_id);
+        let affected_cfg = window.hWin.HAPI4.layoutMgr.layoutContentFindElement(_layout_content, ele_id);
 
         let content = 'content';
         if(default_language!=lang && lang!='def' && !window.hWin.HEURIST4.util.isempty(lang)){
@@ -1750,7 +1751,7 @@ function(value){
             ele.addClass('headline marching-ants marching');
         }
         
-        let element_cfg = window.hWin.layoutMgr.layoutContentFindElement(_layout_content, ele_id);  //json
+        let element_cfg = window.hWin.HAPI4.layoutMgr.layoutContentFindElement(_layout_content, ele_id);  //json
         
         let is_cardinal = (element_cfg.type=='north' || element_cfg.type=='south' || 
                 element_cfg.type=='east' || element_cfg.type=='west' || element_cfg.type=='center');
@@ -1760,7 +1761,7 @@ function(value){
              const node = $.ui.fancytree.getTree( _panel_treePage ).getNodeByKey(''+ele_id);
              const parentnode = node.getParent();
              ele_id = parentnode.key;
-             element_cfg = window.hWin.layoutMgr.layoutContentFindElement(_layout_content, ele_id);
+             element_cfg = window.hWin.HAPI4.layoutMgr.layoutContentFindElement(_layout_content, ele_id);
         }
         
         //show overlay for editing element
@@ -1777,7 +1778,7 @@ function(value){
                     //save
                     if(new_cfg){
                         
-                        window.hWin.layoutMgr.layoutContentSaveElement(_layout_content, new_cfg); //replace element to new one
+                        window.hWin.HAPI4.layoutMgr.layoutContentSaveElement(_layout_content, new_cfg); //replace element to new one
 
                         //update treeview                    
                         let node = $.ui.fancytree.getTree( _panel_treePage ).getNodeByKey(''+new_cfg.key);
@@ -1787,7 +1788,7 @@ function(value){
                                
                         if(new_cfg.type=='cardinal'){
                             //recreate cardinal layout
-                            window.hWin.layoutMgr.layoutInitCardinal(new_cfg, _layout_container);
+                            window.hWin.HAPI4.layoutMgr.layoutInitCardinal(new_cfg, _layout_container);
                         }
                         
                         //save page
@@ -1972,7 +1973,7 @@ function(value){
         if(parentnode.folder){
             //add child
 
-            parent_element = window.hWin.layoutMgr.layoutContentFindElement(_layout_content, parentnode.key);
+            parent_element = window.hWin.HAPI4.layoutMgr.layoutContentFindElement(_layout_content, parentnode.key);
             parent_container = _layout_container.find('div[data-hid='+parentnode.key+']');
             parent_children = parent_element.children;
 
@@ -1983,7 +1984,7 @@ function(value){
                 parent_container = _layout_container;
                 parent_children = _layout_content;
             }else{
-                parent_element = window.hWin.layoutMgr.layoutContentFindElement(_layout_content, parentnode.parent.key);
+                parent_element = window.hWin.HAPI4.layoutMgr.layoutContentFindElement(_layout_content, parentnode.parent.key);
                 parent_container = _layout_container.find('div[data-hid='+parentnode.parent.key+']');
                 parent_children = parent_element.children;
             }
@@ -1994,16 +1995,16 @@ function(value){
         }
 
         parent_children.push(new_element_json);
-        window.hWin.layoutMgr.layoutInitKey(parent_children, parent_children.length-1);
+        window.hWin.HAPI4.layoutMgr.layoutInitKey(parent_children, parent_children.length-1);
 
         //recreate
         if(parent_element && parent_element.type=='accordion'){
-            window.hWin.layoutMgr.layoutInitAccordion(parent_element, parent_container)
+            window.hWin.HAPI4.layoutMgr.layoutInitAccordion(parent_element, parent_container)
         }else if(parent_element && parent_element.type=='tabs'){
-            window.hWin.layoutMgr.layoutInitTabs(parent_element, parent_container)
-            //window.hWin.layoutMgr.layoutInit(_layout_content, _layout_container);    
+            window.hWin.HAPI4.layoutMgr.layoutInitTabs(parent_element, parent_container)
+            //window.hWin.HAPI4.layoutMgr.layoutInit(_layout_content, _layout_container);    
         }else{
-            window.hWin.layoutMgr.layoutInit(parent_children, parent_container, {rec_ID:home_page_record_id, lang:current_language});
+            window.hWin.HAPI4.layoutMgr.layoutInit(parent_children, parent_container, {rec_ID:home_page_record_id, lang:current_language});
         }   
 
 
@@ -2055,7 +2056,7 @@ function(value){
             if(template_name=='default'){
                 new_element_json = new_element_json.children[0];
             }else if(template_name=='blog'){
-                window.hWin.layoutMgr.prepareTemplate(new_element_json, function(updated_json){
+                window.hWin.HAPI4.layoutMgr.prepareTemplate(new_element_json, function(updated_json){
                     _layoutInsertElement_continue( ele_id, updated_json );
                 });
                 return;

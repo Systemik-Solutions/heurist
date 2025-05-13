@@ -5,7 +5,7 @@
     *
     * @package     Heurist academic knowledge management system
     * @link        https://HeuristNetwork.org
-    * @copyright   (C) 2005-2023 University of Sydney
+    * @copyright   (C) 2005-2023 University of Sydney, (C) 2024 onwards Heurist Network
     * @author      Jan Jaap de Groot    <jjedegroot@gmail.com>
     * @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
     * @version     4
@@ -45,6 +45,8 @@ require_once dirname(__FILE__).'/../../hclient/framecontent/initPage.php';
         <script type="text/javascript" src="<?php echo PDIR;?>viewers/visualize/visualize.js"></script>
 
         <link rel="stylesheet" type="text/css" href="<?php echo PDIR;?>viewers/visualize/visualize.css">
+
+        <script type="text/javascript" src="<?php echo PDIR;?>external/jquery.widgets/jquery.ui-contextmenu.js"></script>
 
         <script type="text/javascript">
 
@@ -96,7 +98,7 @@ function onPageInit(success){
                                     // Parse response to spring diagram format
                                     var data = __parseData(records_ids, response.data);
 
-                                    showData(data, [], query, null, null);
+                                    showData(data, [], query, null, null, null);
 
                                 }else{
                                     window.hWin.HEURIST4.msg.showMsgErr(response);
@@ -222,7 +224,7 @@ function onPageInit(success){
         //
         //
         //
-        function showData(data, selectedRecordsIds, new_request, onSelectEvent, onRefreshData) {
+        function showData(data, selectedRecordsIds, new_request, onSelectEvent, onRefreshData, onExpandRecords) {
                // Processing...
                 if(data && data.nodes){
                     $("#d3svg").html('<text x="25" y="25" fill="black">Buiding graph ...</text>');
@@ -257,6 +259,7 @@ function onPageInit(success){
                     selectedNodeIds: selectedRecordsIds,   //assign current selection
                     triggerSelection: onSelectEvent,
                     onRefreshData: onRefreshData,
+                    onExpandNode: onExpandRecords,
                     /*function(selection){
                         //parentDocument    top.window.document
                         $(parentDocument).trigger(window.hWin.HAPI4.Event.ON_REC_SELECT, { selection:selection, source:'d3svg' } );//this.element.attr('id')} );

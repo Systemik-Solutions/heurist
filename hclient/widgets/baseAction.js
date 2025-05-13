@@ -3,7 +3,7 @@
 *
 * @package     Heurist academic knowledge management system
 * @link        https://HeuristNetwork.org
-* @copyright   (C) 2005-2023 University of Sydney
+* @copyright   (C) 2005-2023 University of Sydney, (C) 2024 onwards Heurist Network
 * @author      Artem Osmakov   <osmakov@gmail.com>
 * @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
 * @version     4.0
@@ -21,9 +21,16 @@ $.widget( "heurist.baseAction", {
 
     // default options
     options: {
+
         actionName: '',
-    
+
+        path: '',  // non default path to html content 
+        htmlContent: '', //general layout
+        helpContent: null, //if false help button is hidden, if null it sets name of help file to widgetName,
+                           // help file must be in documentation/context_help folder
+
         default_palette_class: 'ui-heurist-admin', 
+
         //DIALOG section       
         isdialog: false,     // show as dialog @see  _initDialog(), popupDialog(), closeDialog
         supress_dialog_title: false, //hide dialog title bar (applicable if isdialog=true
@@ -34,21 +41,22 @@ $.widget( "heurist.baseAction", {
         modal:  true,
         title:  '',
         innerTitle: false, //show title as top panel 
-        
-        path: '',  // non default path to html content 
-        htmlContent: '', //general layout
-        helpContent: null, //if false help button is hidden, if null it sets name of help file to widgetName,
-                           // help file must be in context_help folder
-        
+
         //listeners
         onInitFinished:null,  // event listener when dialog is fully inited
         beforeClose:null,     // to show warning before close
         onClose:null,
-        
-        keep_instance: false
+
+        keep_instance: false,
+
+        hapi: null
     },
 
-    _$: $, //shorthand for this.element.find
+    _$: $, // shorthand for this.element.find
+    $H: window.hWin.HEURIST4?.util, // HEURIST4.utils
+    $Hmsg: window.hWin.HEURIST4?.msg, // HEURIST4.msg
+    $Hui: window.hWin.HEURIST4?.ui, // HEURIST4.ui
+    HAPI: null,
     
     _as_dialog:null, //reference to itself as dialog (see options.isdialog)
     _toolbar:null,
@@ -62,8 +70,10 @@ $.widget( "heurist.baseAction", {
     // the widget's constructor
     _create: function() {
         // prevent double click to select text
-       
+
         this._$ = selector => this.element.find(selector);
+
+        this.HAPI = this.options.hapi ?? window.hWin.HAPI4;
     }, //end _create
     
     //
@@ -195,7 +205,7 @@ $.widget( "heurist.baseAction", {
     //
     // array of button defintions
     //
-    // id is not applicable since buttons with the smae id can be in different popup dialogs
+    // id is not applicable since buttons with the same id can be in different popup dialogs
     // in this case jquery handles events wrong
     // we indetify buttons by class name: btnDoAction, btnCancel etc
     //

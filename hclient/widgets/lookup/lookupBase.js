@@ -3,7 +3,7 @@
 *
 * @package     Heurist academic knowledge management system
 * @link        https://HeuristNetwork.org
-* @copyright   (C) 2005-2023 University of Sydney
+* @copyright   (C) 2005-2023 University of Sydney, (C) 2024 onwards Heurist Network
 * @author      Brandon McKay   <blmckay13@gmail.com>
 * @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
 * @version     6.0
@@ -31,7 +31,7 @@ $.widget( "heurist.lookupBase", $.heurist.recordAction, {
         title:  "External lookup",
         
         htmlContent: 'lookupBase.html', // in hclient/widgets/lookup folder
-        helpContent: null, // in context_help folder
+        helpContent: null, // in documentation/context_help folder
 
         mapping: null, // configuration from record_lookup_config.json
         edit_fields: null, // realtime values from edit form fields
@@ -145,15 +145,15 @@ $.widget( "heurist.lookupBase", $.heurist.recordAction, {
             });
 
             // Set search button status based on the existence of input
-            this._on(this.element.find('input, select'), {
+            this._on(this.element.find('input, select, .search-input'), {
                 keyup: () => {
-                    let $inputs_with_value = this.element.find('input, select').filter((idx, ele) => { 
+                    let $inputs_with_value = this.element.find('input, select, .search-input').filter((idx, ele) => { 
                         return !window.hWin.HEURIST4.util.isempty($(ele).val());
                     });
                     window.hWin.HEURIST4.util.setDisabled(this.search_buttons, $inputs_with_value.length == 0);
                 },
                 change: () => {
-                    let $inputs_with_value = this.element.find('input, select').filter((idx, ele) => { 
+                    let $inputs_with_value = this.element.find('input, select, .search-input').filter((idx, ele) => { 
                         return !window.hWin.HEURIST4.util.isempty($(ele).val());
                     });
                     window.hWin.HEURIST4.util.setDisabled(this.search_buttons, $inputs_with_value.length == 0);

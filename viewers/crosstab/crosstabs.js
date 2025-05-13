@@ -1,5 +1,5 @@
 /*
-* Copyright (C) 2005-2023 University of Sydney
+* Copyright (C) 2005-2023 University of Sydney, (C) 2024 onwards Heurist Network
 *
 * Licensed under the GNU License, Version 3.0 (the "License"); you may not use this file except
 * in compliance with the License. You may obtain a copy of the License at
@@ -16,7 +16,7 @@
 *  Corsstabs UI class
 *
 * @author      Artem Osmakov   <osmakov@gmail.com>
-* @copyright   (C) 2005-2023 University of Sydney
+* @copyright   (C) 2005-2023 University of Sydney, (C) 2024 onwards Heurist Network
 * @link        https://HeuristNetwork.org
 * @version     3.1.0
 * @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
@@ -1030,10 +1030,10 @@ function CrosstabsAnalysis(_query, _query_domain) {
                 .addClass('col-12 card mb-2 pt-2 bg-light')
                 .appendTo($entireDiv);
 
-                $resetRowBody = '<div class="row">'+
-                    '<div class="col-12 mb-2"><div class="row"><div class="col-sm-3 col-xs-12"><label>Bucket count:</label></div><div class="col-sm col-xs-12"><input id="'+name+'IntCount" size="6" value="'+keepCount+'"></input></div></div></div>'+
-                    '<div class="col-12 mb-2"><div class="row"><div class="col-sm-3 col-xs-12"><label>Range (from):</label></div><div class="col-sm col-xs-12"><input id="minOutlier'+name+'" size="6" value="'+minMax[0]+'"></input></div></div></div>'+
-                    '<div class="col-12 mb-2"><div class="row"><div class="col-sm-3 col-xs-12"><label>Range (to):</label></div><div class="col-sm col-xs-12"><input id="maxOutlier'+name+'" size="6" value="'+minMax[1]+'"></input></div></div></div>' +
+                $resetRowBody = '<div class="t-row">'+
+                    '<div class="col-12 mb-2"><div class="t-row"><div class="col-sm-3 col-xs-12"><label>Bucket count:</label></div><div class="col-sm col-xs-12"><input id="'+name+'IntCount" size="6" value="'+keepCount+'"></input></div></div></div>'+
+                    '<div class="col-12 mb-2"><div class="t-row"><div class="col-sm-3 col-xs-12"><label>Range (from):</label></div><div class="col-sm col-xs-12"><input id="minOutlier'+name+'" size="6" value="'+minMax[0]+'"></input></div></div></div>'+
+                    '<div class="col-12 mb-2"><div class="t-row"><div class="col-sm-3 col-xs-12"><label>Range (to):</label></div><div class="col-sm col-xs-12"><input id="maxOutlier'+name+'" size="6" value="'+minMax[1]+'"></input></div></div></div>' +
                     '<div class="col-12 mb-2"><button class="btn btn-success w-100" id="numericApply"><i class="ui-icon ui-icon-circle-check"></i>Apply</button></div>' +
                     '</div>';
 
@@ -1073,8 +1073,8 @@ function CrosstabsAnalysis(_query, _query_domain) {
                     .addClass('col-12 card mb-2 pt-2 bg-light')
                     .appendTo($entireDiv);
 
-                    $roundingRowBody = '<div class="row">' +
-                    '<div class="col-12 mb-2"><div class="row"><div class="col-sm-3 col-xs-12"><label>Rounding:</label></div><div class="col-sm col-xs-12"><select id="roundingSelect"><span>decimal place</span></div></div></div>' +
+                    $roundingRowBody = '<div class="t-row">' +
+                    '<div class="col-12 mb-2"><div class="t-row"><div class="col-sm-3 col-xs-12"><label>Rounding:</label></div><div class="col-sm col-xs-12"><select id="roundingSelect"><span>decimal place</span></div></div></div>' +
                     '</div>'
 
                     $($roundingRowBody).appendTo($roundingDiv);
@@ -1103,7 +1103,7 @@ function CrosstabsAnalysis(_query, _query_domain) {
                 .addClass('col-12 card mb-2 pt-2 bg-light')
                 .appendTo($entireDiv);
 
-                $('<div class="row">').append($('<div class="col-12">').append('<h5>Intervals:</h5>')).appendTo($intervalsDiv);
+                $('<div class="t-row">').append($('<div class="col-12">').append('<h5>Intervals:</h5>')).appendTo($intervalsDiv);
 
                 $intervalColumn = $(document.createElement('div'))
                 .addClass('col-12 mb-2')

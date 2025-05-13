@@ -4,7 +4,7 @@
 *
 * @package     Heurist academic knowledge management system
 * @link        https://HeuristNetwork.org
-* @copyright   (C) 2005-2023 University of Sydney
+* @copyright   (C) 2005-2023 University of Sydney, (C) 2024 onwards Heurist Network
 * @author      Artem Osmakov   <osmakov@gmail.com>
 * @author      Ian Johnson     <ian.johnson.heurist@gmail.com>
 * @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
@@ -30,7 +30,8 @@ function HEditing(_options) {
          onChangeCallBack=null,
          entityConfig = null,
          options = {},
-         _editStructureMode = false;
+         _editStructureMode = false,
+         onNewInputCallBack=null;
 
     /**
     * Initialization
@@ -43,7 +44,7 @@ function HEditing(_options) {
     */
     function _init(_options) {
         
-        if(typeof tinymce === 'undefined'){
+        if(typeof tinyMCE === 'undefined'){
             _loadTinyMCE(function(){
                 _init(_options);    
             });
@@ -67,6 +68,7 @@ function HEditing(_options) {
         }
         
         onChangeCallBack = _options.onchange;
+        onNewInputCallBack = _options.onrecreate;
         
         if(!_options.className && $container.parents('.editor').length>0) {
                 _options.className = '';
@@ -488,6 +490,7 @@ function HEditing(_options) {
                         fields[idx].recordset = recdata;
                         fields[idx].editing = that;
                         fields[idx].change = _onChange;
+                        fields[idx].onrecreate = onNewInputCallBack;
                         fields[idx].is_insert_mode = _is_insert;
                         
                         

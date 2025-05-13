@@ -13,7 +13,7 @@
     *
     * @package     Heurist academic knowledge management system
     * @link        https://HeuristNetwork.org
-    * @copyright   (C) 2005-2023 University of Sydney
+    * @copyright   (C) 2005-2023 University of Sydney, (C) 2024 onwards Heurist Network
     * @author      Artem Osmakov   <osmakov@gmail.com>
     * @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
     * @version     4.0
@@ -193,7 +193,6 @@ print '<script>var prepared_params = '.json_encode($params).';</script>';
         <script type="text/javascript" src="<?php echo PDIR;?>hclient/widgets/editing/editing_exts.js"></script>
         <script type="text/javascript" src="<?php echo PDIR;?>hclient/widgets/editing/editing2.js"></script>
 
-
         <script type="text/javascript" src="<?php echo PDIR;?>hclient/widgets/entity/manageEntity.js"></script>
         <script type="text/javascript" src="<?php echo PDIR;?>hclient/widgets/entity/searchEntity.js"></script>
 
@@ -211,6 +210,8 @@ print '<script>var prepared_params = '.json_encode($params).';</script>';
 
         <script type="text/javascript" src="<?php echo PDIR;?>hclient/widgets/editing/editorCodeMirror.js"></script>
         <link rel="stylesheet" href="<?php echo PDIR;?>external/codemirror-5.61.0/lib/codemirror.css">
+
+        <script type="text/javascript" src="<?php echo PDIR;?>hclient/widgets/cpanel/buttonsMenu.js"></script>
 
         <script type="text/javascript">
             var $container;

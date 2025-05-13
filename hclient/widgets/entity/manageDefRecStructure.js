@@ -3,7 +3,7 @@
 *
 * @package     Heurist academic knowledge management system
 * @link        https://HeuristNetwork.org
-* @copyright   (C) 2005-2023 University of Sydney
+* @copyright   (C) 2005-2023 University of Sydney, (C) 2024 onwards Heurist Network
 * @author      Artem Osmakov   <osmakov@gmail.com>
 * @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
 * @version     4.0
@@ -1329,17 +1329,14 @@ console.log('onEditFormChange @todo check buttons!!!');
 
         let that = this;
         this._saveEditAndClose(fields, function( recID, fields ){
-            
-            if(updateCache){
-                window.hWin.HAPI4.EntityMgr.refreshEntityData(['defRecStructure'], function(){
 
-                    that._cachedRecordset = $Db.rst(that.options.rty_ID);
+            // Update local, global, and server caches
+            window.hWin.HAPI4.EntityMgr.refreshEntityData('rst', function(){
 
-                    that._updateRtStructureTree(recID, after_dty_ID);
-                });
-            }else{
+                that._cachedRecordset = $Db.rst(that.options.rty_ID);
+
                 that._updateRtStructureTree(recID, after_dty_ID);
-            }           
+            });
         });
     },
     
@@ -1376,44 +1373,32 @@ console.log('onEditFormChange @todo check buttons!!!');
             sel_fields['values'][id] = $.extend({dty_Name: basefield_name}, rst_fields);
         }
 
+        let order = $Db.rst(this.options.rty_ID, after_dty_ID, 'rst_DisplayOrder');
+        order = parseInt(order) + 1;
+
         // Request to add all new base fields to rectype structure, this will place all new fields at the top
         let request = {
             'a': 'action',
             'entity': 'defRecStructure',
             'newfields': sel_fields,
-            'order': 0,
+            'order': order,
             'rtyID': this.options.rty_ID,
             'request_id': window.hWin.HEURIST4.util.random()
         };
 
         window.hWin.HAPI4.EntityMgr.doRequest(request, 
-            function(save_response){
-                if(save_response.status == window.hWin.ResponseStatus.OK){ //save_response.data == array of ids
-
-                    if(updateCache){
-
-                        window.hWin.HAPI4.EntityMgr.refreshEntityData(['defRecStructure'], function(){
-
-                            that._cachedRecordset = $Db.rst(that.options.rty_ID);
-
-                            // re-structure tree to place new fields at the place the user requested
-                            for(let j = 0; j < save_response.data.length; j++){
-
-                                let dtyID = save_response.data[j]; //recID == save_response.data[j]
-                                that._updateRtStructureTree(dtyID, after_dty_ID);
-                            }
-                        });
-                    }else{
-                        // re-structure tree to place new fields at the place the user requested
-                        for(let j = 0; j < save_response.data.length; j++){
-
-                            let dtyID = save_response.data[j]; //recID == save_response.data[j]
-                            that._updateRtStructureTree(dtyID, after_dty_ID);
-                        }
-                    }
-                }else{
-                    window.hWin.HEURIST4.msg.showMsgErr(save_response);
+            function(response){
+                if(response.status != window.hWin.ResponseStatus.OK){
+                    window.hWin.HEURIST4.msg.showMsgErr(response);
+                    return;
                 }
+                window.hWin.HAPI4.EntityMgr.refreshEntityData('rst', function(){
+
+                    that._cachedRecordset = $Db.rst(that.options.rty_ID);
+
+                    that._initTreeView(); // reload tree
+                    that._showRecordEditorPreview();
+                });
             }
         );
     },
@@ -2322,46 +2307,50 @@ console.log('onEditFormChange @todo check buttons!!!');
     // trigger to update rst_DisplayOrder
     //
     _saveRtStructureTree: function(){
-        
-            let recset = this._cachedRecordset;
-            let order = 0;
-            let that = this;
-            let dtyIDs = [];
-            let orders = [];
-            this._tree.visit(function(node){
-            
-                
-                
-                let dty_ID = node.key;
-                recset.setFldById(dty_ID, 'rst_DisplayOrder', order);
-                
-                dtyIDs.push( dty_ID );
-                orders.push( order );
-                order++;
-            });
-            //update order on server
-            let request = {};
-            request['a']        = 'action'; //batch action
-            request['entity']   = this._entityName;
-            request['rtyID']    = this.options.rty_ID;
-            request['recID']    = dtyIDs.join(',');
-            request['orders']   = orders.join(',');
-            request['request_id'] = window.hWin.HEURIST4.util.random();
-            
-            window.hWin.HAPI4.EntityMgr.doRequest(request, 
-                function(response){
-                    if(response.status == window.hWin.ResponseStatus.OK){
-                        
+
+        let recset = this._cachedRecordset;
+        let order = 0;
+        let that = this;
+        let dtyIDs = [];
+        let orders = [];
+
+        this._tree.visit(function(node){
+
+            let dty_ID = node.key;
+            recset.setFldById(dty_ID, 'rst_DisplayOrder', order); // update local cache
+            $Db.rst(that.options.rty_ID, dty_ID, 'rst_DisplayOrder', order); // update global cache
+
+            dtyIDs.push( dty_ID );
+            orders.push( order );
+            order++;
+        });
+
+        //update order on server
+        let request = {};
+        request['a']        = 'action'; //batch action
+        request['entity']   = this._entityName;
+        request['rtyID']    = this.options.rty_ID;
+        request['recID']    = dtyIDs.join(',');
+        request['orders']   = orders.join(',');
+        request['request_id'] = window.hWin.HEURIST4.util.random();
+
+        window.hWin.HAPI4.EntityMgr.doRequest(request, 
+            function(response){
+                if(response.status == window.hWin.ResponseStatus.OK){
+
+                    // Update server cache
+                    window.hWin.HAPI4.EntityMgr.refreshEntityData('rst',function(){
+
                         that._initTreeView(); // on save structure (after add or dnd)
-                        
                         that._dragIsAllowed = true;
-                        
-                        that._showRecordEditorPreview();  
-                    }else{
-                        window.hWin.HEURIST4.msg.showMsgErr(response);      
-                    }
-                });
-        
+                        that._showRecordEditorPreview();
+                    });
+
+                }else{
+                    window.hWin.HEURIST4.msg.showMsgErr(response);      
+                }
+            }
+        );
     },
     
     //
@@ -2464,10 +2453,12 @@ console.log('onEditFormChange @todo check buttons!!!');
         if(afterAction=='close'){
             //after save on server - close edit form and refresh preview
             afterAction = function( recID ){
-                that._stillNeedUpdateForRecID = 0;
-                that._afterSaveEventHandler( recID ); //to update definitions and tree
-                if(refresh_tree) { that._initTreeView(); } // refresh tree if separator type has been changed
-                that._showRecordEditorPreview();  //refresh 
+                window.hWin.HAPI4.EntityMgr.refreshEntityData('rst', () => {
+                    that._stillNeedUpdateForRecID = 0;
+                    that._afterSaveEventHandler( recID ); //to update definitions and tree
+                    if(refresh_tree) { that._initTreeView(); } // refresh tree if separator type has been changed
+                    that._showRecordEditorPreview();  //refresh 
+                });
             };
         }
 
@@ -3223,8 +3214,8 @@ console.log('onEditFormChange @todo check buttons!!!');
                 $div.find('span:first-child').text(count);
 
                 if($div.find('.ui-icon').length == 0){
-                    $div.append($('<span class="ui-icon ui-icon-check" title="Find records WITH field" style="color:gray;margin-left:5px;font-size:12px;" ></span>'))
-                        .append($('<span class="ui-icon" title="Find records WITHOUT field" style="color:gray;font-size:2em;text-indent:6px;">\\</span>'));
+                    $div.append($('<span class="ui-icon ui-icon-check" title="Find records WITH field" style="color:gray;margin-left:5px;font-size:1.2em;" ></span>'))
+                        .append($('<span class="ui-icon ui-icon-cancel" title="Find records WITHOUT field" style="color:gray;font-size:1.2em;"></span>'));
 
                     $div.contextmenu({
                         delegate: 'span',
@@ -3371,8 +3362,59 @@ console.log('onEditFormChange @todo check buttons!!!');
 
         msg += '</div></div>';
 
+        function _continueSubRecords($dlg, request, proceed){
+
+            if(!proceed){
+
+                window.hWin.HEURIST4.msg.showMsgDlg(
+                    'The process for creating sub records can take quite some time, halting the use of Heurist until it has been completed or aborted.<br>'
+                  + 'Also, ensure that the details you have entered on the previous popup are correct as reversing this process can be complicated and time consuming.<br><br>'
+                  + 'Would you like to proceed with the creation of sub records?',
+                    () => { _continueSubRecords($dlg, request, true) },
+                    {title: 'Continue sub record creation', yes: 'Proceed', no: 'Cancel'},
+                    {default_palette_class: 'ui-heurist-design'}
+                );
+
+                return;
+            }
+
+            window.hWin.HEURIST4.msg.bringCoverallToFront(this.element);
+            request['session'] = window.hWin.HEURIST4.msg.showProgress({interval: 500});
+
+            window.hWin.HAPI4.RecordMgr.batch_details(request, function(response){
+
+                window.hWin.HEURIST4.msg.hideProgress();
+                window.hWin.HEURIST4.msg.sendCoverallToBack();
+
+                if(response.status != window.hWin.ResponseStatus.OK){
+                    window.hWin.HEURIST4.msg.showMsgErr(response);
+                    return;
+                }
+
+                let count = response.data.count;
+                let new_rec_ids = response.data.record_ids;
+
+                if(count == 0){
+                    window.hWin.HEURIST4.msg.showMsgFlash('No sub records created...', 3000);
+                }else{
+                    let url = window.hWin.HAPI4.baseURL + '?db='+window.hWin.HAPI4.database+'&q=ids:'+new_rec_ids;
+                    let $res_dlg = window.hWin.HEURIST4.msg.showMsgDlg(`Created ${count} ${cur_target_name} records (view new records <a href="${url}" target="_blank">here</a>)`, 
+                        null, {title: 'Sub-records created'}, {default_palette_class: 'ui-heurist-populate', close: function(){
+
+                            $dlg.dialog('close');
+                            $res_dlg.dialog('close');
+                            that.previewEditor.manageRecords('reloadEditForm', true);
+
+                            window.hWin.HAPI4.EntityMgr.refreshEntityData('rst');
+                        }
+                    });
+                }
+            });
+        }
+
         let btns = {};
         btns[window.HR('Create sub records')] = function(){
+
             let $selected_fields = $dlg.find('.rty_fields:checked');
 
             if($selected_fields.length < 1){
@@ -3398,34 +3440,7 @@ console.log('onEditFormChange @todo check buttons!!!');
                 }
             });
 
-            window.hWin.HEURIST4.msg.bringCoverallToFront(this.element);
-
-            window.hWin.HAPI4.RecordMgr.batch_details(request, function(response){
-
-                window.hWin.HEURIST4.msg.sendCoverallToBack();
-
-                if(response.status != window.hWin.ResponseStatus.OK){
-                    window.hWin.HEURIST4.msg.showMsgErr(response);
-                    return;
-                }
-
-                let count = response.data.count;
-                let new_rec_ids = response.data.record_ids;
-
-                if(count == 0){
-                    window.hWin.HEURIST4.msg.showMsgFlash('No sub records created...', 3000);
-                }else{
-                    let url = window.hWin.HAPI4.baseURL + '?db='+window.hWin.HAPI4.database+'&q=ids:'+new_rec_ids;
-                    let $res_dlg = window.hWin.HEURIST4.msg.showMsgDlg(`Created ${count} ${cur_target_name} records (view new records <a href="${url}" target="_blank">here</a>)`, 
-                        null, {title: 'Sub-records created'}, {default_palette_class: 'ui-heurist-populate', close: function(){
-
-                            $dlg.dialog('close');
-                            $res_dlg.dialog('close');
-                            that.previewEditor.manageRecords('reloadEditForm', true); 
-                        }
-                    });
-                }
-            });
+            _continueSubRecords($dlg, request, false);
         };
         btns[window.HR('Cancel')] = function(){
             $dlg.dialog('close');

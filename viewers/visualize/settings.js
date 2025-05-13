@@ -4,7 +4,7 @@
 *
 * @package     Heurist academic knowledge management system
 * @link        https://HeuristNetwork.org
-* @copyright   (C) 2005-2023 University of Sydney
+* @copyright   (C) 2005-2023 University of Sydney, (C) 2024 onwards Heurist Network
 * @author      Artem Osmakov   <osmakov@gmail.com>
 * @author      Ian Johnson     <ian.johnson.heurist@gmail.com>
 * @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
@@ -26,6 +26,7 @@ onVisualizeResize */
 
 // Functions to handle the visualisation settings
 
+window.preference_settings = window.hWin.HAPI4.has_access() ? window.hWin.HAPI4.get_prefs_def('vis_struct', {}) : {};
 //localStorage.clear();
 /**
 * Returns the current displayed URL
@@ -39,14 +40,37 @@ function getURL() {
  * Returns a setting from the localStorage
  * @param setting The setting to retrieve
  */
-function getSetting(key, defvalue) {
-    let value = localStorage.getItem(window.hWin.HAPI4.database+key);
-    
-    if (   //(isNaN(value) && window.hWin.HEURIST4.util.isNumber(defvalue)) ||   //!isNaN(parseFloat(n)) && isFinite(n)
-        (window.hWin.HEURIST4.util.isnull(value) && !window.hWin.HEURIST4.util.isnull(defvalue))){
+function getSetting(key, defvalue, split_string = '') {
+
+    let value = '';
+
+    if(window.hWin.HAPI4.has_access() && !window.hWin.HEURIST4.util.isNumber(key) && key.indexOf('translate') > 0 && key.indexOf('scale') > 0){
+
+        let pref_key = key;
+        if(key.startsWith('setting_')){
+            pref_key = pref_key.split('_');
+            pref_key.shift();
+            pref_key = pref_key.join('_');
+        }
+
+        value = Object.hasOwn(window.preference_settings, pref_key) ? window.preference_settings[pref_key] : localStorage.getItem(`${window.hWin.HAPI4.database}${key}`);
+
+        if(!Object.hasOwn(window.preference_settings, pref_key)){
+            putSetting(key, value);
+        }
+    }else{
+        value = localStorage.getItem(window.hWin.HAPI4.database+key);
+    }
+
+    if(window.hWin.HEURIST4.util.isempty(value) && !window.hWin.HEURIST4.util.isnull(defvalue)){
         value = defvalue;
         putSetting(key, value);
     }
+
+    if(!window.hWin.HEURIST4.util.isempty(split_string) && typeof value === 'string'){
+        value = value.split(split_string);
+    }
+
     return value;
 }
 
@@ -54,7 +78,28 @@ function getSetting(key, defvalue) {
 * Stores a value in the localStorage
 */
 function putSetting(key, value) {
-    localStorage.setItem(window.hWin.HAPI4.database+key, value);
+
+    if(window.hWin.HAPI4.has_access() && !window.hWin.HEURIST4.util.isNumber(key) && key.indexOf('translate') > 0 && key.indexOf('scale') > 0){
+
+        if(key.startsWith('setting_')){
+            key = key.split('_');
+            key.shift();
+            key = key.join('_');
+        }
+
+        window.preference_settings[key] = value;
+
+        window.hWin.HAPI4.save_pref('vis_struct', window.preference_settings);
+    }else{
+        localStorage.setItem(window.hWin.HAPI4.database+key, value);
+    }
+}
+
+/**
+* Remove setting from localStorage
+*/
+function removeSetting(key){
+    localStorage.removeItem(window.hWin.HAPI4.database+key);
 }
 
 /**
@@ -347,7 +392,8 @@ function handleSettingsInUI() {
 
 function initRecTypeSelector(){
 
-    let hidePane = getSetting('startup_rectype_'+window.hWin.HAPI4.database) != 1;
+    let hidePane = window.startup_rectype != 1;
+    delete window.startup_rectype;
 
     let layout_options = { 
         applyDefaultStyles: true,
@@ -386,6 +432,12 @@ function initRecTypeSelector(){
             layout.open('west');
             $('#list_rectypes').show();
             $('#lblShowRectypeSelector').show();
+
+            let refresh_chkbx = window.trigger_checkbox_refresh;
+            if(!window.hWin.HEURIST4.util.isempty(refresh_chkbx)){
+                $(`#list_rectypes ${refresh_chkbx}`).trigger('change');
+                delete window.trigger_checkbox_refresh;
+            }
         }, 1000);
     }
 }
