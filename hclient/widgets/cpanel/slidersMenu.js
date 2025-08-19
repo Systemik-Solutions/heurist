@@ -1,28 +1,43 @@
 /**
-* slidersMenu.js : side menu with sections as popup sliders
-* 
-* It loads slidersMenuXxx.html for every section
-* They took icons, titles and rollovers in core/actions.json via window.hWin.HAPI4.actionHandler
-* This object handles all actions via executeActionById method
+* @file slidersMenu.js
+* @brief Menu for Heurist admin interface with sections as popup sliders
+* @fileOverview 
 *
-* @package     Heurist academic knowledge management system
+* @project     Heurist academic knowledge management system
+*
 * @link        https://HeuristNetwork.org
 * @copyright   (C) 2005-2023 University of Sydney, (C) 2024 onwards Heurist Network
-* @author      Artem Osmakov   <osmakov@gmail.com>
 * @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
-* @version     4.0
-*/
-
-/*
-* Licensed under the GNU License, Version 3.0 (the "License"); you may not use this file except in compliance
-* with the License. You may obtain a copy of the License at https://www.gnu.org/licenses/gpl-3.0.txt
-* Unless required by applicable law or agreed to in writing, software distributed under the License is
-* distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied
-* See the License for the specific language governing permissions and limitations under the License.
+* @author      Artem Osmakov   <osmakov@gmail.com>
+* @author      Ian Johnson     <ian.johnson.heurist@gmail.com>
+* @since       6.0 
 */
 
 /* global HSvsEdit */
 
+/**
+* @class slidersMenu
+* @memberof Widgets.Navigation
+* @description This widget creates a side menu with sections that expand as popup sliders.
+* It loads HTML content for each section (e.g., design, populate, explore) and initializes actions
+* based on `core/actions.json` via `window.hWin.HAPI4.actionHandler`.
+* The menu handles user interactions, manages different states (expanded, collapsed, locked),
+* and integrates with other Heurist components like saved searches (SVS) and faceted search.
+*
+* @property {Array<string>} sections - Defines the names of the menu sections (e.g., 'design', 'populate').
+* @property {object} menues - Stores jQuery objects for each section's menu panel. `{[sectionName]: jQueryElement}`.
+* @property {object} containers - Stores jQuery objects for each section's main content container. `{[sectionName]: jQueryElement}`.
+* @property {object} introductions - Stores jQuery objects for each section's introductory/help panel. `{[sectionName]: jQueryElement}`.
+* @property {?jQuery} divMainMenu - jQuery object for the main collapsible side menu container.
+* @property {?object} currentSearch - Stores the last search query object, used for "Save Filter".
+* @property {boolean} reset_svs_edit - Flag to indicate if the saved search edit dialog should be reset.
+* @property {?jQuery} svs_list - jQuery object for the saved searches list widget instance.
+* @property {?jQuery} coverAll - jQuery object for an overlay div used to cover the page content when menus are active.
+* @property {?jQuery} menues_explore_popup - jQuery object for the popup panel associated with the explore menu.
+* @property {?jQuery} menues_explore_gap - jQuery object for a small gap element, possibly for styling or event handling.
+* @property {?jQuery} search_faceted - jQuery object for the faceted search container.
+* @property {?HSvsEdit} edit_svs_dialog - Instance of the HSvsEdit class for managing saved search editing.
+*/
 $.widget( "heurist.slidersMenu", {
 
     // default options
@@ -81,7 +96,19 @@ $.widget( "heurist.slidersMenu", {
         publish: '#627E5D'
     },
 
-    // the widget's constructor
+    _beforeSwitch: {
+        handler: null, // handler to call before switch action/menu
+        originator: '', // what function created this handler
+        menu: '' // which menu is this for
+    },
+
+    /**
+     * @function _create
+     * @description The widget's constructor. Initializes the slidersMenu widget, sets up the main menu container,
+     * loads section menus, and binds event handlers for user interactions.
+     * @private
+     * @memberof Widgets.Navigation.slidersMenu
+     */
     _create: function() {
 
         let that = this;
@@ -269,7 +296,7 @@ $.widget( "heurist.slidersMenu", {
                     that._onPreferencesChange(e, data);
 
                 }
-                else{  //ON_STRUCTURE_CHANGE
+                else if(!data || data.type != 'ulf'){  //ON_STRUCTURE_CHANGE
                     //refresh list of rectypes after structure edit
                     that._updateDefaultAddRectype();
                     window.hWin.HEURIST4.browseRecordCache = {};
@@ -277,9 +304,18 @@ $.widget( "heurist.slidersMenu", {
                 }
         });
         
-    }, //end _create
+    },
 
-    _onPreferencesChange: function (e, data){                    
+    /**
+     * @function _onPreferencesChange
+     * @description Handles the `ON_PREFERENCES_CHANGE` and `ON_CREDENTIALS` events.
+     * Updates the default record type for adding new records and repopulates favorite filters.
+     * @param {Event} e - The event object.
+     * @param {object} data - The event data.
+     * @private
+     * @memberof Widgets.Navigation.slidersMenu
+     */
+    _onPreferencesChange: function (e, data){
 
         if(data?.origin=='recordAdd'){
             this._updateDefaultAddRectype( data.preferences );
@@ -288,10 +324,18 @@ $.widget( "heurist.slidersMenu", {
         }
         if(e.type == window.hWin.HAPI4.Event.ON_CREDENTIALS || data?.refresh_favourites){
             this.populateFavouriteFilters();
-        }        
-    },               
+        }
+    },
 
-    _onSearchFinish: function (data){                    
+    /**
+     * @function _onSearchFinish
+     * @description Handles the `ON_REC_SEARCH_FINISH` event.
+     * Hides the cover overlay, updates the "Save Filter" button, and refreshes the subset sign.
+     * @param {object} data - The event data containing search results and request info.
+     * @private
+     * @memberof Widgets.Navigation.slidersMenu
+     */
+    _onSearchFinish: function (data){
 
         if(data?.request && (data.request.ispreview || data.request.increment || data.search_realm)) return;
         
@@ -304,14 +348,23 @@ $.widget( "heurist.slidersMenu", {
         } 
         
         this._refreshSubsetSign();                    
-    },          
-    
-    _onSearchStart: function (data){                    
+    },
+
+    /**
+     * @function _onSearchStart
+     * @description Handles the `ON_REC_SEARCHSTART` event.
+     * Manages the UI state at the beginning of a search, such as updating the "Save Filter" button
+     * and switching to the explore container.
+     * @param {object} data - The event data containing the search query.
+     * @private
+     * @memberof Widgets.Navigation.slidersMenu
+     */
+    _onSearchStart: function (data){
         //not need to check realm since this widget the only per instance
         if(data?.ispreview || data?.increment || data?.search_realm) return;
 
         // Check whether to block auto switch to explore menu
-        let move_to_explore = !data.no_menu_switch;
+        let move_to_explore = !data.no_menu_switch && this._active_section !== 'explore';
         if(Object.hasOwn(data, 'no_menu_switch')){
             delete data.no_menu_switch;
             delete window.hWin.HEURIST4.current_query_request.no_menu_switch;
@@ -334,21 +387,27 @@ $.widget( "heurist.slidersMenu", {
             this._updateSaveFilterButton(0);
         }
     },
-    
-    //
-    //
-    //
+
+    /**
+     * @function _isCurrentActionFilter
+     * @description Checks if the current explore action is one of the filter-related actions.
+     * @returns {boolean} - True if the current action is for filtering, otherwise false.
+     * @private
+     * @memberof Widgets.Navigation.slidersMenu
+     */
     _isCurrentActionFilter: function(){
             return (this._current_explore_action=='searchBuilder' ||
-                    this._current_explore_action=='svsAdd' || 
+                    this._current_explore_action=='svsAdd' ||
                     this._current_explore_action=='svsAddFaceted' );
     },
-    
-    //
-    // 0 - disabled
-    // 1 - search in progress
-    // 2 - bounce and ready to save
-    //
+
+    /**
+     * @function _updateSaveFilterButton
+     * @description Updates the state and appearance of the "Save Filter" button.
+     * @param {number} mode - The mode to set for the button: 0 (disabled), 1 (in progress), 2 (ready to save).
+     * @private
+     * @memberof Widgets.Navigation.slidersMenu
+     */
     _updateSaveFilterButton: function( mode ){
         
         let btn = this.divMainMenu.find('.menu-explore[data-action-popup="svsAdd"]');
@@ -388,10 +447,15 @@ $.widget( "heurist.slidersMenu", {
         
         
     },
-    
-    //
-    // Change label for add record link 
-    //
+
+    /**
+     * @function _updateDefaultAddRectype
+     * @description Updates the "Add Record" button label and behavior based on user preferences for the default record type.
+     * Also toggles the visibility of the bookmarks section.
+     * @param {Array<number>} [preferences] - The user's preferences for the default record type. If not provided, it's fetched from `window.hWin.HAPI4.get_prefs`.
+     * @private
+     * @memberof Widgets.Navigation.slidersMenu
+     */
     _updateDefaultAddRectype: function( preferences ){
 
         //show/hide bookmarks section in saved filters list
@@ -451,10 +515,22 @@ $.widget( "heurist.slidersMenu", {
         
 
     },
-    
+
+    /**
+     * @function _refresh
+     * @description Placeholder for the widget's refresh method. Currently does nothing.
+     * @private
+     * @memberof Widgets.Navigation.slidersMenu
+     */
     _refresh: function(){
     },
-    
+
+    /**
+     * @function _destroy
+     * @description Cleans up the widget, removing elements and unbinding events.
+     * @private
+     * @memberof Widgets.Navigation.slidersMenu
+     */
     _destroy: function() {
         
         this.divMainMenu.remove();
@@ -468,22 +544,32 @@ $.widget( "heurist.slidersMenu", {
                 +' '+window.hWin.HAPI4.Event.ON_REC_SEARCH_FINISH
                 +' '+window.hWin.HAPI4.Event.ON_CREDENTIALS);
     },
-    
-    // 
-    // returns true if explore menu popup should remain open (even on mouse out)
-    //
+
+    /**
+     * @function _isExplorerMenu_locked
+     * @description Checks if the explorer menu should remain open (locked).
+     * The menu is locked if a dropdown is open, a modal dialog is visible, or the `_explorer_menu_locked` flag is set.
+     * @returns {boolean} - True if the explorer menu is locked, otherwise false.
+     * @private
+     * @memberof Widgets.Navigation.slidersMenu
+     */
     _isExplorerMenu_locked: function(){
         
-        return (this._explorer_menu_locked    
+        return (this._explorer_menu_locked
                 || this.element.find('.ui-selectmenu-open').length>0
-                || $('.list_div').is(':visible')      //tag selector dropdown      
+                || $('.list_div').is(':visible')      //tag selector dropdown
                 || $('.ui-widget-overlay.ui-front').is(':visible')   //some modal dialog is open
                 );
     },
 
-    //
-    // collapse main menu panel on explore mouseout
-    //    
+    /**
+     * @function _collapseMainMenuPanel
+     * @description Collapses the main menu panel. Can be instant or delayed.
+     * @param {boolean} [is_instant=false] - If true, the collapse is immediate.
+     * @param {number} [is_forcefully] - If provided, prevents the menu from expanding for a specified duration.
+     * @private
+     * @memberof Widgets.Navigation.slidersMenu
+     */
     _collapseMainMenuPanel: function(is_instant, is_forcefully) {
 
         let that = this;
@@ -538,10 +624,14 @@ $.widget( "heurist.slidersMenu", {
                 
         }, is_instant===true?10:this._delayOnCollapseMainMenu); //800
     },
-    
-    //
-    // expand main menu panel on explore mouse in
-    //
+
+    /**
+     * @function _expandMainMenuPanel
+     * @description Expands the main menu panel when the mouse enters the explore section.
+     * @param {Event} e - The mouse event.
+     * @private
+     * @memberof Widgets.Navigation.slidersMenu
+     */
     _expandMainMenuPanel: function(e) {
 
         if(this._is_prevent_expand_mainmenu) return; // || this._active_section=='explore'
@@ -577,10 +667,14 @@ $.widget( "heurist.slidersMenu", {
                 }   
             });
     },
-    
-    // RENAME 
-    // leave explore popup
-    //    
+
+    /**
+     * @function _mouseout_SectionMenu
+     * @description Handles mouse leaving a section menu. Closes the explore popup if not locked.
+     * @param {Event} e - The mouse event.
+     * @private
+     * @memberof Widgets.Navigation.slidersMenu
+     */
     _mouseout_SectionMenu: function(e) {
 
         if( this._isExplorerMenu_locked() ) return;
@@ -615,18 +709,27 @@ $.widget( "heurist.slidersMenu", {
             __closeAllsectionMenu();
         }
     },
-    
-    //
-    // prevent close section and main menu
-    //
+
+    /**
+     * @function _resetCloseTimers
+     * @description Resets the timers responsible for closing menus, preventing them from closing prematurely.
+     * @private
+     * @memberof Widgets.Navigation.slidersMenu
+     */
     _resetCloseTimers: function(){
 
         clearTimeout(this._myTimeoutId2); this._myTimeoutId2 = 0; //delay on close explore popup menu
         clearTimeout(this._myTimeoutId); this._myTimeoutId = 0; //delay on collapse main menu (_expandMainMenuPanel/_collapseMainMenuPanel)
     },
-    //
-    // show explore menu popup (show_ExploreMenu) next to slidersMenu_explore or mainMany quick links
-    //
+
+    /**
+     * @function _mousein_ExploreMenu
+     * @description Handles mouse entering the explore menu area.
+     * Shows the explore menu popup if not locked.
+     * @param {Event} e - The mouse event.
+     * @private
+     * @memberof Widgets.Navigation.slidersMenu
+     */
     _mousein_ExploreMenu: function(e) {
 
         if( this._isExplorerMenu_locked() ) return;
@@ -663,15 +766,31 @@ $.widget( "heurist.slidersMenu", {
                                     },  this._delayOnCollapse_ExploreMenu); //600
         }
     },
-    
-    // helper
+
+    /**
+     * @function _getDelay
+     * @description Determines the delay for showing a menu based on the action name.
+     * @param {string} action_name - The name of the action.
+     * @param {jQuery} menu_item - The menu item element.
+     * @returns {number} - The delay in milliseconds.
+     * @private
+     * @memberof Widgets.Navigation.slidersMenu
+     */
     _getDelay: function getDelay(action_name, menu_item) {
         return action_name === 'recordAdd' && menu_item?.attr('data-id') > 0
             ? this._delayOnShow_AddRecordMenu
             : this._delayOnShow_ExploreMenu;
     },
-    
-    // Helper functions
+
+    /**
+     * @function _getMenuItem
+     * @description Gets the menu item element from a mouse event.
+     * @param {Event} e - The mouse event.
+     * @param {string} [action_name] - If provided, returns null.
+     * @returns {?jQuery} - The menu item element or null.
+     * @private
+     * @memberof Widgets.Navigation.slidersMenu
+     */
     _getMenuItem: function (e, action_name) {
         if (!action_name) {
             const target = $(e.target);
@@ -679,10 +798,16 @@ $.widget( "heurist.slidersMenu", {
         }
         return null;
     },
-        
-    //
-    // show popup extension of explore menu
-    //        
+
+    /**
+     * @function show_ExploreMenu
+     * @description Shows the popup extension of the explore menu with a delay.
+     * Initializes and displays the appropriate widget (e.g., search builder, saved searches) in the popup.
+     * @param {Event} e - The event that triggered the menu display.
+     * @param {string} [action_name] - The name of the action to be displayed.
+     * @param {object} [position] - The position to display the menu at.
+     * @memberof Widgets.Navigation.slidersMenu
+     */
     show_ExploreMenu: function(e, action_name, position) {
         
         let menu_item = this._getMenuItem(e, action_name);
@@ -777,11 +902,21 @@ $.widget( "heurist.slidersMenu", {
 
         }, delay);
         
-    },    
-    
+    },
+
+    /**
+     * @function _getMenuPosition
+     * @description Calculates the position for the explore menu popup.
+     * @param {jQuery} menu_item - The menu item that triggered the popup.
+     * @param {string} action_name - The name of the action.
+     * @param {object} [position] - An optional position object.
+     * @returns {object} - An object with `explore_top`, `explore_left`, `explore_height`, and `explore_width`.
+     * @private
+     * @memberof Widgets.Navigation.slidersMenu
+     */
     _getMenuPosition: function(menu_item, action_name, position){
       
-        let explore_left = ((this.divMainMenu.width()>this._left_position)?this._widthMenu:this._left_position)+4; 
+        let explore_left = ((this.divMainMenu.width()>this._left_position)?this._widthMenu:this._left_position)+4;
         let explore_top = '2px';
         let explore_height = 'auto';
         let explore_width = '300px';
@@ -824,7 +959,16 @@ $.widget( "heurist.slidersMenu", {
         
         return { explore_top, explore_left, explore_height, explore_width };        
     },
-    
+
+    /**
+     * @function _handleActionInit
+     * @description Initializes the widget for a given action in the explore menu popup.
+     * @param {string} action_name - The name of the action to initialize.
+     * @param {jQuery} cont - The container element for the widget.
+     * @param {boolean} expandRecordAddSetting - Flag to expand the record add settings.
+     * @private
+     * @memberof Widgets.Navigation.slidersMenu
+     */
     _handleActionInit: function(action_name, cont, expandRecordAddSetting){
         
             let that = this;
@@ -910,9 +1054,13 @@ $.widget( "heurist.slidersMenu", {
         
     },
 
-    //
-    // List user's favourite filters
-    //
+    /**
+     * @function populateFavouriteFilters
+     * @description Populates the list of user's favorite filters in the explore menu.
+     * @param {Array<Array<string>>} [favourite_filters] - An array of favorite filters. If not provided, it's fetched from user preferences.
+     * @param {boolean} [resize_only=false] - If true, only resizes the container without repopulating the list.
+     * @memberof Widgets.Navigation.slidersMenu
+     */
     populateFavouriteFilters: function(favourite_filters, resize_only = false){
 
         const that = this;
@@ -1094,9 +1242,14 @@ $.widget( "heurist.slidersMenu", {
         this.menues.explore.find('.favour-help').hide();
     },
 
-    //
-    // mode - filter mode - 0 all , 1 - filters only, 2 rules only
-    //
+    /**
+     * @function _init_SvsList
+     * @description Initializes the saved searches (SVS) list widget.
+     * @param {jQuery} cont - The container element for the SVS list.
+     * @param {number} mode - The filter mode: 0 (all), 1 (filters only), 2 (rules only).
+     * @private
+     * @memberof Widgets.Navigation.slidersMenu
+     */
     _init_SvsList: function(cont, mode){  //, group_ID
         
         if(!cont.svs_list('instance')){
@@ -1186,19 +1339,26 @@ $.widget( "heurist.slidersMenu", {
 
         return cont;
     },
-    
-    //
-    // mode = 0 - in menues['explore'],  1 in ui-heurist-quicklinks
-    //    
+
+    /**
+     * @function _switch_SvsList
+     * @description Switches the SVS list between different locations. Currently returns without action.
+     * @param {number} mode - The mode for switching (0 or 1).
+     * @private
+     * @memberof Widgets.Navigation.slidersMenu
+     */
     _switch_SvsList: function( mode ){
         
         return;//2020-12-15
 
     },
 
-    //
-    //
-    //    
+    /**
+     * @function getSvsList
+     * @description Gets or creates the saved searches (SVS) list widget.
+     * @returns {jQuery} The SVS list widget instance.
+     * @memberof Widgets.Navigation.slidersMenu
+     */
     getSvsList: function(){
         
         let cont = this.menues_explore_popup.find('#search_filters');
@@ -1211,20 +1371,27 @@ $.widget( "heurist.slidersMenu", {
      
     },
 
-    //
-    //
-    //
+    /**
+     * @function _onCloseSearchFaceted
+     * @description Handles the closing of the faceted search view.
+     * Triggers a search reset and hides the faceted search container.
+     * @private
+     * @memberof Widgets.Navigation.slidersMenu
+     */
     _onCloseSearchFaceted: function(){
         if(window.hWin.HEURIST4.ui.isVisible( this.search_faceted )){
-            $(this.document).trigger(window.hWin.HAPI4.Event.ON_REC_SEARCHSTART, [ 
+            $(this.document).trigger(window.hWin.HAPI4.Event.ON_REC_SEARCHSTART, [
                 {reset:true, search_realm:this.options.search_realm} ]);  //global app event to clear views
             this.search_faceted.hide();
         }
     },
-    
-    //
-    //
-    //
+
+    /**
+     * @function _closeExploreMenuPopup
+     * @description Closes the explore menu popup and resets related state variables.
+     * @private
+     * @memberof Widgets.Navigation.slidersMenu
+     */
     _closeExploreMenuPopup: function(){
 
         if(this.menues_explore_popup){
@@ -1244,27 +1411,36 @@ $.widget( "heurist.slidersMenu", {
         this.coverAll.hide();
 
     },
-    
-    //
-    //
-    //
+
+    /**
+     * @function _closeSectionMenu
+     * @description Closes a specific section menu.
+     * @param {string} section - The name of the section to close.
+     * @private
+     * @memberof Widgets.Navigation.slidersMenu
+     */
     _closeSectionMenu: function( section ){
         
         if(this.menues[section]) {
             this.menues[section].css({'z-index':0}).hide();
         }
         if(this.menues_explore_gap){
-            this.menues_explore_gap.hide();    
+            this.menues_explore_gap.hide();
         }
-        //this.menues[section].css({'z-index':2,left:'200px'}).show(); 
+        //this.menues[section].css({'z-index':2,left:'200px'}).show();
         if(section=='explore'){
             this._closeExploreMenuPopup();
         }
     },
-    
-    //
-    //
-    //
+
+    /**
+     * @function _getSectionName
+     * @description Gets the section name from a mouse event target.
+     * @param {Event} e - The mouse event.
+     * @returns {?string} - The name of the section or null.
+     * @private
+     * @memberof Widgets.Navigation.slidersMenu
+     */
     _getSectionName: function(e){
         
         let section_name = null;
@@ -1290,26 +1466,35 @@ $.widget( "heurist.slidersMenu", {
         
         return section_name;
     },
-    
-    
-    //
-    // opens section menu permanently and switches container 
-    //
+
+    /**
+     * @function _openSectionMenu
+     * @description Opens a section menu permanently and switches to its container.
+     * @param {Event} e - The click event.
+     * @private
+     * @memberof Widgets.Navigation.slidersMenu
+     */
     _openSectionMenu: function(e){
-        
+
         let section = this._getSectionName(e);
-        if(section=='explore' && this._active_section==section){
-            this._onCloseSearchFaceted();
+
+        if(window.hWin.HEURIST4.util.isFunction(this._beforeSwitch.handler) && this._beforeSwitch.menu !== section && !this._beforeSwitch.handler()){
+            return;
         }
+        
         this.switchContainer( section );
         
         this._collapseMainMenuPanel(true, 200);
-        
+
     },
-    
-    //
-    // loads content of section from slidersMenuXxx.html
-    //
+
+    /**
+     * @function _loadSectionMenu
+     * @description Loads the content of a section menu from an HTML file and initializes it.
+     * @param {string} section - The name of the section to load.
+     * @private
+     * @memberof Widgets.Navigation.slidersMenu
+     */
     _loadSectionMenu: function( section ){
         
         this.menues[section] = $('<div>')
@@ -1390,10 +1575,14 @@ $.widget( "heurist.slidersMenu", {
         
         
     },
-    
-    //
-    // special behaviour form slidersMenuExplore
-    //
+
+    /**
+     * @function _initSectionMenuExplore
+     * @description Initializes the explore section menu with its specific behaviors,
+     * such as handling mouse events for popups and setting up search actions.
+     * @private
+     * @memberof Widgets.Navigation.slidersMenu
+     */
     _initSectionMenuExplore: function(){
         
             let that = this;
@@ -1442,12 +1631,14 @@ $.widget( "heurist.slidersMenu", {
             this._initSectionMenu( 'explore' );
     },
 
-    //
-    // finds menu actions via actionsHandler and assigns icon and title 
-    // 
-    // see sildersMenuXXX.html snippets for list of action for particular section 
-    // and actions.json for list of all actions
-    //
+    /**
+     * @function _initSectionMenu
+     * @description Initializes a generic section menu. It finds menu items with `data-action` attributes,
+     * assigns icons and labels from the action handler, and sets up click event listeners.
+     * @param {string} section - The name of the section to initialize.
+     * @private
+     * @memberof Widgets.Navigation.slidersMenu
+     */
     _initSectionMenu: function( section ){
 
         //loop by <li> elements - search action and init item        
@@ -1497,6 +1688,10 @@ $.widget( "heurist.slidersMenu", {
                         if(!action_hint){
                             item.attr('title',action_hint);
                         }
+                       
+                        if(action.data?.is_association_member && window.hWin.HAPI4.sysinfo.is_association_member==='nonmember'){
+                            item.css('color','rgb(132,135,184)');
+                        }
                     
                 
             });
@@ -1516,6 +1711,11 @@ $.widget( "heurist.slidersMenu", {
         
         //execute menu on click           
         this._on(this.menues[section].find('li[data-action]'),{click:function(e){
+
+            if(window.hWin.HEURIST4.util.isFunction(this._beforeSwitch.handler) && !this._beforeSwitch.handler()){
+                return;
+            }
+
             let li = $(e.target);
             if(!li.is('li')) li = li.parents('li');
             
@@ -1523,7 +1723,6 @@ $.widget( "heurist.slidersMenu", {
                 this.menues[section].find('li').removeClass('ui-state-active');
                 li.addClass('ui-state-active');
             }
-            
             
             if(section=='design'){    
                     $(this.containers[section])
@@ -1601,9 +1800,14 @@ $.widget( "heurist.slidersMenu", {
         }
     },
 
-    //
-    //
-    //    
+    /**
+     * @function _closeActiveSection
+     * @description Closes the currently active section and its associated elements.
+     * @param {string} section - The name of the new section that will become active.
+     * @param {boolean} [force_show=false] - If true, forces the new section's container to be shown.
+     * @private
+     * @memberof Widgets.Navigation.slidersMenu
+     */
     _closeActiveSection:function(section, force_show){
 
             this._closeExploreMenuPopup();
@@ -1636,12 +1840,20 @@ $.widget( "heurist.slidersMenu", {
                 this.menues_explore_gap.addClass('ui-heurist-'+section+'-fade');    
             }
     },
-    
-    //
-    // switch section on section menu click
-    //
+
+    /**
+     * @function switchContainer
+     * @description Switches the visible container to the specified section.
+     * @param {string} section - The name of the section to switch to.
+     * @param {boolean} [force_show=false] - If true, forces the container to be shown.
+     * @memberof Widgets.Navigation.slidersMenu
+     */
     switchContainer: function( section, force_show ){
 
+        if(section=='explore' && this._active_section==section){
+            this._onCloseSearchFaceted();
+        }
+        
         //hide all intros
         $.each(this.introductions, function(i, item){$(item).hide();});
         
@@ -1677,25 +1889,38 @@ $.widget( "heurist.slidersMenu", {
     },
 
     //-----------------------------------------------------------------
-    //
-    // SAVED FILTERS
-    //
+    /**
+     * @function closeSavedSearch
+     * @description Closes the saved search edit dialog if it is open.
+     * @memberof Widgets.Navigation.slidersMenu
+     */
     closeSavedSearch: function(){
         if(this.edit_svs_dialog){
             this.edit_svs_dialog.closeEditDialog();
         }
     },
+
+    /**
+     * @function closeFacetedWizard
+     * @description Closes the faceted search wizard dialog if it is open.
+     * @memberof Widgets.Navigation.slidersMenu
+     */
     closeFacetedWizard: function(){
         let faceted_search_wiz = $('#heurist-search-faceted-dialog');
         if(faceted_search_wiz && faceted_search_wiz.length>0){
             faceted_search_wiz.dialog('close');
         }
     },
-        
-    //
-    // define new saved filter/search
-    // mode - saved or faceted
-    //
+
+    /**
+     * @function addSavedSearch
+     * @description Opens a dialog to define a new saved filter or search.
+     * @param {string} mode - The mode of the dialog, either 'saved' or 'faceted'.
+     * @param {boolean} [is_modal=true] - Whether the dialog should be modal.
+     * @param {number} [left_position] - The left position of the dialog.
+     * @param {number} [top_position] - The top position of the dialog.
+     * @memberof Widgets.Navigation.slidersMenu
+     */
     addSavedSearch: function( mode, is_modal, left_position, top_position ){
 
         let that = this;
@@ -1743,17 +1968,17 @@ $.widget( "heurist.slidersMenu", {
             is_modal, 
             true, //is_h6style                                                                                                         
             function(is_locked, is_mouseleave){  //menu_locked
-                if(is_mouseleave){
-                    that._resetCloseTimers();
-
-                }else if(is_locked=='close'){
+                if(is_locked=='close'){
                     that.coverAll.hide();                 
                     
-                }else{
+                }else if(is_mouseleave){
+                    that._resetCloseTimers();
+                }else 
+{
                     that._resetCloseTimers();    
                     
                     if(is_locked=='delay'){
-                        that.coverAll.show();
+                        //that.coverAll.show();
                         that._delayOnCollapse_ExploreMenu = 2000;        
                     }else{
                         that._explorer_menu_locked = is_locked;     
@@ -1771,18 +1996,20 @@ $.widget( "heurist.slidersMenu", {
         
         that.reset_svs_edit = false;
     },
-    
-    //
-    //
-    //
+
+    /**
+     * @function initHelpDiv
+     * @description Initializes a help popup div.
+     * @memberof Widgets.Navigation.slidersMenu
+     */
     initHelpDiv: function(){
         this.helper_div = $('<div>').addClass('ui-helper-popup').hide().appendTo(this.element);
         
-        let _innerTitle = $('<div>').addClass('ui-heurist-header').appendTo(this.helper_div);  
+        let _innerTitle = $('<div>').addClass('ui-heurist-header').appendTo(this.helper_div);
                                 
         $('<span>').appendTo(_innerTitle);
         let btn = $('<button>')
-                    .button({icon:'ui-icon-closethick',showLabel:false, label:'Close'}) 
+                    .button({icon:'ui-icon-closethick',showLabel:false, label:'Close'})
                     .css({'position':'absolute', 'right':'4px', 'top':'6px', height:24, width:24})
                     .appendTo(_innerTitle);
                     
@@ -1791,49 +2018,60 @@ $.widget( "heurist.slidersMenu", {
                     this.helper_div.hide();
         }});
                                 
-        $('<div>').css({top:38}).addClass('ent_wrapper').appendTo(this.helper_div);  
+        $('<div>').css({top:38}).addClass('ent_wrapper').appendTo(this.helper_div);
         //this.containers[this._active_section]
     },
-    
-    //
-    //
-    //
+
+    /**
+     * @function _refreshSubsetSign
+     * @description Refreshes the indicator for the current record subset, showing the count and a clear button if a subset is active.
+     * @private
+     * @memberof Widgets.Navigation.slidersMenu
+     */
     _refreshSubsetSign: function(){
+
+        if(!this.menues['explore']){
+            return;
+        }
+
+        let container = this.menues['explore'].find('li[data-action="menu-subset-set"]');
         
-            let container = this.menues['explore'].find('li[data-action="menu-subset-set"]');
-           
-            let ele = container.find('span.subset-info');
-            if(window.hWin.HAPI4.sysinfo.db_workset_count>0){
-                if(ele.length==0){
-                    ele = $('<span class="subset-info"><span '
+        let ele = container.find('span.subset-info');
+        if(window.hWin.HAPI4.sysinfo.db_workset_count>0){
+            if(ele.length==0){
+                ele = $('<span class="subset-info"><span '
 +'style="display:inline-block;color:red;font-size:smaller;padding-left:22px"></span>' //font-style:italic ;color:lightgray
 +'<span class="ui-icon ui-icon-arrowrefresh-1-w clear_subset" style="font-size:0.7em;color:black;" '
 +'title="'+window.hWin.HR('Click to revert to whole database')+'">'+
 '</span></span>')
-                        .appendTo(container);
-                        
-                    this._on(ele.find('span.clear_subset').css('cursor','pointer'),
-                        {click: function(e){
-                            window.hWin.HEURIST4.util.stopEvent(e);
-                            let widget = window.hWin.HAPI4.LayoutMgr.getWidgetByName('resultList');
-                            if(widget){
-                                widget.resultList('callResultListMenu', 'menu-subset-clear'); //call method
-                            }
-                        }});
-                
-                }
-                ele.find('span:first').html(window.hWin.HR('Current subset')
-                        +' n&nbsp;&nbsp;=&nbsp;&nbsp;'+window.hWin.HAPI4.sysinfo.db_workset_count);
-                ele.show();
-                
-            }else if(ele.length>0){
-                ele.hide();
+                    .appendTo(container);
+                    
+                this._on(ele.find('span.clear_subset').css('cursor','pointer'),
+                    {click: function(e){
+                        window.hWin.HEURIST4.util.stopEvent(e);
+                        let widget = window.hWin.HAPI4.LayoutMgr.getWidgetByName('resultList');
+                        if(widget){
+                            widget.resultList('callResultListMenu', 'menu-subset-clear'); //call method
+                        }
+                    }});
+            
             }
+            ele.find('span:first').html(window.hWin.HR('Current subset')
+                    +' n&nbsp;&nbsp;=&nbsp;&nbsp;'+window.hWin.HAPI4.sysinfo.db_workset_count);
+            ele.show();
+            
+        }else if(ele.length>0){
+            ele.hide();
+        }
     },
 
-    //
-    //
-    //
+    /**
+     * @function _initIntroductory
+     * @description Initializes the introductory/help panel for a given section.
+     * @param {string} section - The name of the section.
+     * @private
+     * @memberof Widgets.Navigation.slidersMenu
+     */
     _initIntroductory: function( section ){
         
         if(!this.introductions[section]){
@@ -1842,7 +2080,7 @@ $.widget( "heurist.slidersMenu", {
             if(section=='populate'){
                 sname = 'Populate';
             }else{
-                sname = section[0].toUpperCase()+section.substr(1);
+                sname = section[0].toUpperCase()+section.slice(1);
             }
 
             this.introductions[section] = $('<div><div class="gs-box" style="margin:10px;max-width:500px;height:100px;cursor:pointer">'
@@ -1863,9 +2101,11 @@ $.widget( "heurist.slidersMenu", {
     }
     },
 
-    //
-    // Landing Page when not loading the Welcome page - change to widgets/admin/databaseOverview
-    //
+    /**
+     * @function showDatabaseOverview
+     * @description Shows the Database Overview information panel, which serves as a landing page for the explore section.
+     * @memberof Widgets.Navigation.slidersMenu
+     */
     showDatabaseOverview: function(){
 
         let that = this;
@@ -2102,7 +2342,7 @@ $.widget( "heurist.slidersMenu", {
         
         // Load Content
         // @later implement as widgets/admin/databaseOverview (on baseAction)
-        $ele.load(window.hWin.HAPI4.baseURL+'hclient/widgets/cpanel/database_overview.html',
+        $ele.load(`${window.hWin.HAPI4.baseURL}hclient/widgets/cpanel/databaseOverview.html`,
             function(){
 
                 // Section headers within Content
@@ -2127,7 +2367,7 @@ $.widget( "heurist.slidersMenu", {
                     $ele.hide();
                     
                     if(option != 'explore'){
-                        that.switchContainer(option[0].toLowerCase() + option.substr(1));
+                        that.switchContainer(option[0].toLowerCase() + option.slice(1));
                     }
                 });
                 // Add image to explore header
@@ -2234,9 +2474,11 @@ $.widget( "heurist.slidersMenu", {
         );
     },
 
-    //
-    // Hide landing Page
-    //
+    /**
+     * @function hideDatabaseOverview
+     * @description Hides the Database Overview information panel.
+     * @memberof Widgets.Navigation.slidersMenu
+     */
     hideDatabaseOverview: function(){
 
         if(this.containers['explore'].find('div#db_overview').length > 0){
@@ -2244,9 +2486,13 @@ $.widget( "heurist.slidersMenu", {
         }
     },
 
-    //
-    //
-    //
+    /**
+     * @function _loadIntroductoryGuide
+     * @description Loads and displays the introductory guide for the active section.
+     * @param {Event} e - The click event.
+     * @private
+     * @memberof Widgets.Navigation.slidersMenu
+     */
     _loadIntroductoryGuide: function(e){
         
         let section = this._active_section;
@@ -2265,7 +2511,7 @@ $.widget( "heurist.slidersMenu", {
 
                     that.introductions[section].find('div.gs-box.ui-heurist-'+section)
                     .prepend( '<span class="ui-heurist-title header" id="start-hints" style="padding-top:57px;font-weight:normal;padding-left:20px;cursor:pointer">'
-                                +'<span class="ui-icon ui-icon-help"></span>&nbsp;Startup hints</span>' ).on('click', function(){ that._loadStartHints(null); });					
+                                +'<span class="ui-icon ui-icon-help"></span>&nbsp;Startup hints</span>' ).on('click', function(){ that._loadStartHints(null); });                    
 
                     that.introductions[section].find('.gs-box')
                         .css({position:'absolute', left:'10px', right:'10px', top:'10px', 'min-width':'700px', margin:0}) //,'padding-left':20
@@ -2284,7 +2530,14 @@ $.widget( "heurist.slidersMenu", {
                     
         this.containers[section].hide();
     },
-    
+
+    /**
+     * @function _loadStartHints
+     * @description Loads the startup hints and welcome content into the introductory panel.
+     * @param {Event} e - The click event.
+     * @private
+     * @memberof Widgets.Navigation.slidersMenu
+     */
     _loadStartHints: function(e){
 
         let section = this._active_section;
@@ -2299,35 +2552,35 @@ $.widget( "heurist.slidersMenu", {
                 function(){
                     // Display Section Img, hide link to YouTube video
                     that.introductions[section].find('img').each(function(i,img){
-						img = $(img);
-						img.attr('src',window.hWin.HAPI4.baseURL+'hclient/assets/v6/'+img.attr('data-src'));
+                        img = $(img);
+                        img.attr('src',window.hWin.HAPI4.baseURL+'hclient/assets/v6/'+img.attr('data-src'));
                     });
 
                     // Display Content
                     that.introductions[section].find('.gs-box')
-							.css({position:'absolute', left:10, right:10, top:10, 'min-width':700, margin:0}) //,'padding-left':20
-							.show();
+                            .css({position:'absolute', left:10, right:10, top:10, 'min-width':700, margin:0}) //,'padding-left':20
+                            .show();
                     that.introductions[section].find('.gs-box > div:first').css('margin','23px 0');
 
                     that.introductions[section].find('.gs-box .ui-heurist-title.header')
-							.css({position:'absolute', left:160, top:40, right:400, 'max-width':'540px'});
+                            .css({position:'absolute', left:160, top:40, right:400, 'max-width':'540px'});
 
                     // Load Welcome Content
                     $('<div class="gs-box">')
-						.css({position:'absolute', left:10, right:10, top:180, bottom:10, 'min-width':400, overflow: 'auto'})
-						.load(window.hWin.HAPI4.baseURL+'hclient/widgets/cpanel/welcome.html', function(){
-							
-							// Bookmark Link
-							let url = window.hWin.HAPI4.baseURL+'?db='+window.hWin.HAPI4.database;
-							$('.bookmark-url').html('<a href="#">'+url+'</a>').on('click', function(e){
-								window.hWin.HEURIST4.util.stopEvent(e);
-								window.hWin.HEURIST4.msg.showMsgFlash('Press Ctrl+D to bookmark this page',1000);
-								return false;
-							});
+                        .css({position:'absolute', left:10, right:10, top:180, bottom:10, 'min-width':400, overflow: 'auto'})
+                        .load(window.hWin.HAPI4.baseURL+'hclient/widgets/cpanel/welcome.html', function(){
+                            
+                            // Bookmark Link
+                            let url = window.hWin.HAPI4.baseURL+'?db='+window.hWin.HAPI4.database;
+                            $('.bookmark-url').html('<a href="#">'+url+'</a>').on('click', function(e){
+                                window.hWin.HEURIST4.util.stopEvent(e);
+                                window.hWin.HEURIST4.msg.showMsgFlash('Press Ctrl+D to bookmark this page',1000);
+                                return false;
+                            });
 
                             $('.ui-icon-bookmark').css('color', that._menu_colours[section]);
-						})
-						.appendTo( that.introductions[section] );
+                        })
+                        .appendTo( that.introductions[section] );
                 })
                 .css({left: ((that._left_position+211)+'px'),
                       right: '4px',top:'2px',bottom:'4px',width:'auto',height:'auto'})  //,'z-index':104
@@ -2336,7 +2589,43 @@ $.widget( "heurist.slidersMenu", {
         this.containers[section].hide();
     },
 
+    /**
+     * @function closeContainer
+     * @description Clears and hides the container div for a given section.
+     * @param {string} section - Name of the section.
+     * @memberof Widgets.Navigation.slidersMenu
+     */
     closeContainer: function(section){
         this.containers[section].empty().hide();
+    },
+
+    /**
+     * @function manageSwitchHandler
+     * @description Sets up or removes a function call triggered before switching menus
+     * @param {string} forMenu - The function's menu, e.g. Manage DB properties is within the design menu
+     * @param {string} fromAction - Function's name
+     * @param {function} eventHandler - Function to be called
+     * @memberof Widgets.Navigation.slidersMenu
+     */
+    manageSwitchHandler: function(forMenu, fromAction, eventHandler){
+
+        if(forMenu === 'remove' && fromAction === this._beforeSwitch.originator){
+
+            this._beforeSwitch = {
+                menu: '',
+                originator: '',
+                handler: null
+            };
+
+            return;
+        }else if(!window.hWin.HEURIST4.util.isFunction(eventHandler) || (forMenu !== 'all' && !Object.hasOwn(this._menu_colours, forMenu))){
+            return;
+        }
+
+        this._beforeSwitch = {
+            menu: forMenu,
+            originator: fromAction,
+            handler: eventHandler
+        };
     }
 });

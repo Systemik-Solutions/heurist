@@ -1,23 +1,42 @@
 /**
-* manageRecUploadedFiles.js - main widget to manage recUploadedFiles
+* @file manageRecUploadedFiles.js
+* @brief Manages uploaded files associated with records.
+* @fileOverview Provides a UI for listing, uploading, and managing files linked to Heurist records. It handles file uploads, metadata display, and potentially file deletion or updating.
+* @project     Heurist academic knowledge management system
 *
-* @package     Heurist academic knowledge management system
 * @link        https://HeuristNetwork.org
 * @copyright   (C) 2005-2023 University of Sydney, (C) 2024 onwards Heurist Network
-* @author      Artem Osmakov   <osmakov@gmail.com>
 * @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
-* @version     4.0
+* @author      Artem Osmakov <osmakov@gmail.com>
+* @author      Ian Johnson <ian.johnson.heurist@gmail.com>
+* @since       4.0
 */
 
-/*  
-* Licensed under the GNU License, Version 3.0 (the "License"); you may not use this file except in compliance
-* with the License. You may obtain a copy of the License at https://www.gnu.org/licenses/gpl-3.0.txt
-* Unless required by applicable law or agreed to in writing, software distributed under the License is
-* distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied
-* See the License for the specific language governing permissions and limitations under the License.
-*/
+
 /* global HEditing */
 
+/**
+ * @widget heurist.manageRecUploadedFiles
+ * @brief Widget for managing files uploaded to records.
+ * @augments $.heurist.manageEntity
+ * @property {?number} rec_ID The ID of the record these files are associated with.
+ * While not a direct option in `this.options`, it's a key contextual parameter, often passed as `options.rec_ID` for specific operations like 'editonly'.
+ * @property {object} [uploader_options] Configuration options for the file uploader.
+ * (Implicitly configured within methods like `_uploadFileAndRegister` and `_handleExternalRepository`).
+ * @property {string} [default_palette_class='ui-heurist-populate'] Default palette class for the widget.
+ * @property {boolean} [coverall_on_save=true] Whether to show a loading overlay during save operations.
+ * @property {string} [layout_mode='short'] Layout mode for the widget.
+ * @property {boolean} [use_cache=false] Whether to use client-side caching for file data.
+ * @property {boolean} [edit_need_load_fullrecord=true] Whether a full record load is needed for editing file metadata.
+ * @property {number} [edit_height=700] Default height of the edit dialog for file metadata.
+ * @property {number} [edit_width=950] Default width of the edit dialog for file metadata.
+ * @property {number} [height=800] Default height of the widget.
+ * @property {boolean} [edit_addrecordfirst=false] If true, shows the editor for adding a new file immediately.
+ * @property {string} select_mode Defines item selection behavior. Adjusted based on `edit_addrecordfirst`.
+ * @property {string} [additionMode='local'] Controls the UI for adding files: 'local', 'remote', 'any', 'tiled'.
+ * @property {?string} _init_ExternalFileReference Initial value for external file reference if provided in `selection_on_init`.
+ * @property {?string} _init_MimeExt Initial value for MIME extension if provided in `selection_on_init`.
+ */
 $.widget( "heurist.manageRecUploadedFiles", $.heurist.manageEntity, {
    
     _entityName:'recUploadedFiles',
@@ -151,8 +170,9 @@ $.widget( "heurist.manageRecUploadedFiles", $.heurist.manageEntity, {
                         this._uploadFileAndRegister();
                         
                     }else if(action=='menu-file-add-ext'){ 
-                        this._additionMode='remote'; this.addEditRecord(-1);
-                        
+                        this._additionMode='remote';
+                        this.addEditRecord(-1);
+
                     }else if(action=='menu-file-import-csv'){ 
 
                         window.hWin.HAPI4.actionHandler.executeActionById('menu-files-data');
@@ -223,6 +243,7 @@ $.widget( "heurist.manageRecUploadedFiles", $.heurist.manageEntity, {
         
         let i_url = this.getEntityFieldIdx('ulf_HeuristURL');
         let i_url_ext = this.getEntityFieldIdx('ulf_ExternalFileReference');
+        let i_reupload = this.getEntityFieldIdx('ulf_ReuploadFile');
         let i_filename = this.getEntityFieldIdx('ulf_OrigFileName');
         let i_filesize = this.getEntityFieldIdx('ulf_FileSizeKB');
 
@@ -248,7 +269,8 @@ $.widget( "heurist.manageRecUploadedFiles", $.heurist.manageEntity, {
                 +'<br>For uploaded tile stack this field will be filled automatically with name of selected stack (folder).';
             }
 
-            this.options.entity.fields[i_url].dtFields['rst_Display'] = 'hidden';            
+            this.options.entity.fields[i_url].dtFields['rst_Display'] = 'hidden';
+            this.options.entity.fields[i_reupload].dtFields['rst_Display'] = 'hidden';
             this.options.entity.fields[i_filename].dtFields['rst_Display'] = 'hidden';
             this.options.entity.fields[i_filesize].dtFields['rst_Display'] = 'hidden';
             this.options.entity.fields[i_descr].dtFields['rst_Display'] = 'hidden';
@@ -264,13 +286,14 @@ $.widget( "heurist.manageRecUploadedFiles", $.heurist.manageEntity, {
                                                     + '?db=' + window.hWin.HAPI4.database 
                                                     + '&file='+this._getField('ulf_ObfuscatedFileID');
             this.options.entity.fields[i_url_ext].dtFields['rst_Display']  = 'hidden'; 
-            
+
             this.options.entity.fields[i_mime_ext].dtFields['rst_Display'] = 'hidden';
             this.options.entity.fields[i_descr].dtFields['rst_Display'] = 'visible';
             
             if(this._currentEditRecordset){
                 //edit
                 this.options.entity.fields[i_url].dtFields['rst_Display'] = 'readonly';
+                this.options.entity.fields[i_reupload].dtFields['rst_Display'] = 'readonly';
                 this.options.entity.fields[i_filename].dtFields['rst_Display'] = 'readonly';
                 this.options.entity.fields[i_filesize].dtFields['rst_Display'] = 'readonly';
                 this.options.entity.fields[i_mime_loc].dtFields['rst_Display'] = 'readonly';
@@ -278,7 +301,8 @@ $.widget( "heurist.manageRecUploadedFiles", $.heurist.manageEntity, {
             }else{
                 //add new file
                 this.options.entity.fields[i_file_upl].dtFields['rst_Display'] = 'visible'; //show DnD zone
-                this.options.entity.fields[i_url].dtFields['rst_Display'] = 'hidden';            
+                this.options.entity.fields[i_url].dtFields['rst_Display'] = 'hidden';
+                this.options.entity.fields[i_reupload].dtFields['rst_Display'] = 'hidden';
                 this.options.entity.fields[i_filename].dtFields['rst_Display'] = 'hidden';
                 this.options.entity.fields[i_filesize].dtFields['rst_Display'] = 'hidden';
                 this.options.entity.fields[i_mime_loc].dtFields['rst_Display'] = 'hidden';
@@ -288,7 +312,8 @@ $.widget( "heurist.manageRecUploadedFiles", $.heurist.manageEntity, {
             
             
         }else{ //remote
-            this.options.entity.fields[i_url].dtFields['rst_Display'] = 'hidden';  
+            this.options.entity.fields[i_url].dtFields['rst_Display'] = 'hidden';
+            this.options.entity.fields[i_reupload].dtFields['rst_Display'] = 'hidden';
 
             this.options.entity.fields[i_url_ext].dtFields['rst_Display']  = 'visible'; //edit url
             this.options.entity.fields[i_filename].dtFields['rst_Display'] = 'hidden';
@@ -324,17 +349,25 @@ $.widget( "heurist.manageRecUploadedFiles", $.heurist.manageEntity, {
                 padding: '20px',
                 'background-color': 'lightgray',
                 'border-top': '1px solid lightgray',
-                margin: '10px'});
+                margin: '10px'
+            });
             this.editForm.append( this.mediaviewer );
-            this.mediaviewer.mediaViewer({rec_Files:[{
+            this.mediaviewer.mediaViewer({
+                rec_Files:[{
                     id: this._editing.getValue('ulf_ObfuscatedFileID')[0], 
                     filename: this._editing.getValue('ulf_OrigFileName')[0], 
-                    mimeType: this._editing.getValue('fxm_MimeType')[0]}]}); //nonce + memtype
+                    mimeType: this._editing.getValue('fxm_MimeType')[0]
+                }]
+            }); //nonce + memtype
                 
             //list of records that refer to this file    
             let relations = this._currentEditRecordset.getRelations();    
-            if(relations?.direct?.length>0){
-                $('<div class="detailRowHeader">Records that refer this file</div>').appendTo(this.editForm);
+            if(relations?.direct?.length > 0){
+
+                this.mediaViewer.css({width: '50em', float: 'left'});
+
+                let $container = $('<div>', { style: 'display: inline-block; width: 26em; margin-top: 1em;'}).appendTo(this.editForm)
+                $('<div class="detailRowHeader">Records that refer this file</div>').appendTo($container);
                 
                 let direct = relations.direct;
                 let headers = relations.headers;
@@ -347,7 +380,7 @@ $.widget( "heurist.manageRecUploadedFiles", $.heurist.manageEntity, {
                         continue;                                            
                     }
                     
-                    window.hWin.HEURIST4.ui.createRecordLinkInfo(this.editForm, 
+                    window.hWin.HEURIST4.ui.createRecordLinkInfo($container, 
                                 {rec_ID: targetID, 
                                  rec_Title: headers[targetID][0], 
                                  rec_RecTypeID: headers[targetID][1]
@@ -361,6 +394,11 @@ $.widget( "heurist.manageRecUploadedFiles", $.heurist.manageEntity, {
                 // force option to public, without changes
                 let ele = this._editing.getFieldByName('ulf_WhoCanView');
                 ele.editing_input('setValue', 'viewable', true);
+            }
+
+            let ele = this._editing.getFieldByName('ulf_ReuploadFile');
+            if(isLocal && !window.hWin.HEURIST4.util.isempty(ele)){
+                this._setupReuploadButton();
             }
         }else{
             //new record
@@ -887,7 +925,7 @@ $.widget( "heurist.manageRecUploadedFiles", $.heurist.manageEntity, {
             if(val.indexOf('_tiled')==0){
                 rectype = 'tiled';
                 if(val.indexOf('_tiled@')==0){ 
-                        val = val.substr(7);
+                        val = val.slice(7);
                 }
                 if(!window.hWin.HEURIST4.util.isempty(val)){
                     recTitle = '<div class="item" style="width:auto">'+val+'</div>';    
@@ -909,10 +947,9 @@ $.widget( "heurist.manageRecUploadedFiles", $.heurist.manageEntity, {
         }
         
         let recIcon = '';//@todo take default icon from extensions table and or for default image/audio/video
-        
-        let html_thumb = '<div class="recTypeThumb realThumb" style="background-image: url(&quot;'+ 
-        window.hWin.HAPI4.baseURL + '?db=' + window.hWin.HAPI4.database + '&thumb='+
-                    fld('ulf_ObfuscatedFileID') + '&quot;);opacity:1"></div>';
+
+        let html_thumb = `<div class="recTypeThumb realThumb" style="background-image: 
+        url(&quot;${window.hWin.HAPI4.baseURL}?db=${window.hWin.HAPI4.database}&thumb=${fld('ulf_ObfuscatedFileID')}&t=${window.hWin.HEURIST4.util.random()}&quot;);opacity:1"></div>`;
             
         if(this.options.select_mode=='manager'){
         html_thumb = '<a href="'+            
@@ -945,12 +982,18 @@ window.hWin.HAPI4.baseURL+'?db=' + window.hWin.HAPI4.database  //(needplayer?'&p
         // add edit/remove action buttons
         if(this.options.select_mode=='manager' && this.options.edit_mode!='none'){
 
-            html = html 
-                + `<div title="Click to edit file" ${action_style} role="button" aria-disabled="false" data-key="edit" `
+            let refreshBtn = rectype != 'external' || fld('ulf_OrigFileName') != '_remote' ? '' :
+                `<div title="Click to refresh the thumbnail" ${action_style} role="button" aria-disabled="false"
+                    data-key="refresh" class="action-button logged-in-only ui-button ui-widget ui-state-default ui-corner-all ui-button-icon-only">
+                    <span class="ui-button-icon-primary ui-icon ui-icon-refresh"></span><span class="ui-button-text"></span>
+                </div>`;
+
+            html += `<div title="Click to edit file" ${action_style} role="button" aria-disabled="false" data-key="edit" `
                 +   'class="action-button logged-in-only ui-button ui-widget ui-state-default ui-corner-all ui-button-icon-only">'
                 +     '<span class="ui-button-icon-primary ui-icon ui-icon-pencil"></span><span class="ui-button-text"></span>'
                 + '</div>&nbsp;&nbsp;'
                 + `${url_icon}&nbsp;&nbsp;`
+                + refreshBtn
                 + `<div title="Click to delete file" ${action_style} role="button" aria-disabled="false" data-key="delete" `
                 +   'class="action-button logged-in-only ui-button ui-widget ui-state-default ui-corner-all ui-button-icon-only">'
                 +     '<span class="ui-button-icon-primary ui-icon ui-icon-circle-close"></span><span class="ui-button-text"></span>'
@@ -989,6 +1032,10 @@ window.hWin.HAPI4.baseURL+'?db=' + window.hWin.HAPI4.database  //(needplayer?'&p
 
         is_resolved = true;
 
+        let recordset = this.getRecordSet();
+        let record = recordset.getById(ulf_ID);
+        let ulf_ObfuscatedFileID = recordset.fld(record, 'ulf_ObfuscatedFileID');
+
         switch (action) {
 
             case 'view': {
@@ -1008,14 +1055,42 @@ window.hWin.HAPI4.baseURL+'?db=' + window.hWin.HAPI4.database  //(needplayer?'&p
             }
             case 'url': {
 
-                let recordset = this.getRecordSet();
-                let record = recordset.getById(ulf_ID);
-                let ulf_ObfuscatedFileID = recordset.fld(record, 'ulf_ObfuscatedFileID');
-
                 window.hWin.HEURIST4.util.copyStringToClipboard(`${window.hWin.HAPI4.baseURL_pro}?db=${window.hWin.HAPI4.database}&file=${ulf_ObfuscatedFileID}`);
 
                 window.hWin.HEURIST4.msg.showMsgFlash('Copied URL to clipboard', 3000);
 
+                break;
+            }
+            case 'refresh': {
+
+                let type = recordset.fld(record, 'ulf_ExternalFileReference') ? recordset.fld(record, 'ulf_OrigFileName') : '_local';
+                if(type === '_remote'){
+
+                    let refreshURL = `${window.hWin.HAPI4.baseURL}hserv/controller/fileDownload.php`;
+                    let request = {
+                        db: window.hWin.HAPI4.database,
+                        thumb: ulf_ObfuscatedFileID,
+                        refresh: 1
+                    };
+
+                    let $thumb = this.recordList.find(`[recID=${ulf_ID}] .recTypeThumb`);
+                    window.hWin.HEURIST4.util.sendRequest(refreshURL, request, null, (response) => {
+
+                        if(response.message.startsWith('Error_')){
+                            window.hWin.HEURIST4.msg.showMsgErr(response);
+                            return;
+                        }
+
+                        let url = window.hWin.HAPI4.getImageUrl(null, ulf_ObfuscatedFileID, null, null, null, true);
+                        url = url.replace('icon=', 'thumb=');
+                        $thumb.css('background-image', `url("${url}")`);
+
+                        window.hWin.HEURIST4.msg.showMsgFlash('Thumbnail has been refreshed', 3000);
+
+                        window.hWin.HAPI4.triggerEvent(window.hWin.HAPI4.Event.ON_STRUCTURE_CHANGE, {type: 'ulf'}); // refresh thumbnails
+                    });
+                }
+                
                 break;
             }
             default: {
@@ -1074,7 +1149,7 @@ window.hWin.HAPI4.baseURL+'?db=' + window.hWin.HAPI4.database  //(needplayer?'&p
                     }], null);
                 that._editing_uploadfile.getContainer().hide(); //this form is hidden
                 let ele = that._editing_uploadfile.getFieldByName('ulf_FileUpload');    
-                ele.find('.fileupload').trigger('click'); //open file select dialog
+                ele.find('.fileupload')[0].click(); //trigger('click'); //open file select dialog
         }        
         
         if(!this._editing_uploadfile){ //form is not yet defined
@@ -1185,7 +1260,10 @@ window.hWin.HAPI4.baseURL+'?db=' + window.hWin.HAPI4.database  //(needplayer?'&p
     //
     //
     _afterSaveEventHandler: function( recID, fieldvalues ){
-    
+
+        if(this._currentEditID > 0){
+            window.hWin.HAPI4.triggerEvent(window.hWin.HAPI4.Event.ON_STRUCTURE_CHANGE, {type: 'ulf'}); // refresh thumbnails
+        }
 
         if(recID>0){
             
@@ -1346,7 +1424,7 @@ window.hWin.HAPI4.baseURL+'?db=' + window.hWin.HAPI4.database  //(needplayer?'&p
                                     + '</div>'
                                 + '</div>'
 
-                                + '<div id="nakala-url">'
+                                + '<div id="nakala-url" style="display: none;">'
                                     + '<div class="header recommended" style="vertical-align: top; display: table-cell;"><label>Use test server:</label></div>'
                                     + '<span class="editint-inout-repeat-button" style="min-width: 22px; display: table-cell;"></span>'
                                     + '<div class="input-cell" style="padding-bottom: 12px;">'
@@ -1482,7 +1560,7 @@ window.hWin.HAPI4.baseURL+'?db=' + window.hWin.HAPI4.database  //(needplayer?'&p
                             license: license
                         },
                         api_key: account,
-                        use_test_url: $dlg.find('#use_test_url').is(':checked') || account.indexOf('_') == -1 ? 1 : 0
+                        use_test_url: account.indexOf('_') == -1 ? 1 : 0
                     };
 
                     window.hWin.HEURIST4.msg.bringCoverallToFront(that._edit_dialog);
@@ -1530,7 +1608,7 @@ window.hWin.HAPI4.baseURL+'?db=' + window.hWin.HAPI4.database  //(needplayer?'&p
 
                 let request = {
                     serviceType: 'nakala',
-                    service: 'nakala_get_metadata' // file types used by Nakala
+                    metadata: 'all'
                 };
 
                 window.hWin.HEURIST4.msg.bringCoverallToFront($('body'));
@@ -1601,7 +1679,6 @@ window.hWin.HAPI4.baseURL+'?db=' + window.hWin.HAPI4.database  //(needplayer?'&p
 
                         let value = $accounts.val();
 
-                        value != '' && value.indexOf('_') >= 0 ? $dlg.find('#nakala-url').show() : $dlg.find('#nakala-url').hide();
                         value != '' && value.indexOf('_') >= 0 ? $dlg.find('#acc-helper').hide() : $dlg.find('#acc-helper').show();
                     }
                 });
@@ -2046,7 +2123,7 @@ window.hWin.HAPI4.baseURL+'?db=' + window.hWin.HAPI4.database  //(needplayer?'&p
         if(!window.hWin.HEURIST4.util.isFunction($('body')['lookupBase'])){
 
             $.getScript(`${window.hWin.HAPI4.baseURL}hclient/widgets/lookup/lookupBase.js`, () => {
-                that._loadAuthorLookup(lookup_name, dialog_options);
+                that._loadAuthorLookup();
             }).fail(() => {
                 window.hWin.HEURIST4.msg.showMsgErr({
                     status: window.hWin.ResponseStatus.UNKNOWN_ERROR,
@@ -2057,7 +2134,7 @@ window.hWin.HAPI4.baseURL+'?db=' + window.hWin.HAPI4.database  //(needplayer?'&p
 
             return;
         }
-
+        let $dlg;
         let dlg_opts = {
             mapping: {
                 dialog: 'lookupNakalaAuthor',
@@ -2083,5 +2160,118 @@ window.hWin.HAPI4.baseURL+'?db=' + window.hWin.HAPI4.database  //(needplayer?'&p
             }
         };
         window.hWin.HEURIST4.ui.showRecordActionDialog('lookupNakalaAuthor', dlg_opts);
+    },
+
+    _setupReuploadButton: function(){
+
+        let $field = this._editing.getFieldByName('ulf_ReuploadFile');
+
+        let $btn_upload = $('<button>', {
+            title: 'Replace current file'
+        }).appendTo($field.find('div.input-div'));
+
+        let $hidden_uploadfile = $('<input>', {
+            type: 'file',
+            style: 'display: none;',
+            filename: ''
+        }).appendTo($field.find('div.input-div'));
+
+        $hidden_uploadfile.fileupload({
+            url: `${window.hWin.HAPI4.baseURL}hserv/controller/fileUpload.php`, 
+            formData: [
+                {name: 'db', value: window.hWin.HAPI4.database}, 
+                {name: 'entity', value: 'temp'},
+                {name: 'max_file_size', value: 1024*1024}
+            ],
+            autoUpload: true,
+            sequentialUploads:true,
+            dataType: 'json',
+            done: (e, response) => {
+
+                if(response.result){
+                    response = response.result;
+                }
+
+                if(response.status != window.hWin.ResponseStatus.OK){
+                    window.hWin.HEURIST4.msg.showMsgErr(response);
+                    return;
+                }
+
+                if(!window.hWin.HEURIST4.util.isArrayNotEmpty(response.data?.files)){
+                    return;
+                }
+
+                let filename = response.data.files[0].name;
+                let thumbnailName = response.data.files[0].thumbnailName;
+                this._updateLocalFile({[this._currentEditID]: {file: filename, thumbnail: thumbnailName}});
+            },
+            fail: function(e, response){
+                response = response.message ? response : {message: response, error_title: 'File upload error'};
+                window.hWin.HEURIST4.msg.showMsgErr(response);
+            }
+        });
+
+        $btn_upload.button({label: 'Replace current file', icon: 'ui-icon-upload'});
+        this._on($btn_upload, {
+            click: () => {
+                $hidden_uploadfile.trigger('click');
+            }
+        });
+    },
+
+    _updateLocalFile: function(files){
+
+        if(!window.hWin.HEURIST4.util.isObject(files)){
+            return;
+        }
+
+        let request = {
+            a: 'batch',
+            entity: this.options.entity.entityName,
+            replace_local_files: files
+        };
+
+        window.hWin.HAPI4.EntityMgr.doRequest(request, (response) => {
+
+            if(response.status !== window.hWin.ResponseStatus.OK){
+                window.hWin.HEURIST4.msg.showMsgErr(response);
+                return;
+            }
+
+            let results = response.data;
+            if(results['skipped'].length > 0){
+                window.hWin.HEURIST4.msg.showMsgErr({
+                    message: `An error occurred while attempting to replace the existing file.<br>${results['skipped'][0]}`,
+                    error_title: 'Local file update error'
+                });
+                return;
+            }
+
+            let refreshURL = `${window.hWin.HAPI4.baseURL}hserv/controller/fileDownload.php`;
+            request = {
+                db: window.hWin.HAPI4.database,
+                thumb: this._getField('ulf_ObfuscatedFileID'),
+                refresh: 1
+            };
+            window.hWin.HEURIST4.util.sendRequest(refreshURL, request, null, (response) => {
+
+                if(response.message.startsWith('Error_')){
+                    window.hWin.HEURIST4.msg.showMsgErr(response);
+                    return;
+                }
+
+                if(this.searchForm && this.searchForm.searchRecUploadedFiles('instance')){ // trigger search refresh
+                    //it was updated
+                    this.searchForm.searchRecUploadedFiles('searchRecent', 'local');
+                }
+    
+                window.hWin.HEURIST4.msg.showMsgFlash('File successfully updated', 3000);
+                window.hWin.HAPI4.triggerEvent(window.hWin.HAPI4.Event.ON_STRUCTURE_CHANGE, {type: 'ulf'}); // refresh thumbnails
+    
+                if(this._currentEditID > 0){
+                    this.reloadEditForm(true);
+                }
+            });
+        });
     }
 });

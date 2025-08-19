@@ -1,32 +1,27 @@
 <?php
+/**
+*  Injection of Heuirst core scripts, styles and scripts to init CMS website template
+*
+*  It should be included in CMS template php sript in html header section
+*
+*  include_once 'websiteScriptAndStyles.php';
+*
+* if home page has defined as template file it is loaded as body, otherwise default template
+* that includes header with main-logo, main-title, main-menu and
+* main-content where content of particular page will be loaded
+* 
+* @project     Heurist academic knowledge management system
+* @package CMS
+* @link https://HeuristNetwork.org
+* @copyright (C) 2005-2023 University of Sydney, (C) 2024 onwards Heurist Network
+* @license https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
+* @author Artem Osmakov <osmakov@gmail.com>
+* @author Ian Johnson <ian.johnson.heurist@gmail.com>
+* @since 6.0
+*/
 use hserv\utilities\USystem;
 
  $_is_new_cms_editor = true;
-
-    /**
-    *  Injection of Heuirst core scripts, styles and scripts to init CMS website template
-    *
-    *  It should be included in CMS template php sript in html header section
-    *
-    *  include_once 'websiteScriptAndStyles.php';
-    *
-    * @package     Heurist academic knowledge management system
-    * @link        https://HeuristNetwork.org
-    * @copyright   (C) 2005-2023 University of Sydney, (C) 2024 onwards Heurist Network
-    * @author      Artem Osmakov   <osmakov@gmail.com>
-    * @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
-    * @version     4.0
-    */
-
-    /*
-    * Licensed under the GNU License, Version 3.0 (the "License"); you may not use this file except in compliance
-    * with the License. You may obtain a copy of the License at https://www.gnu.org/licenses/gpl-3.0.txt
-    * Unless required by applicable law or agreed to in writing, software distributed under the License is
-    * distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied
-    * See the License for the specific language governing permissions and limitations under the License.
-    */
-
-
 
     /*
     Workflow on initialization:
@@ -57,6 +52,7 @@ if (isLocalHost() && !@$_REQUEST['embed'])  {
 <?php
 }else{
 ?>
+
     <link href="https://cdn.datatables.net/v/dt/jszip-3.10.1/dt-2.1.6/b-3.1.2/b-html5-3.1.2/datatables.min.css" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js" integrity="sha384-VFQrHzqBh5qiJIU0uGU5CIW3+OWpdGGJM9LBnGbuIH2mkICcFZ7lPd/AAtI7SNf7" crossorigin="anonymous"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.js" integrity="sha384-/RlQG9uf0M2vcTw3CX7fbqgbj/h8wKxw7C3zu9/GxcBPRKOEcESxaxufwRXqzq6n" crossorigin="anonymous"></script>
@@ -415,7 +411,6 @@ function onPageInit(success)
 function initMainMenu( afterInitMainMenu ){
 
     var topmenu = $('#main-menu');
-
     var lopts = {
                 menu_recIDs: home_page_record_id,
                 main_menu: true, //search for RT_CMS_HOME as root
@@ -482,7 +477,8 @@ function loadPageContent(pageid, eventdata){
     // this is not website page, this is ordinary record - show it in main-recordview or popup
     if(window.hWin.HEURIST4.util.isNumber(pageid) &&  !page_cache[pageid]){
 
-       if (! ((topmenu &&  topmenu.navigation('instance') && topmenu.navigation('isMenuItem',pageid))
+       if (! ((typeof navigation === 'function' && 
+               topmenu && topmenu.navigation('instance') && topmenu.navigation('isMenuItem',pageid))
               ||
               (eventdata && eventdata['isMenuItem'])) )
        {
@@ -777,11 +773,11 @@ function assignPageTitle(pageid){
         if(h==144 || h==180){ //default values
             $('#main-header').height(is_show_pagetitle?180:144);
             $('#main-content-container').css({top:is_show_pagetitle?187:151});
-        }else if(h == 137 && navigator.userAgent.indexOf('Firefox') > 0){ //default value on Firefox
-            $('#main-content-container').css({top:144});
+        //}else if(h == 137 && navigator.userAgent.indexOf('Firefox') > 0){ //default value on Firefox
+        //    $('#main-content-container').css({top:144});
+        
+            $('#main-menu').css('bottom',is_show_pagetitle?40:0);
         }
-
-        $('#main-menu').css('bottom',is_show_pagetitle?40:0);
 
     }
 }
@@ -936,7 +932,7 @@ function afterPageLoad(document, pageid, eventdata){
             let operator = '/?';
             
             if(handle_query){
-                surl += `{operator}q=${eventdata.q}`;
+                surl += `${operator}q=${eventdata.q}`;
                 operator = '&';
             }
 
@@ -1042,8 +1038,7 @@ function afterPageLoad(document, pageid, eventdata){
                         eventdata.event_type = window.hWin.HAPI4.Event.ON_REC_SEARCHSTART;
                         loadPageContent(new_pageid, eventdata);//on link or selection - execute search on different page
 
-                    }else{
-
+                    }else if($('#main-recordview').is(":visible")){
                         eventdata.search_page = 0;
                         $('#main-recordview').hide();
                         $('#main-content').show();
@@ -1103,7 +1098,7 @@ function initLinksAndImages($container, search_data){
         if(href=='#' && window.hWin.HEURIST4.util.isPositiveInt($(link).attr('data-pageid'))){
             //main menu link - create standard url for crawler and right-click
             let rec_id = $(link).attr('data-pageid');
-            href = window.hWin.HEURIST4.ui.getCmsLink({websiteid:home_page_record_id, pageid:rec_id});
+            href = window.hWin.HEURIST4.ui.getCmsLink({version:2,websiteid:home_page_record_id, pageid:rec_id});
             $(link).attr('href',href);
         }else
         //1. special case for search links in smarty reports
@@ -1132,7 +1127,7 @@ function initLinksAndImages($container, search_data){
                     href = href.join('/');
                     */
                     
-                    href = window.hWin.HEURIST4.ui.getCmsLink({websiteid:home_page_record_id, pageid:current_page_id});
+                    href = window.hWin.HEURIST4.ui.getCmsLink({version:2,websiteid:home_page_record_id, pageid:current_page_id});
                     href = href+'?q='+encodeURIComponent(query);
                     
                     $(link).attr('href', href);
@@ -1209,7 +1204,7 @@ function initLinksAndImages($container, search_data){
 
             if(window.hWin.HEURIST4.util.isPositiveInt(rec_id)){
                 
-                href = window.hWin.HEURIST4.ui.getCmsLink({websiteid:home_page_record_id, pageid:rec_id});
+                href = window.hWin.HEURIST4.ui.getCmsLink({version:2,websiteid:home_page_record_id, pageid:rec_id});
                 $(link).attr('href',href);
                 $(link).attr('data-pageid', rec_id);
 
@@ -1414,19 +1409,19 @@ function initHeaderTitle(){
 
     if(website_title){
 
-        var headertitle = window.hWin.HAPI4.getTranslation(website_title, current_language);
+        let headertitle = window.hWin.HAPI4.getTranslation(website_title, current_language);
 
         document.title = window.hWin.HEURIST4.util.stripTags(headertitle);
         headertitle = window.hWin.HEURIST4.util.stripTags(headertitle,'br,hr,p,i,b,u,em,strong,sup,sub,small,span');
 
 
-        var ele = $('#main-title');
-        var isFirstInit = (ele.length>0 && ele.children().length==0);
+        let ele = $('#main-title');
+        let isFirstInit = (ele.length>0 && ele.children().length==0);
 
         // show shadow for title if there is header background image (banner)
         let bg_img = $('#main-header').css('background-image');
         let css_shadow = '';
-        if(!(bg_img=='' || bg_img=='none')){
+        if(!(bg_img=='' || bg_img=='none')&& ele.css('textShadow')=='none'){
             css_shadow = ' style="text-shadow: 3px 3px 5px black"';
         }
 

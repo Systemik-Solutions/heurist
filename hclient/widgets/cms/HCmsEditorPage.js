@@ -1,27 +1,31 @@
 /*
 * HCmsEditorPage.js - web page structure editor
 * 
-* @package     Heurist academic knowledge management system
+* @project     Heurist academic knowledge management system
+*
 * @link        https://HeuristNetwork.org
-* @copyright   (C) 2005-2023 University of Sydney, (C) 2024 onwards Heurist Network
+* @copyright   (C) 2025 Heurist Network
 * @author      Artem Osmakov   <osmakov@gmail.com>
-* @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
-* @version     4.0
+* @author      Ian Johnson     <ian.johnson.heurist@gmail.com>
+* @version     7.0
 */
-/* global editCMS_SelectElement, editCMS_ElementCfg */
+
+/* global editCMS_SelectElement, HCmsEditorMargin,HCmsConfigCardinal,HCmsConfigWidget,HCmsConfigGroup,HCmsConfig */
+
 /*
 * HCmsEditorPage.js - web page editor - page treeview+element property editor
 */
 class HCmsEditorPage {
 
-    _layout_content;   //JSON layout configuration for current page   
+    _layout_content;   // JSON layout configuration for current page   
     _layout_container; // main-content with CMS content
 
 
     //refs to parent classes
     _container = null; //general container
     _cmsEditor = null;  //HCmsEditor
-    _cmsEditorElement = null;  //instance of edit element class editCMS_ElementCfg
+    _cmsEditorElement = null;  //instance of edit element class HCmsConfig or its descendats
+    _cmsEditorMargin = null; //instance of HCmsEditorMargin
     
     //interface elements
     _panel_treePage;     // panel with treeview for current page 
@@ -29,9 +33,10 @@ class HCmsEditorPage {
     _toolbar_Page;       // buttons to apply/cancel changes
 
     tinymce;
-    layoutMgr;
+    layoutMgr; //instance form website frame
 
     //interface flags and states
+    currentElementId = null;
     page_was_modified = false;
     delay_onmove = 0;
     __timeout = 0;
@@ -149,20 +154,20 @@ class HCmsEditorPage {
                         //update in _layout_content
                         let l_cfg = that.layoutMgr.layoutContentFindElement(that._layout_content, key);
                         if(l_cfg){
-                            let new_content = that.tinymce.activeEditor.getContent();
-                            that.page_was_modified = (that.page_was_modified || l_cfg.content!=new_content);
+                            let newContent = that.tinymce.activeEditor.getContent();
+                            that.page_was_modified = (that.page_was_modified || l_cfg.content!=newContent);
 
                             let lang = $(that.tinymce.activeEditor.targetElm).attr('data-lang');
                             if(lang==that._cmsEditor.default_language || lang=='def' || window.hWin.HEURIST4.util.isempty(lang)){
                                 lang = '';
                             }
-                            l_cfg['content'+lang] = new_content;    
                             
-                            //update in editCMS_ElementCfg                            
+                            //update in HCmsConfig
                             if(that._cmsEditorElement){
-                                that._cmsEditorElement.updateContent(new_content, lang);
+                                that._cmsEditorElement.updateContent(newContent, lang);
+                            }else{
+                                l_cfg['content'+lang] = newContent;
                             }
-                            
                             
                         }else{
                             that.page_was_modified = false;
@@ -396,8 +401,9 @@ class HCmsEditorPage {
   // Closes _cmsEditorElement
   //
   hidePropertyView(){
-
+      
       this._cmsEditorElement = null;
+      
       this.#initTinyMCE();
 
       this._layout_container.find('div[data-hid]').removeClass('cms-element-editing headline marching-ants marching');                        
@@ -426,7 +432,7 @@ class HCmsEditorPage {
               this._toolbar_Page.show();
           }else{
               //activate save buttons
-              this._cmsEditorElement.onContentChange();
+              this._cmsEditorElement.onContentChange( true );
           }
 
       }else{
@@ -440,6 +446,10 @@ class HCmsEditorPage {
  #initTreePage( treeData ){
       
         let that = this;
+        
+        if(!Array.isArray(treeData)){
+            treeData = [treeData];
+        }
         
         if(this._panel_treePage){
             
@@ -526,7 +536,10 @@ class HCmsEditorPage {
             this._toolbar_Page.find('.btn-page-save').button().css({'border-radius':'4px','margin-right':'5px'})
                         .on('click',()=>that.#saveLayoutCfg())
             this._toolbar_Page.find('.btn-page-restore').button().css({'border-radius':'4px','margin-right':'5px'})
-                        .on('click',()=>that._cmsEditor.loadPageContent());  //reload this page
+                        .on('click',()=>{
+                                that.page_was_modified = false;
+                                that._cmsEditor.loadPageContent()   
+                        });  //reload this page
                         
             //this._panel_treePage.find('.bnt-cms-exit').button().css({'border-radius':'4px'}).on('click', this.#closeCMS);
 
@@ -534,6 +547,7 @@ class HCmsEditorPage {
         }
         this._toolbar_Page.hide();
         if(this._panel_propertyView) this._panel_propertyView.hide();
+        this._panel_treePage[0].style.removeProperty('height');
         this._cmsEditor.shrinkEditorPanel(); 
     }
     
@@ -553,28 +567,7 @@ initPage(pageContainer, pageRecord){
         }else {
             return;
         }
-        
-        /*
-        let opts = {};
-        opts.page_id = this._cmsEditor.page_id;
-        
-        opts.page_name = pageRecord[window.hWin.DT_NAME];
 
-        //window.hWin.HAPI4.getTranslation(window.hWin.page_cache[options.record_id][window.hWin.DT_NAME], this._cmsEditor.current_language);
-        //TBD window.hWin.assignPageTitle(options.record_id)
-        
-        opts.rec_ID = this._cmsEditor.website_id;
-        opts.keep_top_config = true;
-        opts.lang = this._cmsEditor.current_language;
-        
-        //this._layout_content = pageRecord[window.hWin.DT_EXTENDED_DESCRIPTION];
-        
-        //const res = window.hWin.HAPI4.layoutMgr.layoutInit(this._layout_content, $('<div>'), opts); //FromJSON
-//console.log(res);      
-        //const res = window.hWin.HEURIST4.util.isJSON(this._layout_content);
-        //const res = window.hWin.HAPI4.layoutMgr.convertOldCmsFormat(this._layout_content, $('<div>'));
-        */
-        
         if(!pageRecord['pageTreeData']){
             window.hWin.HEURIST4.msg.showMsgFlash('Old format. Edit in Heurist interface', 3000);
             //clear treeview
@@ -584,15 +577,124 @@ initPage(pageContainer, pageRecord){
             this.#initTreePage(this._layout_content);
         }
         
-        this._container.find('.treePageHeader > h3')
-                .text( this._cmsEditor.page_id==this._cmsEditor.website_id ? window.hWin.HR('Home Page') :pageRecord[window.hWin.DT_NAME] );
+        let sTitle;
+        if(this._cmsEditor.page_id==this._cmsEditor.website_id){
+            sTitle = window.hWin.HR('Home Page')  
+        }else{ 
+            sTitle = window.hWin.HEURIST4.util.stripTags(window.hWin.HAPI4.getTranslation(pageRecord[window.hWin.DT_NAME], null));
+        }
+        let ele_title = this._container.find('#pageTitle')
+        ele_title.attr('title',sTitle).text(sTitle);
         
         this.page_was_modified = false;
         
-        
         //expands structure tree, updates menu in tree
         this._panel_propertyView = this._container.find('.propertyView');
+        
+        this._container.find('#responsiveScreen').on({change:function(event){
+            
+            let screenWidth = $(event.target).val();
+            if(screenWidth==100){
+                screenWidth = '100%';
+            }
+            $('#webPageFrame').width(screenWidth);
+        }})
 
+}
+
+/*
+showMarginProperties(isHeader){
+    
+        this.detachTinyMCE(false);
+
+        this._layout_container = that._cmsEditor.findInWebSite(isHeader?'header':'footer');
+        
+        this.layoutMgr = this._cmsEditor.getHapi().layoutMgr;
+
+        if(this.layoutMgr){
+            this.layoutMgr.setEditMode(true);
+        }else {
+            return;
+        }
+        
+        this._container.find('$pageTitle').text(window.hWin.HR(isHeader?'Header':'Footer'));
+        
+        this.page_was_modified = false;
+        
+        //expands structure tree, updates menu in tree
+        let request = {website:this._cmsEditor.website_id, raw:1, ver:3};
+        request[this.isHeader?'header':'footer'] = '';
+        
+        let that = this;
+        window.hWin.HEURIST4.util.sendRequest(window.hWin.HAPI4.baseURL, request, null, (response)=>{
+            
+            if(response?.message){
+
+                that._layout_content = pageRecord['pageTreeData'];
+                that.#initTreePage(response?.message;);
+                
+            }else{
+                window.hWin.HEURIST4.msg.showMsgErr({
+                    message: `Web Home Page not found (record #${that._cmsEditor.website_id})`,
+                    error_title: 'Failed to load home page'
+                });
+            }
+        });
+        
+        
+        this._panel_propertyView = this._container.find('.propertyView');
+        
+        this._container.find('#responsiveScreen').on({change:function(event){
+            
+            let screenWidth = $(event.target).val();
+            if(screenWidth==100){
+                screenWidth = '100%';
+            }
+            $('#webPageFrame').width(screenWidth);
+        }});
+}
+*/
+//
+//
+//
+showMarginProperties(isHeader){
+
+    this.detachTinyMCE(false);
+    this._container.find('#pageTitle').text(window.hWin.HR(isHeader?'Header':'Footer'));
+    this._panel_propertyView.text('data-top', this._panel_propertyView.css('top'));
+    
+    this._panel_propertyView.css('top',21);
+    this._panel_propertyView.fadeIn(500);
+    
+    let that = this;
+    
+    if(!this._cmsEditorMargin){
+        this._cmsEditorMargin = new HCmsEditorMargin(
+        {
+            cmsEditor: this._cmsEditor,
+            container: this._panel_propertyView, 
+            isHeader: isHeader,
+            onClose: function(){
+                that.hideMarginProperties();            
+            }
+        });
+    }else{
+        this._cmsEditorMargin.show({isHeader: isHeader});
+    }
+    
+}
+
+//
+//
+//
+hideMarginProperties(){
+    if(this._panel_propertyView.is(':visible')){
+        this._panel_propertyView.css('top', this._panel_propertyView.attr('data-top'));
+        this.hidePropertyView();
+        //restore title
+        let ele_title = this._container.find('#pageTitle');
+        ele_title.text(ele_title.attr('title'));
+    }
 }
 
 //
@@ -646,16 +748,20 @@ initActionIcons(){
     #defineActionIcons (item, ele_ID, style_pos){ 
         
         let that = this;
+        ele_ID = ''+ele_ID;
         
-        if($(item).find('.lid-actionmenu').length==0){ //no one defined
-
-            ele_ID = ''+ele_ID;
+        let is_intreeview = $(item).hasClass('fancytree-node');
+        if(is_intreeview){
+            $(item).find('.lid-actionmenu').remove();
+        }else{
+            $(item).parent().find(`.lid-actionmenu[data-lid=${ele_ID}]`).remove();
+        }
+        
             let node = $.ui.fancytree.getTree( this._panel_treePage ).getNodeByKey(ele_ID);
 
             if(node==null){
                 return;
             }
-            let is_intreeview = $(item).hasClass('fancytree-node');
             if(is_intreeview && !$(item).hasClass('fancytree-hide')){       
                 $(item).css('display','block');   
             }
@@ -665,7 +771,7 @@ initActionIcons(){
                 node.type=='east' || node.type=='west' || node.type=='center');
                 
             let actionspan = '<div class="lid-actionmenu mceNonEditable" '
-            +' style="'+style_pos+';display:none;z-index:999;color:black;background: rgba(201, 194, 249, 1) !important;'
+            +' style="'+style_pos+';width:auto;display:none;z-index:999;color:black;background: rgba(201, 194, 249, 1) !important;'
             +'font-size:'+(is_intreeview?'12px;right:13px':'16px')
             +';font-weight:normal;text-transform:none;cursor:pointer" data-lid="'+ele_ID+'">' 
             //+ ele_ID
@@ -813,7 +919,7 @@ function(value){
 
                     }else if(action=='delete'){
                         //different actions for separator and field
-                        let node = $.ui.fancytree.getTree( this._panel_treePage ).getNodeByKey(''+ele_ID);
+                        let node = $.ui.fancytree.getTree( that._panel_treePage ).getNodeByKey(''+ele_ID);
                         $(node.li).find('.fancytree-node:first').addClass('fancytree-active');
                         window.hWin.HEURIST4.msg.showMsgDlg(
                             'Are you sure you wish to delete element "'+node.title+'"?', 
@@ -964,8 +1070,8 @@ function(value){
                             node = $.ui.fancytree.getTree( that._panel_treePage ).getNodeByKey(ele_ID);
                             if(node) node.setActive(true);
 
-                            that._layout_container.find('div[data-hid]').removeClass('cms-element-active'); //remove from all
-                            that._layout_container.find('div[data-hid='+ele_ID+']').addClass('cms-element-active');
+                            that._layout_container.find('.cms-element[data-hid]').removeClass('cms-element-active'); //remove from all
+                            that._layout_container.find('.cms-element[data-hid='+ele_ID+']').addClass('cms-element-active');
 
                         }else                            
                         {   
@@ -982,8 +1088,6 @@ function(value){
             };
                 
             $(item).on( "mouseenter", __onmouseenter ).on( "mouseleave", __onmouseexit );
-
-        }
     }
 
     //
@@ -991,7 +1095,7 @@ function(value){
     //
     #showOverlayForElement( ele_ID ){
         if(ele_ID>0){
-            let cms_ele = this._layout_container.find('div[data-hid='+ele_ID+']');
+            let cms_ele = this._layout_container.find('.cms-element[data-hid='+ele_ID+']');
             
             if(cms_ele.hasClass('cms-element-editing')) return;
             
@@ -1051,7 +1155,7 @@ function(value){
             //remove child
             parent_element = this.layoutMgr.layoutContentFindElement(this._layout_content, parentnode.key);
             parent_children = parent_element.children;
-            parent_container = this._layout_container.find('div[data-hid='+parentnode.key+']');
+            parent_container = this._layout_container.find('.cms-element[data-hid='+parentnode.key+']');
             
         }
 
@@ -1071,13 +1175,14 @@ function(value){
         node.remove();
         
         //recreate parent element
+        this.layoutMgr.setEditMode(true);
         if(parent_element && parent_element.type=='accordion'){
             this.layoutMgr.layoutInitAccordion(parent_element, parent_container)
         }else if(parent_element && parent_element.type=='tabs'){
             this.layoutMgr.layoutInitTabs(parent_element, parent_container)
         }else{
             this.layoutMgr.layoutInit(parent_children, parent_container, 
-                        {rec_ID:this._cmsEditor.website_id, lang:this._cmsEditor.current_language}); 
+                        {rec_ID:this._cmsEditor.website_id, lang:this._cmsEditor.current_language}, true); 
         }
         
         this.page_was_modified = true;
@@ -1140,7 +1245,7 @@ function(value){
         
         //redraw page
         this.layoutMgr.layoutInit(this._layout_content, this._layout_container, 
-                {rec_ID:this._cmsEditor.website_id, lang:this._cmsEditor.current_language});
+                {rec_ID:this._cmsEditor.website_id, lang:this._cmsEditor.current_language}, true);
         this.#updateActionIcons(200); //it inits tinyMCE also
         
         this.page_was_modified = true;
@@ -1152,7 +1257,7 @@ function(value){
     //
     #layoutTranslateElement(ele_id, lang_id){
         
-        let affected_ele = this._layout_container.find('div[data-hid="'+ele_id+'"]');
+        let affected_ele = this._layout_container.find('.cms-element[data-hid="'+ele_id+'"]');
         let lang = window.hWin.HAPI4.getLangCode3(lang_id, 'def');
         
         //need switch
@@ -1178,7 +1283,7 @@ function(value){
 
     
     //
-    // Opens element/widget property editor  (editCMS_ElementCfg/WidgetCfg)
+    // Opens element/widget property editor  (HCmsConfig)
     // 1. css properties
     // 2  flexbox properties
     // 3. widget properties
@@ -1192,11 +1297,14 @@ function(value){
             if(this._layout_container.find('div.cms-element-editing').attr('data-hid')==ele_id) return; //same
             
             //save previous element
-            if(this.warningOnExit(function(){that.#layoutEditElement(ele_id);})) return;
+            if(this.warningOnExit(function(){that.#layoutEditElement(ele_id);})){
+                return;  
+            } 
             
             this._layout_container.find('div[data-hid]').removeClass('cms-element-editing headline marching-ants marching');                        
         }
 
+        this.currentElementId = ele_id;
       
         //1. show div with properties over treeview
         let h = this._panel_treePage.find('ul.fancytree-container').height() + 10;
@@ -1218,12 +1326,14 @@ function(value){
         $(node.li).find('span.fancytree-title:first').css({'font-style':'italic','text-decoration':'underline'}); //
         $(node.li).find('.fancytree-node:first').addClass('fancytree-active');
         
+        const isRoot = node.getParent().isRootNode();
+        
         this.#hideMenuInTree();
         
         this._layout_container.find('.cms-element-overlay').css('visibility','hidden'); //hide overlay above editing element
         this._layout_container.find('div[data-hid]').removeClass('cms-element-active');                        
         
-        let ele = this._layout_container.find('div[data-hid="'+ele_id+'"]').addClass('cms-element-editing');
+        let ele = this._layout_container.find('.cms-element[data-hid="'+ele_id+'"]').addClass('cms-element-editing');
 
         if(!ele.css('background-image') || ele.css('background-image')=='none'){
             ele.addClass('headline marching-ants marching');
@@ -1251,8 +1361,9 @@ function(value){
         // mode - 0       take values from this._cmsEditorElement without saving in db
         //        'save'  save entire page in db
         //
-        this._cmsEditorElement = editCMS_ElementCfg(element_cfg, this._layout_content, this._layout_container, this._panel_propertyView, 
-        function(new_cfg, mode){
+        if(isRoot){ element_cfg.isPage = true; }
+        
+                function __onSaveElementConfig(new_cfg, mode){
 
                     //save
                     if(new_cfg){
@@ -1265,29 +1376,56 @@ function(value){
                         that.#defineActionIcons($(node.li).find('span.fancytree-node:first'), new_cfg.key, 
                                     'position:absolute;right:8px;padding:2px;margin-top:0px;');
                                
-                        if(new_cfg.type=='cardinal'){
+                        if(new_cfg.type=='cardinal'){ //????
                             //recreate cardinal layout
+                            that.layoutMgr.setEditMode(true);
                             that.layoutMgr.layoutInitCardinal(new_cfg, that._layout_container);
                         }
                         
                         //save page
-                        that.#saveLayoutCfg(); 
+                        if(mode!='cancel'){
+                            that.#saveLayoutCfg(); 
+                        }
                     }
                     
                     if(mode!='save'){
                         //close element config
                         that.hidePropertyView();
-                    }
 
-                    // find all dragable elements - text and widgets
-                    that._layout_container.find('div.brick').each(function(i, item){   //
-                        let ele_ID = $(item).attr('data-hid');
+                        // find all dragable elements - text and widgets
+                        that._layout_container.find('div.brick').each(function(i, item){   //
+                            let ele_ID = $(item).attr('data-hid');
+                            
+                            that.#defineActionIcons(item, ele_ID, 'position:absolute;z-index:999;');   //left:2px;top:2px;         
+                        });
                         
-                        that.#defineActionIcons(item, ele_ID, 'position:absolute;z-index:999;');   //left:2px;top:2px;         
-                    });
-
+                    }
+                }
+                
+                let props = {
+                            cmsEditor: this._cmsEditor,
+                            container: this._panel_propertyView,
+                            onClose: __onSaveElementConfig,
+                            element_cfg: element_cfg,
+                            alreadyModified: this.page_was_modified
+                    };
+                
+                if(element_cfg.type=='cardinal'){
                     
-                }, this.page_was_modified );
+                    this._cmsEditorElement = new HCmsConfigCardinal(props);
+                    
+                }else if(element_cfg.appid){
+                    
+                    this._cmsEditorElement = new HCmsConfigWidget(props);
+
+                }else if(element_cfg.folder){
+
+                    this._cmsEditorElement = new HCmsConfigGroup(props);
+
+                }else{
+                    //default
+                    this._cmsEditorElement = new HCmsConfig(props);
+                }
     }
     
     
@@ -1330,7 +1468,7 @@ function(value){
             {name:'East', type:'east', children:[ window.hWin.HEURIST4.util.cloneJSON(new_ele) ]}
             ]};
           
-        }else if(widget_type.indexOf('heurist_')===0){
+        }else if(widget_type.indexOf('heurist_')===0 || widget_type.indexOf('HRecord')===0  || widget_type.indexOf('HMenu')===0){
             
             //btn_visible_newrecord, btn_entity_filter, search_button_label, search_input_label
             new_ele = {appid:widget_type, name:widget_name, css:{}, options:{}};
@@ -1412,19 +1550,11 @@ function(value){
 
         }
         else if(widget_type.indexOf('new_tpl_')==0){
+            
+            const pageTemplate = widget_type.substring(8); // remove 'new_tpl_'
+            
+            this._cmsEditor.addNewPage(pageTemplate)
 
-/* TBD            
-            if(!_editCMS_SiteMenu)
-            _editCMS_SiteMenu = editCMS_SiteMenu( _panel_treeWebSite, that );
-
-            widget_type = widget_type.substring(8); // remove 'new_tpl_'
-
-            // Get parent page id
-            let parent_page_id = _editCMS_SiteMenu.getParentPage(window.hWin.current_page_id);
-            parent_page_id = (parent_page_id == null || parent_page_id <= 0) ? window.hWin.current_page_id : parent_page_id;
-
-            _editCMS_SiteMenu.createMenuRecord(parent_page_id, widget_name, widget_type);
-*/            
             return;
         }
         else if(widget_type.indexOf('tpl_')==0){
@@ -1436,21 +1566,30 @@ function(value){
         this.#layoutInsertElement_continue(ele_id, new_ele);
     }       
     
+    /**
+    * Addition of template
+    * 1. getTemplateContent - loads RAW template
+    * 2. Converts html to json (if required)
+    * 3. 
+    * 
+    */
+    
     //
-    //
+    // Add new elements (defined in new_element_json)
     //    
-    #layoutInsertElement_continue(ele_id, new_element_json){
-
+    #layoutInsertElement_continue(ele_id, newElementContent){
+        
         let tree = $.ui.fancytree.getTree( this._panel_treePage );
         let parentnode = tree.getNodeByKey(ele_id);
         let parent_container, parent_children, parent_element;
 
         this.detachTinyMCE();
 
+        //detect paremt element    
         if(parentnode.folder){
             //add child
             parent_element = this.layoutMgr.layoutContentFindElement(this._layout_content, parentnode.key);
-            parent_container = this._layout_container.find('div[data-hid='+parentnode.key+']');
+            parent_container = this._layout_container.find('.cms-element[data-hid='+parentnode.key+']');
             parent_children = parent_element.children;
 
         }else{
@@ -1461,27 +1600,40 @@ function(value){
                 parent_children = this._layout_content;
             }else{
                 parent_element = this.layoutMgr.layoutContentFindElement(this._layout_content, parentnode.parent.key);
-                parent_container = this._layout_container.find('div[data-hid='+parentnode.parent.key+']');
+                parent_container = this._layout_container.find('.cms-element[data-hid='+parentnode.parent.key+']');
                 parent_children = parent_element.children;
             }
         }
-
+        
+        let new_element_json = window.hWin.HEURIST4.util.isJSON(newElementContent);
+        if (new_element_json === false){
+            
+            let new_element = $(newElementContent);
+            parent_container.append(new_element);
+            new_element_json = this.layoutMgr.convertHTMLtoJSON(new_element, 0);
+            
+        }
+        
         if(Array.isArray(new_element_json) && new_element_json.length==1){
             new_element_json = new_element_json[0];
         }
 
+        //add to configuration
         parent_children.push(new_element_json);
+        
+        //assign unique keys
         this.layoutMgr.layoutInitKey(parent_children, parent_children.length-1);
-
-        //recreate
+        
+        //recreate elements
+        this.layoutMgr.setEditMode(true);
         if(parent_element && parent_element.type=='accordion'){
             this.layoutMgr.layoutInitAccordion(parent_element, parent_container)
         }else if(parent_element && parent_element.type=='tabs'){
             this.layoutMgr.layoutInitTabs(parent_element, parent_container)
             //this.layoutMgr.layoutInit(this._layout_content, this._layout_container);    
         }else{
-            this.layoutMgr.layoutInit(parent_children, parent_container, 
-                    {rec_ID:this._cmsEditor.website_id, lang:this._cmsEditor.current_language});
+           this.layoutMgr.layoutInit(parent_children, parent_container, 
+                    {rec_ID:this._cmsEditor.website_id, lang:this._cmsEditor.current_language}, true);
         }   
 
 
@@ -1509,16 +1661,37 @@ function(value){
     }
 
     //
+    // Insert template as new element at the end of current page
     //
-    //
-    #prepareTemplate(ele_id, template_name){
+    #prepareTemplate(ele_id, templateName){
         
-        if(template_name.indexOf('tpl_')==0){
-            template_name = template_name.substring(4);
+        if(templateName.indexOf('tpl_')==0){
+            templateName = templateName.substring(4);
+        }
+
+        // new bootstrap templates        
+        if(templateName=='landing' || templateName=='about'){
+        
+            let request = {website:this._cmsEditor.website_id, raw:1, ver:3, webtemplate:templateName};
+            let that = this;
+            
+            window.hWin.HEURIST4.util.sendRequest(window.hWin.HAPI4.baseURL, request, null, (response)=>{
+            
+                if(response?.message){
+                    that.#layoutInsertElement_continue( ele_id, response?.message );
+                }else{
+                    window.hWin.HEURIST4.msg.showMsgErr({
+                        message: `Template ${templateName} not found`,
+                        error_title: 'Failed to load template'
+                    });
+                }
+            });
+            
+            return;
         }
         
         // 1. load template files
-        let sURL = window.hWin.HAPI4.baseURL+'hclient/widgets/cms/templates/snippets/'+template_name+'.json';
+        let sURL = window.hWin.HAPI4.baseURL+'hclient/widgets/cms/templates/snippets/'+templateName+'.json';
         
         let that = this;
 
@@ -1526,9 +1699,9 @@ function(value){
         $.getJSON(sURL, 
         function( new_element_json ){
             
-            if(template_name=='default'){
+            if(templateName=='default'){
                 new_element_json = new_element_json.children[0];
-            }else if(template_name=='blog'){
+            }else if(templateName=='blog'){
                 this.layoutMgr.prepareTemplate(new_element_json, function(updated_json){
                     that.#layoutInsertElement_continue( ele_id, updated_json );
                 });
@@ -1541,10 +1714,10 @@ function(value){
     }
     
     
-    //
-    //  Save page configuration (this._layout_content) into RT_CMS_MENU record 
-    //
-    #saveLayoutCfg( callback ){
+ //
+ //  Saves page configuration (this._layout_content) into RT_CMS_MENU record 
+ //
+ #saveLayoutCfg( callback ){
         
         if(!window.hWin.HEURIST4.util.isPositiveInt(this._cmsEditor.page_id)){
             return;
@@ -1558,19 +1731,31 @@ function(value){
         // each content:lang value will be saved in separate detail
         function __cleanLayout(items){
             
+            if(Array.isArray(items))
             for(let i=0; i<items.length; i++){
-                items[i].key = null;
-                delete items[i].key;
-                items[i].title = null;
-                delete items[i].title;
+                if(Object.hasOwn(items[i],'key')) delete items[i].key;
+                if(Object.hasOwn(items[i],'title')) delete items[i].title;
+                if(Object.hasOwn(items[i],'folder')) delete items[i].folder;
+                if(window.hWin.HEURIST4.util.isempty(items[i].css)){
+                    delete items[i].css;
+                }
+                if(window.hWin.HEURIST4.util.isempty(items[i].bsClasses)){
+                    delete items[i].bsClasses;
+                }
                 
                 if(items[i].children){
                     __cleanLayout(items[i].children);    
                 }
             }
         }
+        
+        if(!Array.isArray(newval)){
+            newval = [newval];
+        }
         __cleanLayout(newval);
 
+        //TEST this.layoutMgr.convertJSONtoHTML(newval);
+        
         // if page consists one group and one text without css - save only content of this text
         // it allows edit content in standard record edit
         /*
@@ -1620,48 +1805,61 @@ function(value){
                     window.hWin.HEURIST4.msg.showMsgErr(response);
                 }
         });         
-    }
+ }
   
-   //
-  //
-  //  
-  warningOnExit( callback ){
+ //
+ // callback - function to continue, otherwaise it returns true
+ //  
+ warningOnExit( callback ){
       
       let that = this;
 
         //at first check if element editor is active
-        if(this._cmsEditorElement && this._cmsEditorElement.warningOnExit(function(needSave){
-            if(needSave){
+        if(this._cmsEditorElement && this._cmsEditorElement.warningOnExit(function(action){
+            if(action=='save'){
                 that.page_was_modified = true;
                 that.#saveLayoutCfg(callback);
-            }else{
+            }else if(action=='discard'){
                 //discard changes
                 that.page_was_modified = false;
                 if(window.hWin.HEURIST4.util.isFunction(callback)) callback.call(that);
+            }else{
+                //cancel
+                if(that.currentElementId){
+                    //highlight in treeview                                        
+                    let node = $.ui.fancytree.getTree( that._panel_treePage ).getNodeByKey(that.currentElementId);
+                    if(node) node.setActive(true);
+                    that._layout_container.find('.cms-element[data-hid]').removeClass('cms-element-active'); //remove from all
+                    that._layout_container.find('.cms-element[data-hid='+that.currentElementId+']').addClass('cms-element-active');
+                }
             }
         })) return true;
         
         if(that.page_was_modified){
+            //show small dialogue - save/discard/cancel
             
             let $dlg;
             let _buttons = [
                 {text:window.hWin.HR('Save'), 
                     click: function(){that.#saveLayoutCfg(callback);$dlg.dialog('close');}
                 },
-                {text:window.hWin.HR('Leave unchanged'), 
+                {text:window.hWin.HR('Discard changes'),  //Leave unchanged
                     click: function(){
                         that._toolbar_Page.hide();
                         that.page_was_modified = false; 
                         $dlg.dialog('close'); 
+                        that._cmsEditor.loadPageContent(); //reload page
                         if(window.hWin.HEURIST4.util.isFunction(callback)) callback.call(that);
                     }
                 },
                 {text:window.hWin.HR('Cancel'), 
-                    click: function(){$dlg.dialog('close');}
+                    click: function(){
+                        $dlg.dialog('close');
+                    }
                 }
             ];            
             
-            let sMsg = '"'+ this._container.find('.treePageHeader > h3').text() +'" '+window.hWin.HR('page has been modified');
+            let sMsg = '"'+ this._container.find('#pageTitle').text() +'" '+window.hWin.HR('page has been modified');
             $dlg = window.hWin.HEURIST4.msg.showMsgDlg(sMsg, _buttons, {title:window.hWin.HR('Page changed')}, 
                             {appendTo: 'body', default_palette_class:this._cmsEditor.default_palette_class});
 
@@ -1670,6 +1868,6 @@ function(value){
             return false;     
         }
       
-  }
+ }
 
 }

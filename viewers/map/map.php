@@ -1,28 +1,23 @@
 <?php
-
 /**
-* Mapping page. It can be loaded in app_timemap widget or launched as standalone page
-*
-* @package     Heurist academic knowledge management system
-* @link        https://HeuristNetwork.org
-* @copyright   (C) 2005-2023 University of Sydney, (C) 2024 onwards Heurist Network
-* @author      Artem Osmakov   <osmakov@gmail.com>
-* @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
-* @version     4.0
-*/
+ * map.php - Main mapping page for Heurist.
+ *
+ * @fileOverview This file serves as the main entry point for the mapping interface.
+ * It can be loaded within an app_timemap widget or as a standalone page.
+ * It includes all necessary CSS and JavaScript dependencies for map rendering and interaction,
+ * including Leaflet, jQuery, and various Leaflet plugins, as well as Heurist-specific mapping scripts.
+ * The page structure includes areas for the map, toolbar, and timeline.
+ * @project     Heurist academic knowledge management system
+ * @package  Viewers\Map
+ * @link        https://HeuristNetwork.org
+ * @copyright   (C) 2005-2023 University of Sydney, (C) 2024 onwards Heurist Network
+ * @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
+ * @author      Artem Osmakov <osmakov@gmail.com>
+ * @author      Ian Johnson ian.johnson.heurist@gmail.com
+ * @since       4.0
+ */
 
-/*
-* Licensed under the GNU License, Version 3.0 (the "License"); you may not use this file except in compliance
-* with the License. You may obtain a copy of the License at https://www.gnu.org/licenses/gpl-3.0.txt
-* Unless required by applicable law or agreed to in writing, software distributed under the License is
-* distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied
-* See the License for the specific language governing permissions and limitations under the License.
-*/
-
-//&callback=initMap" async defer  for gmap
-//<script type="text/javascript" src="https://maps.googleapis.com/maps/api/js?libraries=drawing"></script>
-//
-define('PDIR','../../');//need for proper path to js and css
+define('PDIR', '../../'); //need for proper path to js and css
 require_once dirname(__FILE__).'/../../hclient/framecontent/initPage.php';
 
 $system->defineConstants();
@@ -44,7 +39,7 @@ if(isLocalHost()){
 <?php
 }
 ?>
-<script type="text/javascript"  src="https://cdnjs.cloudflare.com/ajax/libs/dom-to-image/2.6.0/dom-to-image.js"></script>
+<script type="text/javascript"  src="https://cdnjs.cloudflare.com/ajax/libs/dom-to-image/2.6.0/dom-to-image.js" integrity="sha384-w7CXHFrOIXSmCXYnTQGa05l+TdEU+qxHtOaPqyTojic8o3wGz3rfRGuNNOKU0uDW" crossorigin="anonymous"></script>
 
 <!-- leaflet plugins -->
 <script type="text/javascript" src="<?php echo PDIR;?>external/leaflet.plugins/leaflet-tileLayerPixelFilter.js"></script>
@@ -78,7 +73,7 @@ if(isLocalHost()){
 <script type="text/javascript" src="<?php echo PDIR;?>viewers/map/mapManager.js"></script>
 <script type="text/javascript" src="<?php echo PDIR;?>viewers/map/mapPublish.js"></script>
 <script type="text/javascript" src="<?php echo PDIR;?>viewers/map/mapDocument.js"></script>
-<script type="text/javascript" src="<?php echo PDIR;?>viewers/map/mapLayer2.js"></script>
+<script type="text/javascript" src="<?php echo PDIR;?>viewers/map/mapLayer.js"></script>
 <script type="text/javascript" src="<?php echo PDIR;?>external/js/cheapRuler.js" charset="utf-8"></script>
 
 <!-- this scripts can be omitted for publishing -->

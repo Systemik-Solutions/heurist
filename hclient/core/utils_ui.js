@@ -4,7 +4,7 @@
 * b) fast access to db structure defintions
 *
 *
-* @package     Heurist academic knowledge management system
+* @project     Heurist academic knowledge management system
 * @link        https://HeuristNetwork.org
 * @copyright   (C) 2005-2023 University of Sydney, (C) 2024 onwards Heurist Network
 * @author      Artem Osmakov   <osmakov@gmail.com>
@@ -46,7 +46,7 @@ setValueAndWidth assign value to input and adjust its width
 initHSelect - converts HTML select to jquery selectmenu
 
 getRecordTitle - retuns of title for given record id
-createTemplateSelector - fills with names of smarty templates
+createTemplateSelector - fills with names of smarty or html templates
 
 createLanguageSelect - fill html select with list of languages for translation 
 
@@ -1140,10 +1140,6 @@ window.hWin.HEURIST4.ui = {
 
         selObj = $(selObj);
 
-        if(!extraOptions || !$.isPlainObject(extraOptions)){
-            extraOptions = {};
-        }
-            
         //for usual HTML select we have to add spaces for indent
         if(useHtmlSelect){
             
@@ -1294,7 +1290,7 @@ window.hWin.HEURIST4.ui = {
                     width:(dwidth?dwidth:'auto'),'min-width':dminwidth }); //,'min-width':'16em''#F4F2F4'
             }
 
-            if(extraOptions.menu_parent && extraOptions.menu_parent.length > 0){
+            if(extraOptions?.menu_parent && extraOptions.menu_parent.length > 0){
                 menuwidget.parent().appendTo(extraOptions.menu_parent);
             }
         }
@@ -1578,7 +1574,7 @@ window.hWin.HEURIST4.ui = {
                                         }
                                     
                                         $helper_div.dialog('option','title', options.title);
-                                        $helper_div.dialog('option', {width:div_width, height: 'auto', position: divpos});
+                                        $helper_div.dialog('option', {width:div_width, height: 500, position: divpos});
                                         $helper_div.dialog( "open" );
                                         setTimeout(function(){
                                                 $helper_div.find('#content').scrollTop(1);
@@ -1656,7 +1652,7 @@ window.hWin.HEURIST4.ui = {
                 
                 showLoginDialog(isforsed, callback);
             }else{
-                $.getScript(window.hWin.HAPI4.baseURL+'hclient/widgets/profile/profile_login.js', function(){
+                $.getScript(window.hWin.HAPI4.baseURL+'hclient/widgets/profile/profileLogin.js', function(){
                     window.hWin.HEURIST4.ui.checkAndLogin(isforsed, callback);
                 }); 
             }
@@ -1854,7 +1850,7 @@ window.hWin.HEURIST4.ui = {
                     width:dwidth,
                     padding:0,
                     title: window.hWin.HR(dtitle),
-                    class:'ui-heurist-bg-light',
+                    class:'ui-heurist-text-light',
                     callback: popup_options.callback,
                     beforeClose: function(){
                         //access manageRecord within frame within this popup and call close prefs
@@ -2272,9 +2268,19 @@ window.hWin.HEURIST4.ui = {
     //
     createTemplateSelector: function($select, topOptions, defValue, options){
         
-        window.hWin.HAPI4.SystemMgr.reportAction({action:'list'}, 
+        let params = {action:'list'};
+        
+        if(options?.cms){ //header, footer
+            params['cms'] = options.cms;
+        }
+        
+        window.hWin.HAPI4.SystemMgr.reportAction(params, 
             function(response){
                 if (response.status == window.hWin.ResponseStatus.OK) {
+                    
+                    if(!($select && $select[0])){
+                        return; //selector can be removed already on time of response
+                    }
 
                     let context = response.data;
                     
@@ -2427,7 +2433,7 @@ window.hWin.HEURIST4.ui = {
         
         if(window.hWin.HEURIST4.util.isFunction($('body')[widgetName])){ //OK! widget script js has been loaded
         
-            return window.hWin.HEURIST4.ui.showWdigetDialog(widgetName, options);
+            return window.hWin.HEURIST4.ui.showWidgetDialog(widgetName, options);
             
         }else{
             
@@ -2464,7 +2470,7 @@ window.hWin.HEURIST4.ui = {
     //
     //
     //    
-    showWdigetDialog: function( widgetName, options ){
+    showWidgetDialog: function( widgetName, options ){
         
         if(!window.hWin.HEURIST4.util.isFunction($('body')[widgetName])){
             window.hWin.HEURIST4.msg.showMsg_ScriptFail();
@@ -2612,13 +2618,16 @@ window.hWin.HEURIST4.ui = {
         
         const mode = options.mode??'production';
 
-        const isEdit = options.edit??0;
+        const version = options.version??'2'; //by default version 2
         
-        const version = options.version??'';
+        if(mode=='edit' && !options.edit){
+            options.edit = version==3?'start':'2';
+        }
+        const isEdit = !window.hWin.HEURIST4.util.isempty(options.edit);
         
-        const use_redirect = options.use_redirect??window.hWin.HAPI4.sysinfo.use_redirect;
+        const use_redirect = version!=3 && (options.use_redirect??window.hWin.HAPI4.sysinfo.use_redirect);
         
-        let surl = window.hWin.HAPI4[(mode=='production')?'baseURL_pro':'baseURL'];
+        let surl = window.hWin.HAPI4[(mode=='production' && version!=3)?'baseURL_pro':'baseURL'];
         
         let params = [];
         
@@ -2635,11 +2644,7 @@ window.hWin.HEURIST4.ui = {
                 if(pageid>0){
                     surl += '/'+pageid;
                 }
-                if(isEdit){
-                    params.push('edit=2');
-                }            
             }
-            
         }else{
 
             params.push(`db=${window.hWin.HAPI4.database}`);
@@ -2649,19 +2654,27 @@ window.hWin.HEURIST4.ui = {
                 if(pageid>0){
                     params.push(`pageid=${pageid}`);
                 }
-                if(isEdit){
-                    params.push('edit=2');
-                }            
+            }else{
+                params.push('website');
             }
         }
-        if(version>0){
+        
+        if(isEdit){
+            params.push('edit='+options.edit);
+        }            
+        if(version!='' && version!='2'){
             params.push('ver='+version);
+        }
+        if(options.header){
+            params.push('header='+options.header);
+        }
+        if(options.lang && options.lang!='def'){
+            params.push('lang='+options.lang);
         }
         
         if(params.length>0){
             surl += '?'+params.join('&');    
         }
-        
         return surl;
     },
 
@@ -3348,7 +3361,8 @@ window.hWin.HEURIST4.ui = {
                 img.hide().attr('src',item.img);
             }else{
                 title_ele.html(item.title);    
-                img.load(__onImageLoad).attr('src',item.img); 
+                // $.load(url, params, callback)
+                img.load(item.img, __onImageLoad);
             } 
         });
 
@@ -3447,7 +3461,35 @@ window.hWin.HEURIST4.ui = {
         
         ele.editing_input(ed_options);
   },
-      
+  
+  /*
+  *  IntersectionObserver should be used instead of this method 
+  *  see HRecordList for example
+  */
+  isElementInViewport: function(element, container) {
+
+      const elRect = element.getBoundingClientRect();
+      let conRect;
+      if(container){
+          conRect = container.getBoundingClientRect();    
+      }else{
+          conRect = {x:0, y:0, 
+                    width: window.innerWidth || document.documentElement.clientWidth,
+                    height: window.innerHeight || document.documentElement.clientHeight};
+      }
+
+      let result = false;
+
+      if(elRect.x >= conRect.x && elRect.y >= conRect.y
+          && elRect.x + elRect.width <= conRect.x + conRect.width 
+          && elRect.y + elRect.height <= conRect.y + conRect.height)
+      {
+          result = true
+      }
+
+      return result;
+  },
+
     
 }//end ui
 
@@ -3490,7 +3532,6 @@ $.widget( "heurist.hSelect", $.ui.selectmenu, {
     },
 
     _renderMenu: function( ul, items ) {
-
         this._super(ul, items);
 
         if(this.options.groupings){
@@ -3544,6 +3585,16 @@ $.widget( "heurist.hSelect", $.ui.selectmenu, {
         if(entity_id>0){
             $('<span style="font-size:0.7em;font-style:italic;padding-left:1em">id'+entity_id+'</span>')
             .appendTo( wrapper );
+        }
+        
+        let bg_color = item.element.attr( "bg-color" );
+        if(bg_color){
+            $('<span style="float:left;padding-right:2px;width:16px;height:16px" class="'+bg_color+'"></span>')
+            .prependTo( wrapper );
+        }
+        let text_color = item.element.attr( "text-color" );
+        if(text_color){
+            wrapper.addClass(text_color);
         }
 
         let depth = parseInt($(item.element).attr('depth'));

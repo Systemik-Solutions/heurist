@@ -1,0 +1,42 @@
+<header id="main-header" class="bg-info-subtle py-1" style="background-image: url(&quot;{$website.bgImage}&quot;) !important; background-repeat: repeat-x !important; background-size: contain">
+    
+    <!-- login/signup and personal menu -->
+    <div data-heurist-cms="HMenuPersonal" style="display:{$website.showLogin};position:fixed;left:10px;z-index:9999"></div>                
+    
+    <div class="container"> 
+        <nav class="navbar navbar-expand-md nabvar-light d-flex flex-column">
+            
+            
+            <div class="container-fluid d-flex align-items-center w-100">
+                <a href="{$website.url}">
+                    <img src="{$website.logo}" alt="Logo" height="20" class="me-2 d-block d-md-none">
+                    <img src="{$website.logo}" alt="Logo" height="80" class="me-2 d-none d-md-block">
+                </a>
+                <div class="h4 mb-0 flex-fill">{$website.title}</div>
+
+                <div class="d-none d-md-block text-end">
+                    <a href="{$website.urlAlt}">
+                        <img src="{$website.logoAlt}" alt="Logo" height="60">
+                    </a>
+                    <div class="mb-0">{$website.titleAlt1}</div>
+                </div>
+            
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#main-navbar" focusable="false">
+                    <span class="navbar-toggler-icon" style="font-size:0.8rem"></span>
+                </button>
+            </div>
+            
+            <div id="main-navbar" class="w-100 collapse navbar-collapse">
+
+                    <!-- main menu -->
+                    <div id="main-menu" data-heurist-cms="HMenu">{$website.navbar}</div>
+                    
+                    <div class="flex-fill ms-lg-3 text-end">
+                        <!-- language selector -->
+                        {$website.languages} 
+                    </div>
+            </div>   
+        </nav>
+    </div>
+    
+</header>

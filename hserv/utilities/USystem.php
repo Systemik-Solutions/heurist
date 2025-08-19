@@ -1,47 +1,60 @@
 <?php
-namespace hserv\utilities;
-
 /**
-* Library to obtain system and php config value
+* USystem.php - Class USystem
 *
-* getHostParams
-* isMemoryAllowed
-* getConfigBytes
-* fixIntegerOverflow
-* getUserAgent
+* Utility class for retrieving system, PHP configuration, and user environment details.
 *
-* @package     Heurist academic knowledge management system
+* @project     Heurist academic knowledge management system
+* @package Utilities
 * @link        https://HeuristNetwork.org
 * @copyright   (C) 2005-2023 University of Sydney, (C) 2024 onwards Heurist Network
-* @author      Artem Osmakov   <osmakov@gmail.com>
 * @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
-* @version     4.0
+* @author      Artem Osmakov   <osmakov@gmail.com>
+* @author      Ian Johnson     <ian.johnson.heurist@gmail.com>
+* @since       6.0
 */
+namespace hserv\utilities;
 
-/*
-* Licensed under the GNU License, Version 3.0 (the "License"); you may not use this file except in compliance
-* with the License. You may obtain a copy of the License at https://www.gnu.org/licenses/gpl-3.0.txt
-* Unless required by applicable law or agreed to in writing, software distributed under the License is
-* distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied
-* See the License for the specific language governing permissions and limitations under the License.
+require_once dirname(__FILE__).'/../../admin/utilities/checkMembershipLib.php';
+
+/**
+* Class USystem
+* 
+* Utility class for retrieving system, PHP configuration, and user environment details.
+*
+* Provides static methods for:
+* - Determining host parameters (server name, URLs, installation directory).
+* - Checking memory limits and converting configuration byte values.
+* - Handling potential integer overflows.
+* - Parsing user agent strings to identify OS and browser.
+* - Retrieving user IP addresses.
+* - Getting host-specific logo and URL.
+* - Checking if Apache rewrite rules are enabled.
+* - Managing session-related information like recent databases and cookie updates.
+* - Executing daily maintenance scripts.
+* - Fetching Heurist code and database version information.
+* - Calculating script runtime.
+* - Inserting Matomo analytics logging script.
 */
-
 class USystem {
 
     /**
-    * Detects host parameters (base url, server name) or take them from cnfiguration file
-    *
-    * @param mixed - argumets for cli environment
-    *
-    * @return array with the following values
-    *   server_name - from global $serverName or $_SERVER["SERVER_NAME"]  (heuristref.net:80)
-    *   domain      - server_name without port                            (heuristref.net)
-    *   server_url  - full server url                                     (https://heuristref.net:80)
-    *   heurist_dir - code folder, for cli from getcwd or $_SERVER["DOCUMENT_ROOT"]    (/var/www/html/HEURIST)
-    *
-    *   baseURL     - base url ( ie server url+optional folder (https://heuristref.net/h6-alpha/)
-    *   baseURL_pro - url for production version  ( https://heuristref.net/heurist/ )
-    */
+     * Detects host parameters (base URL, server name) or takes them from configuration file.
+     * Handles both web server and command-line interface (CLI) environments.
+     *
+     * @global string|null $serverName Manually configured server name (from heuristConfigIni.php).
+     * @global string|null $heuristBaseURL Manually configured base URL for Heurist (from heuristConfigIni.php).
+     * @global string|null $heuristBaseURL_pro Manually configured base URL for production Heurist (from heuristConfigIni.php).
+     * @param array|null $argv Optional. Arguments passed to a CLI script (e.g., $argv from a command line call).
+     *                         Used to help determine path in CLI mode.
+     * @return array An associative array with the following keys:
+     *   'server_name' (string): Server name, including port if not standard (e.g., "heuristref.net:80").
+     *   'domain' (string): Server domain name without port (e.g., "heuristref.net").
+     *   'server_url' (string): Full server URL with scheme (e.g., "https://heuristref.net:80").
+     *   'heurist_dir' (string): Detected Heurist code root directory path on the server.
+     *   'baseURL' (string): Base URL for the current Heurist installation (e.g., "https://heuristref.net/h7-alpha/").
+     *   'baseURL_pro' (string): Base URL for the production Heurist installation (e.g., "https://heuristref.net/heurist/").
+     */
     public static function getHostParams( $argv=null )
     {
         global $serverName, $heuristBaseURL, $heuristBaseURL_pro;
@@ -52,7 +65,7 @@ class USystem {
 
         $installDir = '';
         $installDir_pro = '';
-        $codeFolders = array('heurist','h6-alpha','h6-ao','h6-ij');//need to cli and short url
+        $codeFolders = array('heurist','h6-alpha','h7-alpha','h6-ao','h6-ij');//need to cli and short url
 
         if (php_sapi_name() == 'cli'){
 
@@ -222,7 +235,7 @@ class USystem {
 
         //validate
         if(@$_SERVER["DOCUMENT_ROOT"]){
-            $codeFolders = array('heurist','h6-alpha','h6-ao');//need to cli and short url
+            $codeFolders = array('heurist','h6-alpha','h7-alpha','h6-ao');//need to cli and short url
 
             $i = 0;
             while ($i<=count($codeFolders)) {
@@ -249,10 +262,12 @@ class USystem {
     }
 
     /**
-    * Returns true if specified bytes can be loaded into memory
-    *
-    * @param mixed $memoryNeeded
-    */
+     * Checks if a specified amount of memory can be allocated within PHP's memory_limit.
+     * Considers current memory usage and leaves a 10MB buffer.
+     *
+     * @param int $memoryNeeded The amount of memory required, in bytes.
+     * @return bool|string True if memory is allowed, or an error string message if not.
+     */
     public static function isMemoryAllowed( $memoryNeeded ){
 
         $mem_limit = self::getConfigBytes('memory_limit');
@@ -267,10 +282,13 @@ class USystem {
     }
 
     /**
-    * Return amount of bytes for given php config variable
-    *
-    * @param mixed $php_var
-    */
+     * Converts a PHP configuration string value (like '256M', '2G') into bytes.
+     *
+     * @param string $php_var The name of the PHP configuration variable (e.g., 'memory_limit', 'post_max_size').
+     *                        This is used to fetch the value via `ini_get` if $val is not provided.
+     * @param string|null $val Optional. The configuration value string to parse. If null, `ini_get($php_var)` is used.
+     * @return int|float The value in bytes. Can be float for very large values due to PHP_INT_MAX.
+     */
     public static function getConfigBytes( $php_var, $val=null ){
 
         if($val==null){
@@ -296,8 +314,14 @@ class USystem {
     }
 
 
-    // Fix for overflowing signed 32 bit integers,
-    // works for sizes up to 2^32-1 bytes (4 GiB - 1):
+    /**
+     * Corrects potential integer overflow for sizes on 32-bit systems.
+     * PHP integers are signed, so large unsigned values (like file sizes > 2GB on 32-bit)
+     * can appear negative. This function adjusts them to their correct positive value.
+     *
+     * @param int $size The integer value (potentially overflowed).
+     * @return float|int The corrected size, possibly as a float if it exceeds PHP_INT_MAX.
+     */
     public static function fixIntegerOverflow($size) {
         if ($size < 0) {
             $size += 2.0 * (PHP_INT_MAX + 1);
@@ -306,9 +330,10 @@ class USystem {
     }
 
     /**
-     * Return array of processed user agent details
+     * Parses the HTTP User-Agent string to determine the client's operating system and browser.
      *
-     * @return array [os, browser]
+     * @return array An associative array with 'os' (string) and 'browser' (string) keys.
+     *               Values are 'Unknown' if detection fails.
      */
     public static function getUserAgent(){
 
@@ -390,9 +415,10 @@ class USystem {
     }
     
     /**
-    * Return clinet IPv4 address
-    * 
-    */
+     * Retrieves the client's IPv4 address from various HTTP headers or `$_SERVER['REMOTE_ADDR']`.
+     *
+     * @return string The determined IPv4 address, or 'Unknown' if not found or invalid.
+     */
     public static function getUserIP(){
         
         $ipaddress = '';
@@ -417,9 +443,18 @@ class USystem {
         return $ipaddress;        
     }
 
-    //
-    //host organization logo and url (specified in root installation folder next to heuristConfigIni.php)
-    //
+    /**
+     * Retrieves the path/URL to the host organization's logo and the organization's URL.
+     * Looks for 'organisation_logo.jpg' or '.png' and 'organisation_url.txt'
+     * in the root directory of the Heurist installation (alongside heuristConfigIni.php).
+     *
+     * @param bool $return_url Optional. If true (default), returns the logo path as a URL (HEURIST_BASE_URL . '?logo=host').
+     *                         If false, returns the actual file system path to the logo.
+     * @return array An array containing:
+     *               0: (string|null) Path or URL to the host logo, or null if not found.
+     *               1: (string|null) Content of the host URL file, or null if not found.
+     *               2: (string) The MIME type extension of the logo ('jpg' or 'png').
+     */
     public static function getHostLogoAndUrl($return_url = true){
 
         //host organization logo and url (specified in root installation folder next to heuristConfigIni.php)
@@ -446,11 +481,13 @@ class USystem {
 
         return array($host_logo, $host_url, $mime_type);
     }
-    
-    
-    //
-    // Detect that rewrite rules are enabled
-    //
+    /**
+     * Checks if Apache mod_rewrite (or equivalent URL rewriting) appears to be enabled.
+     * It does this by trying to fetch a non-existent URL that should be rewritten by Heurist's rules.
+     * If it gets a 404, it assumes rewrite rules are not working as expected.
+     *
+     * @return bool True if rewrite rules seem enabled, false otherwise (e.g., on 404 or connection error).
+     */
     public static function checkRewriteRuleEnabled(){
         
         $url = HEURIST_SERVER_URL . '/abc/web'; 
@@ -468,17 +505,20 @@ class USystem {
        
 
     //======================= session routines =================================
-    //
-    //
-    // Retruns array of database where current user was logged in
-    //
-    public static function sessionRecentDatabases($current_User){
+    /**
+     * Returns an array of database names where the current user was recently logged in.
+     * Iterates through the $_SESSION global to find matching user IDs.
+     *
+     * @param array|null $currentUser An associative array representing the current user, must contain 'ugr_ID'.
+     * @return array An array of database names (without HEURIST_DB_PREFIX).
+     */
+    public static function sessionRecentDatabases($currentUser){
         $dbrecent = array();
-        if($current_User && @$current_User['ugr_ID']>0){
+        if($currentUser && @$currentUser['ugr_ID']>0){
             foreach ($_SESSION as $db=>$session){
 
                 $user_id = @$_SESSION[$db]['ugr_ID'];
-                if($user_id == $current_User['ugr_ID']){
+                if($user_id == $currentUser['ugr_ID']){
                     if(strpos($db, HEURIST_DB_PREFIX)===0){
                         $db = substr($db,strlen(HEURIST_DB_PREFIX));
                     }
@@ -488,10 +528,20 @@ class USystem {
         }
         return $dbrecent;
     }
+    
+    /**
+    * Requests heuristref.net membership for current user or server+database
+    */
+    public function isMemberOfAssociation(){
+        return false;
+    }    
 
-    //
-    //
-    //
+    /**
+     * Checks if the PHP session save path is configured, exists, and is writable.
+     * Sends an email to admin if the folder becomes inaccessible.
+     *
+     * @return bool True if session save path is valid and writable, or if not using files for session handling. False otherwise.
+     */
     public static function sessionCheckFolder(){
 
         if(!ini_get('session.save_handler')=='files') { return true; }
@@ -504,9 +554,14 @@ class USystem {
         return false;
     }
 
-    //
-    //
-    //
+    /**
+     * Updates the 'heurist-sessionid' cookie lifetime.
+     * Extends the cookie to keep it alive, typically for 30 days from now if $lifetime is null.
+     * Sets Secure, HttpOnly, and SameSite=Strict attributes.
+     *
+     * @param int|null $lifetime Optional. The Unix timestamp for cookie expiry. Defaults to time() + 30 days.
+     * @return bool True if cookie was successfully sent, false otherwise.
+     */
     public static function sessionUpdateCookies($lifetime=null){
 
         $is_https = (@$_SERVER['HTTPS']!=null && $_SERVER['HTTPS']!='');
@@ -537,13 +592,18 @@ class USystem {
 
 
     //======================= daily actions =================================
-    //
-    //
-    //
+    /**
+     * Executes daily maintenance scripts/tasks.
+     * Uses a flag file (e.g., "once_per_day_YYYY-MM-DD") in HEURIST_FILESTORE_ROOT to ensure tasks run only once per day.
+     * Removes flag files for previous days.
+     * Tasks include sending daily error reports, checking Heurist version, and updating DeepL languages.
+     *
+     * @return void
+     */
     public static function executeScriptOncePerDay(){
 
         $now = getNow();
-        $flag_file = HEURIST_FILESTORE_ROOT.'flag_'.$now->format('Y-m-d');
+        $flag_file = HEURIST_FILESTORE_ROOT.'once_per_day_'.$now->format('Y-m-d');
 
         if(file_exists($flag_file)){
             return;
@@ -555,10 +615,14 @@ class USystem {
         for($i=1;$i<10;$i++){
             $d = getNow();
             $yesterday = $d->sub(new \DateInterval('P'.sprintf('%02d', $i).'D'));
-            $arc_flagfile = HEURIST_FILESTORE_ROOT.'flag_'.$yesterday->format('Y-m-d');
+            $arc_flagfile = HEURIST_FILESTORE_ROOT.'once_per_day_'.$yesterday->format('Y-m-d');
+            $arc_flagfile2 = HEURIST_FILESTORE_ROOT.'flag_'.$yesterday->format('Y-m-d');
             //if yesterday log file exists
             if(file_exists($arc_flagfile)){
                 unlink($arc_flagfile);
+            }
+            if(file_exists($arc_flagfile2)){
+                unlink($arc_flagfile2);
             }
         }
 
@@ -566,12 +630,15 @@ class USystem {
         self::sendDailyErrorReport();
         self::heuristVersionCheck();// Check if different local and server code versions are different
         self::updateDeeplLanguages();// Get list of allowed target languages from Deepl API
-
+        self::removePreparedParameters();// Remove potential leftover prepared parameters
     }
 
-    //
-    //
-    //
+    /**
+     * Sends a daily error report by email to the admin.
+     * Consolidates error log files from the past 30 days, archives them, and emails the content.
+     *
+     * @return void
+     */
     private static function sendDailyErrorReport(){
 
         $root_folder = HEURIST_FILESTORE_ROOT;
@@ -609,13 +676,19 @@ class USystem {
             //'Bug reporter',
             sendEmail(HEURIST_MAIL_TO_BUG, $msgTitle, $msg, true);
         }
+        
+        // TODO: needs an else in case there are no logfiles corresponding with the expected path and name
+        //       this code seems rather too fragile to be portable between systems
 
 
     }
 
-    //
-    // Send email to system admin about available Heurist updates, daily tasks
-    //
+    /**
+     * Checks if the locally installed Heurist version is outdated compared to the main server's version.
+     * Sends an email notification to the admin if an update is available.
+     *
+     * @return void
+     */
     private static function heuristVersionCheck(){
 
         $local_ver = HEURIST_VERSION; // installed heurist version
@@ -660,9 +733,13 @@ class USystem {
     }
 
     /**
-    * Get and save list of available languages from Deepl API
-    * Saved to FILESTORE_ROOT/DEEPL_languages.json
-    */
+     * Updates the list of target languages supported by DeepL API.
+     * Fetches the list from DeepL and saves it to a JSON file (DEEPL_languages.json) in HEURIST_FILESTORE_ROOT.
+     * Requires $accessToken_DeepLAPI to be globally defined.
+     *
+     * @global string|null $accessToken_DeepLAPI The DeepL API authentication key.
+     * @return void
+     */
     private static function updateDeeplLanguages(){
 
         global $accessToken_DeepLAPI;
@@ -703,9 +780,101 @@ class USystem {
     }
 
     /**
-    * Checks database version
-    * first check version in file lastAdviceSent, version stored in this file valid for 24 hrs
-    */
+     * Clear temporary perpared parameters from DB scratch directory
+     *
+     * @return void
+     */
+    private static function removePreparedParameters(){
+
+        if(defined('HEURIST_SCRATCH_DIR')){
+            return;
+        }
+
+        $files = scandir(HEURIST_SCRATCH_DIR);
+        $yesterday = strtotime('-1 day');
+
+        foreach($files as $filename){
+
+            $file = HEURIST_SCRATCH_DIR.$filename;
+            if(empty($filename) || $filename === '.' || $filename === '..' || $filename === 'index' || is_dir($file)){
+                continue;
+            }
+
+            [$name, $ext] = explode('.', $filename);
+
+            if($ext !== 'json'){
+                continue;
+            }
+
+            $date = explode('_', $name)[1];
+
+            if(!is_numeric($date) || intval($date) > $yesterday){
+                continue;
+            }
+
+            fileDelete($file);
+        }
+    }
+    
+    /**
+     *
+     * @return bool true is current user or database is a member of association
+     */    
+    public static function checkAssociationMembership($system, $context=null)
+    {
+        
+        $currentUser = $system->getCurrentUser();
+        $server = HEURIST_DOMAIN;
+        $database = $system->dbnameFull();
+       
+        // 1. Check the session first
+        if(!($currentUser && @$currentUser['ugr_ID']>0)){
+            return false;
+        }
+        
+        if(session_status() === PHP_SESSION_ACTIVE && isset($_SESSION[$database]['isAssociationMember'])){
+            
+            if($context && 'nonmember'==$_SESSION[$database]['isAssociationMember']){
+                checkMembershipLogNonmember($context, $currentUser['ugr_eMail'], $server, $database);    
+            }
+            
+            return $_SESSION[$database]['isAssociationMember'];
+        }
+        
+        $isMember = checkHeuristNetworkMembership($currentUser['ugr_eMail'], $server, $database, $context??'');
+        //$isMember = 'individual';
+        if(session_status() === PHP_SESSION_ACTIVE){
+            @session_start();
+            $_SESSION[$database]['isAssociationMember'] = $isMember;
+        }
+        
+        return $isMember;
+        
+    }
+    
+    public static function logAssociationMembership($system, $context): void
+    {
+      
+        $currentUser = $system->getCurrentUser();
+        $server = HEURIST_DOMAIN;
+        $database = $system->dbnameFull();
+       
+        // 1. Check the session first
+        if(!($currentUser && @$currentUser['ugr_ID']>0)){
+            return;
+        }
+        
+        checkMembershipLogNonmember($currentUser['ugr_eMail'], $server, $database, $context);      
+        
+    }
+
+    /**
+     * Gets the latest Heurist code version from the main server and compares it with the local version.
+     * Caches the fetched server version for 24 hours in a file (`lastAdviceSent.ini`) to reduce server requests.
+     * Distinguishes between alpha and stable release channels.
+     *
+     * @return string The latest known code version from the main server (e.g., "4.1.0"), or "unknown" if fetching fails.
+     */
     public static function getLastCodeAndDbVersion(){
 
         $isAlpha = (preg_match("/h\d+\-alpha|alpha\//", HEURIST_BASE_URL) === 1) ? true :false;
@@ -739,8 +908,6 @@ class USystem {
 
         //send request to main server at HEURIST_INDEX_BASE_URL
         // HEURIST_INDEX_DATABASE is the refernece standard for current database version
-        // Maybe this should be changed to Heurist_Sandpit?. Note: sandpit no longer needed, or used, from late 2015
-
         if(strpos(strtolower(HEURIST_INDEX_BASE_URL), strtolower(HEURIST_SERVER_URL))===0){ //same domain
 
             $mysql_indexdb = mysql__init(HEURIST_INDEX_DATABASE);
@@ -751,7 +918,7 @@ class USystem {
 
         }else{
             $url = ($isAlpha
-                ? HEURIST_MAIN_SERVER . '/h6-alpha/'
+                ? HEURIST_MAIN_SERVER . '/h7-alpha/'
                 : HEURIST_INDEX_BASE_URL)
             . "admin/setup/dbproperties/getCurrentVersion.php?db=".HEURIST_INDEX_DATABASE."&check=1";
             $rawdata = loadRemoteURLContentSpecial($url);//it returns HEURIST_VERSION."|".HEURIST_DBVERSION
@@ -779,15 +946,99 @@ class USystem {
 
         return $version_last_check;
     }
-    
-    //
-    // getrusage
-    //
+
+    /**
+     * Check for a specific version Heurist on the current server
+     *
+     * @param bool $checkForAlpha Whether to only check for an alpha version
+     * @param int|string $version The specific version looking for
+     * @return string URL to version, or empty if not found/available
+     */
+    public static function checkForVersion($checkForAlpha = false, $version = null){
+
+        $response = '';
+
+        // Check for a specific version
+        $alphaVersion = is_numeric($version) ? intval($version) : -1;
+        $specificVersion = is_string($version) ? preg_match('/h\d+\.\d{1,2}\.\d{1,2}/', $version) : -1;
+        if($alphaVersion > 0 || $specificVersion !== -1){
+
+            $version = $alphaVersion !== -1 ? "h{$version}-alpha" : $specificVersion;
+            if(preg_match("/{$version}/", HEURIST_BASE_URL) === 1){
+                return '';
+            }
+
+            $url = HEURIST_SERVER_URL . "/{$version}/";
+            $httpResponse = get_headers($url)[0];
+            $response = preg_match('/4\d{2}|5\d{2}/', $httpResponse) === 0 ? $url : $httpResponse;
+
+            $checkForAlpha = false;
+        }
+        
+        // Check for any available alpha
+        $isAlpha = preg_match("/h\d+-alpha|\/alpha\//", HEURIST_BASE_URL) === 1 ? true : false;
+
+        if(!defined('HEURIST_FILESTORE_ROOT') || !$checkForAlpha || $isAlpha){
+            return $response;
+        }
+
+        $fname = HEURIST_FILESTORE_ROOT."lastAdviceSent.ini";
+        $versionNumbers = [];
+        array_push($versionNumbers, explode('.', HEURIST_VERSION)[0]);// Check using current major version
+
+        if (file_exists($fname)){
+            [, $versionLastCheck,] = explode("|", file_get_contents($fname));
+            if($versionNumbers[0] < explode('.', $versionLastCheck)[0]){
+                array_unshift($versionNumbers, explode('.', $versionLastCheck)[0]);// Check using new major version, performed first
+            }
+        }
+
+        foreach($versionNumbers as $number){
+
+            $url = HEURIST_SERVER_URL . "/h{$number}-alpha/";
+            $httpResponse = get_headers($url)[0];
+            if(preg_match('/4\d{2}|5\d{2}/', $httpResponse) === 0){ // valid
+                $response = $url;
+                break;
+            }
+        }
+
+        if(empty($response)){ // Finally, check last supported version
+            $url = HEURIST_SERVER_URL . '/alpha/';
+            $httpResponse = get_headers($url)[0];
+            if(preg_match('/4\d{2}|5\d{2}/', $httpResponse) === 0){ // valid
+                $response = $url;
+            }
+        }
+
+        return $response;
+    }
+
+    /**
+     * Calculates the difference between two `getrusage` arrays for a specific index (e.g., 'utime' for user time).
+     * Primarily used for benchmarking or profiling code execution time.
+     *
+     * @param array $ru The resource usage array at the end of the measured period (from `getrusage()`).
+     * @param array $rus The resource usage array at the start of the measured period (from `getrusage()`).
+     * @param string $index Optional. The specific usage index to calculate (e.g., 'utime', 'stime'). Defaults to 'utime'.
+     *                      The 'ru_' prefix and '.tv_sec' / '.tv_usec' suffixes are added internally.
+     * @return float The time difference in milliseconds.
+     */
     public static function rutime($ru, $rus, $index='utime'){
         return ($ru["ru_$index.tv_sec"]*1000 + intval($ru["ru_$index.tv_usec"]/1000))
         -  ($rus["ru_$index.tv_sec"]*1000 + intval($rus["ru_$index.tv_usec"]/1000));        
     }
     
+    /**
+     * Inserts the Matomo (formerly Piwik) analytics tracking JavaScript code.
+     * Requires $matomoUrl and $matomoSiteId to be globally defined.
+     * Can set custom dimensions based on $pageType.
+     *
+     * @global string|null $matomoUrl The base URL of the Matomo server.
+     * @global string|int|null $matomoSiteId The Site ID for Matomo tracking.
+     * @param string|null $pageType Optional. Specifies the type of page for custom dimensions (e.g., 'startup').
+     * @return void This function outputs JavaScript directly.
+     */
     public static function insertLogScript($pageType=null){
         global $matomoUrl, $matomoSiteId;
         

@@ -1,51 +1,53 @@
 <?php
+/**
+*  Website generator based on CMS records 99-51,52,53
+*
+*  It is either generate home page from cmsTemplate file (inits main menu, header, footer)
+*  or returns content for particular page
+*
+*  Parameters
+*  recID - home page record (99-51) or web page (99-53)
+*          if is is not defined it takes first record of type 'Home page'
+*
+* if home page has defined as template file it is loaded as body, otherwise default template
+* that includes header with main-logo, main-title, main-menu and
+* main-content where content of particular page will be loaded
+*
+*
+* @project     Heurist academic knowledge management system
+* @package CMS
+* @link        https://HeuristNetwork.org
+* @copyright   (C) 2025 Heurist Network
+* @author      Artem Osmakov   <osmakov@gmail.com>
+* @author      Ian Johnson     <ian.johnson.heurist@gmail.com>
+* @version     7.0
+*/
+
 use hserv\utilities\USystem;
 use hserv\utilities\USanitize;
-
-    /**
-    *  Website generator based on CMS records 99-51,52,53
-    *
-    *  It is either generate home page from cmsTemplate file (inits main menu, header, footer)
-    *  or returns content for particular page
-    *
-    *  Parameters
-    *  recID - home page record (99-51) or web page (99-53)
-    *          if is is not defined it takes first record of type 'Home page'
-    *
-    * if home page has defined as template file it is loaded as body, otherwise default template
-    * that includes header with main-logo, main-title, main-menu and
-    * main-content where content of particular page will be loaded
-    *
-    *
-    * @package     Heurist academic knowledge management system
-    * @link        https://HeuristNetwork.org
-    * @copyright   (C) 2005-2023 University of Sydney, (C) 2024 onwards Heurist Network
-    * @author      Artem Osmakov   <osmakov@gmail.com>
-    * @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
-    * @version     4.0
-    */
-
-    /*
-    * Licensed under the GNU License, Version 3.0 (the "License"); you may not use this file except in compliance
-    * with the License. You may obtain a copy of the License at https://www.gnu.org/licenses/gpl-3.0.txt
-    * Unless required by applicable law or agreed to in writing, software distributed under the License is
-    * distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied
-    * See the License for the specific language governing permissions and limitations under the License.
-    */
 
 if(!defined('PDIR')) {
     define('PDIR','../../../');//need for proper path to js and css
 }
+define('LOAD_BOOTSTRAP', 1);
 require_once dirname(__FILE__).'/../../framecontent/initPage.php';
 
-$req_params = USanitize::sanitizeInputArray();
-$website_id = @$req_params['website'];
-$page_id = @$req_params['pageid'];
+
+if(!isset($params)){
+    $params = USanitize::sanitizeInputArray();
+}
+$website_id = @$params['website'];
+if(!isPositiveInt($website_id)){
+    $website_id = 0; //default website
+}
+$page_id = @$params['pageid'];
 if(!isPositiveInt($page_id)){
     $page_id = $website_id;
 }
 
-$editor_options = "{website_id:$website_id, page_id:$page_id}";
+$currentLanguage = '"'.htmlspecialchars(@$params['lang']??'def').'"';
+$editor_options = "{website_id:$website_id, page_id:$page_id, currentLanguage:$currentLanguage}";
+
 ?>
 
 <script type="text/javascript" src="<?php echo PDIR;?>external/jquery.widgets/ui.tabs.paging.js"></script>
@@ -68,13 +70,20 @@ $editor_options = "{website_id:$website_id, page_id:$page_id}";
 
 <script type="text/javascript" src="<?php echo PDIR;?>hclient/widgets/cms/HCmsEditor.js"></script>
 <script type="text/javascript" src="<?php echo PDIR;?>hclient/widgets/cms/HCmsEditorPage.js"></script>
+<script type="text/javascript" src="<?php echo PDIR;?>hclient/widgets/cms/HCmsConfig.js"></script>
+<script type="text/javascript" src="<?php echo PDIR;?>hclient/widgets/cms/HCmsConfigWidget.js"></script>
+<script type="text/javascript" src="<?php echo PDIR;?>hclient/widgets/cms/HCmsConfigCardinal.js"></script>
+<script type="text/javascript" src="<?php echo PDIR;?>hclient/widgets/cms/HCmsConfigGroup.js"></script>
 <script type="text/javascript" src="<?php echo PDIR;?>hclient/widgets/cms/editCMS_SelectElement.js"></script>
 <script type="text/javascript" src="<?php echo PDIR;?>hclient/widgets/cms/editCMS_WidgetCfg.js"></script>
-<script type="text/javascript" src="<?php echo PDIR;?>hclient/widgets/cms/editCMS_ElementCfg.js"></script>
+<script type="text/javascript" src="<?php echo PDIR;?>hclient/widgets/cms/HCmsEditorMargin.js"></script>
 <script type="text/javascript" src="<?php echo PDIR;?>hclient/widgets/cms/editCMS_SiteMenu.js"></script>
+<script type="module" src="<?php echo PDIR;?>hclient/widgets/cms/HCmsCodeEditor.js"></script>
 
+<!-- these modules need to edit options -->
 <script type="module" src="<?php echo PDIR;?>hclient/widgets/HRecordList/HRecordList.js"></script>
-<script type="text/javascript" src="<?php echo PDIR;?>hclient/widgets/HMenu/HMenu.js"></script>
+<script type="module" src="<?php echo PDIR;?>hclient/widgets/HMenu/HMenu.js"></script>
+<script type="module" src="<?php echo PDIR;?>hclient/widgets/HMenu/HMenuEdit.js"></script>
 
 <script type="text/javascript" src="<?php echo PDIR;?>hclient/widgets/cpanel/navigation.js"></script>
 <script type="text/javascript" src="<?php echo PDIR;?>hclient/widgets/search/svs_list.js"></script>
@@ -129,19 +138,18 @@ $editor_options = "{website_id:$website_id, page_id:$page_id}";
     window.cmsEditor = null;
     let tinymce;
     
-    let isWebPage = false;
-
     function onPageInit(success){
 
         if(!success) {return;}
         
-        let options = <?php echo $editor_options;?>;
-        
+        //set global constants
         window.hWin.RT_CMS_MENU = window.hWin.HAPI4.sysinfo['dbconst']['RT_CMS_MENU'];
         window.hWin.DT_NAME = window.hWin.HAPI4.sysinfo['dbconst']['DT_NAME'];
         window.hWin.DT_EXTENDED_DESCRIPTION = window.hWin.HAPI4.sysinfo['dbconst']['DT_EXTENDED_DESCRIPTION'];
         
-        window.cmsEditor = new HCmsEditor(options);
+        let editor_options = <?php echo $editor_options;?>;
+        
+        window.cmsEditor = new HCmsEditor(editor_options);
         
     }
 </script>
@@ -156,7 +164,7 @@ $editor_options = "{website_id:$website_id, page_id:$page_id}";
                 <div class="btn-website-edit" style="font-weight:normal !important; width: fit-content;margin:0.7em 0px;">Website layout / properties</div>
 
                 <div style="line-height: 1em;font-size: smaller;"><span class="btn-website-url" style="display:inline-block;color:black;padding-right:5px;">Website URL</span>
-                    <a href="#" class="website-url truncate" style="color: blue;display: inline-block;width:70%;vertical-align: -1px;"></a>
+                    <a href="#" class="website-url truncate" style="color: blue;display: inline-block;width:70%;vertical-align: -1px;" title=""></a>
                 </div>
 
                 <span style="position:absolute;top: 0.3em; width: 1em; height: 1em; font-size: 3em; cursor: pointer;right:0.05em"
@@ -182,7 +190,7 @@ $editor_options = "{website_id:$website_id, page_id:$page_id}";
                             Click to edit the page
                         </span>
 
-                        <div style="padding:10px 8px;">
+                        <div style="padding:5px 0px 5px 8px;" class="fancytree-node">
                             <a href="#" title="Edit website home page"
                                 class="btn-website-homepage" style="text-decoration:none;">
                                 <span class="ui-icon ui-icon-home"></span>&nbsp;Home page
@@ -190,37 +198,65 @@ $editor_options = "{website_id:$website_id, page_id:$page_id}";
                             <span  title="Add top level menu" class="btn-website-addpage ui-icon ui-icon-plus" 
                                 style="display:none;float:right;cursor:pointer;color:black;margin-top:0px"></span>
                         </div>
+                        <div style="padding:3px 32px;" class="fancytree-node">
+                            <a href="#" title="Edit website header"
+                                class="btn-website-header" style="text-decoration:none;">
+                                Header
+                            </a>
+                            <span  class="btn-website-header ui-icon ui-icon-pencil" 
+                                style="display:none;float:right;cursor:pointer;color:black;margin-top:0px"></span>
+                        </div>
+                        <div style="padding:3px 32px;" class="fancytree-node">
+                            <a href="#" title="Edit website footer"
+                                class="btn-website-footer" style="text-decoration:none;">
+                                Footer
+                            </a>
+                            <span  class="btn-website-footer ui-icon ui-icon-pencil" 
+                                style="display:none;float:right;cursor:pointer;color:black;margin-top:0px"></span>
+                        </div>
 
                     </div>
 
-                    <div class="treeWebSite ent_content_full" style="top:80px;padding:3px 10px;"></div>
+                    <div class="treeWebSite ent_content_full" style="top:125px;padding:3px 10px;"></div>
                 </div>
 
                 <div id="treePage" style="font-size:0.9em;top:2em;" class="ent_wrapper ui-widget-content">
 
-                    <div class="treePageHeader ent_header" style="height:85px;line-height:normal;">
+                    <div class="treePageHeader ent_header" style="height:85px;line-height:normal;padding:5px">
 
-                        <h3 class="truncate" style="margin-block-start: 0.3em; margin-block-end: 0.7em; font-size: 10px; font-family: revert; max-width: 85%; display: inline-block">
-                            Page title
-                        </h3>
-
-                        <span style="float: right; font-size: 10px;" class="heurist-helper1 element_edit">
-                            <a href="?db=Heurist_Help_System&website&id=39&pageid=708" target="_blank">TODO Website help</a>
+                        <span style="float: right; padding-top: 2px;" class="heurist-helper1 element_edit">
+                            <a href="#" target="_blank" id="helpLink">
+                                <span class="ui-icon ui-icon-circle-help" style="font-size:12px;"></span>
+                            </a>
                         </span>
+                        
+                        <select name="responsiveScreen" id="responsiveScreen" title="Responsive screen width" style="float: right; font-size: 10px;max-width:80px;">
+                            <option value="100" selected>100%</option>
+                            <option value="540">Small (540px)</option>
+                            <option value="720">Medium (720px)</option>
+                            <option value="960">Large (960px)</option>
+                            <option value="1200">XLarge (1200px)</option>
+                            <option value="1400">XXLarge (1400px)</option>
+                        </select>
 
+                        <label for="responsiveScreen" style="float: right;line-height:15px">Screen width: </label>
+                        
+                        <div id="pageTitle" class="truncate" style="margin-block-start: 1.8em; margin-block-end: 0.7em; font-size: 10px; font-family: revert;width:100%;">
+                            Page title
+                        </div>
                     </div>
 
                     <div class="treePage ent_content_full" style="top: 20px; padding: 0px 10px 5px; border-top: 1px solid gray; line-height: normal; font-size: 10px;"></div>
 
                     <div class="propertyView ent_content_full ui-widget-content-gray" 
-                        style="top:190px;padding:10px 0px;display:none;"></div>
+                        style="top:190px;display:none;"></div>
 
                 </div>
             </div>
         </div>
     </div>
 
-    <div class="ui-layout-center">
+    <div class="ui-layout-center" style="text-align:center">
         <iframe id="webPageFrame" width="100%" height="100%" title="Web Page Preview"></iframe>
     </div>
     

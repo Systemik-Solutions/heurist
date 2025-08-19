@@ -1,63 +1,57 @@
 <?php
-    /**
-    * dbsData.php - retrieving database definitions
-    *
-    * Library of function that provides database structure information: rectypes, fieldtypes and terms defined in database
-    *
-    * @package     Heurist academic knowledge management system
-    * @link        https://HeuristNetwork.org
-    * @copyright   (C) 2005-2023 University of Sydney, (C) 2024 onwards Heurist Network
-    * @author      Artem Osmakov   <osmakov@gmail.com>
-    * @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
-    * @version     4.0
-    * @todo convert to class (singleton?)
-    *
-    *
-    *
-    * dbs_ - prefix for functions
-    *
-    * dbs_GetRectypeStructures
-    * dbs_GetRectypeStructure
-    * dbs_GetRectypeGroups
-    * dbs_GetRectypeByID
-    * dbs_GetRectypeNames
-    * dbs_GetRectypeIDs  - returns array of rty_IDs
-    * dbs_GetTerms
-    * dbs_GetDetailTypes
-    * dbs_GetDtLookups
-    *
-    * TERMS RELATED FUNCTION - to be public methods,
-    * they work with global $terms array - need to be defined by dbs_GetTerms before call these methods
-    * getTermOffspringList
-    * getTermTopMostParent
-    * getTermChildren
-    * getTermChildrenAll - get all children including by reference as a flat array
-    * getTermInTree
-    * getTermByLabel
-    * getTermByCode
-    * getTermById
-    * getTermFullLabel
-    * getTermListAll - get tree for domain
-    * getTermLabels
-    * getTermCodes
-    *
-    * INTERNAL FUNCTIONS
-    * __getRectypeColNames
-    * __getColumnNameToIndex
-    * __getRectypeStructureFieldColNames
-    * __getTermTree
-    * __attachChild
-    * __getTermColNames
-    *
-    */
+/**
+* dbsData.php - Library of function to retrieve database definitions
+*
+* Library of function that provides database structure information: rectypes, fieldtypes and terms defined in database
+*
+* @project     Heurist academic knowledge management system
+* @package Structure
+* @link        https://HeuristNetwork.org
+* @copyright   (C) 2005-2023 University of Sydney, (C) 2024 onwards Heurist Network
+* @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
+* @author      Artem Osmakov   <osmakov@gmail.com>
+* @author      Ian Johnson     <ian.johnson.heurist@gmail.com>
+* @since       4.0
+* 
+* @todo convert to class (singleton?)
+*
+* dbs_ - prefix for functions
+*
+* dbs_GetRectypeStructures
+* dbs_GetRectypeStructure
+* dbs_GetRectypeGroups
+* dbs_GetRectypeByID
+* dbs_GetRectypeNames
+* dbs_GetRectypeIDs  - returns array of rty_IDs
+* dbs_GetTerms
+* dbs_GetDetailTypes
+* dbs_GetDtLookups
+*
+* TERMS RELATED FUNCTION - to be public methods,
+* they work with global $terms array - need to be defined by dbs_GetTerms before call these methods
+* getTermOffspringList
+* getTermTopMostParent
+* getTermChildren
+* getTermChildrenAll - get all children including by reference as a flat array
+* getTermInTree
+* getTermByLabel
+* getTermByCode
+* getTermById
+* getTermFullLabel
+* getTermListAll - get tree for domain
+* getTermLabels
+* getTermCodes
+*
+* INTERNAL FUNCTIONS
+* __getRectypeColNames
+* __getColumnNameToIndex
+* __getRectypeStructureFieldColNames
+* __getTermTree
+* __attachChild
+* __getTermColNames
+*
+*/
 
-    /*
-    * Licensed under the GNU License, Version 3.0 (the "License"); you may not use this file except in compliance
-    * with the License. You may obtain a copy of the License at https://www.gnu.org/licenses/gpl-3.0.txt
-    * Unless required by applicable law or agreed to in writing, software distributed under the License is
-    * distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied
-    * See the License for the specific language governing permissions and limitations under the License.
-    */
     use hserv\utilities\USanitize;
     use hserv\report\ReportTemplateMgr;
 
@@ -414,6 +408,16 @@
 
     }
 
+    /**
+     * Retrieves a list of Record Type IDs.
+     *
+     * Can fetch all record type IDs or a filtered list based on provided IDs.
+     *
+     * @param \mysqli $mysqli The mysqli database connection object.
+     * @param mixed $_rty_IDs Either a boolean `true` to fetch all IDs, or an array/comma-separated
+     *                        string of specific Record Type IDs to retrieve.
+     * @return array An array of integer Record Type IDs. Returns an empty array if no matching IDs are found.
+     */
     function dbs_GetRectypeIDs($mysqli, $_rty_IDs){
 
         if(is_true($_rty_IDs)){
@@ -840,9 +844,20 @@ function dbs_GetRectypeConstraint($system) {
 
     }
 
-    //
-    // get inverse term and all its children terms
-    //
+    /**
+     * Retrieves the inverse terms (and optionally their children) for a given set of parent terms.
+     *
+     * For each term ID in `$parent_ids`, this function finds its `trm_InverseTermID`.
+     * If `$all_levels` is true, it then recursively fetches all children of these inverse terms
+     * using `getTermChildrenAll`.
+     *
+     * @param \mysqli $mysqli The mysqli database connection object.
+     * @param array|string $parent_ids An array or comma-separated string of term IDs for which to find inverse terms.
+     * @param bool $all_levels (Optional) If true (default), fetches all children of the inverse terms.
+     *                         If false, only the direct inverse terms are returned.
+     * @return array An array of term IDs, including the inverse terms and their children (if requested).
+     *               Returns an empty array if no inverse terms or children are found.
+     */
     function getTermInverseAll($mysqli, $parent_ids, $all_levels=true){
 
         //compose query
@@ -858,9 +873,19 @@ function dbs_GetRectypeConstraint($system) {
 
     }
 
-    //
-    // get all children including by reference as a flat array
-    //
+    /**
+     * Retrieves all child term IDs for a given set of parent term IDs, including those linked by reference.
+     *
+     * This function fetches children from `defTermsLinks`. If `$all_levels` is true,
+     * it recursively calls itself to get children of children, effectively flattening the
+     * entire descendant tree (including referenced branches) into a single array.
+     *
+     * @param \mysqli $mysqli The mysqli database connection object.
+     * @param array|string $parent_ids An array or comma-separated string of parent term IDs.
+     * @param bool $all_levels (Optional) If true (default), recursively fetches all descendants.
+     *                         If false, only fetches direct children.
+     * @return array An array of child term IDs.
+     */
     function getTermChildrenAll($mysqli, $parent_ids, $all_levels=true){
 
         //compose query
@@ -923,9 +948,16 @@ function dbs_GetRectypeConstraint($system) {
         return $parent_label.$term_label;
     }
 
-    //
-    // get tree for domain
-    //
+    /**
+     * Retrieves a flat list of all term IDs belonging to a specific domain, including all their descendants.
+     *
+     * It first fetches all top-level terms (those with no parent or parent ID 0) in the given domain.
+     * Then, for each top-level term, it uses `getTermOffspringList` to get all its descendant terms.
+     *
+     * @param \mysqli $mysqli The mysqli database connection object.
+     * @param string $termDomain The domain to retrieve terms from (e.g., 'enum', 'relation').
+     * @return array A flat array containing all term IDs in the specified domain and their offspring.
+     */
     function getTermListAll($mysqli, $termDomain){
 
         $terms = array();
@@ -951,7 +983,7 @@ function dbs_GetRectypeConstraint($system) {
         $labels = array();
         if ($termIDs) {
             $labels = mysql__select_assoc2($mysqli,
-            'select trm_ID, LOWER(trm_Label) from defTerms where trm_ID in ('.implode(',', $termIDs).')');
+            'select trm_ID, LOWER(trm_Label) from defTerms '.SQL_WHERE.predicateId('trm_ID', $termIDs));
         }
         return $labels;
     }
@@ -963,7 +995,7 @@ function dbs_GetRectypeConstraint($system) {
         $labels = array();
         if ($termIDs) {
             $labels = mysql__select_assoc2($mysqli,
-            'select trm_ID, LOWER(trm_Code) from defTerms where trm_ID in ('.implode(',', $termIDs).')');
+            'select trm_ID, LOWER(trm_Code) from defTerms '.SQL_WHERE.predicateId('trm_ID', $termIDs));
         }
         return $labels;
     }
@@ -1555,6 +1587,16 @@ function dbs_GetRectypeConstraint($system) {
     //
     // utility
     //
+    /**
+     * Removes a trailing number from a string if the number is preceded by a space.
+     *
+     * For example, "Record Type 1" would become "Record Type".
+     * If there's no space before the trailing number or no trailing number,
+     * the original string is returned.
+     *
+     * @param string $name The input string.
+     * @return string The string with the trailing number removed, or the original string.
+     */
     function removeLastNum($name){
 
         $k = strrpos($name," ");//find last space

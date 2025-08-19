@@ -1,25 +1,46 @@
 /**
-* recordExport.js - export to XML,JSON or GEPHI
+* @file recordExport.js
+* @brief Provides a widget for exporting records to various formats like XML, JSON, KML, or HML.
+* @fileOverview This file defines the `recordExport` widget. It allows users to export record data
+* from the Heurist system into different structured formats. The widget typically takes the current
+* record set (or a selection) and constructs a URL or a form post to a server-side script that
+* generates the export file (e.g., XML, JSON, KML, HML). Options for including linked records and
+* definitions can be configured.
 *
-* @package     Heurist academic knowledge management system
+* @project     Heurist academic knowledge management system
 * @link        https://HeuristNetwork.org
 * @copyright   (C) 2005-2023 University of Sydney, (C) 2024 onwards Heurist Network
 * @author      Artem Osmakov   <osmakov@gmail.com>
+* @author      Ian Johnson <ian.johnson.heurist@gmail.com>
 * @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
-* @version     4.0
+* @since       4.0
 */
 
-/*  
-* Licensed under the GNU License, Version 3.0 (the "License"); you may not use this file except in compliance
-* with the License. You may obtain a copy of the License at https://www.gnu.org/licenses/gpl-3.0.txt
-* Unless required by applicable law or agreed to in writing, software distributed under the License is
-* distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied
-* See the License for the specific language governing permissions and limitations under the License.
-*/
 
+
+/**
+ * @class recordExport
+ * @augments {recordAction}
+ * @memberof Widgets.Records
+ * @description jQuery widget for exporting records to various formats (XML, JSON, KML, HML).
+ * This widget prepares and initiates a download of record data based on the current
+ * recordset and selected export format.
+ *
+ * @param {object} options - Configuration options for the widget.
+ */
 $.widget( "heurist.recordExport", $.heurist.recordAction, {
 
-    // default options
+    /**
+     * @memberof Widgets.Records.recordExport
+     * @type {object}
+     * @property {number} [height=780] - Widget/dialog height.
+     * @property {number} [width=800] - Widget/dialog width.
+     * @property {boolean} [modal=true] - Is dialog modal.
+     * @property {string} [title='Export records to '] - Base dialog title.
+     * @property {string} [options.format='xml'] - Export format (e.g., 'xml', 'json', 'kml', 'hml', 'iiif').
+     * @property {string} [htmlContent='recordExport.html'] - HTML content file.
+     * @property {boolean} [isdialog=true] - True if displayed as a dialog.
+     */
     options: {
     
         height: 780,
@@ -32,6 +53,23 @@ $.widget( "heurist.recordExport", $.heurist.recordAction, {
         htmlContent: 'recordExport.html'
     },
 
+    /**
+     * @member {?jQuery} toolbar
+     * @memberof Widgets.Records.recordExport
+     * @description jQuery object for the dynamically created toolbar when `options.isdialog` is false.
+     */
+    toolbar: null,
+
+    /**
+     * @function _initControls
+     * @memberof Widgets.Records.recordExport
+     * @private
+     * @description Initializes controls after HTML content is loaded.
+     * Appends the export format to the title. If not in dialog mode (`!options.isdialog`),
+     * it creates a toolbar and action buttons. Hides the standard scope selector as exports
+     * usually operate on the 'current' recordset. Shows format-specific info sections (KML, IIIF).
+     * @returns {boolean} True.
+     */
     _initControls: function() {
 
         this._super();    
@@ -84,9 +122,13 @@ $.widget( "heurist.recordExport", $.heurist.recordAction, {
         return true;
     },
     
-    //    
-    //
-    //
+    /**
+     * @function _getActionButtons
+     * @memberof Widgets.Records.recordExport
+     * @private
+     * @description Gets action buttons for the dialog/toolbar, setting labels to 'Download' and 'Close'.
+     * @returns {Array<object>} Array of button definition objects.
+     */
     _getActionButtons: function(){
         let res = this._super();
         res[1].text = window.hWin.HR('Download');
@@ -94,9 +136,17 @@ $.widget( "heurist.recordExport", $.heurist.recordAction, {
         return res;
     },    
         
-    //
-    // 
-    //
+    /**
+     * @function doAction
+     * @memberof Widgets.Records.recordExport
+     * @private
+     * @description Performs the export action.
+     * Determines the scope of records (currently defaults to 'current' recordset).
+     * Constructs the export URL and parameters based on the selected format, current query,
+     * and options (like link mode, depth).
+     * Initiates the download by opening the URL in a new window or submitting a form for larger data.
+     * Displays a message if no records are found for export.
+     */
     doAction: function(){
 
             let scope_val = this.selectRecordScope.val();

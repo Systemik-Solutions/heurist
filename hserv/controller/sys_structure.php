@@ -1,24 +1,20 @@
 <?php
-
-    /**
-    * Application interface. See HSystemMgr in hapi.js
-    *   database definitions - record types, record structure, field types, terms
-    *
-    * @package     Heurist academic knowledge management system
-    * @link        https://HeuristNetwork.org
-    * @copyright   (C) 2005-2023 University of Sydney, (C) 2024 onwards Heurist Network
-    * @author      Artem Osmakov   <osmakov@gmail.com>
-    * @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
-    * @version     4.0
-    */
-
-    /*
-    * Licensed under the GNU License, Version 3.0 (the "License"); you may not use this file except in compliance
-    * with the License. You may obtain a copy of the License at https://www.gnu.org/licenses/gpl-3.0.txt
-    * Unless required by applicable law or agreed to in writing, software distributed under the License is
-    * distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied
-    * See the License for the specific language governing permissions and limitations under the License.
-    */
+/**
+* sys_structure.php  - Handler to retrieve database defintions
+* 
+* It is used for import defintions from different database.
+* 
+* @todo - DEPRECATED and should be replaced with hserv\entity\entityScridSrv.entityRefreshDefs
+*
+* @project     Heurist academic knowledge management system
+* @package Controller
+* @link        https://HeuristNetwork.org
+* @copyright   (C) 2005-2023 University of Sydney, (C) 2024 onwards Heurist Network
+* @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
+* @author      Artem Osmakov   <osmakov@gmail.com>
+* @author      Ian Johnson     <ian.johnson.heurist@gmail.com>
+* @since       4.0
+*/
 
     use hserv\utilities\USanitize;
 
@@ -227,6 +223,14 @@ header('Content-Encoding: gzip');
 echo $output;
 unset($output);
 
+/**
+ * Generates a formatted error message response for issues contacting a remote database.
+ *
+ * @param string $remoteURL The URL of the remote database that could not be reached.
+ * @param string|int $code The error code (e.g., 'curl', HEURIST_SYSTEM_FATAL, or other HEURIST_STATUS_CODES).
+ * @param string $err_msg The specific error message encountered.
+ * @return array An associative array representing the error response, with 'status', 'message', and 'sysmsg' keys.
+ */
 function __getErrMsg($remoteURL, $code, $err_msg){
 
             if($code=='curl'){

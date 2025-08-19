@@ -1,7 +1,8 @@
 /**
-* RecordList - classes for widget
+* RecordList - style classes for widget
 *
-* @package     Heurist academic knowledge management system
+* @project     Heurist academic knowledge management system
+* @package Wigets
 * @link        https://HeuristNetwork.org
 * @copyright   (C) 2005-2023 University of Sydney, (C) 2024 onwards Heurist Network
 * @author      Artem Osmakov   <osmakov@gmail.com>
@@ -10,7 +11,7 @@
 
 
 .recordList-icon {
-    position: absolute; /*static;*/
+    margin: 0.12rem;
     height: 1.1rem;
     width: 1.1rem;
     background-repeat: no-repeat;
@@ -18,7 +19,8 @@
 .recordList-item {
     height: 12rem;
     width: 10rem;
-    padding: .25rem;
+    padding: 0.25rem;
+    margin: 0.5rem;
 }
 .recordList-item:hover {
     box-shadow: 0 .5rem 1rem rgba(0, 0, 0, .15) !important;
@@ -26,14 +28,26 @@
 .recordList-item.selected {
     
 }
+
+.recordList-icon{
+    width: 18px;
+    height: 18px;
+    background-position: center center;
+    background-repeat: no-repeat;
+    background-size: contain; 
+}
+
 .recordList-thumb {
     background-position: center center;
     background-repeat: no-repeat;
     background-size: contain; 
     min-height:50%;
 }        
+.semitransparent {
+    opacity:0.5;
+}
 .recordList-text {
-    max-height:45%;
+    max-height:36%;
     overflow:hidden;
 }
 

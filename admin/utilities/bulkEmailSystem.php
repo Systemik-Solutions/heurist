@@ -1,22 +1,22 @@
 <?php
-
 /**
-*  Related class for Heurist System Email (massEmailSystem.php)
+* bulkEmailSystem.php - Core logic for sending bulk emails in Heurist.
 *
-* @package     Heurist academic knowledge management system
+* @fileOverview This file defines the `BulkEmailSystem` class, which encapsulates
+*               the functionality for processing form data, generating user lists,
+*               constructing, and sending emails to users across multiple Heurist databases.
+*               It handles email templating with placeholder substitution, CSV export of
+*               targeted users, and receipt generation. It supports sending emails via
+*               PHP's native `mail()`, PHPMailer, or a specified mail relay.
+*
+* @project     Heurist academic knowledge management system
+* @package Admin
 * @link        https://HeuristNetwork.org
 * @copyright   (C) 2005-2023 University of Sydney, (C) 2024 onwards Heurist Network
-* @author      Brandon McKay   <blmckay13@gmail.com>
 * @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
-* @version     6.0
-*/
-
-/*
-* Licensed under the GNU License, Version 3.0 (the "License"); you may not use this file except in compliance
-* with the License. You may obtain a copy of the License at https://www.gnu.org/licenses/gpl-3.0.txt
-* Unless required by applicable law or agreed to in writing, software distributed under the License is
-* distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied
-* See the License for the specific language governing permissions and limitations under the License.
+* @author      Brandon McKay <blmckay13@gmail.com>
+* @author      Ian Johnson <ian.johnson.heurist@gmail.com>
+* @since       6.0
 */
 
 require_once __DIR__ . '/../../autoload.php';
@@ -102,6 +102,11 @@ class BulkEmailSystem {
     private $sessionID = null; // session ID
     private $progress = ''; // progress update
 
+    /**
+     * Constructor for BulkEmailSystem.
+     *
+     * @param hserv\System $system The Heurist system object.
+     */
     public function __construct($system){
 
         $this->system = $system;
@@ -441,6 +446,11 @@ class BulkEmailSystem {
 
         foreach ($dbs as $db){
 
+            if($this->isTerminated()){
+                $this->printMessage('<strong>CANCELLED</strong>');
+                break;
+            }
+
             $where_clause = $this->generateWhereClause($this->users, $db);
 
             if (empty($where_clause)) {
@@ -469,7 +479,9 @@ class BulkEmailSystem {
 
         ksort($this->user_details, SORT_FLAG_CASE);
 
-        count($this->user_details) > 1000 ? set_time_limit(1800) : set_time_limit(900); // temporary, to implement staggering/staged system
+        $seconds = count($this->user_details) > 3000 ? 2700 : 900;
+        $seconds = count($this->user_details) > 1000 ? 1800 : $seconds;
+        set_time_limit($seconds); // temporary, to implement staggering/staged system when possible
 
         $this->printMessage('Done<br>');
 
@@ -481,7 +493,7 @@ class BulkEmailSystem {
      *
      * @param string $users type of users to be searched for {owner, manager, admin, user, all}
      * @param string $db database, with prefix, searching in, for admin search
-     * @return string SLQ where clause
+     * @return string SQL where clause
      */
     private function generateWhereClause($users, $db) {
         switch ($users) {
@@ -551,7 +563,12 @@ class BulkEmailSystem {
         // Create Last modified's WHERE Clause
         $lastmod_where = ($lastmod_unit!="ALL") ? "AND rec_Modified {$lastmod_logic} date_format(curdate(), '%Y-%m-%d') - INTERVAL {$lastmod_period} {$lastmod_unit} " : "";
 
-        foreach ($dbs as $db) {
+        foreach($dbs as $db){
+
+            if($this->isTerminated()){
+                $this->printMessage('<strong>CANCELLED</strong><br>');
+                return 1;
+            }
 
             $count = 0;
             $date = "unknown";
@@ -680,9 +697,14 @@ class BulkEmailSystem {
 
         $this->printMessage("Sending ". count($this->user_details) ." emails:<div style='padding: 10px;'>");
 
-        foreach ($this->user_details as $email => $details) {
+        foreach($this->user_details as $email => $details){
 
             $this->printMessage("$email ..... ");
+
+            if($this->isTerminated()){
+                $this->printMessage('<strong>CANCELLED</strong>');
+                break;
+            }
 
             $email_rtn = $this->processEmailForUser($email, $details, $mailer, $mailRelayPwd);
 
@@ -738,6 +760,11 @@ class BulkEmailSystem {
             $email_rtn = $this->sendViaRelay($email, $title, $body, $mailRelayPwd);
         } else {
             $email_rtn = $this->sendUsingPHPMailer($email, $title, $body, $mailer);
+        }
+
+        if(stripos(HEURIST_BASE_URL, 'heuristref') !== false){
+            // IJ 2025 - add artificial wait to avoid overwhelming the email server on HeuristRef
+            sleep(1);
         }
 
         $this->logEmailStatus($email_rtn, $details, $email, $db_listed, $records_listed, $lastmod_listed, $body);
@@ -872,6 +899,7 @@ class BulkEmailSystem {
      */
     private function logEmailStatus($email_rtn, $details, $email, $db_listed, $records_listed, $lastmod_listed, $body) {
         $status_msg = $email_rtn == 0 ? "Sent, Sent Message: {$body}" : "Failed, Error Message: " . $this->getError();
+
         $this->log = htmlspecialchars("Values: {databases: {{$db_listed}}, email: {$email}, name: {$details['first_name']} {$details['last_name']}"
             . ", record_count: {{$records_listed}}, last_modified: {{$lastmod_listed}} },"
             . "Timestamp: " . date(DATE_8601) . ", Status: {$status_msg}");
@@ -974,9 +1002,9 @@ class BulkEmailSystem {
     }
 
     /**
-     * Get both the values of error_msg and log
+     * Get both the current error message and the email log.
      *
-     * @return array<string, array> [current error message, email log]
+     * @return array{0: string, 1: string} An array containing the current error message and the email log.
      */
     public function getErrorLog() {
         return [$this->error_msg, $this->log];
@@ -985,10 +1013,9 @@ class BulkEmailSystem {
     // Receipt Functions
 
     /**
-     * Prepare receipt value
+     * Prepare receipt value.
      *
-     * @param int|null $status 0 || < 0, whether the emails were all sent
-     * @param int $user_count count of users who have been emailed
+     * @param int|null $status Status of the email sending process (0 for success, <0 for failure, null for pre-process).
      * @return void
      */
     private function saveReceipt($status) {
@@ -1098,8 +1125,8 @@ class BulkEmailSystem {
     /**
      * Finish up receipt and save to database as a note record
      *
-     * @param bool $pre_emails whether this is before or after the emails have been sent
-     * @return array|int Returns the results from recordSave, or an error code
+     * @param bool $pre_emails Whether this is before or after the emails have been sent.
+     * @return array|int Returns the results from recordSave (typically an array with status and data/message), or an error code (-1).
      */
     public function exportReceipt($pre_emails = false) {
 
@@ -1107,6 +1134,7 @@ class BulkEmailSystem {
         $this->printMessage("Saving {$filler} Receipt ..... ");
 
         // Get IDs
+        $this->checkMysqli();
         $note_rectype_id = ConceptCode::getRecTypeLocalID("2-3");
         $title_detailtype_id = ConceptCode::getDetailTypeLocalID("2-1");
         $summary_detailtype_id = ConceptCode::getDetailTypeLocalID("2-3");
@@ -1117,7 +1145,7 @@ class BulkEmailSystem {
             $this->printMessage('<span style="color: red; font-weight: bold;">Missing fields</span><br>');
 
             $this->setError("Unable to retrieve the Record Type ID for Notes, and the Detail Type IDs for Name/Title, Short Summary, and Date fields.<br>The Heurist team has been notified.");
-            $this->system->addError(HEURIST_ERROR, "Bulk Email System Error: Unable to get the Record Type ID for Notes, and the Detail Type IDs for Name/Title, Short Summary, and Date fields.");
+            $this->system->addError(HEURIST_ACTION_BLOCKED, "Bulk Email System Error: Unable to get the Record Type ID for Notes, and the Detail Type IDs for Name/Title, Short Summary, and Date fields.");
             return -1;
         }
 
@@ -1163,8 +1191,8 @@ class BulkEmailSystem {
     /**
      * Prepare records details for saving the receipt
      *
-     * @param int $recID receipt's record ID
-     * @param mixed $preEmails whether this is before or after the emails have been sent
+     * @param int  $recID receipt's record ID
+     * @param bool $preEmails whether this is before or after the emails have been sent
      * @return array record details
      */
     private function prepareReceiptDetails($recID, $preEmails){
@@ -1215,11 +1243,34 @@ class BulkEmailSystem {
 
         $this->progress .= $msg;
 
+        $curProgress = mysql__update_progress($this->system->getMysqli(), $this->sessionID, false, null);
+        if($curProgress === 'terminate'){
+            return;
+        }
+
         mysql__update_progress($this->system->getMysqli(), $this->sessionID, false, $this->progress);
     }
 
     /**
-     * Determine whether the MySQL connection is still active, mainly an issue on Huma-num's server where MySQL is restarted at midnight
+     * Checks if the current bulk email process has been signaled to terminate.
+     * This is typically checked via a progress update mechanism.
+     *
+     * @return bool True if termination is signaled, false otherwise.
+     */
+    private function isTerminated(){
+
+        if(!$this->sessionID){
+            return false;
+        }
+
+        $curProgress = mysql__update_progress($this->system->getMysqli(), $this->sessionID, false, null);
+        return $curProgress === 'terminate';
+    }
+
+    /**
+     * Determine whether the MySQL connection is still active.
+     * If the connection is lost (e.g. MySQL server restarted), it attempts to re-initialize it.
+     * This is particularly relevant for long-running scripts.
      *
      * @return void
      */
@@ -1250,6 +1301,7 @@ class BulkEmailSystem {
  *
  * @param array $data Form input data
  * @return array|int Returns the results from exportReceipt, or an error code
+ * @global hserv\System $system The global Heurist System object.
  */
 function sendSystemEmail($data) {
 
@@ -1258,18 +1310,24 @@ function sendSystemEmail($data) {
     $email_obj = new BulkEmailSystem($system);
     $rtn = [];
 
-    if ($email_obj->processFormData($data) == 0) {
+    $setup_res = $email_obj->processFormData($data);
+    if($setup_res == 0){
 
         //prepare and send emails
-        if ($email_obj->constructEmails() <= -1) {
+        $email_res = $email_obj->constructEmails();
+        if($email_res <= -1){
             $rtn = ['status' => HEURIST_ERROR, 'message' => 'An error occurred with preparing and sending the system emails.<br>' . $email_obj->getLog()];
+        }elseif($email_res == 1){
+            $rtn = ['status' => HEURIST_OK, 'data' => 'terminated'];
         }else{
             // create note record with that will contain the contents of log
             return $email_obj->exportReceipt();
         }
 
-    } else {
-        $rtn = ['status' => HEURIST_INVALID_REQUEST, 'message' => 'An error occurred with processing the form\'s data.'];
+    }elseif($setup_res){
+        $rtn = ['status' => HEURIST_OK, 'data' => 'terminated'];
+    }else{
+        $rtn = ['status' => HEURIST_INVALID_REQUEST, 'message' => 'An error occurred with processing the form\'s data.<br>' . $email_obj->getError()];
     }
 
     return $rtn;
@@ -1278,30 +1336,30 @@ function sendSystemEmail($data) {
 /**
  * Export Selected data as CSV
  *
- * @param mixed $data Form input data
- * @return int Returns an error code, otherwise the script exits while printing the CSV details
+ * @param array $data Form input data
+ * @return array|int Returns an error code, otherwise the script exits while printing the CSV details
+ * @global hserv\System $system The global Heurist System object.
  */
 function getCSVDownload($data) {
 
     global $system;
 
     $csv_obj = new BulkEmailSystem($system);
+    $rtn = [];
 
-    if ($csv_obj->processFormData($data) == 0) {
+    $setup_res = $csv_obj->processFormData($data);
+    if($setup_res == 0){
 
-        if ($csv_obj->exportDetailsToCSV() <= -1) {
-
-            echo "An error occurred with exporting the selected data as a CSV file<br>";
-            $output = $csv_obj->getError();
-            print $output[0];
+        $export_res = $csv_obj->exportDetailsToCSV();
+        if($export_res <= -1){
+            $rtn = ['status' => HEURIST_ERROR, 'message' => 'An error occurred with preparing and sending the system emails.<br>' . $csv_obj->getError()];
         }
 
-    } else {
-
-        echo "An error occurred with processing the form's data<br>";
-        $output = $csv_obj->getError();
-        print htmlspecialchars($output);
+    }elseif($setup_res){
+        $rtn = ['status' => HEURIST_OK, 'data' => 'terminated'];
+    }else{
+        $rtn = ['status' => HEURIST_INVALID_REQUEST, 'message' => 'An error occurred with processing the form\'s data.<br>' . $csv_obj->getError()];
     }
 
-    return -1;
+    return $rtn;
 }

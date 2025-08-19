@@ -1,23 +1,20 @@
 <?php
 /**
-* Minimal initialization for page (without client side/HAPI)
+* initPageMin.php - Minimal initialization for page (without client side/HAPI)
+* 
+* Used for standalone admin utilities. Namely verification or export. 
 *
-* @package     Heurist academic knowledge management system
+* @project     Heurist academic knowledge management system
+* @package  hclient\framecontent
 * @link        https://HeuristNetwork.org
 * @copyright   (C) 2005-2023 University of Sydney, (C) 2024 onwards Heurist Network
-* @author      Artem Osmakov   <osmakov@gmail.com>
 * @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
-* @version     4.0
-*/
-
-/*
-* Licensed under the GNU License, Version 3.0 (the "License"); you may not use this file except in compliance
-* with the License. You may obtain a copy of the License at https://www.gnu.org/licenses/gpl-3.0.txt
-* Unless required by applicable law or agreed to in writing, software distributed under the License is
-* distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied
-* See the License for the specific language governing permissions and limitations under the License.
+* @author      Artem Osmakov   <osmakov@gmail.com>
+* @author      Ian Johnson     <ian.johnson.heurist@gmail.com>
+* @since       4.0
 */
 use hserv\utilities\USanitize;
+use hserv\utilities\USystem;
 
 if(!defined('PDIR')) {define('PDIR','../../');}//need for js scripts
 
@@ -72,6 +69,15 @@ if(defined('LOGIN_REQUIRED') && !$system->hasAccess()){
     $message = $login_warning.' as Administrator of group \'Database Managers\'';
 }elseif(defined('OWNER_REQUIRED') && !$system->isDbOwner()){
     $message = $login_warning.' as Database Owner';
+}elseif(defined('ASSOC_MEMBERSHIP_REQUIRED') 
+        && 'nonmember' == USystem::checkAssociationMembership($system, ASSOC_MEMBERSHIP_REQUIRED)){
+        
+        $is_error = false;
+        $message = file_get_contents(dirname(__FILE__).'/../../movetoparent/association_membership.html');
+        if (preg_match('/<div id="content">(.*?)<\/div>/is', $message, $matches)) {
+                $message = $matches[0]; 
+        }
+    
 }else{
     $invalid_access = false;
 }
@@ -97,6 +103,14 @@ if(isset($message)){
     exit;
 }
 
+/**
+ * Outputs a message.
+ * Note: This function prints the message but does not explicitly flush the output buffer.
+ * For flushing, see echo_flush2().
+ *
+ * @param string $msg The message to output.
+ * @return void
+ */
 function echo_flush($msg){
 
     print $msg;
@@ -105,9 +119,13 @@ function echo_flush($msg){
 
 }
 
-//
-// For script progress messages to web browser
-//
+/**
+ * Outputs a message and forces the output buffer to be sent to the browser.
+ * Useful for sending progress messages during long-running scripts.
+ *
+ * @param string $msg The message to output and flush.
+ * @return void
+ */
 function echo_flush2($msg){
     ob_start();
     print $msg;

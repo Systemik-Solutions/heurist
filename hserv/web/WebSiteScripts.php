@@ -1,41 +1,29 @@
 <?php
 /**
 * WebSiteScripts.php - minimal set of scripts and styles for Heurist CMS website
-* It is included in website output by 
+* It is included in website output by WebSiteTemplate.php that in turn is included in WebSite.php
+*  $this - is instance of WebSite class
 *
-* @package     Heurist academic knowledge management system
+* @project     Heurist academic knowledge management system
+* @package CMS
 * @link        https://HeuristNetwork.org
 * @copyright   (C) 2005-2023 University of Sydney, (C) 2024 onwards Heurist Network
-* @author      Artem Osmakov   <osmakov@gmail.com>
 * @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
+* @author      Artem Osmakov   <osmakov@gmail.com>
 * @version     7.0
 */
 
-/*
-* Licensed under the GNU License, Version 3.0 (the "License"); you may not use this file except in compliance
-* with the License. You may obtain a copy of the License at https://www.gnu.org/licenses/gpl-3.0.txt
-* Unless required by applicable law or agreed to in writing, software distributed under the License is
-* distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied
-* See the License for the specific language governing permissions and limitations under the License.
-*/
+
 if(!defined('PDIR')){
     define('PDIR', HEURIST_BASE_URL);
 }
     includeJQuery(true);
     
     $useOldCode = true;
-    
-/*
-    <script src="https://code.jquery.com/jquery-3.7.1.js" integrity="sha384-wsqsSADZR1YRBEZ4/kKHNSmU+aX8ojbnKUMN4RyD3jDkxw5mHtoe2z/T/n4l56U/" crossorigin="anonymous"></script>
-    <script src="https://code.jquery.com/ui/1.14.0/jquery-ui.js" integrity="sha384-/L7+EN15GOciWSd0nb17+43i1HKOo5t8SFtgDKGqRJ2REbp8N6fwVumuBezFc4qC" crossorigin="anonymous"></script>
-    <link rel="stylesheet" type="text/css" href="https://code.jquery.com/ui/1.14.0/themes/base/jquery-ui.css">
-*/ 
 ?>
     <script>
-        window.hWin = window; //isolated
+        window.hWin = window; //isolated instances (to avoid mix with cmsEditor in parent)
     </script>
-
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js" integrity="sha384-geWF76RCwLtnZ8qwWowPQNguL3RmwHVBC9FhGdlKrxdiJJigb/j/68SIy3Te4Bkz" crossorigin="anonymous"></script>
 
     <script type="text/javascript" src="<?php echo PDIR;?>hclient/core/detectHeurist.js"></script>
 
@@ -54,6 +42,8 @@ if(!defined('PDIR')){
 
     <script type="module" src="<?php echo PDIR;?>hclient/widgets/HRecordList/HRecordView.js"></script>
     <script type="module" src="<?php echo PDIR;?>hclient/widgets/HRecordList/HRecordList.js"></script>
+    <script type="module" src="<?php echo PDIR;?>hclient/widgets/HMenu/HMenu.js"></script>
+    <script type="module" src="<?php echo PDIR;?>hclient/widgets/HMenu/HMenuPersonal.js"></script>
 
     <script type="text/javascript" src="<?php echo PDIR;?>layout_default.js"></script>
     <script type="text/javascript" src="<?php echo PDIR;?>hclient/core/HLayoutMgr.js"></script>
@@ -64,6 +54,8 @@ if(!defined('PDIR')){
     -->
     <script type="text/javascript" src="<?php echo PDIR;?>hclient/core/ActionHandler.js"></script>
     <script type="text/javascript" src="<?php echo PDIR;?>hclient/widgets/cms/CmsManager.js"></script>
+    <script type="text/javascript" src="<?php echo PDIR;?>hclient/widgets/cms/WebSite.js"></script>
+
     
 <?php    
 if($useOldCode){
@@ -73,6 +65,19 @@ if($useOldCode){
     <script type="text/javascript" src="<?php echo PDIR;?>hclient/widgets/baseAction.js"></script>
     <script type="text/javascript" src="<?php echo PDIR;?>hclient/core/hRecordSearch.js"></script>
     <script type="text/javascript" src="<?php echo PDIR;?>hclient/core/utilsCollection.js"></script>
+    
+    <script type="text/javascript" src="<?php echo PDIR;?>hclient/widgets/search/svs_list.js"></script>
+    <script type="text/javascript" src="<?php echo PDIR;?>hclient/widgets/search/searchInput.js"></script>
+    <script type="text/javascript" src="<?php echo PDIR;?>hclient/widgets/search/search_faceted.js"></script>
+    <script type="text/javascript" src="<?php echo PDIR;?>hclient/widgets/editing/editing_input.js"></script>
+    <script type="text/javascript" src="<?php echo PDIR;?>hclient/widgets/editing/selectMultiValues.js"></script>
+    <script type="text/javascript" src="<?php echo PDIR;?>hclient/widgets/viewers/resultList.js"></script>
+    <script type="text/javascript" src="<?php echo PDIR;?>hclient/widgets/viewers/recordListExt.js"></script>
+    <script type="text/javascript" src="<?php echo PDIR;?>hclient/widgets/viewers/resultListCollection.js"></script>
+    <script type="text/javascript" src="<?php echo PDIR;?>hclient/widgets/viewers/app_storymap.js"></script>
+    <script type="text/javascript" src="<?php echo PDIR;?>hclient/widgets/viewers/app_timemap.js"></script>
+    <script type="text/javascript" src="<?php echo PDIR;?>hclient/widgets/cpanel/buttonsMenu.js"></script>
+    
     
     <link rel="stylesheet" type="text/css" href="<?php echo PDIR;?>external/jquery.fancybox/jquery.fancybox.css" />
     <script type="text/javascript" src="<?php echo PDIR;?>external/jquery.fancybox/jquery.fancybox.js"></script>
@@ -111,11 +116,17 @@ if(@$_REQUEST['edit']){
 
     
 <?php
-}
+}//edit
+
+// this script is included into WebSiteTemplate that in turn in WebSite.php
+// $this - is instance of WebSite class
+
+//include custom script and styles defined in CMS_HOME
+echo $this->getCustomScriptsAndStyles();
+
+//includes minimal info about website as json - title, descripton
+echo $this->getWebSiteInfo();
 ?>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-9ndCyUaIbzAi2FUVXJi0CjmCapSmO7SnpJef0486qhLnuZ2cdeRhO02iuK6FUUVM" crossorigin="anonymous">
-    
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" integrity="sha512-Evv84Mr4kqVGRNSgIGL/F/aIDqQb7xQ2vcrdIwxfjThSH8CSR7PBEakCr51Ck+w+/U6swU2Im1vVX0SVk9ABhg==" crossorigin="anonymous" referrerpolicy="no-referrer" />
     
     <!-- move to WebSite.js -->
     <script>
@@ -142,48 +153,58 @@ if(@$_REQUEST['edit']){
         
         function onHapiInit(success)
         {
+            if(!success){
+                return;
+            }
+            
+            // Successfully initialized system
+            
+            window.hWin.HAPI4.is_publish_mode = true; //to avoid mandatory login and other checks for admin part
 
             window.isHapiInited = true;
 
-            window.Hul = window.hWin.HEURIST4.util;
-
-            if(success) // Successfully initialized system
-            {
-
-                //webSite = new WebSite();
-
-                //init layout - init Heurist widgets on this page
-                //init layout
-                const pageTreeData = window.hWin.HAPI4.layoutMgr.layoutInit(pageContentJSON, 'main', {});
-
-                //init header
-                window.hWin.HAPI4.layoutMgr.layoutInit(null, 'header', 
-                        {HMenu:{onActionComplete:onPageLoad, onBeforeAction:onPageBeforeLoad}});
+            window.Hul = window.hWin.HEURIST4.util; //TBR: need only for consts in svs_list 
+            
+            <?php
                 
-                onPageLoad(<?php echo $this->getPageRecord()?>, pageTreeData);
-            }
-        }
-        
-        function onPageBeforeLoad(){
-            if(window.parent && window.parent.cmsEditor){
-                return window.parent.cmsEditor.warningOnExit();    
-            }
-            return true;
-        }
-        
-        //
-        // for edit
-        //        
-        function onPageLoad(record, pageTreeData){
-            if(window.parent && window.parent.cmsEditor){
-                if(pageTreeData){
-                    record['pageTreeData'] = pageTreeData;
+                /* not used, it loads page content on client site in WebSite.#iniPage
+                $page_content = $this->getPageContent(false);
+                $page_content_json = json_decode($page_content, true);
+                if($page_content_json){
+                    //cms version 2 - json array
+                    print 'let pageContentJSON = '.$page_content.';';
+                    $page_content = '';
+                }else{
+                    print 'let pageContentJSON = null;';
                 }
-                if(window.parent && window.parent.cmsEditor){
-                    window.parent.cmsEditor.onLoadPageContent(record);    
+                print 'let menuContentJSON = '.json_encode($menu_content).';'; //used in _editCMS_SiteMenu
+                print 'const siteId = '.$this->getSiteId().';';
+                print 'const pageId = '.$this->getPageId().';';
+                print 'const isWebPage = '.($this->isWebPage?'true':'false').';';
+                //{siteId:siteId, pageId:pageId, siteMenu:menuContentJSON, pageContent:pageContentJSON, isWebPage:isWebPage}
+                */
+
+                $webSiteOptions = $this->getWebSiteOptions(false);
+                $webSiteOptions = json_encode($webSiteOptions);
+            ?>
+            
+            window.hWin.HAPI4.EntityMgr.initialLoadDatabaseDefintions('all', ()=>{
+                
+                window.hWin.webSite = new WebSite(<?php echo $webSiteOptions; ?>);
+                
+                if(window.parent?.cmsEditor){
+                    //called once - on website init
+                    window.parent.cmsEditor.onWebSiteLoad();
                 }
-            }
+                
+            });
         }
         
+        /*
+        * global function to init proper image and links path 
+        */ 
+        function initLinksAndImages($container, search_data){
+            
+        }
     </script>
     

@@ -1,24 +1,18 @@
 <?php
-/*
-* ReportController.php
+/**
+* ReportController.php - Class ReportController
 *
-* @package     Heurist academic knowledge management system
+* Handler actions for report templates.
+*
+* @project     Heurist academic knowledge management system
+* @package Controller
 * @link        https://HeuristNetwork.org
-* @copyright   (C) 2005-2024 University of Sydney
+* @copyright   (C) 2005-2023 University of Sydney, (C) 2024 onwards Heurist Network
+* @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
 * @author      Artem Osmakov   <osmakov@gmail.com>
 * @author      Ian Johnson     <ian.johnson.heurist@gmail.com>
-* @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
-* @version     6.6
+* @since       6.6
 */
-
-/*
-* Licensed under the GNU License, Version 3.0 (the "License"); you may not use this file except in compliance
-* with the License. You may obtain a copy of the License at https://www.gnu.org/licenses/gpl-3.0.txt
-* Unless required by applicable law or agreed to in writing, software distributed under the License is
-* distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied
-* See the License for the specific language governing permissions and limitations under the License.
-*/
-
 namespace hserv\controller;
 
 use hserv\System;
@@ -32,7 +26,6 @@ use hserv\utilities\USanitize;
  * This class handles report-related actions such as executing, updating, listing,
  * importing, and exporting report templates.
  *
- * @package hserv\controller
  */
 class ReportController
 {
@@ -104,15 +97,16 @@ class ReportController
         $filename = null;
 
         try {
-            $template_file = $this->getTemplateFileName();
-            $template_body = $this->getTemplateBody();
 
             if ($this->req_params['template_id'] > 0 || $this->req_params['id'] > 0) {
                 $action = 'update';
             }
 
+            $template_file = $this->getTemplateFileName($action);
+            $template_body = $this->getTemplateBody();
+            
             if ($template_file && $action == null) {
-                $action = 'execute';
+                $action = 'execute'; //by default
             }
 
             switch ($action) {
@@ -126,11 +120,15 @@ class ReportController
                     break;
 
                 case 'list':
-                    $result = $this->repAction->getList();
+                    if(@$this->req_params['cms']){
+                        $result = $this->repAction->getListForCms($this->req_params['cms']);
+                    }else{
+                        $result = $this->repAction->getList();    
+                    }
                     break;
 
                 case 'get':
-                    $this->repAction->downloadTemplate($template_file);
+                    $this->repAction->downloadTemplate($template_file, @$this->req_params['cms']);
                     break;
 
                 case 'save':
@@ -213,10 +211,17 @@ class ReportController
      *
      * @return string|null The sanitized template file name.
      */
-    private function getTemplateFileName()
+    private function getTemplateFileName($action)
     {
         if (array_key_exists('template', $this->req_params)) {
-            return USanitize::sanitizeFileName(basename(urldecode($this->req_params['template'])), false);
+            
+            $templateName = USanitize::sanitizeFileName(basename(urldecode($this->req_params['template'])), false);
+
+            if($action==='get' &&  strpos($this->req_params['template'],'def/')===0){
+                $templateName = 'def/'.$templateName;
+            }
+            
+            return $templateName;
         }
 
         return null;

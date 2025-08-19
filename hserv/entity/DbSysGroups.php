@@ -1,27 +1,29 @@
 <?php
+/**
+* DbSysGroups.php - Class DbSysGroups
+*
+* Operations for workgroups stored in the `sysUGrps` table.
+*
+* @project     Heurist academic knowledge management system
+* @package Entity 
+* @link        https://HeuristNetwork.org
+* @copyright   (C) 2005-2023 University of Sydney, (C) 2024 onwards Heurist Network
+* @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
+* @author      Artem Osmakov   <osmakov@gmail.com>
+* @author      Ian Johnson     <ian.johnson.heurist@gmail.com>
+* @since       6.0
+*/
 namespace hserv\entity;
 use hserv\entity\DbEntityBase;
 
-    /**
-    * db access to usrUGrps table for workgroups
-    *
-    *
-    * @package     Heurist academic knowledge management system
-    * @link        https://HeuristNetwork.org
-    * @copyright   (C) 2005-2023 University of Sydney, (C) 2024 onwards Heurist Network
-    * @author      Artem Osmakov   <osmakov@gmail.com>
-    * @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
-    * @version     4.0
-    */
-
-    /*
-    * Licensed under the GNU License, Version 3.0 (the "License"); you may not use this file except in compliance
-    * with the License. You may obtain a copy of the License at https://www.gnu.org/licenses/gpl-3.0.txt
-    * Unless required by applicable law or agreed to in writing, software distributed under the License is
-    * distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied
-    * See the License for the specific language governing permissions and limitations under the License.
-    */
-
+/**
+* Class DbSysGroups
+*
+* Provides database access and operations for workgroups stored in the `sysUGrps` table.
+* It handles searching, creating, updating, and deleting workgroups, as well as
+* managing user memberships and roles within these groups.
+*
+*/
 require_once dirname(__FILE__).'/../records/edit/recordModify.php';//for recordDelete
 require_once dirname(__FILE__).'/../records/search/recordFile.php';
 
@@ -29,20 +31,53 @@ require_once dirname(__FILE__).'/../records/search/recordFile.php';
 class DbSysGroups extends DbEntityBase
 {
 
+    /**
+     * Constructor for DbSysGroups.
+     *
+     * Calls the parent constructor and sets `requireAdminRights` to false,
+     * as group management might be delegated. Specific actions are still
+     * permission-checked.
+     *
+     * @param \hserv\System $system The main Heurist system object.
+     * @param array|null $data Optional data to initialize the entity with.
+     */
     public function __construct( $system, $data=null ) {
        parent::__construct( $system, $data );
        $this->requireAdminRights = false;
     }
 
     /**
-    *  search groups
-    *
-    *  other parameters :
-    *  details - id|name|list|all or list of table fields
-    *  offset
-    *  limit
-    *  request_id
-    */
+     * Searches for workgroups (records in `sysUGrps` where `ugr_Type="workgroup"`)
+     * based on criteria in `$this->data`.
+     *
+     * This method extends the base search functionality. It first calls `parent::search()`
+     * to initialize the `DbEntitySearch` manager (`$this->searchMgr`) and validate
+     * common search parameters from `$this->data`.
+     *
+     * A mandatory filter `ugr_Type="workgroup"` is always applied.
+     * It then adds specific predicates for:
+     * - `ugr_ID`: If provided in `$this->data['ugr_ID']`.
+     * - `ugr_Name`: If provided in `$this->data['ugr_Name']`.
+     * - User membership: If `ugl_UserID` is provided in `$this->data`, it joins with `sysUsrGrpLinks`
+     *   to find groups the user is part of. `$this->data['ugl_Role']` can further filter by role.
+     *   The `$this->data['ugl_Join']` parameter can affect how this join is constructed (LEFT JOIN vs. implicit JOIN in WHERE).
+     *
+     * The fields returned depend on `$this->data['details']`:
+     * - 'id': Returns only `ugr_ID`.
+     * - 'name': Returns `ugr_ID`, `ugr_Name`.
+     * - 'count': Returns `ugr_ID` and a calculated `ugr_Members` count (number of users in the group).
+     * - 'list' or 'full': Returns core group fields (`ugr_ID`, `ugr_Name`, `ugr_LongName`, `ugr_Description`, `ugr_Enabled`).
+     *   If user membership was part of the criteria (`ugl_UserID` provided), `ugl_Role` is also included.
+     *   Both 'list' and 'full' modes also include the calculated `ugr_Members` count.
+     * - If `$this->data['details']` is an array or comma-separated string, those specific fields are selected (plus `ugr_Members` if sorting by it).
+     *
+     * The order of results is determined by `$this->searchMgr->setOrderBy()`.
+     *
+     * @return array|false An array containing the search results as structured by `DbEntitySearch::execute()`,
+     *                     typically including 'records', 'count', 'total_count', etc.
+     *                     Returns `false` if `parent::search()` fails (e.g., parameter validation error)
+     *                     or if the database query fails.
+     */
     public function search(){
 
 
@@ -159,6 +194,15 @@ class DbSysGroups extends DbEntityBase
     // validate permission for edit tag
     // for delete and assign see appropriate methods
     //
+    /**
+     * Validates if the current user has permission to modify/delete the specified workgroups.
+     *
+     * Users can only manage groups they are an admin of, unless they are the database owner.
+     * This method overrides the parent `_validatePermission`.
+     *
+     * @return bool True if the user has permission, false otherwise.
+     *              Errors are added to the system object on permission failure.
+     */
     protected function _validatePermission(){
 
         if(!$this->system->isDbOwner() && !isEmptyArray($this->recordIDs)){ //there are records to update/delete
@@ -188,6 +232,16 @@ class DbSysGroups extends DbEntityBase
     //
     //
     //
+    /**
+     * Prepares workgroup records before saving.
+     *
+     * - Sets `ugr_Type` to 'workgroup'.
+     * - Sets `ugr_Modified` to the current date/time.
+     * - Sets default `ugr_Password` and `ugr_eMail` placeholders (as these are not directly used for workgroups).
+     * - Validates `ugr_Name` for duplication.
+     *
+     * @return bool True if preparation is successful and validation passes, false otherwise.
+     */
     protected function prepareRecords(){
 
         $ret = parent::prepareRecords();
@@ -213,6 +267,15 @@ class DbSysGroups extends DbEntityBase
     //
     // add current user as admin for new group
     //
+    /**
+     * Saves workgroup records.
+     *
+     * After calling `parent::save()`:
+     * - Handles renaming any associated temporary image file (for `ugr_Thumb`).
+     * - For new groups, adds the current user as an 'admin' in `sysUsrGrpLinks`.
+     *
+     * @return array|false The result from `parent::save()` (array of saved IDs or false).
+     */
     public function save(){
 
         $savedRecIds = parent::save();
@@ -252,6 +315,19 @@ class DbSysGroups extends DbEntityBase
     //
     // delete group
     //
+    /**
+     * Deletes workgroup(s).
+     *
+     * Prevents deletion of the "Database Owners" group (ID 1) or groups that own non-temporary records.
+     * Before deleting the group from `sysUGrps`:
+     * - Deletes associated temporary records owned by the group.
+     * - Deletes links from `sysUsrGrpLinks`.
+     * - Deletes associated entries from `usrSavedSearches`, `usrTags`, and `usrRecPermissions`.
+     * - Deletes any associated group image file.
+     *
+     * @param bool $disable_foreign_checks Passed to `parent::delete()`.
+     * @return bool True on successful deletion of the group and associated data, false otherwise.
+     */
     public function delete($disable_foreign_checks = false){
 
         $this->recordIDs = null; //reset to obtain ids from $data
@@ -334,6 +410,20 @@ class DbSysGroups extends DbEntityBase
     // userIDs  - user roles to be changed
     // role - remove admin member
     //
+    /**
+     * Performs batch actions on workgroup memberships.
+     *
+     * Allows adding users to a group, removing users from a group, or changing a user's role
+     * within a group ('admin' or 'member').
+     * Prevents removing the last admin from a group.
+     *
+     * Expects `$this->data` to contain:
+     * - `role`: The action to perform ('remove', 'admin', 'member').
+     * - `groupID`: ID(s) of the group(s) to affect.
+     * - `userIDs`: ID(s) of the user(s) whose membership/role to change.
+     *
+     * @return bool True on success, false on failure (e.g., invalid parameters, permission issues, DB error).
+     */
     public function batch_action(){
 
         if(!in_array(@$this->data['role'],array('remove','admin','member'))){

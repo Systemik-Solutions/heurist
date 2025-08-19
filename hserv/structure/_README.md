@@ -1,14 +1,17 @@
-Directory:    /hserv/structure
+# Directory: hserv/structure
 
-Overview: This directory contains classes and functions to manipulate with database defintions
+## Overview
+This directory is concerned with the definition, management, and manipulation of the Heurist database structure. This includes entities like record types, fields, vocabularies, and their relationships.
 
-conceptCode.php - gets local code by concept code and vice versa 
-dbsTerms.php - class with methods to manipulate with terms in memory (loaded with dbs_GetTerms)
-dbsImport.php - class to import database definition from other database
-dbsSavedSearches.php - CRUD functions for usrSavedSearches
-dbsUsersGroups.php - CRUD functions for sysUGrps
+## Key files
+- `ConceptCode.php`: Static utility class for translating between local Heurist database IDs and global Concept IDs for definitions (Terms, DetailTypes, RecordTypes).
+- `dbsSavedSearches.php`: Functions library to work with the `usrSavedSearches` table. (To be replaced by entity/DbUsrSavedSearches).
+- `dbsTerms.php`: Provides an in-memory interface for accessing and manipulating Heurist term taxonomies (vocabularies).
+- `dbsUsersGroups.php`: Library for managing Users/Groups (from `sysUGrps` table) and User Preferences (from SESSION).
 
-Updated:     24th October 2023
-
--------------------------------------------------------------------------------------------------------------------------------------
-
+## Subfolders
+- `edit/`: Manages aspects of database structure editing.
+- `export/`: Manages aspects of database structure exporting.
+- `import/`: Manages aspects of database structure importing.
+- `search/`: Provides functionalities for searching or querying database structure elements.
+ 

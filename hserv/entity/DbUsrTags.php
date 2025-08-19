@@ -1,43 +1,67 @@
 <?php
+/**
+* DbUsrTags.php - Class DbUsrTags
+*
+* Operations for the `usrTags` table.
+*
+* @project     Heurist academic knowledge management system
+* @package Entity 
+* @link        https://HeuristNetwork.org
+* @copyright   (C) 2005-2023 University of Sydney, (C) 2024 onwards Heurist Network
+* @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
+* @author      Artem Osmakov   <osmakov@gmail.com>
+* @author      Ian Johnson     <ian.johnson.heurist@gmail.com>
+* @since       6.0
+*/
 namespace hserv\entity;
 use hserv\entity\DbEntityBase;
 
-    /**
-    * db access to usrTags table
-    *
-    *
-    * @package     Heurist academic knowledge management system
-    * @link        https://HeuristNetwork.org
-    * @copyright   (C) 2005-2023 University of Sydney, (C) 2024 onwards Heurist Network
-    * @author      Artem Osmakov   <osmakov@gmail.com>
-    * @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
-    * @version     4.0
-    */
-
-    /*
-    * Licensed under the GNU License, Version 3.0 (the "License"); you may not use this file except in compliance
-    * with the License. You may obtain a copy of the License at https://www.gnu.org/licenses/gpl-3.0.txt
-    * Unless required by applicable law or agreed to in writing, software distributed under the License is
-    * distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied
-    * See the License for the specific language governing permissions and limitations under the License.
-    */
-
 require_once dirname(__FILE__).'/../records/search/recordFile.php';
 
+/**
+* Class DbUsrTags
+*
+* Provides database access and operations for the `usrTags` table,
+* which stores user-created tags that can be applied to records.
+*
+* @package Entity
+*/
 class DbUsrTags extends DbEntityBase
 {
 
+    /** @var array Tag ID to replace the original tag */
+    private $newTagID = [];
+
     /**
-    *  search tags
-    *
-    *  other parameters :
-    *  details - id|name|list|all or list of table fields
-    *  offset
-    *  limit
-    *  request_id
-    *
-    *  @todo overwrite
-    */
+     * Searches for user tags (`usrTags`) based on criteria in `$this->data`.
+     *
+     * This method extends the base search functionality. It first calls `parent::search()`
+     * to initialize the `DbEntitySearch` manager (`$this->searchMgr`) and validate
+     * common search parameters. If `tag_UGrpID` is not provided in `$this->data`,
+     * it defaults to the current user's group IDs.
+     *
+     * It then adds specific predicates for this entity:
+     * - `tag_ID`: If provided in `$this->data['tag_ID']`.
+     * - `tag_Text`: If provided in `$this->data['tag_Text']`.
+     * - `tag_Modified`: If provided in `$this->data['tag_Modified']`.
+     * - `tag_UGrpID`: If provided or defaulted.
+     * - `rtl_RecID`: If provided in `$this->data['rtl_RecID']`, it joins with `usrRecTagLinks`
+     *   to find tags associated with specific record(s).
+     *
+     * The fields returned depend on `$this->data['details']`:
+     * - 'id': Returns only `tag_ID`.
+     * - 'label': Returns `tag_ID`, `tag_Text`.
+     * - 'name': Returns `tag_ID`, `tag_Text`, `tag_UGrpID`.
+     * - Default ('full'): Returns `tag_ID`, `tag_Text`, `tag_Description`, `tag_Modified`, `tag_UGrpID`,
+     *   and a calculated `tag_Usage` (count of records using the tag from `usrRecTagLinks`).
+     * - If `$this->data['details']` is an array or comma-separated string, those specific fields are selected.
+     *
+     * The order of results is determined by `$this->searchMgr->setOrderBy()`.
+     *
+     * @return array|false An array containing the search results as structured by `DbEntitySearch::execute()`,
+     *                     typically including 'records', 'count', 'total_count', etc.
+     *                     Returns `false` if `parent::search()` fails or a database query fails.
+     */
     public function search(){
 
         //fields - from configuration - list of field names
@@ -88,6 +112,16 @@ class DbUsrTags extends DbEntityBase
     // validate permission for edit tag
     // for delete and assign see appropriate methods
     //
+    /**
+     * Validates if the current user has permission to modify/delete the specified tags.
+     *
+     * Users can only manage tags they own or that belong to groups they are part of,
+     * unless they are the database owner.
+     * This method overrides the parent `_validatePermission`.
+     *
+     * @return bool True if the user has permission, false otherwise.
+     *              Errors are added to the system object on permission failure.
+     */
     protected function _validatePermission(){
 
         if(!$this->system->isDbOwner() && !isEmptyArray($this->recordIDs)){ //there are tags to update/delete
@@ -118,6 +152,14 @@ class DbUsrTags extends DbEntityBase
     //
     //
     //
+    /**
+     * Prepares tag records before saving.
+     *
+     * - For new tags, sets `tag_UGrpID` to the current user's ID if not already set.
+     * - Sets `tag_Modified` to the current date/time.
+     *
+     * @return bool Returns the result of `parent::prepareRecords()`.
+     */
     protected function prepareRecords(){
 
         $ret = parent::prepareRecords();
@@ -141,7 +183,8 @@ class DbUsrTags extends DbEntityBase
     * 2. find wrong permission
     * 3. find in use
     *
-    * @returns  array of 'deleted', 'no enough right'  and  'in use' ids
+    * @param bool $disable_foreign_checks Passed to `parent::delete()`.
+    * @return bool|array Result of `parent::delete()` if successful, false if deletion is blocked.
     */
     public function delete($disable_foreign_checks = false){
 
@@ -175,6 +218,14 @@ class DbUsrTags extends DbEntityBase
     //
     //  Replace one or several tags ($this->recordIDs) to new ONE ($this->newTagID)
     //
+    /**
+     * Replaces occurrences of one or more old tags with a single new tag in `usrRecTagLinks`.
+     *
+     * Optionally removes the old tags after replacement if `$this->data['removeOld']` is true.
+     *
+     * @return int|false The usage count of the new tag after replacement on success, or false on failure.
+     *                   Errors are added to the system object on failure.
+     */
     private function replaceTags(){
 
 
@@ -185,31 +236,31 @@ class DbUsrTags extends DbEntityBase
 
         $ret = false;
 
-            $newTagID = $this->newTagID[0];
+        $newTagID = $this->newTagID[0];
 
-            $update_query = 'UPDATE IGNORE usrRecTagLinks set rtl_TagID = '.$newTagID.' WHERE rtl_TagID in ('
-                 . implode(',', $this->recordIDs) . ')';
+        $update_query = 'UPDATE IGNORE usrRecTagLinks set rtl_TagID = '.$newTagID.' WHERE rtl_TagID in ('
+                . implode(',', $this->recordIDs) . ')';
 
-            $mysqli = $this->system->getMysqli();
+        $mysqli = $this->system->getMysqli();
 
-            $res = $mysqli->query($update_query);
-            if(!$res){
-                $this->system->addError(HEURIST_DB_ERROR, 'Cannot replace tags', $mysqli->error );
-            }else{
-                $ret = true;
-                if(@$this->data['removeOld']==1){
-                    $ret = parent::delete();
-                }
-                if($ret){
-                    //calculate new usage
-                    $query = 'SELECT COUNT(*) FROM usrRecTagLinks WHERE rtl_TagID = '.$newTagID;
-                    $ret = mysql__select_value($mysqli, $query);
-                    if($ret==null){
-                        $this->system->addError(HEURIST_DB_ERROR, 'Cannot find tag usage', $mysqli->error );
-                        $ret = false;
-                    }
+        $res = $mysqli->query($update_query);
+        if(!$res){
+            $this->system->addError(HEURIST_DB_ERROR, 'Cannot replace tags', $mysqli->error );
+        }else{
+            $ret = true;
+            if(@$this->data['removeOld']==1){
+                $ret = parent::delete();
+            }
+            if($ret){
+                //calculate new usage
+                $query = 'SELECT COUNT(*) FROM usrRecTagLinks WHERE rtl_TagID = '.$newTagID;
+                $ret = mysql__select_value($mysqli, $query);
+                if($ret==null){
+                    $this->system->addError(HEURIST_DB_ERROR, 'Cannot find tag usage', $mysqli->error );
+                    $ret = false;
                 }
             }
+        }
 
         return $ret;
     }
@@ -225,6 +276,26 @@ class DbUsrTags extends DbEntityBase
     //
     // D) replace several old tags (tagIDs) to new ONE (newTagID) see $this->replaceTags()
     //
+    /**
+     * Performs batch actions on tags and their assignments to records (`usrRecTagLinks`).
+     *
+     * Supported actions:
+     * 1. **Replace Tags**: If `newTagID` is provided in `$this->data`, calls `replaceTags()` to replace
+     *    tags specified in `tagIDs` with `newTagID`.
+     * 2. **Manage Record-Tag Links**: Otherwise, manages links between records (`recIDs`) and tags (`tagIDs`).
+     *    - `mode = 'replace'`: Removes all existing tags for the specified records, then assigns the new set of tags.
+     *    - `mode = 'remove'`: Removes the specified tags from the specified records.
+     *    - `mode = 'assign'` (default): Assigns the specified tags to the specified records.
+     *    Also handles creation of bookmarks if private tags are assigned.
+     *
+     * Requires permission validation for the tags being manipulated.
+     *
+     * @return array|bool|int Result of the batch operation:
+     *                        - For replace: Usage count of the new tag or false.
+     *                        - For link management: An array with counts of processed records, added/removed tags,
+     *                          and new bookmarks, or false on failure.
+     *                        Returns false if initial validation (e.g., missing IDs) fails.
+     */
     public function batch_action(){
 
         //tags ids

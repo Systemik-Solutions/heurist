@@ -1,32 +1,51 @@
 /**
-* HRecordView - A widget for displaying records in different formats:
-* - Custom renderer
-* - Standard PHP script output
-* - Custom Smarty template
-* 
-* Supported display modes:
-* - In a given container
-* - jQuery Dialog
-* - Bootstrap Modal
-* - Bootstrap Offcanvas
-* 
-* @package     Heurist academic knowledge management system
-* @link        https://HeuristNetwork.org
-* @copyright   (C) 2005-2023 University of Sydney, (C) 2024 onwards Heurist Network
-* @author      Artem Osmakov   <osmakov@gmail.com>
-* @version     7.0
-*/
-
-
+ * @file HRecordView.js
+ * @brief widget to render info for a particular Heurist record
+ * @fileOverview Content can be:
+ * - The built-in renderer (renderRecordData.php)
+ * - A built-in smarty template
+ * - A publisher’s smarty template.
+ * Programmatically render function can be defined as options.customRecordRender or overwrite the method renderContent if you use HRecordView as a template for a new widget.
+ * As a descendant of HBaseView it can be presented in
+ * - a given container (inline)
+ * - float or modal popup (jQuery Dialog or Bootstrap Modal)
+ * - offcanvas(side slide panel).  (Bootstrap Offcanvas)
+ * This widget is integrated with HRecordList and its properties can be defined
+ * along with the HRecordList property editor. As a standalone widget
+ * the ID of the record (to be rendered) can be obtained via the search group
+ * ON_SELECT event or defined as a widget property.
+ * @project     Heurist academic knowledge management system
+ * @link        https://HeuristNetwork.org
+ * @copyright   (C) 2005-2023 University of Sydney, (C) 2024 onwards Heurist Network
+ * @author      Artem Osmakov   <osmakov@gmail.com>
+ * @author      Ian Johnson <ian.johnson.heurist@gmail.com>
+ * @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
+ * @since       7.0
+ */
 import '../HBase/HBaseView.js';
 
+/**
+ * @class HRecordView
+ * @augments {HBaseView}
+ * @memberof Widgets.UI
+ * @description widget to render info for a particular Heurist record
+ * @param {object} options - Configuration options for the widget.
+ */
 $.widget( 'heurist.HRecordView', $.heurist.HBaseView, {
 
-    // Default options
+    /**
+     * @memberof Widgets.UI.HRecordView
+     * @type {object}
+     * @property {string} viewMode - The view mode.
+     * @property {string} entityType - The entity type.
+     * @property {number} recID - The record ID.
+     * @property {string} templateView - The template for the view.
+     * @property {function} customRecordRender - The custom record renderer.
+     */
     options: {
 
         // Defines where to display the record view:
-        // Possible values: '#html_id', 'inline', 'offcanvas-*', 'modal-*', 'popup' (jQuery dialog)
+        // Possible values: 'inline', 'offcanvas-*', 'modal-*', 'popup' (jQuery dialog)
         viewMode: 'popup',
 
         // Record type and ID
@@ -45,17 +64,22 @@ $.widget( 'heurist.HRecordView', $.heurist.HBaseView, {
 
 
     /**
-     * Cleanup function. Removes generated elements and event listeners.
+     * @private
+     * @memberof Widgets.UI.HRecordView
+     * @description Cleanup function. Removes generated elements and event listeners.
      */
     _destroy: function() {
         // remove generated elements
         if(this.iframe) {
             this.iframe.remove();
         }
+        this._super();
     },
     
     /**
-     * Initializes controls and triggers rendering.
+     * @private
+     * @memberof Widgets.UI.HRecordView
+     * @description Initializes controls and triggers rendering.
      */    
     _initControls:function(){
         this._super();
@@ -63,7 +87,8 @@ $.widget( 'heurist.HRecordView', $.heurist.HBaseView, {
     },
     
     /**
-     * Clears the content inside the container.
+     * @memberof Widgets.UI.HRecordView
+     * @description Clears the content inside the container.
      */
     clearContent: function(){
         
@@ -78,7 +103,8 @@ $.widget( 'heurist.HRecordView', $.heurist.HBaseView, {
     },
 
     /**
-     * Displays the record viewer.
+     * @memberof Widgets.UI.HRecordView
+     * @description Displays the record viewer.
      * @param {number} recID - The record ID to display (optional).
      */
     show: function(recID) {
@@ -92,7 +118,8 @@ $.widget( 'heurist.HRecordView', $.heurist.HBaseView, {
     },
     
     /**
-     * Renders the record content inside the container.
+     * @memberof Widgets.UI.HRecordView
+     * @description Renders the record content inside the container.
      */
     renderContent: function() {
         const selectedRecID = this.options.recID;
@@ -149,53 +176,4 @@ $.widget( 'heurist.HRecordView', $.heurist.HBaseView, {
         }
     }        
 
-/*
-    //
-    // Loads record details for page
-    //
-    _loadRecordDetails: function(){
-        
-        let that = this;
-
-        //request for records
-        if(this.options.entityType=='rec'){
-
-            const request = { q: `{"ids":this.options.recID}`,
-                w: 'a',
-                detail: 'header',
-                pageno: that._current_page };
-
-            this.HAPI.RecordMgr.search(request, function(response){
-                that._onGetRecordDetails(response);   
-            });
-                
-            
-        }else{
-            //TBD
-            const request = {
-                    'a'          : 'search',
-                    'entity'     : this.options.entityType,
-                    'details'    : 'list',
-                    'pageno'    : that._current_page
-            };
-            //request[this.options.entity.keyField] = ids;
-            this.HAPI.EntityMgr.doRequest(request, function(response){
-                that._onGetRecordDetails(response)
-            });
-        }
-        
-    },
-    
-    //
-    //
-    //
-    _onGetRecordDetails: function(response){
-        if(response.status == window.hWin.ResponseStatus.OK){
-            let recordSet = new HRecordSet( response.data );
-            this.options.customRecordRender(recordSet)
-        }else{
-            window.hWin.HEURIST4.msg.showMsgErr(response);
-        }
-    },
-*/    
 });

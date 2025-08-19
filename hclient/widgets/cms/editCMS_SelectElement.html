@@ -1,24 +1,19 @@
 <!--
 /**
-* Content for popup form to select element to be inserted into CMS page
-* 
-* @package     Heurist academic knowledge management system
+* editCMS_SelectElement.html - Dialog content for selecting a CMS element to insert.
+*
+* @fileOverview This HTML file defines the structure of the dialog used for selecting a new element, layout, widget, or template to insert into a CMS page. It includes a list of components and an area to display help text for the selected component. Logic is handled by editCMS_SelectElement.js.
+*
+* @project     Heurist academic knowledge management system
+* @package  hclient\widgets\cms
 * @link        https://HeuristNetwork.org
 * @copyright   (C) 2005-2023 University of Sydney, (C) 2024 onwards Heurist Network
-* @author      Artem Osmakov   <osmakov@gmail.com>
 * @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
-* @version     4.0
-*/
-
-/*
-* Licensed under the GNU License, Version 3.0 (the "License"); you may not use this file except in compliance
-* with the License. You may obtain a copy of the License at https://www.gnu.org/licenses/gpl-3.0.txt
-* Unless required by applicable law or agreed to in writing, software distributed under the License is
-* distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied
-* See the License for the specific language governing permissions and limitations under the License.
+* @author      Artem Osmakov <osmakov@gmail.com>
+* @author      Ian Johnson ian.johnson.heurist@gmail.com
+* @since       6.0
 */
 -->
-
 <style>
 
     optgroup{
@@ -67,7 +62,7 @@
     <div id="descriptions" style="padding:10px 5px;min-height:400px;font-size: 12px;">
         <div id="group">
             <div>
-                A group is normally used to keep several other elements togather so that they can be displayed and scaled across the page, for example a search on the left, results in the middle and a custom report or map on the right.
+                A group is normally used to keep several other elements together so that they can be displayed and scaled across the page, for example a search on the left, results in the middle and a custom report or map on the right.
                 <br><br>
                 Without groups, all the elements will normally be displayed one above the other.
             </div>
@@ -82,7 +77,44 @@
                 The simple text box may occupy the whole width of the page or be placed within a container or other element to be scaled in width and/or sit next to other elements.
             </div>
         </div>
+        
+        
+        <div id="cover">
+            <div>
+                Full screen background image, project logo, description and 'Get Started' button. Header and footer will be hidden.
+            </div>
+        </div>
 
+        <div id="landing">
+            <div>
+                Project title and logo, description and couple of buttons. Image on the right side. Header and footer are visible.
+            </div>
+        </div>
+
+        <div id="about">
+            <div>
+                Four section page: About project, Couple of Features, Our team.
+            </div>
+        </div>
+        
+        <div id="HMenu">
+            <div>
+                List of actions presented as list of buttons, navigation bar or tree view that allows to 
+                <ul>
+                <li>navigate to specified page</li>
+                <li>open record's info</li>
+                <li>execute saved filter</li> 
+                <li>add new record</li></ul>
+            </div>
+        </div>
+
+        <div id="features">
+            <div>
+                Features as cards with images, short description and links to particular pages of website
+            </div>
+        </div>
+        
+        
         <div id="missing">
             <div>
                 Description to be provided

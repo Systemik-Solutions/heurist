@@ -1,0 +1,118 @@
+<input name="menuItems" type="hidden" value=""/>
+<div id="tabs">
+<ul style="font-size: 0.5rem;">
+    <li><a href="#tab-content">Content</a></li>
+    <li><a href="#tab-setup">Setup</a></li>
+    <li><a href="#tab-connect">Connect</a></li>
+</ul>
+
+
+        <!-- content -->
+<div  id="tab-content" style="padding:10px 0px !important">
+        <div class="header" style="font-size: 0.7rem;padding-left: 10px;">Menu items (pages or actions)</div>
+        <div id="menuTree"></div>
+
+        <div style="text-align:center">
+            <button id="menuAddFolder">Add sub-menu</button>
+            <button id="menuAddEntry">Add top level menu entry</button>
+            <button id="menuAddSavedFilter">Add filter as menu</button>
+        </div>
+</div>
+<!--
+                    <input name="menu_recIDs" type="hidden" value=""/>
+                    <div id="menu_recIDs" style="display:table-row"></div>
+-->        
+
+
+<fieldset id="tab-setup"><legend style="display:none"></legend>
+
+        <div id="menuItems"></div>
+
+        <!-- appearance -->
+        <div>
+            <div class="header header_wide">
+                Orientation
+            </div>
+            <select name="viewMode" class="text ui-widget-content" style="min-width:200px">
+                <option value="horizontal">horizontal</option>
+                <option value="vertical">vertical</option>
+                <option value="treeview">treeview</option>
+            </select>
+        </div>
+        <div>
+            <div class="header header_wide">
+                Style
+            </div>
+            <select name="styleMode" class="text ui-widget-content" style="min-width:200px">
+                <option value="links">links</option>
+                <option value="pills">pills</option>
+            </select>
+        </div>
+        <div>
+            <div class="header header_wide">
+                On loading
+            </div>
+            <select name="expandLevels" class="text ui-widget-content" style="min-width:200px">
+                <option value="0">Show first level only</option>
+                <option value="1">Open second level</option>
+                <option value="2">Open all levels</option>
+            </select>
+        </div>
+        <span style="min-height:5rem;display:block"></span>
+</fieldset>
+
+        
+<fieldset id="tab-connect"><legend style="display:none"></legend>
+
+        <div>
+            <div class="header header_narrow">
+                HTML (DOM) ID
+            </div>
+
+            <input name="dom_id" class="text ui-widget-content"/>
+            <div class="heurist-helper3">Unique, arbitrary, HTML ID for widget, for reference in javascript and from other widgets</div>
+        </div>
+        <div>
+            <div class="header header_narrow">
+                Widget label
+            </div>
+
+            <input name="name" class="text ui-widget-content"/>
+            <div class="heurist-helper3">Please edit to clarify the tree</div>
+        </div>
+        
+        <div>
+            <div class="header header_narrow">
+                Search group
+            </div>
+            <input name="searchDomain" class="text ui-widget-content" value="search_group_1"/>
+            <div class="heurist-helper3">Arbitrary identifier for a group of widgets which accept search events</div>
+        </div>
+        
+        
+        <div>
+            <div class="header header_wide">
+                View filter as:
+            </div>
+            <select name="viewFilterMode" style="min-width:200px">
+                <option value="inline">inline</option>
+                <option value="popup">popup</option>
+                <option value="full" disabled="disabled">website viewer</option>
+                <option value="container" disabled="disabled">target element</option>
+                <option value="modal-sm">modal small</option>
+                <option value="modal-md">modal medium</option>
+                <option value="modal-lg">modal large</option>
+                <option value="modal-xl">modal xl</option>
+                <option value="modal-fullscreen">modal fullscreen</option>
+                <option value="offcanvas-start">offcanvas start</option>
+                <option value="offcanvas-end">offcanvas end</option>
+                <option value="offcanvas-top">offcanvas top</option>
+                <option value="offcanvas-bottom">offcanvas bottom</option>
+            </select>
+            <div class="heurist-helper3">Container/target for saved filter/faceted search dialog. This parameter can be defined for particular saved filter</div>
+        </div>
+
+</fieldset>
+
+
+</div>

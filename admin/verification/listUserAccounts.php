@@ -1,25 +1,26 @@
 <?php
-
 /**
-* listUserAccounts.php: All users and which databases they appear in, also listing how many records they and whether they're the db owner
+* listUserAccounts.php - Lists all user accounts across all databases on the server.
 *
-* @package     Heurist academic knowledge management system
+* @fileOverview This script iterates through all Heurist databases on the server and compiles a
+*               comprehensive list of all unique user accounts (based on email address).
+*               For each user, it details which databases they have an account in, the number
+*               of records they own in each of those databases, whether they are the database owner
+*               (user ID 2), and whether they are a database administrator (member of group ID 1
+*               with 'admin' role).
+*               The output is an HTML page with interactive filters for email, and toggles to show/hide
+*               owners and administrators.
+*               Requires an admin password.
+*
+* @project     Heurist academic knowledge management system
+* @package Admin
 * @link        https://HeuristNetwork.org
 * @copyright   (C) 2005-2023 University of Sydney, (C) 2024 onwards Heurist Network
+* @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
 * @author      Artem Osmakov   <osmakov@gmail.com>
 * @author      Ian Johnson     <ian.johnson.heurist@gmail.com>
-* @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
-* @version     6
+* @since       6
 */
-
-/*
-* Licensed under the GNU License, Version 3.0 (the "License"); you may not use this file except in compliance
-* with the License. You may obtain a copy of the License at https://www.gnu.org/licenses/gpl-3.0.txt
-* Unless required by applicable law or agreed to in writing, software distributed under the License is
-* distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied
-* See the License for the specific language governing permissions and limitations under the License.
-*/
-
 define('ADMIN_PWD_REQUIRED', 1);
 define('PDIR','../../');//need for proper path to js and css
 
@@ -64,8 +65,8 @@ foreach($databases as $database){
             $user_list[$usr_email] = [];
         }
 
-        $rec_count = mysql__select_value($mysqli, "SELECT COUNT(rec_ID) FROM Records WHERE rec_OwnerUGrpID = $usr_ID", 'intval');
-        $is_admin = mysql__select_value($mysqli, "SELECT ugl_ID FROM sysUsrGrpLinks WHERE ugl_GroupID = 1 AND ugl_Role = 'admin' AND ugl_UserID = $usr_ID");
+        $rec_count = mysql__select_value($mysqli, "SELECT COUNT(rec_ID) FROM Records WHERE rec_OwnerUGrpID = ?", ['i', $usr_ID]);
+        $is_admin = mysql__select_value($mysqli, "SELECT ugl_ID FROM sysUsrGrpLinks WHERE ugl_GroupID = 1 AND ugl_Role = 'admin' AND ugl_UserID = ?", ['i', $usr_ID]);
 
         $user_list[$usr_email][] = [
             $database,
@@ -89,6 +90,7 @@ ksort($user_list, SORT_FLAG_CASE);
         <meta http-equiv="content-type" content="text/html; charset=utf-8">
         <meta name="robots" content="noindex,nofollow">
 
+        <link rel=icon href="<?php echo PDIR;?>favicon.ico" type="image/x-icon">
         <link rel="stylesheet" type="text/css" href="<?php echo PDIR;?>h4styles.css" />
 
         <title>List of Users</title>

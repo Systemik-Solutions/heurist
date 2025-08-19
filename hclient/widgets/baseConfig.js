@@ -1,7 +1,7 @@
 /**
 * baseConfig.js - base widget for configuration widgets (lookups and repositories)
 *
-* @package     Heurist academic knowledge management system
+* @project     Heurist academic knowledge management system
 * @link        https://HeuristNetwork.org
 * @copyright   (C) 2005-2024 University of Sydney
 * @author      Brandon McKay <blmckay13@gmail.com>
@@ -311,7 +311,7 @@ $.widget("heurist.baseConfig", {
     //
     closeDialog: function(is_force){
 
-        if(!this.options.isdialog){
+        if(!this.options.isdialog || this._as_dialog.length === 0 || this._as_dialog.dialog('instance') === undefined){
             return;
         }
 

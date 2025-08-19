@@ -1,28 +1,15 @@
 <?php
 /**
-* databaseController.php
-* Interface/Controller for manipulations with database(s)
+* databaseController.php - Controller to manipulations with database(s)
 *
-* @package     Heurist academic knowledge management system
+* @project     Heurist academic knowledge management system
+* @package Controller
 * @link        https://HeuristNetwork.org
 * @copyright   (C) 2005-2023 University of Sydney, (C) 2024 onwards Heurist Network
-* @author      Artem Osmakov   <osmakov@gmail.com>
 * @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
-* @version     4.0
-*/
-
-/*
-action
-
-List
-
-Clear
-Clone
-Create
-Delete
-Rename
-Restore
-
+* @author      Artem Osmakov   <osmakov@gmail.com>
+* @author      Ian Johnson     <ian.johnson.heurist@gmail.com>
+* @since       4.0
 */
 set_time_limit(0);
 
@@ -483,11 +470,16 @@ $sErrorMsg = "Sorry, the database $db_source must be registered with an ID less 
 header(CTYPE_JSON);
 print json_encode($response);
 
-
-
-//
-//
-//
+/**
+ * Composes a database name from request parameters.
+ *
+ * Optionally prepends a sanitized username to a sanitized database name.
+ * Sets an error in the system object if the database name is missing.
+ *
+ * @param \hserv\System $system The system object.
+ * @param array $req_params The request parameters containing 'uname' (optional) and 'dbname'.
+ * @return string|false The composed database name, or false on error.
+ */
 function __composeDbName($system, $req_params){
 
     $uName = '';

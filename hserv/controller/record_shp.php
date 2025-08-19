@@ -1,41 +1,32 @@
 <?php
-    /**
-    * Converts shp+dbf files to geojson output or downloads zip archive based on Datasource record id
-    *
-    * Reads file map source record (KML, CSV or DBF) and returns content
-    * either as geojson (conversion), original file (acts as proxy) or zip archive
-    * (with metadata). No functions
-    * Usage: viewers/map/mapLayer2.js - to load kml,csv,dbf source as geojson.
-    *
-    * $_REQUEST parameters:
-    * recID   datasource record ID
-    * format  geojson - converts file to geojson,
-    *         rawfile - return zipped original file with metadata
-    *         n/a - works as proxy - it downloads original file with http header (mimetype, size)
-    *
-    * metadata - 1 include text file with link to flathml for format=rawfile
-    *
-    * When it generates geojson it simplifies path by removing extra points with given tolerance
-    *
-    * @uses mapSimplify.php
-    * @uses ShapefileAutoloader.php
-    *
-    * @package     Heurist academic knowledge management system
-    * @link        https://HeuristNetwork.org
-    * @copyright   (C) 2005-2023 University of Sydney, (C) 2024 onwards Heurist Network
-    * @author      Artem Osmakov   <osmakov@gmail.com>
-    * @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
-    * @version     4.0
-    */
+/**
+* record_shp.php - Handler to support shp+dbf for mapping widget
+* 
+* Converts shp+dbf files to geojson output or downloads zip archive based on Datasource record id.
+*
+* $_REQUEST parameters:
+* recID    - The ID of the datasource record (containing SHP/DBF files or a ZIP archive).
+* format   - (Optional) Specifies the output format. Possible values:
+*            geojson - Converts the SHP/DBF data to GeoJSON format.
+*            rawfile - Returns a zipped archive containing the original file(s) and metadata.
+*            (not specified) - Acts as a proxy, downloading the original file(s) with appropriate HTTP headers.
+* metadata - (Optional) If set to 1 and 'format' is 'rawfile', includes a text file with a link to a flat HML representation in the ZIP archive.
+*
+* When it generates geojson it simplifies path by removing extra points with given tolerance
+*
+* @uses mapSimplify.php
+* @uses ShapefileAutoloader.php
+*
+* @project     Heurist academic knowledge management system
+* @package Controller
+* @link        https://HeuristNetwork.org
+* @copyright   (C) 2005-2023 University of Sydney, (C) 2024 onwards Heurist Network
+* @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
+* @author      Artem Osmakov   <osmakov@gmail.com>
+* @author      Ian Johnson     <ian.johnson.heurist@gmail.com>
+* @since       4.0
+*/
 
-
-    /*
-    * Licensed under the GNU License, Version 3.0 (the "License"); you may not use this file except in compliance
-    * with the License. You may obtain a copy of the License at https://www.gnu.org/licenses/gpl-3.0.txt
-    * Unless required by applicable law or agreed to in writing, software distributed under the License is
-    * distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied
-    * See the License for the specific language governing permissions and limitations under the License.
-    */
     use hserv\utilities\USanitize;
     use hserv\utilities\UArchive;
 
@@ -296,9 +287,19 @@ global $is_api;
 
     $system->dbclose();
 
-//
-//
-//
+/**
+ * Checks if the coordinates are within WGS84 bounds.
+ *
+ * Iterates through a sample of points (or all points) to check if their
+ * longitude and latitude fall within the valid WGS84 range (-180 to 180 for longitude, -90 to 90 for latitude).
+ * Exits with an error if coordinates are outside these bounds.
+ *
+ * @global bool $is_api Flag indicating if the request is an API call.
+ * @param \hserv\System $system The system object.
+ * @param array $orig_points An array of points, where each point is an array [longitude, latitude].
+ * @param int|true $check_number_or_all The number of points to check, or true to check all points. Defaults to 3.
+ * @return bool True if all checked points are within WGS84 bounds.
+ */
 function checkWGS($system, $orig_points, $check_number_or_all=3){
 
     global $is_api;
@@ -306,7 +307,6 @@ function checkWGS($system, $orig_points, $check_number_or_all=3){
     $cnt = 0;
     foreach ($orig_points as $point) {
         //if not integer and less than 180/90 this is wgs
-        //!(($point[1]!=round($point[1])) || ($point[0]!=round($point[0]))
         if (!((abs($point[0])<200) && (abs($point[1])<90))){
                 $system->errorExitApi(
 'Cannot process shp file. Heurist uses WGS84 (World Geographic System) '
@@ -325,16 +325,24 @@ function checkWGS($system, $orig_points, $check_number_or_all=3){
     return true;
 }
 
-//
-// $fileinfo as fileGetFullInfo
-//
-// 1) external file is saved in scratch
-// 2) zipped extracted into scratch
-//
+/**
+ * Retrieves the path to a file, handling local files, remote URLs, and archives.
+ *
+ * If the file is remote, it's downloaded to a temporary location.
+ * If it's an archive and $isArchive is true, it's extracted, and the path
+ * to the file with the specified $need_ext extension is returned.
+ *
+ * @param array $fileinfo Associative array containing file information (e.g., from fileGetFullInfo).
+ *                        Expected keys: 'fullPath', 'ulf_ExternalFileReference', 'ulf_OrigFileName', 'fxm_MimeType'.
+ *                        Can also be nested under a 'file' key.
+ * @param string|null $need_ext The required file extension if extracting from an archive.
+ * @param bool $isArchive True if the file is an archive that needs extraction, false otherwise.
+ * @return string|null The path to the file, or null if not found or an error occurs.
+ */
 function fileRetrievePath($fileinfo, $need_ext=null, $isArchive=false){
 
     if(@$fileinfo['file']){
-        $fileinfo = $fileinfo['file'];//
+        $fileinfo = $fileinfo['file'];
     }
 
     $filepath = $fileinfo['fullPath'];//concat(ulf_FilePath,ulf_FileName as fullPath

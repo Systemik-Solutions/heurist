@@ -1,70 +1,62 @@
 <?php
-    /**
-    * Application interface. See HRecordMgr in hapi.js
-    * Record search and output in required format
-    * used in recordExportCSV.js
-    *
-    *
-    * parameters
-    * db - heurist database
-    * format = geojson|json|csv|kml|xml|hml|gephi|iiif
-    * linkmode = direct, direct_links, none, all
-    * prefs:{ format specific parameters }, }
-    *
-    * prefs for csv
-                csv_delimiter :','
-                csv_enclosure :'""
-                csv_mvsep     :'|',
-                csv_linebreak :'nix',
-                csv_header    :true
-                csv_headeronly:false
-                fields        : {rtid:[dtid1, dtid3, dtid2]}
-                include_term_ids
-                include_term_codes
-                include_file_url
-                include_record_url_html
-                include_record_url_xml
-                include_term_hierarchy
-                include_resource_titles
-                include_temporals
-    *
-    *
-    *
-    * prefs for json,xml
-    *           zip  : 0|1  compress
-    *           file : 0|1  output as file or printout (force download in browser)
-    *           defs : 0|1  include database definitions - NOT USED
-    *           restapi: 0|1  not include db description and heurist header
-    *
-    * prefs for geojson, json
-    *   extended 0 as is (in heurist internal format),
-    *            1 - interpretable,
-    *            2 - include concept code and labels
-    *            3 - simple plain object for mediaViewer (only records with file fields are included)
-    *   leaflet - true|false returns strict geojson and timeline data as two separate arrays, without details, only header fields rec_ID, RecTypeID and rec_Title
-    *   simplify  true|false simplify  paths with more than 1000 vertices
-    *
-    * datatable -   datatable session id
-    *               >1 and "q" is defined - save query request in session to result set returned,
-    *               >1 and "q" not defined and "draw" is defined - takes query from session
-    *                1 - use "q" parameter
-    *
-    *
-    * @package     Heurist academic knowledge management system
-    * @link        https://HeuristNetwork.org
-    * @copyright   (C) 2005-2023 University of Sydney, (C) 2024 onwards Heurist Network
-    * @author      Artem Osmakov   <osmakov@gmail.com>
-    * @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
-    * @version     4.0
-    */
-
-    /*
-    * Licensed under the GNU License, Version 3.0 (the "License"); you may not use this file except in compliance
-    * with the License. You may obtain a copy of the License at https://www.gnu.org/licenses/gpl-3.0.txt
-    * Unless required by applicable law or agreed to in writing, software distributed under the License is
-    * distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied
-    * See the License for the specific language governing permissions and limitations under the License.
-    */
+/**
+* record_output.php - Handler for records search and export
+*
+* It searches the records and outputs data in the required format.
+* For usage see HRecordMgr.search_new in hapi.js or export routines.
+*
+* parameters
+* db - The target Heurist database name.
+* format - Output format for the records. Supported: geojson, json, csv, kml, xml, hml, gephi, iiif.
+* linkmode - Specifies how links between records are handled. Options: direct, direct_links, none, all.
+* prefs - An object containing format-specific parameters.
+*
+* prefs for csv:
+*   csv_delimiter : (char) Delimiter character, e.g., ','.
+*   csv_enclosure : (char) Field enclosure character, e.g., '"'.
+*   csv_mvsep     : (char) Separator for multi-value fields, e.g., '|'.
+*   csv_linebreak : (string) Line break style, e.g., 'nix' (\n), 'win' (\r\n), 'mac' (\r).
+*   csv_header    : (boolean) If true, include a header row.
+*   csv_headeronly: (boolean) If true, output only the header row.
+*   fields        : (object) Defines specific fields to include, e.g., {rtid:[dtid1, dtid3, dtid2]} where rtid is record type ID and dtid is detail type ID.
+*   include_term_ids        : (boolean) If true, include term IDs.
+*   include_term_codes      : (boolean) If true, include term codes.
+*   include_file_url        : (boolean) If true, include file URLs.
+*   include_record_url_html : (boolean) If true, include HTML record URLs.
+*   include_record_url_xml  : (boolean) If true, include XML record URLs.
+*   include_term_hierarchy  : (boolean) If true, include term hierarchy information.
+*   include_resource_titles : (boolean) If true, include titles of linked resources.
+*   include_temporals       : (boolean) If true, include temporal data.
+*
+* prefs for json, xml:
+*   zip     : (0|1) If 1, compress the output.
+*   file    : (0|1) If 1, output as a downloadable file; otherwise, print to output.
+*   defs    : (0|1) Include database definitions (Currently NOT USED).
+*   restapi : (0|1) If 1, does not include database description and Heurist header, suitable for REST API responses.
+*
+* prefs for geojson, json:
+*   extended: (0|1|2|3) Specifies the level of detail for JSON/GeoJSON output:
+*             0 - As is (Heurist internal format).
+*             1 - Interpretable format.
+*             2 - Include concept codes and labels.
+*             3 - Simple plain object for mediaViewer (only records with file fields are included).
+*   leaflet : (true|false) If true, returns strict GeoJSON and timeline data as separate arrays, including only header fields (rec_ID, RecTypeID, rec_Title) and no other details.
+*   simplify: (true|false) If true, simplifies geometry paths with more than 1000 vertices.
+*
+* datatable - Session ID for datatable integration. Controls behavior for requests from a datatable widget:
+*             If >1 and "q" (query) is defined: Saves the query request in the session for the returned result set.
+*             If >1 and "q" is not defined and "draw" is defined: Takes the query from the session.
+*             If 1: Uses the "q" parameter directly for the search.
+*
+* @project     Heurist academic knowledge management system
+* @package Controller
+* @link        https://HeuristNetwork.org
+* @copyright   (C) 2005-2023 University of Sydney, (C) 2024 onwards Heurist Network
+* @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
+* @author      Artem Osmakov   <osmakov@gmail.com>
+* @author      Ian Johnson     <ian.johnson.heurist@gmail.com>
+* @since       4.0
+*/
 
     use hserv\utilities\USanitize;
     use hserv\records\export\RecordsExportCSV;
@@ -74,7 +66,6 @@
     require_once dirname(__FILE__).'/../records/search/recordSearch.php';
     require_once dirname(__FILE__).'/../records/search/recordFile.php';
     require_once dirname(__FILE__).'/../structure/dbsTerms.php';
-    require_once dirname(__FILE__).'/../utilities/Temporal.php';
     require_once dirname(__FILE__).'/../../admin/verification/verifyValue.php';
 
     $response = array();
@@ -105,6 +96,11 @@
     if(@$params['file_refs']){
         downloadFileReferences($system, $params['ids']);
         exit;
+    }elseif(array_key_exists('prepare', $params)){
+        prepareParameters('export', $params);
+        exit;
+    }elseif(array_key_exists('preparedID', $params)){
+        retrieveParameters('export', $params);
     }
 
     if(!@$params['format']){
@@ -292,12 +288,15 @@
 
 
 /**
- * Write file references out into CSV format
+ * Writes file references out into CSV format.
  *
- * @param hserv\System $system Initialised Heurist system
- * @param string|array $ids File ids to include (comma separated string or array)
- * @return none
- *  Output CSV file containing file references, or error message
+ * Retrieves details for specified uploaded files and outputs them as a CSV file.
+ * The CSV includes information such as file ID, name, path, URL, description,
+ * uploader, dates, and records referencing the file.
+ *
+ * @param \hserv\System $system Initialised Heurist system object.
+ * @param string|array $ids File IDs to include (comma-separated string, array, or 'all').
+ * @return void Outputs a CSV file or an HTML error message.
  */
 function downloadFileReferences($system, $ids){
 
@@ -323,7 +322,7 @@ function downloadFileReferences($system, $ids){
         exit;
     }
 
-    $sep = "\t";
+    $seperator = "\t";
 
     // retrieve file details
     $mysqli = $system->getMysqli();
@@ -356,7 +355,7 @@ function downloadFileReferences($system, $ids){
     // return setup
 
     // write results
-    fputcsv($fd, array("Uploaded_File_ID", "Name", "Path", "Obfuscated URL", "Description", "Caption", "Copyright", "Copy Owner", "File Type", "File Size (in KB)", "Checksum", "Uploaded By", "Added On", "Last Modified", "Original file name", "Referenced by", "New ref H-IDs"), $sep);
+    fputcsv($fd, ["Uploaded_File_ID", "Name", "Path", "Obfuscated URL", "Description", "Caption", "Copyright", "Copy Owner", "File Type", "File Size (in KB)", "Checksum", "Uploaded By", "Added On", "Last Modified", "Original file name", "Referenced by", "New ref H-IDs"], $seperator);
 
     /*
         [0] => File Name
@@ -379,19 +378,20 @@ function downloadFileReferences($system, $ids){
         $id = array_shift($details);
 
         $name = !empty($details[0]) ? $details[0] : $details[1];
-        $path = !empty($details[3]) ? $details[3] . $name : 'External Source';
+        $path = !empty($details[3]) ? "{$details[3]}{$name}" : 'External Source';
         $obf_url = empty($details[2]) ? 'missing' : HEURIST_BASE_URL . '?db=' . HEURIST_DBNAME . '&file=' . $details[2];
         $file_size = $details[6] == 0 ? 'remote' : $details[6];
 
         $fullpath = !empty($details[0]) ? resolveFilePath( $details[3].$details[0] ) : '';
         $checksum = empty($fullpath) ? 'remote' : md5_file($fullpath);
 
-        $usage_query = 'SELECT dtl_RecID FROM recDetails WHERE dtl_UploadedFileID = ' . $id;
+        $usage_query = "SELECT dtl_RecID FROM recDetails WHERE dtl_UploadedFileID = $id";
         $recs = mysql__select_list2($mysqli, $usage_query);
-        if(!$recs || empty($recs)){
-            $recs = array(0);
+        if(empty($recs)){
+            $recs = [0];
         }
-        fputcsv($fd, array($id, $name, $path, $obf_url, $details[4], $details[11], $details[12], $details[13], $details[5], $file_size, $checksum, $details[7], $details[8], $details[9], $details[10], implode('|', $recs), ""), $sep);
+
+        fputcsv($fd, [$id, $name, $path, $obf_url, $details[4], $details[11], $details[12], $details[13], $details[5], $file_size, $checksum, $details[7], $details[8], $details[9], $details[10], implode('|', $recs), ""], $seperator, "\"", "\\"); //, "\n"
     }
     $res_files->close();
 
@@ -401,5 +401,99 @@ function downloadFileReferences($system, $ids){
 
     $filename = HEURIST_DBNAME . '_File_References.csv';
     dataOutput($output, $filename, 'text/csv');
+}
+
+/**
+ * Store parameters to be used in an upcoming server call, this is done to avoid excessively long URLs that lead to 414 errors
+ * @todo: move location to somewhere more accessible, include retrieveParameters
+ *
+ * @param string $type Process type, e.g. 'export' or 'import'
+ * @param array $parameters Parameters to be saved, ignores 'prepare', 'replace' and 'DBGSESSID' keys
+ * @return void
+ */
+function prepareParameters($type, $parameters){
+
+    if(empty($parameters)){
+        dataOutput(['status' => HEURIST_OK, 'data' => null]);
+    }
+
+    $id = !is_numeric(@$parameters['prepare']) || intval($parameters['prepare']) <= 0 ? time() : intval($parameters['prepare']);
+
+    /*
+    0 - Complete replace
+    1 - Merge + maintain existing
+    2 - Merge + replace existing
+    */
+    $replace = !is_numeric(@$parameters['replace']) ? 0 : intval($parameters['replace']);
+    $replace = $replace > 2 || $replace < 0 ? 0 : $replace;
+
+    $paramsFile = HEURIST_SCRATCH_DIR . "{$type}_{$id}.json";//yml
+
+    $storedParameters = [];
+    if(file_exists($paramsFile)){
+        $storedParameters = file_get_contents($paramsFile);
+
+        $storedParameters = json_decode($storedParameters, true);
+        $storedParameters = json_last_error() !== JSON_ERROR_NONE ? [] : $storedParameters;
+    }
+
+    foreach($parameters as $key => $value){
+
+        if($key === 'prepare' || $key === 'replace' || $key === 'DBGSESSID'){
+            continue;
+        }elseif($replace !== 0 && array_key_exists($key, $storedParameters) && $key !== 'db'){
+            if(is_array($storedParameters[$key]) && is_array($value)){
+                $storedParameters[$key] = $replace === 1 ? array_merge($storedParameters[$key], $value) : array_merge($value, $storedParameters[$key]);
+                continue;
+            }elseif(is_string($storedParameters[$key]) && is_string($value)){
+                $storedParameters[$key] .= $value;
+                continue;
+            }
+        }
+
+        $storedParameters[$key] = $value;
+    }
+
+    file_put_contents($paramsFile, json_encode($storedParameters));
+
+    dataOutput(['status' => HEURIST_OK, 'data' => $id]);
+}
+
+/**
+ * Retrieve previously saved parameters, this will not replace existing keys
+ *
+ * @param string $type Process type, e.g. 'export' or 'import'
+ * @param array $parameters Parameters array to be updated with stored parameters
+ * @return void
+ */
+function retrieveParameters($type, &$parameters){
+
+    if(!is_numeric(@$parameters['preparedID'])){
+        return;
+    }
+
+    $id = intval($parameters['preparedID']);
+
+    $paramsFile = HEURIST_SCRATCH_DIR . "{$type}_{$id}.json";//yml
+
+    if(!file_exists($paramsFile)){
+        return;
+    }
+
+    $storedParameters = file_get_contents($paramsFile);
+
+    $storedParameters = json_decode($storedParameters, true);
+    $storedParameters = json_last_error() !== JSON_ERROR_NONE ? [] : $storedParameters;
+
+    foreach($storedParameters as $key => $value){
+        if(array_key_exists($key, $parameters)){
+            continue;
+        }
+        $parameters[$key] = $value;
+    }
+
+    fileDelete($paramsFile);
+
+    return;
 }
 ?>

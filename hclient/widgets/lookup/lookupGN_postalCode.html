@@ -1,34 +1,53 @@
+<!--
+/**
+* lookupGN_postalCode.html - HTML structure for GeoNames Postal Code Lookup.
+*
+* @fileOverview
+* This HTML file defines the layout and form elements for the
+* GeoNames postal code lookup widget. It includes input fields for a postal code,
+* a place name, and a country filter.
+* This structure is used by the `heurist.lookupGN_postalCode` jQuery UI widget.
+*
+* @project     Heurist academic knowledge management system
+* @package  hclient\widgets\lookup
+* @link        https://HeuristNetwork.org
+* @copyright   (C) 2005-2023 University of Sydney, (C) 2024 onwards Heurist Network
+* @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
+* @author      Artem Osmakov <osmakov@gmail.com>
+* @author      Ian Johnson <ian.johnson.heurist@gmail.com>
+* @since       6.0
+*/
+-->
 <div id="ent_header" style="height:6em; padding: 0.2em; width: 99%;">
-<fieldset style="float: left;" id="search_container"><legend style="display:none"></legend>
+    <fieldset style="float: left;" id="search_container"><legend style="display:none"></legend>
 
-    <div style="padding: 0.2em; width: 99%;" class="input">
+        <div style="padding: 0.2em; width: 99%;" class="input">
 
-        <div>
-            <div class="header required" style="padding: 0px 16px 0px 5px;">
-                <label for="inpt_placename">Place name:</label>
+            <div>
+                <div class="header required" style="padding: 0px 16px 0px 5px; width: 8em;">
+                    <label for="inpt_placename">Place name:</label>
+                </div>
+                <input id="inpt_placename" class="text ui-widget-content ui-corner-all search_on_enter" style="max-width: 30em;"/>
+
+                <div class="header required" style="padding: 0px 16px 0px 16px; width: 8em;">
+                    <label for="inpt_postalcode">Postal Code:</label>
+                </div>
+                <input id="inpt_postalcode" class="text ui-widget-content ui-corner-all search_on_enter" style="max-width:30em"/>
             </div>
-            <input id="inpt_placename" class="text ui-widget-content ui-corner-all search_on_enter" style="max-width: 30em;"/>
 
-            <div class="header required" style="padding: 0px 16px 0px 16px;">
-                <label for="inpt_postalcode">Postal Code:</label>
+            <div style="margin-top: 10px;">
+                <div class="header optional" style="padding: 0px 16px 0px 5px;">
+                    <label for="inpt_country">Country:</label>
+                </div>
+                <select id="inpt_country" class="text ui-widget-content ui-corner-all" style="max-width:30em"/>
             </div>
-            <input id="inpt_postalcode" class="text ui-widget-content ui-corner-all search_on_enter" style="max-width:30em"/>
+
         </div>
 
-        <div style="margin-top: 10px;">
-            <div class="header optional" style="padding: 0px 16px 0px 5px;">
-                <label for="inpt_country">Country:</label>
-            </div>
-            <select id="inpt_country" class="text ui-widget-content ui-corner-all" style="max-width:30em"/>
-        </div>
+    </fieldset>
 
-    </div>
+    <button id="btnStartSearch" style="position:relative;top:1em;left:2em;">Search</button>
 
-</fieldset>
-    <div style="display: inline-block;" id="btn_container">
-        <button id="btnStartSearch">Search</button>
-    </div>
 </div>
-<div id="div_result" class="ent_content_full" style="display: none;top:7em">
+<div id="div_result" class="ent_content_full" style="display: none;top:8em">
 </div>
-

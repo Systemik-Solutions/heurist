@@ -1,22 +1,24 @@
 <?php
-
 /**
-* fileDownload.php : Download (or proxy) files that are registered in Heurist database (recUploadedFiles)
-* Usually it is callled via redirection from index.php (if there is parameter file, thumb or url)
+* fileDownload.php - handler to download registered Records files
+* 
+* Download (or proxy) files that are registered in Heurist database (recUploadedFiles)
+* Usually it is called via redirection from index.php (if there is parameter file, thumb or url).
+* For entity images (rt icons, user, group images) see fileGet.php.
 *
-* for entity images (rt icons, user, group images) see fileGet.php
+* For entity images (rt icons, user, group images) see fileGet.php.
 *
-* db
-* thumb - obfuscated file id - returns existing thumbnail or resized image
-* file - obfuscated file id - uses fileGetFullInfo to get path to file or URL
-*
-* mode
-*   page - return
-*   tag - returns html wrap iframe with embed player, video, audio or img tag
-*   size - returns width and height (for images only!)
-*   url - rerurns url for uploaded_tilestacks
-* size - width and height for html tag
-* embedplayer - for player
+* Parameters: 
+* db - The target database name.
+* thumb - Obfuscated file ID for generating and returning a thumbnail or a resized image.
+* file - Obfuscated file ID for retrieving the full file; uses fileGetFullInfo to get the file path or URL.
+* mode - (Optional) Specifies the output mode. Possible values:
+*   page - Returns a full HTML page with an embedded player (if applicable).
+*   tag - Returns an HTML snippet (e.g., iframe, img, video, audio tag) for embedding the media.
+*   size - Returns the width and height of an image file.
+*   url - Returns the URL for uploaded_tilestacks.
+* size - (Optional) Specifies width and height for an HTML tag (e.g., for an image).
+* embedplayer - (Optional) If set to 1, attempts to embed a player for media types.
 *
 * Notes about thumbnails
 *    for uploaded file - thumbnail is created in
@@ -26,22 +28,15 @@
 *    if record has an rec_URL, the thumbnail is created with UImage::makeURLScreenshot
 *
 *
-* @package     Heurist academic knowledge management system
+* @project     Heurist academic knowledge management system
+* @package Controller
 * @link        https://HeuristNetwork.org
 * @copyright   (C) 2005-2023 University of Sydney, (C) 2024 onwards Heurist Network
-* @author      Artem Osmakov   <osmakov@gmail.com>
 * @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
-* @version     4.0
+* @author      Artem Osmakov   <osmakov@gmail.com>
+* @author      Ian Johnson     <ian.johnson.heurist@gmail.com>
+* @since       4.0
 */
-
-/*
-* Licensed under the GNU License, Version 3.0 (the "License"); you may not use this file except in compliance
-* with the License. You may obtain a copy of the License at https://www.gnu.org/licenses/gpl-3.0.txt
-* Unless required by applicable law or agreed to in writing, software distributed under the License is
-* distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied
-* See the License for the specific language governing permissions and limitations under the License.
-*/
-
 use hserv\utilities\USanitize;
 
 require_once dirname(__FILE__).'/../../autoload.php';
@@ -131,7 +126,7 @@ if(mysql__check_dbname($db)==null){
                     $url = HEURIST_BASE_URL.'?mode=tag&db='.basename($db).'&file='.$fileid.'&size='.$size;
 
                     ?>
-                    <!DOCTYPE HTML>
+                    <!DOCTYPE html>
                     <html lang="en" xmlns="http://www.w3.org/1999/xhtml">
                         <head>
                             <title>Heurist mediaplayer</title>

@@ -1,22 +1,26 @@
 <?php
-
 /**
-*  Email Users of any Heurist database located on this server, requires a Heurist Database + System Administrator password
+* bulkEmailMain.php - Main user interface for the Heurist Bulk Email utility.
 *
-* @package     Heurist academic knowledge management system
+* @fileOverview This script generates the HTML page that users interact with to send bulk emails.
+*               It requires System Administrator privileges to access. The page allows users to:
+*               - Filter and select target databases based on criteria like record count and last modification date.
+*               - Select target user groups (owners, managers, all users, etc.).
+*               - Choose an "Email" record from the current database to use as a template for subject and body.
+*               - Edit the email subject and body (with WYSIWYG editor support).
+*               - Preview user counts and database counts.
+*               - Initiate the email sending process (handled by `bulkEmailController.php` and `bulkEmailSystem.php`).
+*               - Export a CSV of targeted users and databases.
+*               It handles cases where the "Email" record type (2-9) might be missing and prompts for its download.
+*
+* @project     Heurist academic knowledge management system
+* @package Admin
 * @link        https://HeuristNetwork.org
 * @copyright   (C) 2005-2023 University of Sydney, (C) 2024 onwards Heurist Network
-* @author      Brandon McKay   <blmckay13@gmail.com>
 * @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
-* @version     6.0
-*/
-
-/*
-* Licensed under the GNU License, Version 3.0 (the "License"); you may not use this file except in compliance
-* with the License. You may obtain a copy of the License at https://www.gnu.org/licenses/gpl-3.0.txt
-* Unless required by applicable law or agreed to in writing, software distributed under the License is
-* distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied
-* See the License for the specific language governing permissions and limitations under the License.
+* @author      Brandon McKay <blmckay13@gmail.com>
+* @author      Ian Johnson <ian.johnson.heurist@gmail.com>
+* @since       6.0
 */
 
 define('PDIR','../../');//need for proper path to js and css
@@ -27,21 +31,10 @@ use hserv\utilities\USanitize;
 use hserv\structure\ConceptCode;
 
 require_once __DIR__ . '/../../hclient/framecontent/initPageMin.php';
-require_once __DIR__ . '/bulkEmailSystem.php';
 
 // Retrieve the System Administrator password securely.
 $sysadminPwd = USanitize::getAdminPwd();
 $req_params = USanitize::sanitizeInputArray();
-
-// Handle CSV export functionality.
-if (isset($req_params["exportCSV"]) && $req_params["exportCSV"] == 1) {
-    if ($system->verifyActionPassword($sysadminPwd, $passwordForServerFunctions)) {
-        echo "The System Administrator password is invalid, please re-try in the previous tab/window.";
-    } else {
-        getCSVDownload($req_params); // Trigger CSV download if verification succeeds.
-    }
-    exit;
-}
 
 // Check for required parameters and verify the system password.
 if (!isset($req_params['db']) || $system->verifyActionPassword($sysadminPwd, $passwordForServerFunctions)) {
@@ -206,6 +199,7 @@ $stmt->close();
         <script type="text/javascript" src="../../hclient/core/utils.js"></script>
         <script type="text/javascript" src="../../hclient/core/utils_ui.js"></script>
         <script type="text/javascript" src="../../hclient/core/utils_msg.js"></script>
+        <script type="text/javascript" src="<?php echo PDIR;?>external/tinymce5/tinymce.min.js"></script>
 
         <!-- Inner Styling and Script -->
         <style type="text/css">
@@ -323,27 +317,37 @@ $stmt->close();
         </style>
 
         <script type="text/javascript">
+            /**
+             * @fileOverview Inline JavaScript for the Bulk Email Main interface (bulkEmailMain.php).
+             * This script handles UI interactions, form validation, AJAX calls to the
+             * bulkEmailController.php, and dynamic updates to the page.
+             * @author Brandon McKay <blmckay13@gmail.com>
+             * @author Ian Johnson <ian.johnson.heurist@gmail.com>
+             */
 
             window.history.pushState({}, '', '<?php echo htmlspecialchars($_SERVER['PHP_SELF']);?>');
 
-            var all_emails = <?php echo json_encode($emails)?>;// Object of Email records id->title
+            const emailRecords = <?php echo json_encode($emails)?>;// Object of Email records id->title
+            let emailRec = 0; // Current email details being displayed
 
             const BASE_URL = "<?php echo HEURIST_BASE_URL ?>";
             const CURRENT_DB = "<?php echo $currentDb ?>";
-            var getting_databases = false; // Flag for database retrieval operation in progress; true - general, 1 - intial list, false - none
-            var run_filter = false;
-            var isFormSubmit = false;
+            var gettingDatabases = false; // Flag for database retrieval operation in progress; true - general, 1 - intial list, false - none
+            var runFilter = false;
+            var callInProgress = false;
 
-            const handled_sort = ['name', 'rec_count', 'last_update'];
-            var database_details = null; // [{name: db_name, rec_count: db_rec_count, last_update: db_last_update}, ...]
+            const handledSorts = Object.freeze(['name', 'rec_count', 'last_update']);
+            let databaseDetails = []; // [{name: db_name, rec_count: db_rec_count, last_update: db_last_update}, ...]
 
-            //
-            // Get list of currently selected databases
-            //
+            /**
+             * Gets the list of currently selected (checked) databases from the UI.
+             * Updates the hidden 'db_list' input field with a comma-separated string of selected database names.
+             * @returns {Array<string>} An array of selected database names (with HEURIST_DB_PREFIX).
+             */
             function getDbList(){
 
-                var checked_dbs = $("#dbSelection").find(".dbListCB:checked");
-                var dbs = [];
+                let dbs = [];
+                let checked_dbs = $("#dbSelection").find(".dbListCB:checked");
                 checked_dbs.each(function(idx, ele){
                     dbs.push($(ele).attr("id"));
                 });
@@ -354,14 +358,15 @@ $stmt->close();
                 return dbs;
             }
 
-            //
-            // Get list of all databases in current list
-            //
+            /**
+             * Gets a list of all databases currently displayed in the UI's selection area,
+             * regardless of their checked state.
+             * @returns {Array<string>} An array of all database names (with HEURIST_DB_PREFIX) in the list.
+             */
             function getAllDbs() {
 
-                var dbs = [];
-
-                var checked_dbs = $("#dbSelection").find(".dbListCB");
+                let dbs = [];
+                let checked_dbs = $("#dbSelection").find(".dbListCB");
                 checked_dbs.each(function(idx, ele){
                     dbs.push($(ele).attr("id"));
                 });
@@ -369,43 +374,20 @@ $stmt->close();
                 return dbs;
             }
 
-            //
-            // Prepare and run export script
-            //
-            function doExportCSV(e) {
-
-                if(!validateForm(e)) {
-                    return false;
-                }
-
-                //prevent dbl click
-                if(isFormSubmit){
-                    return;
-                }
-                isFormSubmit = true;
-
-                $("input[name='exportCSV']").val(1);
-
-                getDbList();
-                $("#emailOptions").trigger('submit');
-
-
-                $("input[name='exportCSV']").val('');
-
-                setTimeout('isFormSubmit=false', 5000);
-
-                return false;
-            }
-
-            //
-            // Valid main form
-            //
+            /**
+             * Validates the main email options form.
+             * Checks for required fields: database selection, email title, email body, and admin password.
+             * Also validates numeric inputs for record count and last modified period.
+             * Displays a flash message with errors if validation fails.
+             * @param {Event} e The event object, typically from a submit or button click.
+             * @returns {boolean} True if the form is valid, false otherwise.
+             */
             function validateForm(e) {
 
-                var isValid = true;
+                let isValid = true;
 
-                var err_text = "The following actions are required:<br><br>";
-                var messages = {
+                let err_text = "The following actions are required:<br><br>";
+                let messages = {
                     "dbs": "Select at least one database for use<br>",
                     "workgroups": "Select at least one workgroup for use<br>",
                     "title": "Please enter a Email Title<br>",
@@ -415,11 +397,11 @@ $stmt->close();
                     "invalid_period": "Last modified amount needs to be a non-negative number higher than one<br>"
                 };
 
-                var $dbSel = $("#dbSelection");
-                var $emailTitle = $("#emailTitle");
-                var $emailBody = $("#emailBody");
-                var $recCount = $("#recTotal");
-                var $lmPeriod = $("#recModified");
+                let $dbSel = $("#dbSelection");
+                let $emailTitle = $("#emailTitle");
+                let $emailBody = $("#emailBody");
+                let $recCount = $("#recTotal");
+                let $lmPeriod = $("#recModified");
 
                 if(!$dbSel.find("input[type='checkbox']").is(":checked")){
 
@@ -464,12 +446,16 @@ $stmt->close();
                 return isValid;
             }
 
-            //
-            // Setup database list (left hand section)
-            //
+            /**
+             * Populates the database selection area in the UI.
+             * Creates checkboxes for each database and sets up event handlers for selection
+             * and double-click. Initializes database and user counts to zero.
+             * @param {Array<string>} dbs An array of database names (with HEURIST_DB_PREFIX) to display.
+             * @returns {void}
+             */
             function setupDBSelection(dbs) {
 
-                var $db_selection = $("#dbSelection");
+                let $db_selection = $("#dbSelection");
 
                 if(window.hWin.HEURIST4.util.isempty(dbs)){
                     window.hWin.HEURIST4.msg.showMsgFlash("There are no databases based on the filters");
@@ -479,7 +465,7 @@ $stmt->close();
 
                 $.each(dbs, function(key, value) {
 
-                    var name = value.substring(4);
+                    const name = value.substring(4);
 
                     $db_selection.append(
                         "<div class='label non-selectable' title='"+ name +"'> "
@@ -501,7 +487,7 @@ $stmt->close();
                 $("#dbArea").find("#allDBs")
                     .on("click", function(e){
 
-                        var is_checked = $(e.target).is(":checked");
+                        const is_checked = $(e.target).is(":checked");
 
                         $db_selection.find(".dbListCB").prop("checked", is_checked);
 
@@ -520,12 +506,17 @@ $stmt->close();
                 $("#filterMsg").hide();
             }
 
-            //
-            // Sort database list
-            //
+            /**
+             * Sorts the displayed list of databases in the UI.
+             * The sorting is based on the `databaseDetails` global array and the selected sort order.
+             * Reorders the DOM elements in the #dbSelection container.
+             * @param {string} [order='name'] The field to sort by: 'name', 'rec_count', or 'last_update'.
+             *                                Defaults to 'name' or the currently checked radio button.
+             * @returns {void}
+             */
             function applyDBSort(order = 'name') {
 
-                if(getting_databases){
+                if(gettingDatabases){
                     setTimeout(() => {
                         applyDBSort(order);
                     }, 2000);
@@ -534,7 +525,7 @@ $stmt->close();
 
                 let $db_list = $('#dbSelection');
 
-                if(!database_details || database_details.length == 0){ // TODO: attempt another retrieval
+                if(databaseDetails.length === 0){
                     window.hWin.HEURIST4.msg.showMsgErr({
                         message: 'Unable to apply sort order to database list, there were no databases found/provided.',
                         error_title: 'Database sorting failed'
@@ -545,7 +536,7 @@ $stmt->close();
                 if(!order){
                     order = $('input[name="dbSortBy"]:checked').attr('id');
                 }
-                if(!order || window.hWin.HEURIST4.util.isempty(order) || !handled_sort.includes(order)){
+                if(!order || window.hWin.HEURIST4.util.isempty(order) || !handledSorts.includes(order)){
                     order = 'name';
                 }
 
@@ -555,8 +546,8 @@ $stmt->close();
 
                 $db_list.attr('data-order', order);
 
-                // Sort database_details
-                database_details.sort((a, b) => {
+                // Sort databaseDetails
+                databaseDetails.sort((a, b) => {
 
                     let a_item = a[order];
                     let b_item = b[order];
@@ -581,9 +572,9 @@ $stmt->close();
 
                 let $prev_child = null;
 
-                for(let i = 0; i < database_details.length; i++){
+                for(let i = 0; i < databaseDetails.length; i++){
 
-                    const name = database_details[i]['name'];
+                    const name = databaseDetails[i]['name'];
                     let $ele = $db_list.find('input[id="'+ name +'"]');
 
                     if($ele.length == 0){
@@ -601,19 +592,22 @@ $stmt->close();
                 }
             }
 
-            //
-            // Setup user filtering elements
-            //
+            /**
+             * Sets up the user selection dropdown menu.
+             * Populates it with options for user types (Owner, Manager, Admin, All Users)
+             * and attaches an event handler to update user counts on change.
+             * @returns {void}
+             */
             function setupUserSelection() {
 
-                var $user_selection = $('#userSelection');
+                let $user_selection = $('#userSelection');
 
-                var select = $("<select>")
+                let select = $("<select>")
                     .attr("name", "users")
                     .attr("id", "userSel")
                     .appendTo($user_selection);
 
-                var options = [
+                let options = [
                     {key:"owner", title:"Database Owner/s", selected: true},
                     {key:"manager", title:"Administrators - Database Managers"},
                     {key:"admin", title:"Administrators - All Workgroups"},
@@ -631,20 +625,23 @@ $stmt->close();
                 select.on("change", getUserCount);
             }
 
-            //
-            // Setup email selection elements
-            //
+            /**
+             * Sets up the email template selection dropdown menu.
+             * Populates it with "Email" records from the current database (titles from `emailRecords` global).
+             * Attaches an event handler to fetch and display email details (title and body) when a template is selected.
+             * @returns {void}
+             */
             function setupEmailSelection() {
 
-                var $email_selection = $("#emailOutline");
+                let $email_selection = $("#emailOutline");
 
-                var options = [
+                let options = [
                     {key:"null", title: "Select a email record..."},
                 ];
 
-                $.each(all_emails, function(idx, value){
+                $.each(emailRecords, function(idx, value){
 
-                    var opt = {key: idx, title: value};
+                    let opt = {key: idx, title: value};
 
                     options.push(opt);
                 });
@@ -654,25 +651,27 @@ $stmt->close();
                 $email_selection.on({
                     change: function(event) {
 
-                        var emailDraft = $(event.target).val();
+                        let emailDraft = $(event.target).val();
 
-                        if (emailDraft == null || emailDraft == "null") {
+                        if(!window.hWin.HEURIST4.util.isPositiveInt(emailDraft)){
                             $("#emailTitle").text("");
                             $("#emailBody").text("");
-                        } else {
-                            getEmailDetails(emailDraft);
+                        }else{
+                            getEmailDetails( emailDraft );
                         }
                     }
                 });
             }
 
-            //
-            // Setup remaining elements
-            //
+            /**
+             * Sets up event handlers and initial states for other UI elements.
+             * This includes the "Last Modified" filter controls and the "Apply Filter" and "Send Emails" buttons.
+             * @returns {void}
+             */
             function setupOtherElements() {
 
-                var modifySel = $("#recModifiedSel");
-                var modifyLogic = $("#recModifiedLogic");
+                let modifySel = $("#recModifiedSel");
+                let modifyLogic = $("#recModifiedLogic");
 
                 window.hWin.HEURIST4.util.setDisabled($("#recModified"), true);
                 window.hWin.HEURIST4.util.setDisabled($("#recModifiedLogic-button"), true);
@@ -693,10 +692,10 @@ $stmt->close();
                 });
 
                 $("#btnApply").on({
-                    click: function(event, data) {
+                    click: function(event) {
 
-                        if(getting_databases){
-                            run_filter = getting_databases == 1;
+                        if(gettingDatabases){
+                            runFilter = gettingDatabases == 1;
                             window.hWin.HEURIST4.msg.showMsgFlash('Please wait for the database list to update...', 5000);
                             return;
                         }
@@ -705,7 +704,7 @@ $stmt->close();
                         let cont_width = $('.l-col').width() + 50;
                         let cont_top = $('.l-col').position().top;
 
-                        getting_databases = true;
+                        callInProgress = true;
                         window.hWin.HEURIST4.msg.bringCoverallToFront($('.l-col'), {top: `${cont_top}px`, 'max-height': `${cont_height}px`, width: `${cont_width}px`, color: 'white', opacity: 0.8}, 'Appling database filter...');
 
                         $("#dbSelection").find(".dbListCB").off("change");
@@ -714,7 +713,8 @@ $stmt->close();
 
                         $("#filterMsg").show().text("Filtering Databases...");
 
-                        var data = {
+                        let data = {
+                            a: 'list_databases',
                             db: CURRENT_DB,
                             db_filtering: {
                                 count: $("#recTotal").val(),
@@ -727,7 +727,7 @@ $stmt->close();
                         }
 
                         $.ajax({
-                            url: 'bulkEmailOther.php',
+                            url: 'bulkEmailController.php',
                             type: 'POST',
                             data: data,
                             dataType: 'json',
@@ -754,14 +754,13 @@ $stmt->close();
                                     applyDBSort($('input[name="dbSortBy"]:checked').attr('id'));
 
                                 } else {
-
                                     if(window.hWin.HEURIST4.util.isempty(response.message)){
                                         window.hWin.HEURIST4.msg.showMsgErr({
                                             message: "An unknown error has occurred with retrieving the filtered list of databases.",
                                             status: window.hWin.ResponseStatus.UNKNOWN_ERROR
                                         });
                                     } else {
-                                        var msg = response.message + '<br>' + (!window.hWin.HEURIST4.util.isempty(response.error_msg) ? response.error_msg : '');
+                                        let msg = response.message + '<br>' + (!window.hWin.HEURIST4.util.isempty(response.error_msg) ? response.error_msg : '');
                                         window.hWin.HEURIST4.msg.showMsgErr({message: msg, error_title: 'Failed to retrieve database list'});
                                     }
                                 }
@@ -769,7 +768,9 @@ $stmt->close();
                             //always:
                             complete: function(jqXHR, textStatus){
 
-                                getting_databases = false;
+                                gettingDatabases = false;
+                                callInProgress = false;
+
                                 window.hWin.HEURIST4.msg.sendCoverallToBack();
 
                                 getUserCount();
@@ -787,8 +788,15 @@ $stmt->close();
                 $("#btnEmail").on("click", function(event){
                     if(validateForm(event)){
                         getDbList();
-                        $("input[name='exportCSV']").val('');
                         sendEmails();
+                        return false;
+                    }
+                });
+
+                $("#btnCSVExport").on("click", function(event){
+                    if(validateForm(event)){
+                        getDbList();
+                        exportCSV();
                         return false;
                     }
                 });
@@ -801,8 +809,21 @@ $stmt->close();
                 $('input[id="name"]').prop('checked', true);
             }
 
+            /**
+             * Initiates the process of sending emails.
+             * Serializes the form data, makes an AJAX request to the controller's 'send_emails' action,
+             * and displays a progress dialog that polls for updates.
+             * @returns {void}
+             */
             function sendEmails(){
 
+                if(callInProgress){
+                    window.hWin.HEURIST4.msg.showMsgFlash('A server call is already in progress, please wait for it to finish...', 6000);
+                    return;
+                }
+                callInProgress = true;
+
+                const SESSION_ID = window.hWin.HEURIST4.util.random();
                 let params = {};
                 let $prog_dlg;
                 let interval;
@@ -817,25 +838,41 @@ $stmt->close();
                     return params;
                 }, params);
 
-                const SESSION_ID = window.hWin.HEURIST4.util.random();
+                params['a'] = 'send_emails';
                 params['sessionID'] = SESSION_ID;
 
-                let mail_url = `${BASE_URL}admin/utilities/bulkEmailOther.php`;
+                let mail_url = `${BASE_URL}admin/utilities/bulkEmailController.php`;
 
                 window.hWin.HEURIST4.util.sendRequest(mail_url, params, null, (response) => {
+
+                    callInProgress = false;
 
                     if(interval > 0) { clearInterval(interval); interval = null; }
 
                     $prog_dlg.parent().find('.ui-dialog-titlebar button').show();
                     $prog_dlg.parent().find('.ui-dialog-buttonpane').show();
 
-                    window.hWin.HEURIST4.util.sendRequest(mail_url, {session: SESSION_ID, db: CURRENT_DB}, null, (session_resp) => {
+                    if(response?.data === 'terminated'){
+                        $prog_dlg.find('#email-results').html('<strong>CANCELLED</strong>');
+                        return;
+                    }
+                    
+                    if(response.status != 'ok'){
+                        $prog_dlg.find('#email-results').html(`<strong>${response.message}</strong>`);
+                        return;
+                    }else if(response.rec_Title){
+                        $prog_dlg.find('#email-results').html(`<strong>Saved final receipt as a Note record: ID #${response.data} ${response.rec_Title}</strong>`);
+                    }
+
+                    window.hWin.HEURIST4.util.sendRequest(mail_url, {a: 'session', session: SESSION_ID, db: CURRENT_DB}, null, (session_resp) => {
 
                         if(session_resp.status == 'ok'){
                             $prog_dlg.find('#progress-report').html(session_resp.data);
+                        
+                            if(session_resp.rec_Title){    
+                                $prog_dlg.find('#email-results').html(`<strong>Saved final receipt as a Note record: ID #${session_resp.data} ${session_resp.rec_Title}</strong>`);
+                            }
                         }
-
-                        $prog_dlg.find('#email-results').html(`<strong>Saved final receipt as a Note record: ID #${response.data} ${response.rec_Title}</strong>`);
                     });
                 });
 
@@ -865,17 +902,61 @@ $stmt->close();
 
             }
 
-            //
-            // Get complete list of databases on current server
-            //
+            /**
+             * Initiates the process of sending emails.
+             * Serializes the form data, makes an AJAX request to the controller's 'send_emails' action,
+             * and displays a progress dialog that polls for updates.
+             * @returns {void}
+             */
+            function exportCSV(){
+
+                if(callInProgress){
+                    window.hWin.HEURIST4.msg.showMsgFlash('A server call is already in progress, please wait for it to finish...', 6000);
+                    return;
+                }
+
+                const SESSION_ID = window.hWin.HEURIST4.util.random();
+                let params = {};
+                let $prog_dlg;
+                let interval;
+
+                $('#emailOptions').serializeArray().reduce((params, value) => {
+
+                    if(window.hWin.HEURIST4.util.isempty(value['value'])){
+                        value['value'] = 0;
+                    }
+
+                    params[value['name']] = value['value'];
+                    return params;
+                }, params);
+
+                params['a'] = 'csv_export';
+
+                let mail_url = `${BASE_URL}admin/utilities/bulkEmailController.php?${(new URLSearchParams(params).toString())}`;
+
+                window.open(mail_url, '_blank');
+            }
+
+            /**
+             * Fetches the initial complete list of databases from the server.
+             * Populates `databaseDetails` and calls `setupDBSelection` on success.
+             * Handles potential filtering if `runFilter` is true after the initial load.
+             * @returns {void}
+             */
             function getInitDbList() {
 
-                getting_databases = 1;
+                if(callInProgress){
+                    window.hWin.HEURIST4.msg.showMsgFlash('A server call is already in progress, please wait for it to finish...', 6000);
+                    return;
+                }
+                callInProgress = true;
+
+                runFilter = 1;
 
                 $.ajax({
-                    url: 'bulkEmailOther.php',
+                    url: 'bulkEmailController.php',
                     type: 'POST',
-                    data: {db: CURRENT_DB, db_filtering: "all", req_id: window.hWin.HEURIST4.util.random()},
+                    data: { a: 'list_databases', db: CURRENT_DB, db_filtering: "all", req_id: window.hWin.HEURIST4.util.random() },
                     dataType: 'json',
                     cache: false,
                     xhrFields: {
@@ -896,11 +977,16 @@ $stmt->close();
                     success: function(response, textStatus, jqXHR){
 
                         if(response.status == "ok"){
-                            database_details = response.data.details;
+
+                            databaseDetails = response.data.details;
                             setupDBSelection(response.data.list);
                             //applyDBSort('name'); already in alphabetic order by default
 
-                        } else {
+                            if(runFilter){
+                                runFilter = false;
+                                $("#btnApply").trigger('click');
+                            }
+                        }else{
 
                             if(window.hWin.HEURIST4.util.isempty(response.message)){
                                 window.hWin.HEURIST4.msg.showMsgErr({
@@ -908,32 +994,40 @@ $stmt->close();
                                     error_title: 'Unable to retrieve database list',
                                     status: window.hWin.ResponseStatus.UNKNOWN_ERROR
                                 });
-                            } else {
-                                var msg = response.message + '<br>' + (!window.hWin.HEURIST4.util.isempty(response.error_msg) ? response.error_msg : '');
+                            }else{
+                                let msg = response.message + '<br>' + (!window.hWin.HEURIST4.util.isempty(response.error_msg) ? response.error_msg : '');
                                 window.hWin.HEURIST4.msg.showMsgErr({message: msg, error_title: 'Failed to retrieve database list'});
                             }
                         }
                     },
                     complete: function(jqXHR, textStatus){
-                        getting_databases = false;
-
-                        if(textStatus == 'success' && run_filter){
-                            run_filter = false;
-                            $("#btnApply").trigger('click');
-                        }
+                        callInProgress = false;
                     }
                 });
             }
 
-            //
-            // Retrieve selected email details
-            //
-            function getEmailDetails(id) {
+            /**
+             * Retrieves the title and body for a selected email template record.
+             * Makes an AJAX call to the controller's 'email_details' action.
+             * Updates the email title input and TinyMCE editor content on success.
+             * @param {(string|number)} id The ID of the "Email" record to fetch details for.
+             * @returns {void}
+             */
+            function getEmailDetails(  ) {
+
+                if(callInProgress){
+                    window.hWin.HEURIST4.msg.showMsgFlash('A server call is already in progress, please wait for it to finish...', 6000);
+                    $("#emailOutline").val(emailRec);
+                    return;
+                }
+                callInProgress = true;
+
+                emailRec = $("#emailOutline").val();
 
                 $.ajax({
-                    url: 'bulkEmailOther.php',
+                    url: 'bulkEmailController.php',
                     type: 'POST',
-                    data: {db: CURRENT_DB, get_email: true, recid: id, req_id: window.hWin.HEURIST4.util.random()},
+                    data: { a: 'email_details', db: CURRENT_DB, recid: emailRec, req_id: window.hWin.HEURIST4.util.random() },
                     dataType: 'json',
                     cache: false,
                     xhrFields: {
@@ -952,31 +1046,43 @@ $stmt->close();
 
                         if(response.status == "ok"){
                             $("#emailTitle").val(response.data[0]);
-                            $("#emailBody").text(response.data[1]);
-                        } else {
-
-                            if(window.hWin.HEURIST4.util.isempty(response.message)){
-                                window.hWin.HEURIST4.msg.showMsgErr({
-                                    message: "An unknown error has occurred with retrieving email record details, please contact the Heurist team.",
-                                    error_title: 'Unable to retrieve email details',
-                                    status: window.hWin.ResponseStatus.UNKNOWN_ERROR
-                                });
-                            } else {
-                                var msg = response.message + '<br>' + (!window.hWin.HEURIST4.util.isempty(response.error_msg) ? response.error_msg : '');
-                                window.hWin.HEURIST4.msg.showMsgErr({message: msg, error_title: 'Failed to retrieve email details'});
+                            if(tinyMCE.activeEditor){
+                                tinyMCE.activeEditor.setContent(response.data[1]);
+                            }else{
+                                $("#emailBody").text(response.data[1]);
                             }
+
+                            return;
                         }
+
+                        if(window.hWin.HEURIST4.util.isempty(response.message)){
+                            window.hWin.HEURIST4.msg.showMsgErr({
+                                message: "An unknown error has occurred with retrieving email record details, please contact the Heurist team.",
+                                error_title: 'Unable to retrieve email details',
+                                status: window.hWin.ResponseStatus.UNKNOWN_ERROR
+                            });
+                        } else {
+                            let msg = response.message + '<br>' + (!window.hWin.HEURIST4.util.isempty(response.error_msg) ? response.error_msg : '');
+                            window.hWin.HEURIST4.msg.showMsgErr({message: msg, error_title: 'Failed to retrieve email details'});
+                        }
+                    },
+                    complete: () => {
+                        callInProgress = false;
                     }
                 });
             }
 
-            //
-            // Display record counts for databases
-            //
+            /**
+             * Displays record counts next to each database in the list and updates the total record count for selected databases.
+             * @param {(Object|Array)} data Either an object mapping database names (prefixed) to record counts,
+             *                            or an array of database detail objects (from `databaseDetails`).
+             *                            If empty, uses `databaseDetails` global.
+             * @returns {void}
+             */
             function displayRecordCount(data) {
 
                 if(window.hWin.HEURIST4.util.isempty(data)){
-                    data = database_details;
+                    data = databaseDetails;
                 }
                 if(window.hWin.HEURIST4.util.isempty(data)){
                     return;
@@ -1011,20 +1117,23 @@ $stmt->close();
                 $("#allDBs").parent().parent().find('span').show();
                 $("#recCount").text(total);
 
-                set_element_position();
+                setElementPosition();
             }
 
-            //
-            // Retrieve record count for list of databases
-            //
+            /**
+             * Retrieves and displays the record count for all listed databases.
+             * If `databaseDetails` already contains record counts, it uses that data directly.
+             * Otherwise, makes an AJAX call to the 'record_count' action.
+             * @returns {void}
+             */
             function getRecordCount() {
 
-                if(getting_databases){
-                    window.hWin.HEURIST4.msg.showMsgFlash('Please wait for the database list to update...', 3000);
+                if(callInProgress){
+                    window.hWin.HEURIST4.msg.showMsgFlash('A server call is already in progress, please wait for it to finish...', 6000);
                     return;
                 }
 
-                if(window.hWin.HEURIST4.util.isArrayNotEmpty(database_details) && Object.hasOwn(database_details[0], 'rec_count')){
+                if(window.hWin.HEURIST4.util.isArrayNotEmpty(databaseDetails) && Object.hasOwn(databaseDetails[0], 'rec_count')){
                     displayRecordCount();
                     return;
                 }
@@ -1035,15 +1144,17 @@ $stmt->close();
                     return;
                 }
 
-                var data = {
+                callInProgress = true;
+
+                let data = {
+                    a: 'record_count',
                     db: CURRENT_DB,
                     db_list: dbs,
-                    rec_count: 1,
                     req_id: window.hWin.HEURIST4.util.random()
                 };
 
                 $.ajax({
-                    url: 'bulkEmailOther.php',
+                    url: 'bulkEmailController.php',
                     type: 'POST',
                     data: data,
                     dataType: 'json',
@@ -1054,7 +1165,7 @@ $stmt->close();
                     error: (jqXHR, textStatus, errorThrown) => {
 
                         window.hWin.HEURIST4.msg.showMsgErr({
-                            message: "An error has occurred with retrieving the the user count for the selected databases and user type.<br>"
+                            message: "An error has occurred with retrieving the the record count for the selected databases.<br>"
                                     + `Error Details: ${jqXHR.status} => ${errorThrown}<br><br>`
                                     + "Please contact the Heurist team if this problem persists",
                             error_title: 'Failed to retrieve record count'
@@ -1073,41 +1184,50 @@ $stmt->close();
                                     status: window.hWin.ResponseStatus.UNKNOWN_ERROR
                                 });
                             } else {
-                                var msg = response.message + '<br>' + (!window.hWin.HEURIST4.util.isempty(response.error_msg) ? response.error_msg : '');
+                                let msg = response.message + '<br>' + (!window.hWin.HEURIST4.util.isempty(response.error_msg) ? response.error_msg : '');
                                 window.hWin.HEURIST4.msg.showMsgErr({message: msg, error_title: 'Failed to retrieve record count'});
                             }
                         }
+                    },
+                    complete: () => {
+                        callInProgress = false;
                     }
                 })
             }
 
-            //
-            // Count number of databases selected and update label
-            //
+            /**
+             * Counts the number of selected databases and updates the corresponding label in the UI.
+             * @returns {void}
+             */
             function getDBCount() {
 
                 const $sel_dbs = $("#dbSelection").find(".dbListCB:checked");
                 $("#dbCount").text($sel_dbs.length);
             }
 
-            //
-            // Get distinct user count for selected databases
-            //
+            /**
+             * Retrieves and displays the count of distinct users based on the selected databases and user type filter.
+             * Makes an AJAX call to the 'user_count' action.
+             * @returns {void}
+             */
             function getUserCount() {
 
-                if(getting_databases){
-                    window.hWin.HEURIST4.msg.showMsgFlash('Please wait for the database list to update...', 3000);
+                if(callInProgress){
+                    window.hWin.HEURIST4.msg.showMsgFlash('A server call is already in progress, please wait for it to finish...', 6000);
                     return;
                 }
 
-                var dbs = getDbList();
+                let dbs = getDbList();
 
                 if(dbs.length == 0){
                     $("#userCount").text('0');
                     return;
                 }
 
-                var data = {
+                callInProgress = true;
+
+                let data = {
+                    a: 'user_count',
                     db: CURRENT_DB,
                     user_count: $("#userSel").val(),
                     db_list: dbs.join(','),
@@ -1115,7 +1235,7 @@ $stmt->close();
                 };
 
                 $.ajax({
-                    url: 'bulkEmailOther.php',
+                    url: 'bulkEmailController.php',
                     type: 'POST',
                     data: data,
                     dataType: 'json',
@@ -1145,15 +1265,23 @@ $stmt->close();
                                     status: window.hWin.ResponseStatus.UNKNOWN_ERROR
                                 });
                             } else {
-                                var msg = response.message + '<br>' + (!window.hWin.HEURIST4.util.isempty(response.error_msg) ? response.error_msg : '');
+                                let msg = response.message + '<br>' + (!window.hWin.HEURIST4.util.isempty(response.error_msg) ? response.error_msg : '');
                                 window.hWin.HEURIST4.msg.showMsgErr({message: msg, error_title: 'Failed to retrieve user counts'});
                             }
                         }
+                    },
+                    complete: () => {
+                        callInProgress = false;
                     }
                 });
             }
 
-            function set_element_position(){
+            /**
+             * Adjusts the position of the "Send Emails" and "Export CSV" buttons
+             * based on the position of the password input field.
+             * @returns {void}
+             */
+            function setElementPosition(){
                 $("#btnEmail")
                     .position({
                         my: "left top+20",
@@ -1161,12 +1289,99 @@ $stmt->close();
                         of: "#sm_pwd"
                     });
 
-                $("#btnCsvExport")
+                $("#btnCSVExport")
                     .position({
                         my: "left+10 top",
                         at: "right top",
                         of: "#btnEmail"
                     });
+            }
+
+            /**
+             * Initializes the "View WYSIWYG" / "View Plain Text" button for the email body editor.
+             * Toggles between TinyMCE and a plain textarea.
+             * @returns {void}
+             */
+            function initEditorButton(){
+
+                let currentMode = 'Plain Text';
+
+                $('#btnSwitchEditor').on('click', () => {
+
+                    $('#btnSwitchEditor').text(`View ${currentMode}`);
+
+                    if(currentMode === 'Plain Text'){
+                        initTinyMCE();
+                        currentMode = 'WYSIWYG';
+                    }else{
+                        tinyMCE.remove();
+                        currentMode = 'Plain Text';
+                    }
+                });
+            }
+
+            /**
+             * Initializes the TinyMCE WYSIWYG editor on the #emailBody textarea.
+             * Configures plugins, toolbar, and custom buttons.
+             * @returns {void}
+             */
+            function initTinyMCE(){
+
+                if(typeof tinyMCE === 'undefined'){
+                    return;
+                }
+
+                let tinyMCEOptions = {
+                    selector: '#emailBody',
+                    menubar: false,
+                    inline: false,
+                    branding: false,
+                    elementpath: false,
+                    statusbar: true,
+                    resize: 'both', 
+
+                    remove_script_host: false,
+                    forced_root_block: false,
+
+                    entity_encoding:'raw',
+                    inline_styles: true,
+
+                    autoresize_bottom_margin: 15,
+                    autoresize_on_init: false,
+
+                    setup: function(editor){
+
+                        // Insert horizontal rule
+                        editor.ui.registry.addButton('customHRtag', {
+                            text: '&lt;hr&gt;',
+                            onAction: function (_) {
+                                tinyMCE.activeEditor.insertContent( '<hr>' );
+                            }
+                        });
+                        // Clear text formatting - to replace the original icon
+                        editor.ui.registry.addIcon('clear-formatting', `<img style="padding-left: 5px;" src="${BASE_URL}hclient/assets/clear_formatting.svg" />`)
+                        editor.ui.registry.addButton('customClear', {
+                            text: '',
+                            icon: 'clear-formatting',
+                            tooltip: 'Clear formatting',
+                            onAction: function (_) {
+                                tinyMCE.activeEditor.execCommand('RemoveFormat');
+                            }
+                        });
+                    },
+
+                    plugins: [
+                        'advlist autolink lists link preview ', //anchor charmap print 
+                        'searchreplace visualblocks code fullscreen',
+                        'media table paste help autoresize'  //insertdatetime  wordcount
+                    ],
+
+                    toolbar: ['styleselect | fontselect fontsizeselect | bold italic forecolor backcolor customClear customHRtag | link | align | bullist numlist outdent indent | table | help'],
+
+                    content_css: [ '//fonts.googleapis.com/css?family=Lato:300,300i,400,400i' ]
+                };
+
+                tinyMCE.init(tinyMCEOptions);
             }
 
             $(document).ready(function() {
@@ -1179,15 +1394,16 @@ $stmt->close();
                     window.hWin.HR = function(token){return token};
                 }
 
-                set_element_position();
+                setElementPosition();
 
                 $("#btnCalRecCount").on('click',getRecordCount);
 
                 getInitDbList();
+
+                initEditorButton();
             });
 
         </script>
-
     </head>
 
     <body style="margin: 10px 10px 10px 20px;">
@@ -1200,7 +1416,7 @@ $stmt->close();
                 The email to be sent should be created as a <strong>Email</strong> record in the current database, including subject line, body text and fields to be substituted using ##....## notation. <br><br>
             </span>
 
-            <form id="emailOptions" action="bulkEmailMain.php" method="POST" target="_blank">
+            <form id="emailOptions">
 
                 <div class="t-row">
 
@@ -1292,7 +1508,7 @@ $stmt->close();
                             Email Subject: <input type="text" id="emailTitle" name="emailTitle" style="margin-left: 5px;width: 86.6%;">
                         </div>
 
-                        <div class="non-selectable" style="margin-bottom: 10px;">Email Body (use html tags):</div>
+                        <div class="non-selectable" style="margin-bottom: 10px;">Email Body (use html tags): <span id="btnSwitchEditor">View WYSIWYG</span></div>
                         <textarea id="emailBody" rows="20" cols="90" name="emailBody"></textarea>
                     </div>
 
@@ -1332,7 +1548,9 @@ $stmt->close();
 
                     <div style="margin-top: 10px;">
 
-                        <button style="margin-left: 5px;" type="button" id="btnEmail">Send Emails</button>
+                        <button style="margin-left: 5px;" id="btnEmail">Send Emails</button>
+
+                        <button style="margin-left: 5px;" id="btnCSVExport">Export CSV</button>
 
                     </div>
 
@@ -1341,14 +1559,8 @@ $stmt->close();
                 <input name="db" value="<?php echo htmlspecialchars($_REQUEST['db']);?>" style="display: none;" readonly />
 
                 <input id="db_list" name="databases" type="hidden" />
-                <input name="exportCSV" value="0" type="hidden"/>
             </form>
-            <input type="button" id="btnCsvExport" value="Export CSV" onclick="doExportCSV(event)"/>
-<!--
-            <form id="csvExportForm" action="#" onsubmit="validateForm(event);return false;" style="display: inline-block;">
-                <input type="hidden" name="exportdata" id="exportData" />
-            </form>
--->
+
         </div>
 
     </body>

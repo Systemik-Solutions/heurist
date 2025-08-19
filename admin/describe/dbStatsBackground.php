@@ -1,22 +1,19 @@
 <?php
 /**
-* dbStatsBackground: Create a text file filled with simple statics about each database, stored locally, and sent to the Main server
+* dbStatsBackground.php - Creates and manages database statistics files.
 *
-* @package     Heurist academic knowledge management system
+* @fileOverview This script runs in the background to generate a text file (`db_stats.txt`)
+*               containing simple statistics for each database on the server. These statistics
+*               are stored locally and can be sent to a main Heurist server for aggregation.
+*               It also handles receiving stats files from other servers if this is the main server.
+* @project     Heurist academic knowledge management system
+* @package Admin
 * @link        https://HeuristNetwork.org
+* @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
 * @copyright   (C) 2005-2023 University of Sydney, (C) 2024 onwards Heurist Network
 * @author      Artem Osmakov   <osmakov@gmail.com>
 * @author      Ian Johnson     <ian.johnson.heurist@gmail.com>
-* @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
-* @version     6.0
-*/
-
-/*
-* Licensed under the GNU License, Version 3.0 (the "License"); you may not use this file except in compliance
-* with the License. You may obtain a copy of the License at https://www.gnu.org/licenses/gpl-3.0.txt
-* Unless required by applicable law or agreed to in writing, software distributed under the License is
-* distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied
-* See the License for the specific language governing permissions and limitations under the License.
+* @since       6.0
 */
 
 require_once __DIR__ . '/../../autoload.php';
@@ -41,6 +38,7 @@ if(empty($databases)){
 }
 
 $req_params = USanitize::sanitizeInputArray();
+$sysadmin_pwd = USanitize::getAdminPwd();
 
 define('SERVER_NAME', !defined('HEURIST_SERVER_NAME') || empty(HEURIST_SERVER_NAME) ? gethostbyname(gethostname()) : HEURIST_SERVER_NAME);
 
@@ -49,6 +47,8 @@ if(!$isPublic || SERVER_NAME == 'localhost' || SERVER_NAME == '127.0.0.1' || SER
     $system->errorExitApi('Function is not for local setups', HEURIST_ACTION_BLOCKED);
     exit;
 }
+
+$forcedRefresh = !empty($sysadmin_pwd) && $system->verifyActionPassword($sysadmin_pwd, $passwordForServerFunctions);
 
 $is_main_server = strpos(strtolower(HEURIST_BASE_URL), strtolower(HEURIST_MAIN_SERVER)) !== false;
 
@@ -72,14 +72,13 @@ if(array_key_exists('refresh', $req_params)){
 
     $last_update = file_exists(DB_STATS_FILE) ? filemtime(DB_STATS_FILE) : false;
 
-    if(!$last_update || $last_update < strtotime('-1 month')){
+    if(!$last_update || $last_update < strtotime('-1 month') || $forcedRefresh){
         createStats();
         sendStatsToMain();
     }
 
     dataOutput(['status' => HEURIST_OK, 'data' => 1]);
     exitScript();
-    exit;
 }
 
 // Uploading stats from external server
@@ -122,13 +121,15 @@ if(count($_FILES) == 1 && array_key_exists('stats_file', $_FILES)){
 
     dataOutput(['status' => HEURIST_OK, 'data' => 1]);
     exitScript();
-    exit;
 }
 
 /**
- * Send db_stats.txt to main server's _ALL_STATS
+ * Send db_stats.txt to main server's _ALL_STATS directory.
+ * If this is the main server, it zips the stats locally. Otherwise, it POSTs the file.
  *
- * @return never
+ * @global hserv\System $system The global system object.
+ * @global bool $is_main_server Flag indicating if this is the main Heurist server.
+ * @return void This function calls exitScript() and does not return.
  */
 function sendStatsToMain(){
 
@@ -146,17 +147,17 @@ function sendStatsToMain(){
 
         dataOutput(['status' => HEURIST_OK, 'data' => 1]);
         exitScript();
-        exit;
     }
 
     $file_path = resolveFilePath(DB_STATS_FILE);
+    $file_name = pathinfo($file_path, PATHINFO_BASENAME);
 
-    $curl_file = new CURLFile($file_path);
+    $curl_file = new CURLFile($file_path, 'text/plain', $file_name);
 
     $ch = curl_init($script);
 
     curl_setopt($ch, CURLOPT_POST, true);
-    curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query(['stats_file' => $curl_file, 'server' => SERVER_NAME, 'type' => 'db_stats']));
+    curl_setopt($ch, CURLOPT_POSTFIELDS, ['stats_file' => $curl_file, 'server' => SERVER_NAME, 'type' => 'db_stats']);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
 
     curl_setopt($ch, CURLOPT_FAILONERROR, true);
@@ -177,14 +178,14 @@ function sendStatsToMain(){
 
     dataOutput($response);
     exitScript();
-    exit;
 }
 
 /**
- * Create db_stats.txt file within local _DB_STATS
- *  Per database, includes: record count, last newest record, last record modification, new records per month
+ * Create db_stats.txt file within local _DB_STATS directory.
+ * Per database, includes: record count, last newest record, last record modification, new records per month.
  *
- * @return bool success or failure
+ * @global hserv\System $system The global system object.
+ * @return bool True on success, false on failure.
  */
 function createStats(){
 
@@ -196,7 +197,7 @@ function createStats(){
 
     $databases = mysql__getdatabases4($mysqli);
 
-    $head_liner = "Server: " . SERVER_NAME . "   Database count: " . count($databases) . "\n";
+    $head_liner = "Server: " . SERVER_NAME . "   Database count: " . count($databases) . "   Date: " . date("Y-m-d H:i:s") . "\n";
     if(!file_put_contents(DB_STATS_FILE,  $head_liner)){
         $system->addError(HEURIST_ERROR, 'Unable to write to stats file');
         return false;
@@ -236,11 +237,12 @@ function createStats(){
 }
 
 /**
- * Zips the db stats within _ALL_STATS
+ * Zips the db stats file into an archive within the _ALL_STATS directory.
  *
- * @param string $file_to_zip file going into zip achive
- * @param string $server_name used for zip name
- * @param bool $delete_original delete the original text file, if file is from external server
+ * @param string $file_to_zip     Path to the file to be zipped (e.g., db_stats.txt).
+ * @param string $server_name     The name of the server, used for naming the zip archive.
+ * @param bool   $delete_original Optional. If true, the original text file will be deleted after zipping. Defaults to false.
+ * @return void This function calls exitScript() on failure and does not return directly.
  */
 function zipStats($file_to_zip, $server_name, $delete_original = false){
 
@@ -254,7 +256,6 @@ function zipStats($file_to_zip, $server_name, $delete_original = false){
 
     if(!$zip->addFile($file_to_zip, "db_stats.txt")){
         $zip->close();
-        fileDelete($zip_name);
         exitScript(HEURIST_ERROR, 'Failed to add stats into zip', true);
     }
     $zip->close();
@@ -265,9 +266,11 @@ function zipStats($file_to_zip, $server_name, $delete_original = false){
 }
 
 /**
- * Check if directory: has been created and can be written to
+ * Checks if a directory exists and is writable. Creates it if it doesn't exist.
+ * Calls exitScript() on failure.
  *
- * @param string $dir directory to check
+ * @param string $dir The path to the directory.
+ * @return void This function calls exitScript() on failure and does not return directly.
  */
 function checkDirectory($dir){
 
@@ -286,11 +289,14 @@ function checkDirectory($dir){
 }
 
 /**
- * Remove file lock and exit on error if necessary
+ * Removes the lock file and exits the script.
+ * If an error is indicated, it calls the system error exit handler.
  *
- * @param string|null $status HTTP status code
- * @param string|null $msg error message
- * @param bool $is_error whether this is for an error
+ * @global hserv\System $system The global system object.
+ * @param string|null $status    HTTP status code (used if $is_error is true and $msg is provided).
+ * @param string|null $msg       Error message (used if $is_error is true).
+ * @param bool        $is_error  Whether this exit is due to an error.
+ * @return void This function always exits the script and does not return.
  */
 function exitScript($status = null, $msg = null, $is_error = false){
 
@@ -301,4 +307,6 @@ function exitScript($status = null, $msg = null, $is_error = false){
     if($is_error){
         empty($msg) ? $system->errorExitApi(null, null, false) : $system->errorExit($msg, $status);
     }
+
+    exit;
 }

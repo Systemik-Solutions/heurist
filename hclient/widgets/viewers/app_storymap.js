@@ -1,128 +1,210 @@
 /**
-* app_storymap.js - story map controller widget - it loads storyline and manage
-* story viewer (recordList with smarty report output), map and timeline (app_timemap.js)
-* 
-* It may init timemap internally or use some existing map widget via search_realm
+* @file        app_storymap.js
+* @brief       Controller for the Heurist StoryMap application, integrating with mapping and timeline components.
+* @fileOverview This file defines the 'heurist.app_storymap' jQuery UI widget. This widget
+*              acts as a controller for creating and displaying story maps. It manages a sequence
+*              of story elements (records), each potentially associated with geographic data,
+*              time data, and descriptive content. The widget integrates with a map display
+*              (potentially an `app_timemap` instance) and a result list for story element
+*              navigation. It allows users to step through a story, visualizing changes on the
+*              map and timeline, and viewing detailed reports for each story element. The story
+*              structure, element order, and display reports are configurable through widget
+*              options. It can also interact with Knight Lab's StoryMapJS, although the primary
+*              implementation seems to be internal Heurist components.
+* @project     Heurist academic knowledge management system
 *
-* @package     Heurist academic knowledge management system
 * @link        https://HeuristNetwork.org
 * @copyright   (C) 2005-2023 University of Sydney, (C) 2024 onwards Heurist Network
-* @author      Artem Osmakov   <osmakov@gmail.com>
 * @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
-* @version     4.0
+* @author      Artem Osmakov <osmakov@gmail.com>
+* @author      Ian Johnson <ian.johnson.heurist@gmail.com>
+* @since       6.0
 */
 
-/*
-* Licensed under the GNU License, Version 3.0 (the "License"); you may not use this file except in compliance
-* with the License. You may obtain a copy of the License at https://www.gnu.org/licenses/gpl-3.0.txt
-* Unless required by applicable law or agreed to in writing, software distributed under the License is
-* distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied
-* See the License for the specific language governing permissions and limitations under the License.
-*/
-
+/**
+ * @widget heurist.app_storymap
+ * @description Controller widget for displaying Heurist records as a story map.
+ * It coordinates a map, a timeline (potentially via `app_timemap`), and a list/viewer
+ * for story elements, allowing users to navigate through a narrative sequence.
+ * Each story element can trigger map changes, timeline updates, and display detailed information.
+ */
 $.widget( "heurist.app_storymap", {
 
-    // default options
+    /**
+     * @memberof heurist.app_storymap
+     * @instance
+     * @property {Object} options - Default options for the widget.
+     * @property {?string} options.search_realm - Accepts search/selection events from elements of the same realm only.
+     * @property {boolean} [options.tabpanel=false] - If true, indicates the widget is located within a tab panel, affecting layout.
+     * @property {Array<string|number>} [options.storyFields=[]] - Array of field IDs that define story elements. Supersedes `storyRectypes`.
+     * @property {Array<string|number>} [options.storyRectypes=[]] - Array of record type IDs that define story elements.
+     * @property {string} [options.elementOrder=''] - Field ID (dty_ID) used to order story elements. 'def' for default date ordering.
+     * @property {?number} options.storyRecordID - The ID of the main record that contains or links to story elements.
+     * @property {?string} options.reportOverview - Smarty template name for the story overview. Uses `storyRecordID`.
+     * @property {?string} options.reportOverviewMapFilter - Filter for events/story elements on the initial map view.
+     * @property {?string} options.reportEndPage - Smarty template name for the story's end page. Uses `storyRecordID`.
+     * @property {?string} options.reportElement - Smarty template name for displaying individual story elements.
+     * @property {string} [options.reportOverviewMode='inline'] - Display mode for overview: 'inline', 'tab', 'header', 'no'.
+     * @property {string} [options.reportEndPageMode='no'] - Display mode for end page: 'inline', 'tab', 'footer', 'no'.
+     * @property {string} [options.reportElementMode='vertical'] - Display mode for story elements: 'vertical', 'slide', 'tabs'.
+     * @property {string} [options.reportElementDistinct='unveil'] - How to distinguish active element: 'none', 'highlight', 'unveil'.
+     * @property {string} [options.reportElementSlideEffect=''] - jQuery UI effect for slide transitions.
+     * @property {string} [options.reportElementMapMode='linked'] - Map behavior for elements: 'linked' (shows linked places), 'filtered', 'all'.
+     * @property {string} [options.reportElementMapFilter=''] - Filter to apply when `reportElementMapMode` is 'filtered'.
+     * @property {?string} options.reportElementCss - Custom CSS for story elements.
+     * @property {boolean} [options.keepCurrentTime=true] - If true, tries to maintain current time view when story changes.
+     * @property {number} [options.zoomAnimationTime=5000] - Default duration for map zoom animations (ms).
+     * @property {?number|string} options.mapLayerID - Record ID(s) of map layers to load.
+     * @property {boolean} [options.mapKeep=false] - If true, keeps map elements loaded for previous story items visible.
+     * @property {?number|string} options.markerStyleID - Record ID of a marker style definition.
+     * @property {?Object} options.markerStyle - Direct marker style object.
+     * @property {?Array<Object>|string} options.storyActions - Predefined actions for story elements (e.g., zoom, highlight).
+     * @property {boolean} [options.init_completed=false] - Internal flag, set to true when widget initialization is fully complete.
+     * @property {?function} options.onClearStory - Callback function executed when the story is cleared.
+     * @property {string} [options.storyPlaceholder='Please select a story in the list'] - Placeholder text when no story is selected.
+     * @property {boolean} [options.blank_placeholder=false] - If true, placeholder is blank instead of default text.
+     * @property {string} [options.elementsPlaceholder='<br><br>There are no story elements to display for the selected item'] - Placeholder when a story has no elements.
+     * @property {string} [options.elementsPlaceholderSub='<i>Story elements may exist but not be publicly visible</i>'] - Sub-text for empty elements placeholder.
+     * @property {boolean} [options.show_print_button=false] - If true, shows a button to print the story map.
+     * @property {string} [options.language='def'] - Language for UI elements ('def' for default).
+     * @property {?Object} options.def_map_symbology - Default map symbology object.
+     * @property {?Object} options.def_story_symbology - Default story element symbology object.
+     */
     options: {
-        search_realm:  null,  //accepts search/selection events from elements of the same realm only
-        tabpanel: false,  //if true located on tabcontrol need top:30
+        search_realm:  null,
+        tabpanel: false,
 
         
-        storyFields: [],   // field ids that will be considered as story elements (superseed storyRectypes)
-        storyRectypes: [], // ids of rectypes that will be considered as story elements (1414-100 or 9-24 or 3-1006 or similar)
-        elementOrder: '', // field ID (dty_ID) to order story elements
+        storyFields: [],
+        storyRectypes: [],
+        elementOrder: '',
 
         
         // general options
-        storyRecordID: null, // record with story elements (it has links to)
-        reportOverview: null, // smarty report for overview. It uses storyRecordID
-        reportOverviewMapFilter: null, //filter for events/story elements in initial map
-        reportEndPage: null, // smarty report for the end page. It uses storyRecordID
+        storyRecordID: null,
+        reportOverview: null,
+        reportOverviewMapFilter: null,
+        reportEndPage: null,
         
-        reportElement: null,  // smarty report to draw items in resultList
+        reportElement: null,
         //story/result list parameters
-        reportOverviewMode: 'inline', // tab | header (separate panel on top), no
-        reportEndPageMode: 'no', // inline | tab | header (separate panel at bottom)
-        reportElementMode: 'vertical', //vertical | slide | tabs
-        reportElementDistinct: 'unveil', //none, heighlight, unveil (veil others)
+        reportOverviewMode: 'inline',
+        reportEndPageMode: 'no',
+        reportElementMode: 'vertical',
+        reportElementDistinct: 'unveil',
         reportElementSlideEffect: '', 
-        reportElementMapMode:'linked', //filtered, all
+        reportElementMapMode:'linked',
         reportElementMapFilter:'',
         reportElementCss: null,
 
         // timemap parameters
-        keepCurrentTime: true, //keep current time on story change and load appropriate element
+        keepCurrentTime: true,
         //NOT USED use_internal_timemap: false, 
         //NOT USED mapDocumentID: null, //map document to be loaded (3-1019)
         
-        zoomAnimationTime: 5000 //default value is 5000ms, it can be overwritten by animation parameters per story element
+        zoomAnimationTime: 5000,
         
         //by default story element loads linked or internal places, or linked map layers
         //if story element has start (1414-1092 or 2-134), transition (1414-1090) and end places (1414-1088 or 2-864) they are preferable
         
         //show/animation parameters per story element
-        , mapLayerID: null  // record ids to load on map (3-1020)
-        , mapKeep: false    // keep elements on map permanently otherwise it will be unload for next story element
-        , markerStyleID: null // record id (2-99) to define style (unless it is defined in map layers)
-        , markerStyle: null   // 
-        , storyActions: null  // zoom_in, zoom_out, follow_path, ant_path, fade_out, bounce, highlight, show_report
+        mapLayerID: null,
+        mapKeep: false,
+        markerStyleID: null,
+        markerStyle: null,
+        storyActions: null,
         
-        , init_completed: false   //flag to be set to true on full widget initializtion
+        init_completed: false,
         
-        , onClearStory: null
+        onClearStory: null,
 
-        , storyPlaceholder: 'Please select a story in the list' // placeholder text
-        , blank_placeholder: false // leave placeholder blank
-        , elementsPlaceholder: '<br><br>There are no story elements to display for the selected item'
-        , elementsPlaceholderSub: '<i>Story elements may exist but not be publicly visible</i>'
+        storyPlaceholder: 'Please select a story in the list',
+        blank_placeholder: false,
+        elementsPlaceholder: '<br><br>There are no story elements to display for the selected item',
+        elementsPlaceholderSub: '<i>Story elements may exist but not be publicly visible</i>',
 
-        , show_print_button: false // show button to print storymaps
+        show_print_button: false,
         
-        , language: 'def'
+        language: 'def',
 
-        , def_map_symbology: null
-        , def_story_symbology: null
+        def_map_symbology: null,
+        def_story_symbology: null
     },
 
-    _resultset_main: null, // current all stories
-    _resultset: null, // current story element list - story elements
-    _resultList: null, 
-    _tabs: null, //tabs control for overview/stories/end page
-    _mapping: null,    // mapping widget
-    _mapping_onselect: null, //mapping event listener
+    /** @memberof heurist.app_storymap @instance @private @property {?HRecordSet} _resultset_main - RecordSet of all available stories. */
+    _resultset_main: null,
+    /** @memberof heurist.app_storymap @instance @private @property {?HRecordSet} _resultset - RecordSet of elements for the currently active story. */
+    _resultset: null,
+    /** @memberof heurist.app_storymap @instance @private @property {?jQuery} _resultList - jQuery element for the story element list (resultList widget). */
+    _resultList: null,
+    /** @memberof heurist.app_storymap @instance @private @property {?jQuery} _tabs - jQuery UI tabs widget instance if tabbed layout is used. */
+    _tabs: null,
+    /** @memberof heurist.app_storymap @instance @private @property {?jQuery} _mapping - jQuery element of the associated map widget (usually `app_timemap`). */
+    _mapping: null,
+    /** @memberof heurist.app_storymap @instance @private @property {?function} _mapping_onselect - Callback for map selection events. */
+    _mapping_onselect: null,
+    /** @memberof heurist.app_storymap @instance @private @property {?L} _L - Reference to the Leaflet library instance from the map widget. */
     _L: null, //refrence to leaflet
     
-    _all_stories_id: 0, //leaflet layer id with all stories
+    /** @memberof heurist.app_storymap @instance @private @property {number} _all_stories_id - Leaflet layer ID for the layer showing all story locations. */
+    _all_stories_id: 0,
 
+    /** @memberof heurist.app_storymap @instance @private @property {number} _storylayer_id - Leaflet layer ID for the current story's timeline/map elements. */
     _storylayer_id: 0,
+    /** @memberof heurist.app_storymap @instance @private @property {Object} _cache_story_geo - Cache for GeoJSON data of stories, keyed by storyRecordID. */
     _cache_story_geo: {},
+    /** @memberof heurist.app_storymap @instance @private @property {Object} _cache_story_time - Cache for timeline data of stories, keyed by storyRecordID. */
     _cache_story_time: {},
+    /** @memberof heurist.app_storymap @instance @private @property {?Object} _cache_story_places - Cache for place data related to story elements, keyed by story element recID. */
     _cache_story_places: null,
     
+    /** @memberof heurist.app_storymap @instance @private @property {number} _currentElementID - Record ID of the currently active/displayed story element. */
     _currentElementID: 0,
+    /** @memberof heurist.app_storymap @instance @private @property {number} _initialElementID - Record ID of the story element to show initially. */
     _initialElementID: 0,
+    /** @memberof heurist.app_storymap @instance @private @property {?Array} _currentTime - Current time range from the timeline. */
     _currentTime: null,
-    _nativelayer_id: 0, //current layer for Story Elements
+    /** @memberof heurist.app_storymap @instance @private @property {number} _nativelayer_id - Leaflet layer ID for the currently displayed story element's native map features. */
+    _nativelayer_id: 0,
     
+    /** @memberof heurist.app_storymap @instance @private @property {boolean|number} _terminateAnimation - Flag or recID to signal termination of ongoing animations. */
     _terminateAnimation: false,
-    _animationResolve: null, 
+    /** @memberof heurist.app_storymap @instance @private @property {?function} _animationResolve - Resolve function for animation promises. */
+    _animationResolve: null,
+    /** @memberof heurist.app_storymap @instance @private @property {?function} _animationReject - Reject function for animation promises. */
     _animationReject: null,
     
+    /** @memberof heurist.app_storymap @instance @private @property {?jQuery} _initial_div_message - jQuery element for displaying initial placeholder messages. */
     _initial_div_message:null,
     
+    /** @memberof heurist.app_storymap @instance @private @property {number} _expected_onScroll_timeout - Timeout ID for scroll-triggered story element activation. */
     _expected_onScroll_timeout: 0,
+    /** @memberof heurist.app_storymap @instance @private @property {number} _expected_onScroll - Record ID of the story element expected to be activated by scroll. */
     _expected_onScroll: 0,
     
+    /** @memberof heurist.app_storymap @instance @private @property {number} _timeout_count - Counter for timeouts, used for retry logic. */
     _timeout_count:0,
     
+    /** @memberof heurist.app_storymap @instance @private @property {?jQuery} _btn_clear_story - Button to clear/close the current story. */
     _btn_clear_story: null,
 
+    /** @memberof heurist.app_storymap @instance @private @property {?jQuery} _print_button - Button to print the storymap. */
     _print_button: null,
 
+    /** @memberof heurist.app_storymap @instance @private @property {?jQuery} pnlOverview - jQuery panel for the story overview content. */
     pnlOverview: null,
+    /** @memberof heurist.app_storymap @instance @private @property {?jQuery} pnlStory - jQuery panel containing the story elements list/viewer. */
     pnlStory: null,
     
-    // the constructor
+    _isRelative: false,
+    
+    /**
+     * @memberof heurist.app_storymap
+     * @instance
+     * @private
+     * @description Widget constructor. Initializes options, sets up main elements (search tree, faceted search panel),
+     * and binds global event listeners.
+     */
     _create: function() {
 
         let that = this;
@@ -147,6 +229,8 @@ $.widget( "heurist.app_storymap", {
             this.options.elementsPlaceholder = '<br><br>There are no story elements to display for the selected item';
         }
         
+        this._isRelative = this.element.css('position')=='relative';
+
         let layout = [{"name":"StoryMap","type":"group","css":{}, //"position":"relative","height":"100%"
             "children":
             [{"name":"TabControl","type": ((this.options.reportOverviewMode=='tab' || this.options.reportEndPageMode=='tab')?"tabs":"group"),
@@ -154,8 +238,10 @@ $.widget( "heurist.app_storymap", {
                 [{"name":top.HR('Overview'),"type":"group","css":cssOverview,"folder":true,
                     "children":[{"name":"Overview content","type":"text","css":{},"content":"","dom_id":"pnlOverview"}]},
                  {"name":top.HR('Story'),"type":"group","css":{},"folder":true,
-                        "children":[{"appid":"heurist_resultList","name":"Story list","css":{"position":"relative","minWidth":150}, //"minHeight":400
+                        "children":[{"appid":"heurist_resultList","name":"Story list","css":
+                                    {"position":"absolute","minWidth":150,"height":'100%',"width":'100%'}, //"minHeight":400
                             "options":{
+                                "isRelative": this._isRelative,    
                                 "select_mode": "none",
                                 "support_collection":false,
                                 "support_reorder":false,
@@ -212,7 +298,7 @@ $.widget( "heurist.app_storymap", {
             ? '<br><h3 class="not-found" style="color:teal;display:inline-block">Please select a story in the list</h3>' : placeholder;
         
         this._initial_div_message = 
-        $(`<div class="ent_wrapper" style="padding: 1em;background: white;">${placeholder}</div>`)
+        $(`<div class="ent_wrapper" style="padding: 1em;background: white; overflow-y:auto">${placeholder}</div>`)
         .appendTo(this.element);
         
         
@@ -226,6 +312,8 @@ $.widget( "heurist.app_storymap", {
         //add end page panel
         this.pnlEndPage = this.element.find('#pnlEndPage');
 
+        //if(typeof resultList !== 'function') return;
+        
         this._resultList.resultList('option', 'language', this.options.language);
         this._resultList.resultList('option', 'allow_record_content_view', true);
         this._resultList.resultList('applyViewMode', 'record_content', true);
@@ -259,7 +347,11 @@ $.widget( "heurist.app_storymap", {
             });
             
         }else{  //INLINE
-            this.pnlStory.css({'position':'absolute',top:0, bottom:'0px', left:0, right:0});
+            if(this._isRelative){
+                
+            }else{
+                this.pnlStory.css({'position':'absolute',top:0, bottom:'0px', left:0, right:0});    
+            }
             
             if(this.options.reportOverviewMode=='header'){
                 this.pnlOverview.height(cssOverview.height);
@@ -499,9 +591,12 @@ $.widget( "heurist.app_storymap", {
         this.options.init_completed = true;
     },
 
-    //
-    //
-    //
+    /**
+     * @memberof heurist.app_storymap
+     * @instance
+     * @private
+     * @description Widget destructor. Unbinds global event listeners.
+     */
     _destroy: function() {
 
         if(this._events){
@@ -509,6 +604,14 @@ $.widget( "heurist.app_storymap", {
         }
     },
     
+    /**
+     * @memberof heurist.app_storymap
+     * @instance
+     * @private
+     * @description Sets a single option for the widget. Handles specific logic for `storyRecordID`.
+     * @param {string} key - The option key to set.
+     * @param {*} value - The value to set for the option.
+     */
     _setOption: function( key, value ) {
         if(key=='storyRecordID'){
             this.options.storyRecordID = value;
@@ -520,6 +623,12 @@ $.widget( "heurist.app_storymap", {
         }
     },
     
+    /**
+     * @memberof heurist.app_storymap
+     * @instance
+     * @private
+     * @description Sets multiple options for the widget. Handles specific logic for `storyRecordID`.
+     */
     _setOptions: function() {
         // _super and _superApply handle keeping the right this-context
         if(arguments && ((arguments[0] && arguments[0]['storyRecordID']>0) || arguments['storyRecordID']>0) ){
@@ -529,9 +638,14 @@ $.widget( "heurist.app_storymap", {
         }
     },
 
-    //
-    //
-    //
+    /**
+     * @memberof heurist.app_storymap
+     * @instance
+     * @private
+     * @description Checks if an event data object belongs to the same search realm as this widget instance.
+     * @param {Object} data - The event data object, expected to have a `search_realm` property.
+     * @returns {boolean} True if realms match or if realms are not defined for comparison, false otherwise.
+     */
     _isSameRealm: function(data){
         
         if (this.options.search_realm && data && data.search_realm){
@@ -546,9 +660,15 @@ $.widget( "heurist.app_storymap", {
         }
     },
     
-    //
-    // Change current story element - resultList listener
-    //     
+    /**
+     * @memberof heurist.app_storymap
+     * @instance
+     * @private
+     * @description Event handler for scroll events on the story element list.
+     * Detects which story element is currently in view and activates it.
+     * @param {Event} event - The scroll event object.
+     * @param {heurist.app_storymap} that - Reference to this widget instance (bound explicitly).
+     */
     _onScroll: function(event, that) {
         
         let ele = $(event.target);
@@ -559,18 +679,23 @@ $.widget( "heurist.app_storymap", {
                 if(!(that._expected_onScroll>0 && that._expected_onScroll!=$(item).attr('recid'))){
                     that._startNewStoryElement( $(item).attr('recid') );
                 }
-                return false;
+                return false; // break loop
             }
         });
     },
     
-    //
-    // scroll to story element after selection on map
-    //
+    /**
+     * @memberof heurist.app_storymap
+     * @instance
+     * @private
+     * @description Scrolls the story element list to bring the specified story element into view.
+     * Also handles activating the element if not in vertical mode.
+     * @param {number|string} recID - The Record ID of the story element to scroll to.
+     */
     _scrollToStoryElement: function(recID){
         
         if(this.options.reportOverviewMode=='tab' && this._tabs){
-            //switch to Story
+            //switch to Story tab
             this._tabs.tabs('option', 'active', 1);   
         }
         
@@ -584,20 +709,19 @@ $.widget( "heurist.app_storymap", {
             this._expected_onScroll = recID;
             this._resultList.resultList('scrollToRecordDiv', recID, true);
             //sometimes it is called before addition of stub element at the end of list
-            if(this._currentElementID!=recID){
+            if(this._currentElementID!=recID){ // If not already current, retry as content might still be loading
                 let that = this;
                 this._expected_onScroll_timeout =  setTimeout(function(){that._scrollToStoryElement(that._expected_onScroll)},300);
                 return;
             }
-            this._expected_onScroll = 0;
+            this._expected_onScroll = 0; // Clear expected scroll target
             
         }else if(this.options.reportElementMode=='tabs'){
+            // For tabbed view, ensure the correct tab is selected and then activate the story element
+            this._resultList.resultList('scrollToRecordDiv', recID, true); // This might select the tab in resultList
+            this._startNewStoryElement( recID ); // Explicitly activate
             
-            this._resultList.resultList('scrollToRecordDiv', recID, true);
-            this._startNewStoryElement( recID );
-            
-        }else
-        {
+        }else { // Slide mode
             let order = this._resultset.getOrder();
             let idx = window.hWin.HEURIST4.util.findArrayIndex(recID, order);
         
@@ -607,47 +731,55 @@ $.widget( "heurist.app_storymap", {
         
     },
     
-    // for slide mode
-    // navigate between story elements
-    //
+    /**
+     * @memberof heurist.app_storymap
+     * @instance
+     * @private
+     * @description Handles navigation to the next or previous story element in 'slide' mode.
+     * @param {boolean} is_forward - True to navigate forward, false for backward.
+     */
     _onNavigate: function(is_forward){
         
         let order = this._resultset.getOrder();
         let recID = 0, idx=-1;
         
-        if(this._currentElementID>0){
+        if(this._currentElementID>0){ // If a story element is currently active
             idx = window.hWin.HEURIST4.util.findArrayIndex(this._currentElementID, order);
             if(is_forward){
                 idx++;
             }else{
                 idx--;
             }
-        }else if(this._currentElementID == -1){
-            idx = order.length - 1;
-        }else{
-            idx = 0;
+        }else if(this._currentElementID == -1){ // Indicates end page was active
+            idx = order.length - 1; // Go to last story element if navigating back from end page
+        }else{ // No specific element active (e.g., overview was active, or initial state)
+            idx = 0; // Go to first story element
         }
+
         if(idx>=0 && idx<order.length){
             recID = order[idx];
         }
         
         if(recID>0){
             this._startNewStoryElement( recID );    
-        }else
-        if(this.options.reportEndPageMode=='inline' && idx == order.length){
-            //show end page for current story in inline mode
+        }else if(this.options.reportEndPageMode=='inline' && idx == order.length){
+            // Show end page for current story in inline mode if navigated past the last element
             this.updateEndPagePanel(this.options.storyRecordID);
-        }else
-        if(this.options.reportOverviewMode=='inline'){
-            //show overview for current story in inline mode
+        }else if(this.options.reportOverviewMode=='inline' && idx < 0){ // Should be idx < 0 or idx == -1 for overview
+            // Show overview for current story in inline mode if navigated before the first element
             this.updateOverviewPanel(this.options.storyRecordID);
         }
-        this._onNavigateStatus(idx);
+        this._onNavigateStatus(idx); // Update navigation controls (e.g., "1 of X")
     },
 
-    // for slide mode
-    // enable/disable next/prev buttons
-    //
+    /**
+     * @memberof heurist.app_storymap
+     * @instance
+     * @private
+     * @description Updates the navigation status display (e.g., "X of Y") and enables/disables
+     * next/previous buttons in 'slide' mode.
+     * @param {number} idx - The index of the currently active item (story element, overview, or end page).
+     */
     _onNavigateStatus: function(idx){
 
         let order = this._resultset.getOrder();
@@ -675,10 +807,15 @@ $.widget( "heurist.app_storymap", {
         this.element.find('#nav-status').text((idx+1)+' of '+len);
     },
 
-        
-    //
-    // Loads story elements for given record from server side
-    //
+    /**
+     * @memberof heurist.app_storymap
+     * @instance
+     * @private
+     * @description Checks if a new story needs to be loaded based on the provided `recID`.
+     * If it's a new story or forced, it fetches the story elements (records linked via `storyFields` or of `storyRectypes`).
+     * @param {number|string} recID - The Record ID of the main story record.
+     * @param {boolean} [is_forced=false] - If true, forces reloading even if `recID` is the same as current `storyRecordID`.
+     */
     _checkForStory: function(recID, is_forced){
         
         if(this.options.storyRecordID != recID || is_forced){
@@ -831,9 +968,12 @@ $.widget( "heurist.app_storymap", {
         }
     },
     
-    //
-    //
-    //
+    /**
+     * @memberof heurist.app_storymap
+     * @instance
+     * @private
+     * @description Stops any ongoing animation and clears the current story element's specific map layer.
+     */
     _stopAnimeAndClearMap: function(){
 
         if(this._mapping){
@@ -854,9 +994,12 @@ $.widget( "heurist.app_storymap", {
         this._currentElementID = 0;
     },
     
-    //
-    //
-    //
+    /**
+     * @memberof heurist.app_storymap
+     * @instance
+     * @description Clears the currently loaded story, resetting UI elements and map layers.
+     * @param {boolean} [trigger_event=true] - If true, triggers the `onClearStory` callback if defined.
+     */
     clearStory: function( trigger_event ){
         
         //remove previous story layer
@@ -886,21 +1029,28 @@ $.widget( "heurist.app_storymap", {
         
         this.options.storyRecordID = null;
 
-        this._btn_clear_story.hide();
-        if(this.options.show_print_button){
+        if (this._btn_clear_story) this._btn_clear_story.hide();
+        if(this.options.show_print_button && this._print_button){
             this._print_button.hide();
         }
 
-        if(this.options.reportOverviewMode=='tab' || this.options.reportEndPageMode=='tab') this._tabs.hide(); else this.element.find('#tabCtrl').hide();
+        if(this.options.reportOverviewMode=='tab' || this.options.reportEndPageMode=='tab') {
+            if (this._tabs) this._tabs.hide();
+        } else {
+            this.element.find('#tabCtrl').hide();
+        }
         
         if(trigger_event !== false && window.hWin.HEURIST4.util.isFunction(this.options.onClearStory)){
             this.options.onClearStory.call(this);
         }
     },
     
-    //
-    //
-    //
+    /**
+     * @memberof heurist.app_storymap
+     * @instance
+     * @private
+     * @description Resizes tabbed story pages, typically called when the layout changes or tabs are activated.
+     */
     _resizeStoryTabPages: function(){
         if(this.options.reportElementMode=='tabs'){  
                 let div_content = this._resultList.find('.div-result-list-content');
@@ -914,21 +1064,28 @@ $.widget( "heurist.app_storymap", {
         }
     },
     
-    
-    // 1. Loads all story elements time data
-    // 2. loads list of story elements (this._resultset) into reulst list
-    // 3. Render overview as smarty report or renderRecordData
-    // 4. Render end page as smarty report or renderRecordData
-    //
+    /**
+     * @memberof heurist.app_storymap
+     * @instance
+     * @private
+     * @description Initiates the loading and display of a new story.
+     * This involves clearing any previous story, setting up UI elements (overview, end page, story list),
+     * and loading associated map/timeline data.
+     * @param {number|string} recID - The Record ID of the main story record.
+     */
     _startNewStory: function(recID){
     
         if(this.options.storyRecordID != recID) return; //story already changed
 
-        this.clearStory( false );
+        this.clearStory( false ); // Clear previous story without triggering onClearStory event yet
         
         this.options.storyRecordID = recID;
         
-        if(this.options.reportOverviewMode=='tab') this._tabs.show(); else this.element.find('#tabCtrl').show();
+        if(this.options.reportOverviewMode=='tab' || this.options.reportEndPageMode=='tab') {
+            if(this._tabs) this._tabs.show();
+        } else {
+            this.element.find('#tabCtrl').show();
+        }
         
         //loads list of story elements into reulst list
         if(this.options.reportElementMode=='vertical' || this.options.reportElementMode=='tabs'){   
@@ -981,15 +1138,21 @@ $.widget( "heurist.app_storymap", {
             }
             this._btn_clear_story.show();  
         } 
-        if(this.options.show_print_button){
+        if(this.options.show_print_button && this._print_button){
             this._print_button.show();
         }
         
     },
     
-    //
-    // add last stub element to allow proper onScroll event for last story element
-    //
+    /**
+     * @memberof heurist.app_storymap
+     * @instance
+     * @private
+     * @description Adds a stub (empty div with minimum height) at the end of the story list
+     * when in 'vertical' mode. This ensures that the last story element can be properly
+     * scrolled into the active view zone for `_onScroll` detection.
+     * @param {number} [delay=10] - Delay in milliseconds before adding the stub space.
+     */
     _addStubSpaceForStoryList: function( delay ){
         
         if(this._resultList.is(':visible')){
@@ -1020,109 +1183,117 @@ $.widget( "heurist.app_storymap", {
         }
     },
 
-    //
-    // Loads Overview info (called after loading of story)
-    //
+    /**
+     * @memberof heurist.app_storymap
+     * @instance
+     * @description Updates the content of the overview panel by loading data via a report or direct rendering.
+     * @param {number|string} recID - The Record ID of the main story record for which to display the overview.
+     */
     updateOverviewPanel: function(recID){
 
-            let infoURL;
-            let isSmarty = false;
-            
-            if( typeof this.options.reportOverview === 'string' 
-                            && this.options.reportOverview.substr(-4)=='.tpl' ){
-            
-                infoURL = window.hWin.HAPI4.baseURL + '?snippet=1&q=ids:'
-                        + recID 
-                        + '&db='+window.hWin.HAPI4.database+'&template='
-                        + encodeURIComponent(this.options.reportOverview);
-                        
-                isSmarty = true;
-            }else{
-                infoURL = window.hWin.HAPI4.baseURL + 'viewers/record/renderRecordData.php?mapPopup=1&recID='  // mapPopup=1 returns html snippet
-                        +recID
-                        +'&db='+window.hWin.HAPI4.database;
-            }
-            
-            if(this.options.language && this.options.language!='def'){
-                    infoURL = infoURL + '&lang='+this.options.language;
-            }
-            
-            //reportOverviewMode: inline | tab | header | no
-            //reportElementMode: vertical | slide | tab
-            
-            if (!((this.options.reportOverviewMode=='no') ||
-              (this.options.reportOverviewMode=='inline' && this.options.reportElementMode=='tabs')))
-            { //inline, tab, header
-                let that = this;
-                this.pnlOverview.addClass('loading').css({'overflow-y':'auto'})
-                    .load(infoURL, function(){ 
-                        
-                        let ele2 = $(this);
-                        ele2.removeClass('loading').css('min-height','200px');//.height('auto');    
-
-                        if(ele2.find('div[data-recid]').length>0){ //for standard view
-                            ele2.find('div[data-recid]')[0].style = null;
-                        }
-                            
-                        if(that.options.reportOverviewMode=='inline'){
-                            //loads overview as first element in story list
-                            
-                            if(that.options.reportElementMode=='slide'){ //as first slide     
-                                that._currentElementID = 0;
-                                that._onNavigateStatus( -1 );    
-                                that.pnlStoryReport.html(that.pnlOverview.html())
-                            }else
-                            if(that.options.reportElementMode!='tabs'){
-
-                                let ele = that._resultList.find('.div-result-list-content');    
-                                $('<div class="recordDiv outline_suppress expanded" recid="0" tabindex="0">')
-                                    .html(that.pnlOverview.html()).prependTo(ele);
-                            }
-                            
-                        }else if(that.options.reportOverviewMode=='header'){
-                            
-                            if(that._initialElementID==0){
-                                that._onNavigateStatus( 0 );    
-                                that._startNewStoryElement( that._resultset.getOrder()[0] );
-                            }
-                                
-                        }else{
-                            //tab
-                            let h = ele2[0].scrollHeight+10;
-                            if(ele2.find('div[data-recid]').length>0){
-                                ele2.find('div[data-recid]').css('max-height','100%');
-                            }
-                        }
-
-                        if(that._initialElementID>0){
-                            that._scrollToStoryElement( that._initialElementID );
-                            that._initialElementID = 0;   
-                        }
-                    });   
+        let infoURL;
+        let isSmarty = false;
+        
+        if( typeof this.options.reportOverview === 'string' 
+                        && this.options.reportOverview.slice(-4)=='.tpl' ){
+        
+            infoURL = window.hWin.HAPI4.baseURL + '?snippet=1&q=ids:'
+                    + recID 
+                    + '&db='+window.hWin.HAPI4.database+'&template='
+                    + encodeURIComponent(this.options.reportOverview);
                     
-            }else 
-            {
-                if(this._initialElementID>0){
-                    this._scrollToStoryElement( this._initialElementID );
-                    this._initialElementID = 0;   
-                }else{
-                    this._onNavigateStatus( 0 );    
-                    this._startNewStoryElement( this._resultset.getOrder()[0] );
-                }
-            }
+            isSmarty = true;
+        }else{
+            infoURL = window.hWin.HAPI4.baseURL + 'viewers/record/renderRecordData.php?mapPopup=1&recID='  // mapPopup=1 returns html snippet
+                    +recID
+                    +'&db='+window.hWin.HAPI4.database;
+        }
+        
+        if(this.options.language && this.options.language!='def'){
+                infoURL = infoURL + '&lang='+this.options.language;
+        }
+        
+        //reportOverviewMode: inline | tab | header | no
+        //reportElementMode: vertical | slide | tab
+        
+        if (!((this.options.reportOverviewMode=='no') ||
+            (this.options.reportOverviewMode=='inline' && this.options.reportElementMode=='tabs')))
+        { //inline, tab, header
+            let that = this;
+            this.pnlOverview.addClass('loading').css({'overflow-y':'auto'})
+                .load(infoURL, function(){ 
+                    
+                    let ele2 = $(this);
+                    ele2.removeClass('loading').css('min-height','200px');//.height('auto');    
+
+                    if(ele2.find('div[data-recid]').length>0){ //for standard view
+                        ele2.find('div[data-recid]')[0].style = null;
+                    }
                         
-            
+                    if(that.options.reportOverviewMode=='inline'){
+                        //loads overview as first element in story list
+                        
+                        if(that.options.reportElementMode=='slide'){ //as first slide     
+                            that._currentElementID = 0;
+                            that._onNavigateStatus( -1 );    
+                            that.pnlStoryReport.html(that.pnlOverview.html())
+                        }else
+                        if(that.options.reportElementMode!='tabs'){
+
+                            let ele = that._resultList.find('.div-result-list-content');
+
+                            let $overview_ele = ele.find('.overview-panel');
+                            if($overview_ele.length === 0){
+                                $overview_ele = $('<div class="recordDiv outline_suppress expanded overview-panel" recid="0" tabindex="0">').prependTo(ele);
+                            }
+                            $overview_ele.html(that.pnlOverview.html());
+                        }
+                        
+                    }else if(that.options.reportOverviewMode=='header'){
+                        
+                        if(that._initialElementID==0){
+                            that._onNavigateStatus( 0 );    
+                            that._startNewStoryElement( that._resultset.getOrder()[0] );
+                        }
+                            
+                    }else{
+                        //tab
+                        let h = ele2[0].scrollHeight+10;
+                        if(ele2.find('div[data-recid]').length>0){
+                            ele2.find('div[data-recid]').css('max-height','100%');
+                        }
+                    }
+
+                    if(that._initialElementID>0){
+                        that._scrollToStoryElement( that._initialElementID );
+                        that._initialElementID = 0;   
+                    }
+                });   
+                
+        }else 
+        {
+            if(this._initialElementID>0){
+                this._scrollToStoryElement( this._initialElementID );
+                this._initialElementID = 0;   
+            }else{
+                this._onNavigateStatus( 0 );    
+                this._startNewStoryElement( this._resultset.getOrder()[0] );
+            }
+        }
     },
 
-    //
-    // Loads End page info (called after loading of story)
-    //
+    /**
+     * @memberof heurist.app_storymap
+     * @instance
+     * @description Updates the content of the end page panel.
+     * @param {number|string} recID - The Record ID of the main story record for which to display the end page.
+     */
     updateEndPagePanel: function(recID){
 
         let infoURL;
         
         if( typeof this.options.reportEndPage === 'string' 
-                        && this.options.reportEndPage.substr(-4)=='.tpl' ){
+                        && this.options.reportEndPage.slice(-4)=='.tpl' ){
         
             infoURL = window.hWin.HAPI4.baseURL + '?snippet=1&q=ids:'
                     + recID 
@@ -1185,23 +1356,31 @@ $.widget( "heurist.app_storymap", {
                             $('<li><a href="#end_page" class="truncate" style="max-width: 20ex; width: auto; margin-right: 20px; font-size: 1em; line-height: 1.5em;">End page</a></li>')
                                 .appendTo($tabs_nav);
 
-                            $('<div id="end_page" recid="0">').html(that.pnlEndPage.html()).appendTo($tabs); //recid = 0, to 'close' currently open record, resultList.js [func __loadTabContent]
+                            let $end_tab = $tabs.find('#end_page');
+                            if($end_tab.length === 0){
+                                $end_tab = $('<div id="end_page" recid="0">').appendTo($tabs); //recid = 0, to 'close' currently open record, resultList.js [func __loadTabContent]
+                            }
+                            $end_tab.html(that.pnlEndPage.html());
 
                             $tabs.tabs('refresh');
                         }else{
 
                             let $ele = that._resultList.find('.recordDiv');
-                            let $div = $('<div class="recordDiv outline_suppress expanded" recid="0" tabindex="0">').html(that.pnlEndPage.html());
-
                             if($ele.length == 0 && that._resultList.find('.stub_space').length == 0){
                                 $ele = that._resultList.find('.div-result-list-content');
                             }
 
+                            let $end_panel = $ele.find('.end-panel');
+                            if($end_panel.length === 0){
+                                $end_panel = $('<div class="recordDiv outline_suppress expanded end-panel" recid="0" tabindex="0">').html(that.pnlEndPage.html());
+                            }
+
+
                             if($ele.length > 0){
-                                $div.insertAfter($ele.last());
+                                $end_panel.insertAfter($ele.last());
                             }else if(that._resultList.find('.stub_space').length > 0){
                                 $ele = that._resultList.find('.stub_space');
-                                $div.insertBefore($ele);
+                                $end_panel.insertBefore($ele);
                             }else{
                                 // something has gone wrong
                             }
@@ -1241,9 +1420,14 @@ $.widget( "heurist.app_storymap", {
         }
     },
 
-    //
-    // show all elements on map for initial state
-    //        
+    /**
+     * @memberof heurist.app_storymap
+     * @instance
+     * @description Updates the initial map view based on a provided record set.
+     * This usually involves fetching and displaying locations of all potential story elements
+     * or a filtered subset as defined by `reportOverviewMapFilter`.
+     * @param {HRecordSet} recset - The record set of main story records.
+     */
     updateInitialMap: function( recset ){
         
         if(!this._mapping) return; //there is not associated map widget
@@ -1274,7 +1458,7 @@ $.widget( "heurist.app_storymap", {
                                 {selection:[rec_ids[0]], source:that.element.attr('id'), 
                                     search_realm:that.options.search_realm} ); //highlight in main resultset
                         }
-                    }else{
+                    }else if( that._resultset ){
                         //find selected record id among story elements    
                         rec = that._resultset.getById(rec_ids[0]);
                         if(rec){
@@ -1319,7 +1503,7 @@ $.widget( "heurist.app_storymap", {
         
         //---------
         // find all story elements
-        let request = {q:{ids:recset.getIds()}, detail:this.options.storyFields.join(',')};
+        let request = {q:{ids:recset.getIds().join(',')}, detail:this.options.storyFields.join(',')};
 
         window.hWin.HAPI4.RecordMgr.search(request,
             function(response) {
@@ -1341,7 +1525,7 @@ $.widget( "heurist.app_storymap", {
                     }//for
                     
                     //find filtered stories
-                    let query = [{ids:storyIDs}];
+                    let query = [{ids: storyIDs.join(',')}];
 
                     if( !window.hWin.HEURIST4.util.isempty(that.options.reportOverviewMapFilter)){
                         query = window.hWin.HEURIST4.query.mergeTwoHeuristQueries( query, that.options.reportOverviewMapFilter );    
@@ -1431,9 +1615,13 @@ $.widget( "heurist.app_storymap", {
     },
 
 
-    //
-    // update Whole store timeline
-    //
+    /**
+     * @memberof heurist.app_storymap
+     * @instance
+     * @description Updates the timeline display with data for all elements of the current story.
+     * Caches data to avoid redundant server requests.
+     * @param {number|string} recID - The Record ID of the main story record.
+     */
     updateTimeLine: function(recID){
         
         let that = this;
@@ -1473,9 +1661,10 @@ $.widget( "heurist.app_storymap", {
                  selectable: false,
                  dataset_name: 'Story Timeline',
                  preserveViewport: false });
-                
-            //
-            //     
+
+            this.addStoryIDToPaths(mapwidget.all_layers[this._storylayer_id]);
+
+            // If a specific time was kept from a previous story, try to find a corresponding element in the new story
             if(this._currentTime!=null){
 
                 let start0 = that._currentTime[0];
@@ -1490,18 +1679,16 @@ $.widget( "heurist.app_storymap", {
                     
                         //intersection
                         let res = false;
-                        if(start == end){
+                        if(start == end){ // Point in time
                             res = (start>=start0 && start<=end0);
-                        }else{
-                            res = (start==start0) || 
-                                (start > start0 ? start <= end0 : start0 <= end);
+                        }else{ // Range
+                            res = (start==start0) || // Exact start match
+                                (start > start0 ? start <= end0 : start0 <= end); // Overlap
                         }                    
                         
                         if(res){
-                            that._initialElementID = item.rec_ID;
-                            //open story element
-                           
-                            return false;                        
+                            that._initialElementID = item.rec_ID; // Mark this element to be shown
+                            return false; // Found a match, break loop
                         }
                     }
                 });
@@ -1509,10 +1696,10 @@ $.widget( "heurist.app_storymap", {
             }     
                  
             
-        }else{
+        }else{ // Data not cached, fetch from server
             
             let server_request = {
-                            q: {ids: this._resultset.getIds()}, //list of story elements/events
+                            q: {ids: this._resultset.getIds().join(',')}, //list of story elements/events
                             leaflet: 1, 
                             simplify: 1, //simplify paths with more than 1000 vertices
                             //suppress_linked_places: 1, //do not load assosiated places
@@ -1543,16 +1730,19 @@ $.widget( "heurist.app_storymap", {
                         that._cache_story_geo[recID] = 'no data';     
                     }
                     
-                    that.updateTimeLine(recID);
+                    that.updateTimeLine(recID); // Retry with cached data
                 });
         }
     },
 
-    //
-    // 1. Loads story for slide (if reportElementMode=='slide')
-    // 2. Executes animation on map
-    // recID - story element
-    //
+    /**
+     * @memberof heurist.app_storymap
+     * @instance
+     * @private
+     * @description Activates a specific story element. This involves updating the displayed report
+     * (if in 'slide' mode) and triggering map animations or updates for the element.
+     * @param {number|string} recID - The Record ID of the story element to activate.
+     */
     _startNewStoryElement: function(recID){
 
         if(this._currentElementID != recID){
@@ -1568,13 +1758,12 @@ $.widget( "heurist.app_storymap", {
             this._currentElementID = recID;
             
             if(this.options.reportElementMode=='slide'){   //one by one   
-
                 
                 let infoURL;
                 let isSmarty = false;
                 
                 if( typeof this.options.reportElement === 'string' 
-                                && this.options.reportElement.substr(-4)=='.tpl' ){
+                                && this.options.reportElement.slice(-4)=='.tpl' ){
                 
                     infoURL = window.hWin.HAPI4.baseURL + '?snippet=1&q=ids:'
                             + recID 
@@ -1644,7 +1833,7 @@ $.widget( "heurist.app_storymap", {
             }
             
             if(this._mapping && this._mapping.length>0){
-               
+
                 if(recID==0 || Number.parseInt(recID)==this.options.storyRecordID){
                     //zoom for entire story
                     
@@ -1747,7 +1936,7 @@ $.widget( "heurist.app_storymap", {
                             return;
                         }
 
-                        let qq = {ids:that._cache_story_places[recID]['places']};
+                        let qq = {ids:that._cache_story_places[recID]['places'].join(',')};
                         
                         if(that.options.reportElementMapMode=='filtered'){ //additional filter for places 
                             qq = window.hWin.HEURIST4.query.mergeTwoHeuristQueries( qq, that.options.reportElementMapFilter );
@@ -1861,10 +2050,8 @@ $.widget( "heurist.app_storymap", {
         */
 
         //or several actions per scope
-       
-        
+
         //let anime = [{scope:'all',range:1,action:'fade_in_out',duration:500}]; //show one by one
-        
         
         //zoom to story element on timeline
         // @todo  It would be brilliant if 
@@ -1900,6 +2087,8 @@ $.widget( "heurist.app_storymap", {
                 
             }
         }
+
+        this.addStoryIDToPaths(mapwidget.all_layers[this._nativelayer_id]);
     },
     
     //
@@ -2483,7 +2672,7 @@ $.widget( "heurist.app_storymap", {
             
             //PAIRS: many start points and transition points - star from start points to first transition
             if(begin_pnt.length>1 || end_pnt.length>1){
-                path = {geometry:{coordinates:[], type:'MultiLineString'}, id:'xxx', type:'Feature', properties:{rec_ID:0}};
+                path = {geometry:{coordinates:[], type:'MultiLineString'}, id:'xxx', type:'Feature', properties:{rec_ID:0, story_ID: recID}};
                 
                 if(tran_pnt.length>0){
 
@@ -2513,7 +2702,7 @@ $.widget( "heurist.app_storymap", {
                 
                 
             }else{
-                path = {geometry:{coordinates:[], type:'LineString'}, id:'xxx', type:'Feature', properties:{rec_ID:0}};
+                path = {geometry:{coordinates:[], type:'LineString'}, id:'xxx', type:'Feature', properties:{rec_ID:0, story_ID: recID}};
                 
                 if(begin_pnt.length>0) path.geometry.coordinates.push(begin_pnt[0]);
 
@@ -2531,6 +2720,54 @@ $.widget( "heurist.app_storymap", {
             }
         }    
     
+    },
+
+    //
+    // Add story element record ID as an attribute to path elements
+    //
+    addStoryIDToPaths: function(newLayer){
+
+        if(!window.hWin.HEURIST4.util.isObject(newLayer?._layers)){
+            return;
+        }
+
+        for(const topLayerID in newLayer._layers){
+
+            if(!Object.hasOwn(newLayer._layers, topLayerID)){
+                continue;
+            }
+
+            const topLayer = newLayer._layers[topLayerID];
+            const recID = topLayer.feature.properties.rec_ID || topLayer.feature.properties.story_ID;
+
+            if(topLayer._path){
+
+                topLayer._path.setAttribute('story-element-id', recID);
+                continue;
+
+            }else if(!topLayer._layers){
+                continue;
+            }
+
+            if(!window.hWin.HEURIST4.util.isPositiveInt(recID)){
+                continue;
+            }
+
+            for(const layerID in topLayer._layers){
+
+                if(!Object.hasOwn(topLayer._layers, layerID)){
+                    continue;
+                }
+
+                const layer = topLayer._layers[layerID];
+
+                if(!layer._path){
+                    continue;
+                }
+
+                layer._path.setAttribute('story-element-id', recID);
+            }
+        }
     }
 
 });

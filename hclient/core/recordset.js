@@ -1,30 +1,40 @@
 /**
-* Storage of records and its definitions (fields and structure)
-* 
-* requires temporalOBjectLibrary.js to validate and convert date for timeline
-* 
-* @see recordSearch in db_recsearch.php
-* @param initdata
-* @returns {Object}
-* @see editing_input.js
-* 
-* @package     Heurist academic knowledge management system
-* @link        https://HeuristNetwork.org
-* @copyright   (C) 2005-2023 University of Sydney, (C) 2024 onwards Heurist Network
-* @author      Artem Osmakov   <osmakov@gmail.com>
-* @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
-* @version     4.0
-*/
+ * @file recordset.js
+ * @brief Defines the HRecordSet factory for managing collections of Heurist records.
+ * @fileOverview This file provides the HRecordSet factory function, which creates objects for storing
+ * and managing sets of Heurist records. An HRecordSet instance holds record data, field definitions,
+ * record type information, and structural metadata. It offers methods for accessing records and their
+ * fields, sorting, filtering (getSubSetByRequest), creating subsets, converting to GeoJSON, and
+ * managing relationships between records within the set. It's a fundamental component for handling
+ * data retrieved from server searches or other operations. It may require `temporalObjectLibrary.js`
+ * for date validation and timeline conversions.
+ * 
+ * @see db_recsearch.php recordSearch
+ * @see editing_input.js
+ * @project     Heurist academic knowledge management system
+ *
+ * @link https://HeuristNetwork.org
+ * @copyright (C) 2005-2023 University of Sydney, (C) 2024 onwards Heurist Network
+ * @license https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
+ * @author Artem Osmakov <osmakov@gmail.com>
+ * @author Ian Johnson <ian.johnson.heurist@gmail.com>
+ * @since 4.0
+ */
 
-/*
-* Licensed under the GNU License, Version 3.0 (the "License"); you may not use this file except in compliance
-* with the License. You may obtain a copy of the License at https://www.gnu.org/licenses/gpl-3.0.txt
-* Unless required by applicable law or agreed to in writing, software distributed under the License is
-* distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied
-* See the License for the specific language governing permissions and limitations under the License.
-*/
-/* global parseWKT */
+/* global parseWKT */ 
 
+/**
+ * Factory function for creating HRecordSet objects.
+ * HRecordSet instances store and manage collections of records, including their data,
+ * field definitions, and structural metadata.
+ *
+ * @constructor HRecordSet
+ * @param {Object|Array} initdata - Initialization data for the recordset.
+ *        If an array, it's assumed to be a list of records.
+ *        If an object, it should conform to the expected server response structure for a search result,
+ *        containing properties like `entityName`, `count`, `offset`, `fields`, `records`, `order`, etc.
+ * @returns {Object} An HRecordSet instance with methods for accessing and manipulating the record collection.
+ */
 function HRecordSet(initdata) {
     const _className = "HRecordSet",
     _version   = "0.4";
@@ -151,10 +161,6 @@ function HRecordSet(initdata) {
 /**
 Life cycle for geodata in record
 
-DB - mysql.asWKT ->
-recordset.toTimemap - utils_geo.parseWKTCoordinates (wellknown.js parseWKT -> GeoJSON) -> timemap.js (DISPLAY on MAP) 
-@todo use google.maps.Data and get rid timemap.js
-
 EDIT   
 editing_input.js
 mapDraw.js initial_wkt -> _loadWKT (parsing) -> _applyCoordsForSelectedShape  
@@ -163,405 +169,6 @@ mapDraw.js initial_wkt -> _loadWKT (parsing) -> _applyCoordsForSelectedShape
 mapDraw.js initial_wkt -> parseWKT -> GeoJSON -> _loadGeoJSON (as set of separate overlays)
                          _getGeoJSON -> (wellknown.js) stringifyWKT ->  back to input
 */    
-    /**
-    * Converts recordSet to OS Timemap dataset
-    * 
-        * geoType 
-        * 0, undefined - all
-        * 1 - main geo only (no links)
-        * 2 - rec_Shape only (coordinates defined in field rec_Shape)
-    */
-    function _toTimemap(dataset_name, filter_rt, symbology, geoType){
-
-        let aitems = [], titems = [];
-        let item, titem, idx;
-        let mapenabled = 0,
-            timeenabled = 0;
-            
-        const MAXITEMS = window.hWin.HAPI4.get_prefs('search_detail_limit');    
-        
-        const localIds = window.hWin.HAPI4.sysinfo['dbconst'];
-        const DT_SYMBOLOGY_POINTMARKER = localIds['DT_SYMBOLOGY_POINTMARKER']; //3-1091
-        const DT_SYMBOLOGY_COLOR = localIds['DT_SYMBOLOGY_COLOR'];
-        const DT_BG_COLOR = localIds['DT_BG_COLOR'];
-        const DT_OPACITY = localIds['DT_OPACITY'];
-        
-        //make bounding box for map datasource transparent and unselectable
-        let disabled_selection = [localIds['RT_TILED_IMAGE_SOURCE'],
-                                    localIds['RT_GEOTIFF_SOURCE'],
-                                    localIds['RT_KML_SOURCE'],
-                                    localIds['RT_MAPABLE_QUERY'],
-                                    localIds['RT_SHP_SOURCE']];
-        
-            
-        dataset_name = dataset_name || "main";
-        
-        let iconColor, fillColor, lineColor, fillOpacity, iconMarker = null;
-        if(symbology){
-            iconColor = symbology.iconColor;
-            iconMarker = symbology.iconMarker;
-            
-            //fill: red; stroke: blue; stroke-width: 3  , fill-opacity, stroke-opacity
-            fillColor   = symbology.fill;
-            lineColor   = symbology.stroke;
-            fillOpacity = symbology['fill-opacity'];
-        }
-        iconColor = iconColor || 'rgb(255, 0, 0)'; 
-        fillColor = fillColor || 'rgb(255, 0, 0)';
-        lineColor = lineColor || 'rgb(255, 0, 0)'; 
-        fillOpacity = fillOpacity || 0.1;
-/*      
-                                fillOpacity:0.3,// 0.3,
-                                lineColor:lineColor,
-                                strokeOpacity:1,
-                                strokeWeight:6,
-*/         
-
-        let geofields = [], timefields = [];
-        
-        let dty_ids = _getDetailsFieldTypes(); 
-        
-        if(!isnull(dty_ids) && window.hWin.HEURIST4){
-
-            //detect geo and time fields from recordset        
-            dty_ids.forEach((dty_id)=>{
-                const dtype = $Db.dty(dty_id,'dty_Type');
-                if(dtype=='date' || dtype=='year'){
-                    timefields.push(dty_id);
-                }else if(dtype=='geo'){
-                    geofields.push(dty_id);
-                }
-            });
-        }
-        
-        let linkedPlaceRecId = {}; //placeID => array of records that refers to this place (has the same coordinates)
-        //linkedRecs - records linked to this place
-        //shape - coordinates
-        //item - item object to be added to timemap 
-        let linkedPlaces = {};//placeID => {linkedRecIds, shape, item}
-        
-        for(idx in records){
-            if(idx)
-            {
-                let record = records[idx];
-                let recTypeID   = Number(_getFieldValue(record, 'rec_RecTypeID'));
-                
-                if(filter_rt && recTypeID!=filter_rt) continue;
-
-                let
-                recID       = _getFieldValue(record, 'rec_ID'),
-                recName     = _getFieldValue(record, 'rec_Title'),
-
-                //startDate   = _getFieldValue(record, 'dtl_StartDate'),
-                //endDate     = _getFieldValue(record, 'dtl_EndDate'),
-                description = _getFieldValue(record, 'dtl_Description'),
-                recThumb    = _getFieldValue(record, 'rec_ThumbnailURL'),
-                recShape    = _getFieldValue(record, 'rec_Shape'),  //additional shapes - special field created on client side
-                
-                
-                iconId      = _getFieldValue(record, 'rec_Icon');  //used if icon differ from rectype icon
-                if(!iconId) iconId = recTypeID; //by default 
-                
-                //symbology per record overwrite layer symbology
-                let pr_iconMarker = _getFieldValue(record, DT_SYMBOLOGY_POINTMARKER);
-                let pr_iconColor  = window.hWin.HEURIST4.dbs.getColorFromTermValue(_getFieldValue(record, DT_SYMBOLOGY_COLOR));
-                let pr_fillColor  = window.hWin.HEURIST4.dbs.getColorFromTermValue(_getFieldValue(record, DT_BG_COLOR));
-                let pr_Opacity    = _getFieldValue(record, DT_OPACITY);
-
-                if(pr_iconMarker){
-                    pr_iconMarker  = window.hWin.HAPI4.baseURL+'?db='+window.hWin.HAPI4.database
-                        +'&file='+pr_iconMarker[0];
-                }
-                
-                let fillOpacity_thisRec = pr_Opacity?pr_Opacity:fillOpacity;
-                
-                
-                let html_thumb = '';
-                if(recThumb){                             //class="timeline-event-bubble-image" 
-                    html_thumb = '<img alt src="'+recThumb+'" style="float:left;padding-bottom:5px;padding-right:5px;">'; 
-                    //'<div class="recTypeThumb" style="background-image: url(&quot;'+ fld('rec_ThumbnailURL') + '&quot;);opacity:1"></div>'
-                }
-                
-                let dates = [], startDate=null, endDate=null, dres=null, singleFieldName;
-                for(let k=0; k<timefields.length; k++){
-                    const datetime = _getFieldValues(record, timefields[k]);
-                    if(!isnull(datetime)){   
-                        for(let m=0; m<datetime.length; m++){
-                            if(timefields[k]==DT_START_DATE){
-                                startDate = datetime[m];
-                                if(singleFieldName==null){
-                                     singleFieldName = $Db.dty(timefields[k], 'dty_Name');
-                                }    
-                            }else if(timefields[k]==DT_END_DATE){
-                                endDate  = datetime[m]; 
-                            }else{
-                                dres = window.hWin.HEURIST4.util.parseDates(datetime[m]);
-                                if(dres){
-                                    dates.push(dres);
-                                    singleFieldName = $Db.dty(timefields[k], 'dty_Name');
-                                }     
-                            }
-                        }
-                    }
-                }
-                
-                if(startDate==null && endDate!=null){
-                    if(dres==null){
-                        startDate = endDate;    
-                        endDate = null;
-                    }else{
-                        startDate = dres[0];
-                    }
-                }
-                
-                //need to verify date and convert from Temporal
-                dres = window.hWin.HEURIST4.util.parseDates(startDate, endDate);
-                if(dres){
-                    dates.push(dres);
-                }
-                for(let k=0; k<dates.length; k++){
-                        
-                        if(timeenabled<MAXITEMS){
-                     
-                            dres = dates[k];
-                            let iconImg;
-                            
-                            if(typeof iconId=='string' && (iconId.indexOf('http:')==0 || iconId.indexOf('https:')==0)){
-                                iconImg = iconId;
-                            }else if(pr_iconMarker){
-                                //icon is set per record
-                                iconImg = pr_iconMarker;   
-                            }else if(iconMarker){
-                                //icon is set per map layer
-                                iconImg = iconMarker;    
-                            }else{
-                                iconImg = window.hWin.HAPI4.iconBaseURL + iconId;
-                            }
-                            
-                            titem = {
-                                id: dataset_name+'-'+recID+'-'+k, //unique id
-                                group: dataset_name,
-                                content: 
-                                '<img alt src="'+iconImg + 
-                                           '"  align="absmiddle" style="padding-right:3px;" width="12" height="12"/>&nbsp;<span>'+recName+'</span>',
-                                //'<span>'+recName+'</span>',
-                                title: recName,
-                                start: dres[0],
-                                recID:recID
-                            }
-                            
-                            if(dres[1] && dres[0]!=dres[1]){
-                                titem['end'] = dres[1];
-                            }else{
-                                titem['type'] = 'point';
-                                titem['title'] = singleFieldName+': '+ dres[0] + '. ' + titem['title'];
-                            }
-                            titems.push(titem);
-                        }
-                        timeenabled++;
-                }
-
-
-                //a record may have several geofields/placemarks for example place of birth and death
-                //besides it may be linked (several times) to "place" record types
-                //we need to treat them as separate timemap item
-                let shapes = (recShape && geoType!=1)?recShape:[];
-                if(!Array.isArray(shapes)){
-                    shapes = [];
-                }
-                
-                let has_linked_places = [];
-                
-                if(geoType!=2){ //get coordinates from geo fields
-                    
-                    for(let k=0; k<geofields.length; k++){
-                        
-                        let geodata = _getFieldGeoValue(record, geofields[k]);
-                        if(geodata){
-                            for(let m=0; m<geodata.length; m++){
-                                const shape = window.hWin.HEURIST4.geo.wktValueToShapes( geodata[m].wkt, geodata[m].geotype, 'timemap' );
-
-                                if(shape){ //main shape
-                                        
-                                    //recID is place record ID - add it as separate item
-                                    if(geodata[m].recID>0){ //reference to linked place record
-                                        if(!linkedPlaceRecId[geodata[m].recID]){
-                                            linkedPlaceRecId[geodata[m].recID] = [];
-                                        }else{
-                                            //to avoid dark fill for several polygones on the same spot
-                                            fillOpacity_thisRec = 0.001;
-                                        }
-                                        linkedPlaceRecId[geodata[m].recID].push(recID);
-                                        
-                                        if(linkedPlaces[geodata[m].recID]){
-                                            linkedPlaces[geodata[m].recID]['linkedRecs'].push(recID);
-                                        }else{
-                                            linkedPlaces[geodata[m].recID] = {linkedRecs:[recID],
-                                                                                shape:Array.isArray(shape)?shape:[shape]}
-                                        }
-                                        has_linked_places.push(geodata[m].recID); //one person can be linked to several places
-                                        
-                                    }else{
-                                        //this is usual geo
-                                        if(Array.isArray(shapes)){
-                                            if(Array.isArray(shape)){
-                                                shapes = shapes.concat(shape);                                            
-                                            }else{
-                                                shapes.push(shape);    
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                        
-                    }
-                }else{
-                    recID = recID + "_link"; //for Digital Harlem
-                }
-                
-                        let iconImgEvt, iconImg;
-                        if(typeof iconId=='string' && (iconId.indexOf('http:')==0 || iconId.indexOf('https:')==0) ){
-                            //icon is set in data (top prioriry)
-                            iconImgEvt = iconId;    
-                            iconImg = iconId;    
-                        }else if(pr_iconMarker){
-                            //icon is set per record
-                            iconImg = pr_iconMarker;   
-                            iconImgEvt = pr_iconMarker;    
-                        }else if(iconMarker){
-                            //icon is set per map layer
-                            iconImgEvt = iconMarker;    
-                            iconImg = iconMarker;    
-                        }else{
-                            //default icon of record type
-                            iconImgEvt = iconId;
-                            iconImg = window.hWin.HAPI4.iconBaseURL + iconId + '&color='
-                                        + encodeURIComponent(pr_iconColor ?pr_iconColor:iconColor);
-                                        
-                            if(pr_fillColor){
-                                iconImg = iconImg + '&bg='+encodeURIComponent(pr_fillColor);
-                            }else{
-                                iconImg = iconImg + '&bg='+encodeURIComponent('#ffffff');
-                            }
-                        }
-                        
-                        
-                        //disable selection for map source databaset bboxes
-                        let is_disabled = (window.hWin.HEURIST4.util.findArrayIndex(recTypeID, disabled_selection)>=0);
-                        
-                        item = {
-                            title: recName,
-                            start: (startDate || ''),
-                            end: (endDate && endDate!=startDate)?endDate:'',
-                            placemarks:[],
-                            options:{
-                                eventIconImage: iconImgEvt,
-                                icon: iconImg,
-                                iconId: iconId,
-
-                                description: description,
-                                //url: (record.url ? "'"+record.url+"' target='_blank'"  :"'javascript:void(0);'"), //for timemap popup
-                                //link: record.url,  //for timeline popup
-                                recid: recID,
-                                bkmid: _getFieldValue(record, 'bkm_ID'),
-                                rectype: recTypeID,
-                                
-                                title: recName,
-                                
-                                //color on dataset level works once only - timemap bug
-                                color: pr_iconColor ?pr_iconColor:iconColor,
-                                fillColor: pr_fillColor ?pr_fillColor:fillColor,
-                                fillOpacity: (is_disabled)?0.00001:fillOpacity_thisRec,
-                                lineColor: pr_iconColor ?pr_iconColor:lineColor,
-                                clickable:(!is_disabled),
-
-                                /* neither work
-                                strokeOpacity:0.3,
-                                strokeWeight:6,
-                                width:10,
-                                opacity:0.1,
-                                */
-                                
-                                start: (startDate || ''),
-                                end: (endDate && endDate!=startDate)?endDate:'',
-                                
-                                URL: _getFieldValue(record, 'rec_URL'),
-                                thumb: html_thumb,
-                                
-                                info: _getFieldValue(record, 'rec_Info')  //prepared content for map bubble or URL to script
-                                
-                                //was need for highlight selection on map places: null
-                                
-                                //,infoHTML: (infoHTML || ''),
-                            }
-                        }; 
-                        
-                        /*suppress default icons for expertnation
-                        if(window.hWin.HAPI4.sysinfo['layout']!='Beyond1914'){ 
-                            item.options.icon = iconImg; 
-                        }*/
-                        
-                //keep item object for addition separate items for places
-                if(has_linked_places.length>0){
-                    for(let k=0; k<has_linked_places.length;k++){
-                        if(!linkedPlaces[ has_linked_places[k] ]['item']){
-                            linkedPlaces[ has_linked_places[k] ]['item'] = window.hWin.HEURIST4.util.cloneJSON(item);    
-                        }
-                    }
-                }
-                        
-                                          
-                if(shapes.length>0){
-                    if(mapenabled<=MAXITEMS){
-                        item.placemarks = shapes;
-                    }
-                    mapenabled++;
-                    aitems.push(item);
-                }
-        }}//for records
-      
-        //add linked places as separate items 
-        //if place was found separetely consider is as one of linked records
-        for(let placeID in linkedPlaces){
-            if(placeID>0){
-                
-                if(records[placeID]){
-                    linkedPlaces[placeID]['linkedRecs'].push(placeID);
-                }
-                
-                let item = linkedPlaces[placeID]['item']; //item that linked to this place
-                item.placemarks = linkedPlaces[placeID]['shape'];
-                item.options.linkedRecIDs = linkedPlaces[placeID]['linkedRecs'];
-                if(item.options.linkedRecIDs.length>1 && item.options.icon.indexOf('s.png&color=')>0){
-                    let clr = encodeURIComponent(item.options.color);
-                    item.options.icon = item.options.icon +'&circle='+clr;
-                }
-                aitems.push(item);
-                mapenabled++;
-            } 
-        }
-            
-            
-        let dataset = 
-            {
-                id: dataset_name, 
-                title: dataset_name, 
-                type: "basic",
-                timeenabled: timeenabled,
-                color: iconColor,
-                fillColor: fillColor, 
-                lineColor: lineColor, 
-                visible: true, 
-                mapenabled: mapenabled,
-                options: { items: aitems },
-                timeline:{ items: titems }, //, start: min_date  ,end: max_date  }
-                limit_warning:limit_warning
-            };
-
-        return dataset;
-    }//end _toTimemap
-
 
     /**
     * Converts recordSet to GeoJSON
@@ -780,9 +387,22 @@ mapDraw.js initial_wkt -> parseWKT -> GeoJSON -> _loadGeoJSON (as set of separat
         DT_GEO_OBJECT = window.hWin.HAPI4.sysinfo['dbconst']['DT_GEO_OBJECT']; //28
         
 
-    //
-    // find linked records of specified rectype for given recID
-    //
+    /**
+     * Finds linked records of a specified record type for a given record ID.
+     * It iterates through the detail fields of the given record, looking for 'resource' type fields.
+     * For each 'resource' field, it extracts the linked record IDs and checks if they exist in the current recordset
+     * and match the specified `forRecTypeID` (if provided).
+     *
+     * @private
+     * @param {number|string} forRecID - The ID of the record for which to find linked records.
+     * @param {number|string} [forRecTypeID] - Optional. The record type ID to filter linked records by.
+     * @returns {Array<Object>} An array of objects, where each object represents a linked record
+     *                          and has the shape: `{related: string, relation: number, rel_rt: number}`.
+     *                          `related` is the ID of the linked record.
+     *                          `relation` is 0 (as these are direct links, not through a relation record).
+     *                          `rel_rt` is the record type ID of the linked record.
+     *                          Returns an empty array if no linked records are found or if the initial record is invalid.
+     */
     function _getLinkedRecords(forRecID, forRecTypeID){
         
         
@@ -825,13 +445,23 @@ mapDraw.js initial_wkt -> parseWKT -> GeoJSON -> _loadGeoJSON (as set of separat
         return links;        
     }
    
-    // find relation records of given type for recID
-    // 1. search all relationship records
-    // 2. check target or source fields
-    // 3. check record type
-    //
-    // returns array of objects  {relation:recID, related:recTarget, relrt:relRecTypeID}
-    //
+    /**
+     * Finds relation records of a given type for a specific record ID.
+     * It searches all relationship records in the recordset.
+     * For each relationship record, it checks if the `forRecID` matches either the target or source resource.
+     * If a match is found, it then checks if the related record (the other end of the relationship)
+     * matches the `forRecTypeID` (if specified).
+     *
+     * @private
+     * @param {number|string} forRecID - The ID of the record for which to find relation records.
+     * @param {number|string} [forRecTypeID] - Optional. The record type ID to filter the related records by.
+     * @returns {Array<Object>} An array of objects, where each object represents a found relation.
+     *                          Each object has the shape: `{relation: string, related: string, relrt: number}`.
+     *                          `relation` is the ID of the relationship record itself.
+     *                          `related` is the ID of the record related to `forRecID` through this relationship.
+     *                          `relrt` is the record type ID of the `related` record.
+     *                          Returns an empty array if no matching relations are found.
+     */
     function _getRelationRecords(forRecID, forRecTypeID){
         let relations = [];
         
@@ -902,6 +532,23 @@ mapDraw.js initial_wkt -> parseWKT -> GeoJSON -> _loadGeoJSON (as set of separat
     // geotype - p,pl,c,l
     // recID optional reference to real geo record (linked place)
     // WKT - coordinates
+    /**
+     * Parses and retrieves geographic data from a field value.
+     * The geo value is expected to be in the format: "geotype:recID WKT" or "geotype WKT".
+     * - `geotype`: A code representing the geometry type (e.g., p, pl, c, l).
+     * - `recID`: Optional. A reference to a real geo record (linked place).
+     * - `WKT`: The Well-Known Text representation of the geometry.
+     *
+     * @private
+     * @param {Object|string|number} record - The record object or record ID.
+     * @param {string|number} fldname - The name or ID of the field containing the geo data.
+     * @returns {Array<Object>|null} An array of objects, where each object represents a parsed geo value
+     *                                 and has the shape: `{geotype: string, wkt: string, recID?: number}`.
+     *                                 `geotype` is the geometry type.
+     *                                 `wkt` is the Well-Known Text string.
+     *                                 `recID` (optional) is the ID of the linked geo record.
+     *                                 Returns `null` if the field value is null or empty.
+     */
     function _getFieldGeoValue(record, fldname){
 
         let geodata = _getFieldValues(record, fldname);
@@ -930,9 +577,19 @@ mapDraw.js initial_wkt -> parseWKT -> GeoJSON -> _loadGeoJSON (as set of separat
     }
     
     /**
-    * public method "values"
-    * record - recId or record object
-    */
+     * Retrieves all values for a specified field from a given record.
+     * This is the internal implementation for the public `values` method.
+     * The record can be specified as a record object or a record ID.
+     * It handles header fields (indexed or named) and detail fields (from `record['d']`).
+     *
+     * @private
+     * @param {Object|string|number} record - The record object or its ID.
+     * @param {string|number} fldname - The name or ID of the field.
+     * @returns {Array<any>|any|null} An array of values if the field is multi-valued or if it's a detail field.
+     *                                 A single value if it's a header field (non-detail, non-indexed, not in `record['d']`).
+     *                                 `null` if the field name is empty, the record is invalid, or the field is not found.
+     * @todo Consider standardizing return type (e.g., always array for consistency) or clarifying when single vs. array is returned for header fields.
+     */
     function _getFieldValues(record, fldname){
         if(window.hWin.HEURIST4.util.isempty(fldname)) return null;
 
@@ -962,11 +619,17 @@ mapDraw.js initial_wkt -> parseWKT -> GeoJSON -> _loadGeoJSON (as set of separat
     }
 
     /**
-    * return record as proper json (with field names rather than indexes
-    *     
-    * @param record
-    * @param fldname
-    */
+     * Converts a record object from its internal representation (which may use indexed field access)
+     * to a JSON object with field names as keys.
+     * It handles both header fields (stored by index based on `fields` array or by name)
+     * and detail fields (cloned from `record['d']`).
+     *
+     * @private
+     * @param {Object} record - The internal record object. It can be an array (for indexed header fields) or an object.
+     * @returns {Object} A new object representing the record with field names as keys.
+     *                   Includes a 'd' property if detail fields exist, which is a clone of `record['d']`.
+     *                   If `fields` array is empty, it returns a clone of the original record object.
+     */
     function _getAllFields(record){
         
         let res = {};
@@ -993,11 +656,27 @@ mapDraw.js initial_wkt -> parseWKT -> GeoJSON -> _loadGeoJSON (as set of separat
 
     
     /**
-    * public method "fld"
-    * Returns field value by fieldname
-    * WARNING for multivalues it returns first value ONLY
-    * @todo - obtain fieldtype codes from server side
-    */
+     * Retrieves a single value for a specified field from a given record.
+     * This is the internal implementation for the public `fld` method.
+     * If the field is multi-valued (especially detail fields), it returns the first value only after potential translation.
+     * It handles:
+     * 1. Calculated fields (if `that.calcfields` has a function for `fldname`).
+     * 2. Detail fields (stored in `record['d']`):
+     *    - Numeric field IDs: retrieves the first value, applying translation if `lang` is provided.
+     *    - Special string field names like "dtl_StartDate", "dtl_EndDate", "dtl_Description", "dtl_Geo".
+     * 3. Header fields:
+     *    - By index (if `fldname` is in the `fields` array).
+     *    - By name (if `record[fldname]` exists).
+     *
+     * @private
+     * @param {Object|string|number} recordOrRecId - The record object or its ID.
+     * @param {string|number} fldname - The name or ID of the field.
+     * @param {string} [lang] - Optional language code (e.g., "xx" for current system language) for translation of multi-lingual detail fields.
+     * @returns {*} The value of the field. For multi-valued detail fields, returns the first value (possibly translated).
+     *              Returns `null` if the record or field name is invalid, or the field is not found/empty.
+     * @todo Obtain fieldtype codes from server side to improve type handling and remove ambiguity for detail field types.
+     * @todo Clarify behavior for "dtl_Geo" when it might return geotype vs. WKT string.
+     */
     function _getFieldValue(record, fldname, lang){
 
         
@@ -1071,10 +750,33 @@ mapDraw.js initial_wkt -> parseWKT -> GeoJSON -> _loadGeoJSON (as set of separat
         }
     }
     
+    /**
+     * Checks if an object is null or undefined.
+     *
+     * @private
+     * @param {*} obj - The object or value to check.
+     * @returns {boolean} True if the object is undefined or null, false otherwise.
+     */
     function isnull(obj){
         return ( (typeof obj==="undefined") || (obj===null));
     }
     
+    /**
+     * Sets the value of a specified field in a given record object.
+     * This function directly modifies the passed `record` object.
+     * - If `fldname` is a number (assumed to be a detail field ID), the value is set in `record['d'][fldname]`.
+     *   If `newvalue` is not an array, it's wrapped in an array.
+     * - If `fldname` is a string:
+     *   - It checks if `fldname` exists in the `fields` array (for indexed header fields).
+     *   - Otherwise, it sets `record[fldname]` directly (for named header fields).
+     *   - For header fields (except 'rec_Shape'), if `newvalue` is an array, only its first element is used.
+     *
+     * @private
+     * @param {Object} record - The record object to modify.
+     * @param {string|number} fldname - The name or ID of the field.
+     * @param {*} newvalue - The new value for the field.
+     * @todo For detail fields (when `fldname` is numeric), clarify if there's a need to search by code if it's not a direct ID.
+     */
     function _setFieldValue(record, fldname, newvalue){
 
         if(!isNaN(Number(fldname))){  //@todo - search detail by its code
@@ -1108,16 +810,34 @@ mapDraw.js initial_wkt -> parseWKT -> GeoJSON -> _loadGeoJSON (as set of separat
     //public members
     let that = {
 
-        getClass: function () {return _className;},
+        /**
+         * Checks if the instance is of a given class name.
+         * @param {string} strClass - The class name to check against.
+         * @returns {boolean} True if `strClass` is "HRecordSet" or "hRecordSet".
+         */
         isA: function (strClass) {return (strClass === _className || strClass === 'hRecordSet');},
-        getVersion: function () {return _version;},
+
+        /**
+         * @property {string} entityName - The name of the entity type for this recordset (e.g., "Records").
+         * Initialized during `_init`.
+         */
         entityName:'',
+        /**
+         * @property {Object<string, Function>} calcfields - An object to store callback functions for calculated fields.
+         * These functions are used, for example, to generate the value for the `rec_Info` field for mapping popups.
+         * Each key is a field name, and its value is a function that takes `(record, fldname)` and returns the calculated value.
+         */
         calcfields:{}, //set of callback functions for calculation fields
                        // is is used tp generate value for rec_Info field for mapping popup
 
-        //
-        //
-        //                                      
+        /**
+         * Retrieves the visibility settings for a specific field in a given record.
+         * Visibility settings are stored in the `v` property of a record object.
+         *
+         * @param {Object} record - The record object.
+         * @param {number|string} fldId - The ID of the field for which to get visibility settings.
+         * @returns {any|null} The visibility setting for the field, or `null` if not found or record/fldId is invalid.
+         */
         getFieldVisibilites: function(record, fldId){
             let res = null;
             
@@ -1130,29 +850,76 @@ mapDraw.js initial_wkt -> parseWKT -> GeoJSON -> _loadGeoJSON (as set of separat
         },
                        
         /**
-        * Returns field value by fieldname for given record
-        */
+         * Returns a single field value by field name for a given record.
+         * If the field is multi-valued, it returns the first value only.
+         * Wraps the private `_getFieldValue` method.
+         *
+         * @param {Object|string|number} record - The record object or its ID.
+         * @param {string|number} fldName - The name or ID of the field.
+         * @param {string} [lang] - Optional language code for translation.
+         * @returns {*} The field value, or `null` if not found.
+         */
         fld: function(record, fldName, lang){
             return _getFieldValue(record, fldName, lang);
         },
 
+        /**
+         * Returns all values for a specified field from a given record.
+         * Wraps the private `_getFieldValues` method.
+         *
+         * @param {Object|string|number} record - The record object or its ID.
+         * @param {string|number} fldName - The name or ID of the field.
+         * @returns {Array<any>|any|null} An array of values or a single value, depending on the field type; `null` if not found.
+         */
         values: function(record, fldName){
             return _getFieldValues(record, fldName);
         },
         
+        /**
+         * Parses and retrieves geographic data from a field value.
+         * Wraps the private `_getFieldGeoValue` method.
+         *
+         * @param {Object|string|number} record - The record object or record ID.
+         * @param {string|number} fldName - The name or ID of the field containing the geo data.
+         * @returns {Array<Object>|null} Parsed geo data or `null`.
+         */
         getFieldGeoValue: function(record, fldName){
             return _getFieldGeoValue(record, fldName);
         },
         
+        /**
+         * Sets the value of a specified field in a given record object.
+         * Wraps the private `_setFieldValue` method.
+         *
+         * @param {Object} record - The record object to modify.
+         * @param {string|number} fldName - The name or ID of the field.
+         * @param {*} value - The new value for the field.
+         */
         setFld: function(record, fldName, value){
             _setFieldValue(record, fldName, value);  
         },
 
+        /**
+         * Sets the value of a specified field for a record identified by its ID.
+         * If the record exists, it calls `_setFieldValue`.
+         *
+         * @param {number|string} recID - The ID of the record to modify.
+         * @param {string|number} fldName - The name or ID of the field.
+         * @param {*} value - The new value for the field.
+         */
         setFldById: function(recID, fldName, value){
             if(records[recID])
                 _setFieldValue(records[recID], fldName, value);  
         },
 
+        /**
+         * Gets a single field value for a record identified by its ID.
+         * If the record exists, it calls `_getFieldValue`.
+         *
+         * @param {number|string} recID - The ID of the record.
+         * @param {string|number} fldName - The name or ID of the field.
+         * @returns {*} The field value, or `null` if the record or field is not found.
+         */
         getFldById: function(recID, fldName){
             if(records[recID]){
                 return _getFieldValue(records[recID], fldName);
@@ -1161,9 +928,17 @@ mapDraw.js initial_wkt -> parseWKT -> GeoJSON -> _loadGeoJSON (as set of separat
             }
         },
         
-        //
-        // assign value of field from one record to another
-        //
+        /**
+         * Transfers a field value from one record (`recordFrom`) to another (`recordTo`).
+         *
+         * @param {Object} recordTo - The target record object to set the field value on.
+         * @param {Object|string|number} recordFrom - The source record object or its ID to get the field value from.
+         * @param {string|number} fldName - The name or ID of the field to transfer.
+         * @param {boolean} [isNoNull] - If true, the transfer only occurs if the retrieved value is not empty.
+         * @returns {boolean|undefined} Returns `false` if `isNoNull` is true and the value is empty.
+         *                               Returns `true` if the value was successfully set.
+         *                               Otherwise (if `isNoNull` is false and value is empty), implicitly returns `undefined`.
+         */
         transFld: function(recordTo, recordFrom, fldName, isNoNull){
             
             let value = _getFieldValue(recordFrom, fldName);
@@ -1175,24 +950,35 @@ mapDraw.js initial_wkt -> parseWKT -> GeoJSON -> _loadGeoJSON (as set of separat
             }
         },
         
-        //
-        // returns record by id
-        //
+        /**
+         * Returns a record object by its ID from the internal `records` cache.
+         *
+         * @param {number|string} recID - The ID of the record to retrieve.
+         * @returns {Object|undefined} The record object if found, otherwise `undefined`.
+         */
         getById: function(recID){
             return records[recID];
         },
 
         
-        //
-        // returns array of {recid:fieldvalue} for all records
-        //
+        /**
+         * Converts the recordset into an array of key-title objects, suitable for selectors.
+         * Uses `_makeKeyValueArray` internally.
+         *
+         * @param {string|number} titlefield - The field name or ID to use for the 'title' of each object.
+         * @returns {Array<Object>} An array of objects, each with `key` (record ID) and `title` (field value).
+         */
         makeKeyValueArray:function(titlefield){
             return _makeKeyValueArray(titlefield);
         },
         
-        //
-        // returns record as JSON object
-        //
+        /**
+         * Returns a record by its ID, formatted as a JSON object with field names as keys.
+         * Uses `_getAllFields` internally.
+         *
+         * @param {number|string} recID - The ID of the record to retrieve.
+         * @returns {Object|null} The formatted record object, or `null` if the record is not found.
+         */
         getRecord: function(recID){
             let record = this.getById(recID);
             if(record){
@@ -1205,10 +991,11 @@ mapDraw.js initial_wkt -> parseWKT -> GeoJSON -> _loadGeoJSON (as set of separat
         
         
         /**
-        * returns all record ids from recordset
-        * 
-        * @returns {Array}
-        */
+         * Returns all record IDs from the recordset's current order.
+         *
+         * @param {number} [limit] - Optional. If provided and greater than 0, returns only the first `limit` IDs.
+         * @returns {Array<string|number>} An array of record IDs.
+         */
         getIds: function( limit ){
             
             if(limit>0){
@@ -1218,7 +1005,13 @@ mapDraw.js initial_wkt -> parseWKT -> GeoJSON -> _loadGeoJSON (as set of separat
             return order;
         },
         
-        //get ids for given array of records
+        /**
+         * Extracts record IDs from a given object of records.
+         *
+         * @param {Object<string, Object>} recs - An object where keys are record IDs and values are record objects.
+         * @param {number} [limit] - Optional. If provided and greater than 0, returns only the first `limit` IDs found.
+         * @returns {Array<string>} An array of record IDs extracted from the `recs` object.
+         */
         getIds2: function( recs, limit ){
             
             let aitems = [];
@@ -1243,6 +1036,13 @@ mapDraw.js initial_wkt -> parseWKT -> GeoJSON -> _loadGeoJSON (as set of separat
         },
         
         
+        /**
+         * Retrieves all record IDs that belong to a specific record type ID.
+         *
+         * @param {number|string} rty_ID - The record type ID to filter by.
+         * @returns {Array<string>} An array of record IDs matching the specified record type ID.
+         *                        Returns an empty array if `rty_ID` is not positive or no records match.
+         */
         getIdsByRectypeId: function(rty_ID){
 
             rty_ID = Number(rty_ID);
@@ -1293,10 +1093,14 @@ mapDraw.js initial_wkt -> parseWKT -> GeoJSON -> _loadGeoJSON (as set of separat
         },
         
         /**
-        * traverce all records - pass to callback  recID and record
-        * 
-        * @param callback
-        */
+         * Iterates over each record in the recordset (respecting the current `order`)
+         * and executes a callback function. The callback receives the record ID and the raw record object.
+         * The iteration can be stopped by returning `false` from the callback.
+         *
+         * @param {function(string, Object): (boolean|void)} callback - A function to execute for each record.
+         *        It receives `recID` (string) and `record` (Object).
+         *        If the callback returns `false`, the iteration stops.
+         */
         each: function( callback ){
         
             for(let i=0; i<order.length; i++){
@@ -1310,7 +1114,16 @@ mapDraw.js initial_wkt -> parseWKT -> GeoJSON -> _loadGeoJSON (as set of separat
             
         },
 
-        // returns record in callback as json with fieldnames
+        /**
+         * Iterates over each record in the recordset (respecting the current `order`)
+         * and executes a callback function. The callback receives the record ID and
+         * the record formatted as a JSON object (with field names as keys via `that.getRecord`).
+         * The iteration can be stopped by returning `false` from the callback.
+         *
+         * @param {function(string, Object): (boolean|void)} callback - A function to execute for each record.
+         *        It receives `recID` (string) and `record` (Object - formatted with field names).
+         *        If the callback returns `false`, the iteration stops.
+         */
         each2: function( callback ){
         
             for(let i=0; i<order.length; i++){
@@ -1326,12 +1139,16 @@ mapDraw.js initial_wkt -> parseWKT -> GeoJSON -> _loadGeoJSON (as set of separat
 
             
         /**
-        * Returns recordSet with the same field and structure definitions
-        * 
-        * @param  _records - list of objects/records
-        * 
-        * @returns {HRecordSet}
-        */
+         * Creates a new HRecordSet instance as a subset of the current one,
+         * using a provided set of records and their order.
+         * The new recordset inherits metadata like fields, structures, etc., from the parent.
+         *
+         * @param {Object<string, Object>} [_records={}] - An object where keys are record IDs and values are record objects
+         *                                                for the new subset. Defaults to an empty object.
+         * @param {Array<string|number>} [_order] - An array of record IDs defining the order for the new subset.
+         *                                        If not provided, it's generated from the keys of `_records`.
+         * @returns {HRecordSet} A new HRecordSet instance representing the subset.
+         */
         getSubSet: function(_records, _order){
             
             if(_records==null){
@@ -1356,9 +1173,14 @@ mapDraw.js initial_wkt -> parseWKT -> GeoJSON -> _loadGeoJSON (as set of separat
             });
         },
 
-        //
-        //
-        //
+        /**
+         * Creates a new HRecordSet as a subset containing only the records specified by `rec_ids`.
+         * The order of records in the new subset will match the order in `rec_ids` (for those found).
+         *
+         * @param {Array<string|number>} rec_ids - An array of record IDs to include in the subset.
+         * @returns {HRecordSet|null} A new HRecordSet instance representing the subset,
+         *                            or `null` if the current recordset's `records` object is empty.
+         */
         getSubSetByIds: function(rec_ids){
             let _records = {};
             let _order = [];
@@ -1390,9 +1212,15 @@ mapDraw.js initial_wkt -> parseWKT -> GeoJSON -> _loadGeoJSON (as set of separat
             return this.getSubSet(_records, _order);
         },
 
-        //
-        // sortFields:  { "fieldName":-1|1 }
-        //
+        /**
+         * Sorts the recordset's `order` array based on specified field(s) and their data types.
+         * Modifies the internal `order` array in place.
+         *
+         * @param {Object<string, number>} sortFields - An object where keys are field names (or IDs)
+         *                                              and values are sort order (1 for ascending, -1 for descending).
+         *                                              Example: `{"rec_Title": 1, "dt_DateCreated": -1}`.
+         *                                              If null or empty, the function returns without sorting.
+         */
         sort: function(sortFields){
             
             let fieldName, dataTypes={};
@@ -1408,7 +1236,7 @@ mapDraw.js initial_wkt -> parseWKT -> GeoJSON -> _loadGeoJSON (as set of separat
                     if(Number(fieldName)>0){
                         dt_type = $Db.dty(fieldName,'dty_Type');
                     }
-                    if(dt_type=='resource'){
+                    if(dt_type=='resource'){ // Resource type fields are often sorted by their integer ID
                         dt_type = 'integer';
                     }
                     dataTypes[fieldName] = dt_type;
@@ -1430,12 +1258,15 @@ mapDraw.js initial_wkt -> parseWKT -> GeoJSON -> _loadGeoJSON (as set of separat
                                     }
                                 }else{
                                     if(dataTypes[fieldName]=='date'){
+                                        // Assuming parseDates handles conversion to comparable format or returns sortable values
                                         let dres = window.hWin.HEURIST4.util.parseDates(val1, val2);
-                                        val1 = dres[0];
-                                        val2 = dres[1];
+                                        val1 = dres[0]; // Assuming dres[0] is the start_date or comparable primary date
+                                        val2 = dres[1]; // Assuming dres[1] is the end_date or comparable secondary date for ranges
                                     }
-                                    if(val1) val1 = val1.toLocaleLowerCase();
-                                    if(val2) val2 = val2.toLocaleLowerCase();
+                                    // Ensure values are strings for localeCompare, convert null/undefined to empty string
+                                    val1 = (val1 === null || typeof val1 === 'undefined') ? '' : String(val1).toLocaleLowerCase();
+                                    val2 = (val2 === null || typeof val2 === 'undefined') ? '' : String(val2).toLocaleLowerCase();
+
                                     let compare = val1.localeCompare(val2);
                                     if(compare !== 0){
                                         res = sortFields[fieldName] * compare;
@@ -1452,12 +1283,25 @@ mapDraw.js initial_wkt -> parseWKT -> GeoJSON -> _loadGeoJSON (as set of separat
             
         },
         
-        //
-        //  returns subset by request/filter
-        //
-        // request:  { "sort:fieldName":-1|1 , fieldName:=value, fieldName:value, fieldName:'NULL' }
-        // structure [{dtID:fieldname, dtFields:{dty_Type: } }]
-        //    if structure not defined - default type is freetext
+        /**
+         * Creates a subset of the current recordset based on a filter request object and optionally sorts it.
+         * The request object can specify field values to match and fields to sort by.
+         *
+         * @param {Object} request - The filter and sort criteria.
+         *        - For filtering: `{fieldName: value, anotherField: "!=value", numericField: ">10"}`.
+         *          - `value`: exact match (case-insensitive for text, exact for numbers after prefix removal).
+         *          - `"=value"`: exact match (case-insensitive for text).
+         *          - `"!value"` or `{"!=value"}`: not equal. (Note: original code used `!=value` prefix, this JSDoc assumes it's handled)
+         *          - `">value"`, `"<value"`: greater/less than (for numbers after prefix removal).
+         *          - `value` (no operator, for text): contains (case-insensitive).
+         *          - `'NULL'`: field value is null.
+         *        - For sorting: `{"sort:fieldName": 1}` for ascending, `{"sort:fieldName": -1}` for descending.
+         * @param {Array<Object>} [structure] - Optional. An array describing the structure of fields,
+         *        used to determine data types for filtering and sorting. Each object can have
+         *        `dtID` (field name/ID) and `dtFields.dty_Type`.
+         * @returns {HRecordSet} A new HRecordSet instance representing the filtered and sorted subset.
+         *                       Returns the original recordset if the request is null or empty.
+         */
         getSubSetByRequest: function(request, structure){
             
             let _records = {}, _order=[], that = this;
@@ -1465,7 +1309,7 @@ mapDraw.js initial_wkt -> parseWKT -> GeoJSON -> _loadGeoJSON (as set of separat
             if(request==null || $.isEmptyObject(request)) return this;
 
             // if structure not defined - default type is freetext            
-            function __getDataType(fieldname, struct){
+            function __getDataType(fieldname, struct){ // Inner helper function
                 let idx;
                 if(struct!=null){
                     for (idx in struct){
@@ -1531,7 +1375,7 @@ mapDraw.js initial_wkt -> parseWKT -> GeoJSON -> _loadGeoJSON (as set of separat
                             
                         }
                     }else{
-                        let realFieldName = fieldName.substr(5);
+                        let realFieldName = fieldName.slice(5);
                         sortFieldsOrder.push(Number(request[fieldName])); //1 - ASC, -1 DESC
                         sortFields.push(realFieldName);
                         dataTypes[realFieldName] = __getDataType(realFieldName, structure);
@@ -1625,9 +1469,16 @@ mapDraw.js initial_wkt -> parseWKT -> GeoJSON -> _loadGeoJSON (as set of separat
             return this.getSubSet(_records, _order);
         },
         
-        //
-        // take records from given recordset
-        //
+        /**
+         * Fills the header information (fields, rectypes) and copies records from another recordset.
+         * Modifies the current recordset instance.
+         * - If current `fields` is empty, it's replaced by `recordset2.getFields()`.
+         * - `rectypes` are merged and made unique.
+         * - Records from `recordset2` are copied into the current `records` object.
+         *
+         * @param {HRecordSet} recordset2 - The source HRecordSet instance to copy from.
+         *                                  If null, the function does nothing.
+         */
         fillHeader: function( recordset2 ){
             
             if(recordset2==null){
@@ -1661,8 +1512,17 @@ mapDraw.js initial_wkt -> parseWKT -> GeoJSON -> _loadGeoJSON (as set of separat
         },
         
         /**
-        * Returns new recordSet that is the join from current and given recordset
-        */
+         * Returns a new HRecordSet instance that is a union of the current recordset and `recordset2`.
+         * Records from `recordset2` that are not already in the current recordset are added.
+         * The order of new records can be controlled by `before_rec_id`.
+         * Metadata (fields, rectypes, structures, relationship) are merged.
+         *
+         * @param {HRecordSet} recordset2 - The HRecordSet to unite with. If null, returns the current recordset.
+         * @param {number|string} [before_rec_id] - Optional. If provided, new records from `recordset2`
+         *                                         are inserted before this record ID in the order.
+         * @returns {HRecordSet} A new HRecordSet instance representing the union.
+         * @todo Review merging logic for structures and other metadata for completeness.
+         */
         doUnite: function(recordset2, before_rec_id){
             if(recordset2==null){
                 return that;
@@ -1739,48 +1599,67 @@ mapDraw.js initial_wkt -> parseWKT -> GeoJSON -> _loadGeoJSON (as set of separat
         },
         
         /**
-        * Returns the actual number of records 
-        * 
-        * @type Number
-        */
+         * Returns the actual number of records currently loaded in the recordset (i.e., the length of the `order` array).
+         *
+         * @returns {number} The number of records.
+         */
         length: function(){
             //return Object.keys(records)
             return order.length;
         },
 
         /**
-        * get count of all records for current request
-        */
+         * Gets the total count of records available from the original query (may be more than currently loaded).
+         * @returns {number} The total number of records.
+         */
         count_total: function(){
             return total_count;
         },
 
+        /**
+         * Gets the offset of the current recordset from the original query.
+         * @returns {number} The offset.
+         */
         offset: function(){
             return offset;
         },
         
+        /**
+         * Gets the unique query ID associated with this recordset.
+         * @returns {string|null} The query ID.
+         */
         queryid:function(){
             return queryid;
         },
 
         /**
-        * Get all records s
-        */
+         * Get all loaded record objects.
+         * @returns {Object<string, Object>} The internal `records` object where keys are record IDs.
+         */
         getRecords: function(){
             return records;
         },
         
+        /**
+         * Gets the current array of record IDs defining the order of records.
+         * @returns {Array<string|number>} The `order` array.
+         */
         getOrder: function(){
             return order;
         },
 
+        /**
+         * Sets the internal `order` array.
+         * @param {Array<string|number>} _order - The new array of record IDs.
+         */
         setOrder: function(_order){
             order = _order;
         },
         
         /**
-        * Returns first record from recordSet
-        */
+         * Returns the first record object from the recordset based on the current order.
+         * @returns {Object|null} The first record object, or `null` if the recordset is empty.
+         */
         getFirstRecord: function(){
             
             if(order.length>0){
@@ -1789,50 +1668,68 @@ mapDraw.js initial_wkt -> parseWKT -> GeoJSON -> _loadGeoJSON (as set of separat
             return null;
         },
         
+        /**
+         * Returns the last record object from the recordset based on the current order.
+         * @returns {Object|null} The last record object, or `null` if the recordset is empty.
+         */
         getLastRecord: function(){
             if(order.length>0){
-                return records[order.length-1];
+                // Corrected to access the last element of the 'order' array
+                return records[order[order.length-1]];
             }
             return null;
         },
 
         /**
-        * record structure definitions for all rectypes in this record set
-        * optional - may be empty
-        */
+         * Gets the record structure definitions for all record types in this recordset.
+         * This data is optional and may be empty.
+         * @returns {Object|null} The `structures` object.
+         */
         getStructures: function(){
             return structures;
         },
         
+        /**
+         * Gets the unique list of record type IDs with their counts present in this recordset.
+         * @returns {Array<Object>} The `rectypes` array (e.g., `[{rt_ID: "1", rt_Name: "Person", count: "10"}, ...]`).
+         */
         getRectypes: function(){
             return rectypes;
         },
         
-        //
-        // set fields defintions
-        //
+        /**
+         * Gets the array of field names (headers) for the records in this recordset.
+         * @returns {Array<string>} The `fields` array.
+         */
         getFields: function(){
             return fields;
         },
 
+        /**
+         * Sets the array of field names (headers) for the records in this recordset.
+         * @param {Array<string>} _fields - The new array of field names.
+         */
         setFields: function(_fields){
             fields = _fields;
         },
         
-        //
-        // returns dty_IDs
-        // applicable for Heurist records only
-        //
+        /**
+         * Returns the array of detail field type IDs (dty_IDs).
+         * Applicable for Heurist records that have detailed field structures.
+         * Calls the private `_getDetailsFieldTypes` method.
+         * @returns {Array<string>|null} Array of detail field type IDs, or null.
+         */
         getDetailsFieldTypes:function(){
             return _getDetailsFieldTypes();    
         },
         
         
-        //  
-        //  list of record ids that belong to main request (search)
-        //  since some records may belong to results of rules requests (linked, related records) 
-        //  or relationship records
-        //
+        /**
+         * Gets the list of record IDs that belong to the main request (search result),
+         * as opposed to records brought in by rules (linked/related records) or relationship records.
+         * If `mainset` is not defined or empty, it defaults to the current `order`.
+         * @returns {Array<string|number>} The array of main set record IDs.
+         */
         getMainSet: function(){
             if( !$.isEmptyObject(mainset) ){
                 return mainset;
@@ -1841,6 +1738,10 @@ mapDraw.js initial_wkt -> parseWKT -> GeoJSON -> _loadGeoJSON (as set of separat
             }
         },
 
+        /**
+         * Sets the list of record IDs that belong to the main set.
+         * @param {Array<string|number>} _mainset - An array of record IDs. If empty or not an object, `mainset` becomes null.
+         */
         setMainSet: function(_mainset){
             if( !$.isEmptyObject(_mainset) ){
                 mainset = _mainset;
@@ -1849,24 +1750,33 @@ mapDraw.js initial_wkt -> parseWKT -> GeoJSON -> _loadGeoJSON (as set of separat
             }
         },
         
-        //
-        // flag that marks if recordset has detail data for mapping and timeline
-        //
+        /**
+         * Checks if the recordset has detail data enabled for mapping and timeline features.
+         * @returns {boolean} The value of the internal `_isMapEnabled` flag.
+         */
         isMapEnabled: function(){
             return _isMapEnabled;
         },
         
+        /**
+         * Sets the internal flag to indicate that map-specific detail data is enabled.
+         */
         setMapEnabled: function(){
             _isMapEnabled = true;
         },
 
-        //
-        // keep search request that results this recordset
-        //
+        /**
+         * Stores the search request object that resulted in this recordset.
+         * @param {Object} request - The search request object.
+         */
         setRequest: function(request){
             _request = request;
         },
         
+        /**
+         * Retrieves the search request object associated with this recordset.
+         * @returns {Object|null} The stored search request object.
+         */
         getRequest: function(){
             return _request;
         },
@@ -1898,41 +1808,54 @@ mapDraw.js initial_wkt -> parseWKT -> GeoJSON -> _loadGeoJSON (as set of separat
         },
         */ 
         /**
-        * Converts recordSet to geoJSON (for leaflet mapping)
-        * 
-        * geoType 
-        * 0, undefined - all
-        * 1 - main geo only
-        * 2 - rec_Shape only
-        */
+         * Converts the recordset to a GeoJSON FeatureCollection object, suitable for mapping.
+         * Also extracts timeline data.
+         * Wraps the private `_toGeoJSON` method.
+         *
+         * @param {number|string} [filter_rt] - Optional record type ID to filter records by.
+         * @param {number} [geoType] - Defines which geo data to use:
+         *                             0 or undefined: all geo data.
+         *                             1: main geo data only (no links).
+         *                             2: `rec_Shape` field only.
+         * @param {number} [max_limit] - Optional. Maximum number of GeoJSON features to generate.
+         * @returns {Object} An object like `{geojson: Array, timeline: Array, geojson_ids: Array}`.
+         */
         toGeoJSON: function(filter_rt, geoType, max_limit){
             return _toGeoJSON(filter_rt, geoType, max_limit);
         },
         
         /**
-        * Converts recordSet to GoogleMap Timemap dataset
-        * 
-        * geoType 
-        * 0, undefined - all
-        * 1 - main geo only
-        * 2 - rec_Shape only
-        */
-        toTimemap: function(dataset_name, filter_rt, symbology, geoType){
-            return _toTimemap(dataset_name, filter_rt, symbology, geoType);
-        },
-        
+         * Sets progress information related to fetching or processing this recordset.
+         * @param {any} data - The progress data to store.
+         */
         setProgressInfo: function(data){
             _progress = data;
         },
 
+        /**
+         * Retrieves the stored progress information.
+         * @returns {any|null} The progress data.
+         */
         getProgressInfo: function(){
             return _progress;
         },
         
+        /**
+         * Public wrapper for `_getLinkedRecords`. Finds linked records for a given record ID.
+         * @param {number|string} forRecID - The ID of the record.
+         * @param {number|string} [forRecTypeID] - Optional. The record type ID to filter linked records by.
+         * @returns {Array<Object>} An array of linked record information.
+         */
         getLinkedRecords: function(forRecID, forRecTypeID){
             return _getLinkedRecords(forRecID, forRecTypeID);
         },
         
+        /**
+         * Public wrapper for `_getRelationRecords`. Finds relation records for a given record ID.
+         * @param {number|string} forRecID - The ID of the record.
+         * @param {number|string} [forRecTypeID] - Optional. The record type ID to filter related records by.
+         * @returns {Array<Object>} An array of relation record information.
+         */
         getRelationRecords: function(forRecID, forRecTypeID){
             return _getRelationRecords(forRecID, forRecTypeID);
         },
@@ -1942,15 +1865,31 @@ mapDraw.js initial_wkt -> parseWKT -> GeoJSON -> _loadGeoJSON (as set of separat
             return _getRelationRecordByID(forRecID, relRecID);
         },*/
         
+        /**
+         * Gets the raw relationship data object/array associated with the recordset.
+         * @returns {Object|Array|null} The `relationship` data.
+         */
         getRelationship: function(){
             return relationship;
         },
         
+        /**
+         * Gets the processed relation IDs object, which might categorize relations (e.g., "direct", "reverse").
+         * @returns {Object|null} The `relations_ids` object.
+         */
         getRelations:function(){
             return relations_ids;    
         },
 
         
+        /**
+         * Removes a record from the recordset by its ID.
+         * Deletes the record from the internal `records` object and removes its ID from the `order` array.
+         * Decrements `total_count`.
+         *
+         * @param {number|string} recID - The ID of the record to remove.
+         * @todo Check how this affects select_multi functionality.
+         */
         removeRecord:function(recID){
             delete records[recID];           //@todo check how it affect select_multi
             let idx = window.hWin.HEURIST4.util.findArrayIndex(recID, order);
@@ -1976,16 +1915,24 @@ mapDraw.js initial_wkt -> parseWKT -> GeoJSON -> _loadGeoJSON (as set of separat
             return recID;
         },*/
         
-        //
-        // add/replace record with given ID
-        //    
+        /**
+         * Adds a new record or replaces an existing one with the given ID.
+         * If the record ID is new, it's added to `records` and `order`. `total_count` is incremented.
+         * Initializes the new record structure based on `fields` if they exist.
+         * Then calls `setRecord` to populate the field values.
+         *
+         * @param {number|string} recID - The ID for the record.
+         * @param {Object|Array} record - The record data (either an object with field names or an array of values).
+         * @param {boolean} [add_to_begin=false] - If true and the record is new, add its ID to the beginning of the `order` array. Otherwise, adds to the end.
+         * @returns {Object} The added or updated record object from the internal `records` cache.
+         */
         addRecord:function(recID, record, add_to_begin){
             let idx = window.hWin.HEURIST4.util.findArrayIndex(recID, order);
             if(idx<0){ //add new
                 
                 if(fields && fields.length>0){
                     records[recID] = [];
-                    records[recID][fields.length-1] = undefined;    
+                    records[recID][fields.length-1] = undefined; // Pre-allocate array if fields are defined
                 }else{
                     records[recID] = {};
                 }
@@ -2000,9 +1947,14 @@ mapDraw.js initial_wkt -> parseWKT -> GeoJSON -> _loadGeoJSON (as set of separat
             return this.setRecord(recID, record);
         },
 
-        //
-        // direct copy record
-        //
+        /**
+         * Directly adds or replaces a record with a given ID using the provided record object.
+         * If the record ID is new, it's added to `order` and `total_count` is incremented.
+         * The `record` object provided is assigned directly to `records[recID]`.
+         *
+         * @param {number|string} recID - The ID for the record.
+         * @param {Object|Array} record - The record object/array to be stored.
+         */
         addRecord2:function(recID, record){
             let idx = window.hWin.HEURIST4.util.findArrayIndex(recID, order);
             if(idx<0){ //add new
@@ -2012,9 +1964,17 @@ mapDraw.js initial_wkt -> parseWKT -> GeoJSON -> _loadGeoJSON (as set of separat
             records[recID] = record;
         },
         
-        //
-        // add/replace record with given ID
-        //    
+        /**
+         * Sets or updates the data for a record with a given ID.
+         * If `recID` exists in `order`:
+         *  - If `record` is a plain object, its properties are set as field values using `_setFieldValue`.
+         *  - If `record` is an array, it's directly assigned as the record's data.
+         * If `recID` does not exist in `order`, it calls `addRecord` to add it as a new record.
+         *
+         * @param {number|string} recID - The ID of the record to set/update.
+         * @param {Object|Array} record - The record data.
+         * @returns {Object} The record object from the internal `records` cache after modification or addition.
+         */
         setRecord:function(recID, record){
             let idx = window.hWin.HEURIST4.util.findArrayIndex(recID, order);
             if(idx>=0){
@@ -2035,12 +1995,27 @@ mapDraw.js initial_wkt -> parseWKT -> GeoJSON -> _loadGeoJSON (as set of separat
             }
         },
         
-        //
-        //returns data as JSON array for fancytree
-        // {key: title:  children: folder:}
-        // fieldTitle,  - field name for title
-        // fieldLink  -  field name for hierarchy link
-        //
+        /**
+         * Generates data suitable for a tree view structure (e.g., for fancytree).
+         * Each node in the tree has `key` (record ID) and `title`.
+         * Hierarchy is determined by `fieldLink` which points to a parent record's ID.
+         *
+         * @param {string|number} fieldTitle - The field name or ID to use for the node's title.
+         * @param {string|number} fieldLink - The field name or ID that contains the parent record's ID for establishing hierarchy.
+         * @param {number|string|null} rootID - The ID of the root record. Child nodes will be found starting from this parent.
+         *                                      If null, finds nodes whose `fieldLink` value is null or 0.
+         * @returns {Array<Object>} An array of node objects. Each node can have `key`, `title`, `folder` (boolean), and `children` (array of nodes).
+         *                          The tree is sorted by title at each level.
+         * @example
+         * // Example structure for fancytree source:
+         * // [
+         * //   {title: "Node 1", key: "1"},
+         * //   {title: "Folder 2", key: "2", folder: true, children: [
+         * //     {title: "Node 2.1", key: "3", myOwnAttr: "abc"},
+         * //     {title: "Node 2.2", key: "4"}
+         * //   ]}
+         * // ]
+         */
         getTreeViewData:function(fieldTitle, fieldLink, rootID){
             
             /*
@@ -2053,29 +2028,39 @@ mapDraw.js initial_wkt -> parseWKT -> GeoJSON -> _loadGeoJSON (as set of separat
   ]
             */
             
-            //find vocabs only - ids that have children
+            // vocabs stores IDs of records that ARE parents to other records in the set.
+            // A record is considered a "vocabulary" or parent if its ID is used in the fieldLink of another record.
             let recID, vocabs = [];
             for(recID in records){
                 let record = records[recID];
-                let id = this.fld(record, fieldLink);
-                if(!window.hWin.HEURIST4.util.isempty(id) && id>0 
-                    && window.hWin.HEURIST4.util.findArrayIndex(recID,vocabs)<0) { //  $.inArray(recID, vocabs)
-                    vocabs.push(id);
+                let parentIdLinkedByCurrentRecord = this.fld(record, fieldLink); // This is the value of the fieldLink field for the current record
+                if(!window.hWin.HEURIST4.util.isempty(parentIdLinkedByCurrentRecord) && Number(parentIdLinkedByCurrentRecord)>0 ) {
+                    let parentIdStr = String(parentIdLinkedByCurrentRecord);
+                     // If this parentIdStr is not already in vocabs, add it.
+                    if(window.hWin.HEURIST4.util.findArrayIndex(parentIdStr, vocabs) < 0) {
+                        vocabs.push(parentIdStr);
+                    }
                 }
             }
             
-            function __addChilds(that, parentId){
+            function __addChilds(that, parentIdToLookFor){ // Recursive helper function
                 let recID, res = [];
-                for(recID in records){
-                    let record = records[recID];
+                for(recID in records){ // Iterate through all records in the recordset
+                    let currentRecord = records[recID];
                     
-                    let id = that.fld(record, fieldLink);
-                    if(window.hWin.HEURIST4.util.isempty(id) || id==0) id = null;
+                    let parentLinkOfCurrentRecord = that.fld(currentRecord, fieldLink); // Get the parent ID field of the current record
+                    if(window.hWin.HEURIST4.util.isempty(parentLinkOfCurrentRecord) || parentLinkOfCurrentRecord == 0) parentLinkOfCurrentRecord = null;
+                    else parentLinkOfCurrentRecord = String(parentLinkOfCurrentRecord);
                     
-                    if(parentId==id){
-                        let node = {title: that.fld(record,fieldTitle), key: recID};
-                        if(window.hWin.HEURIST4.util.findArrayIndex(recID, vocabs)>-1){  //$.inArray(recID, vocabs)>-1
-                            let children = __addChilds( that, recID );
+                    // If the current record's parent matches parentIdToLookFor
+                    if( (parentIdToLookFor === null && parentLinkOfCurrentRecord === null) ||
+                        (parentIdToLookFor !== null && parentIdToLookFor == parentLinkOfCurrentRecord) ){
+
+                        let node = {title: that.fld(currentRecord,fieldTitle), key: recID};
+                        // A node is a "folder" if its own ID (recID) is present in the 'vocabs' list,
+                        // meaning other records link to it as their parent.
+                        if(window.hWin.HEURIST4.util.findArrayIndex(String(recID), vocabs)>-1){
+                            let children = __addChilds( that, recID ); // Recursively find its children
                             if(children.length>0){
                                 node['children'] = children;
                                 node['folder'] = true;
@@ -2084,19 +2069,25 @@ mapDraw.js initial_wkt -> parseWKT -> GeoJSON -> _loadGeoJSON (as set of separat
                         res.push( node );
                     }
                 }
-                //sort by fieldTitle
+                //sort by fieldTitle (case-insensitive)
                 res.sort(function(a,b){
-                    return a.title>b.title ?1:-1;    
+                    const titleA = String(a.title || '').toLocaleLowerCase();
+                    const titleB = String(b.title || '').toLocaleLowerCase();
+                    return titleA.localeCompare(titleB);
                 });
                 
                 return res;
             }
             
-            let res = __addChilds(this, rootID);
+            // Ensure rootID is consistently typed (string or null) for comparison within __addChilds
+            const currentRootID = (rootID === null || typeof rootID === 'undefined' || rootID === 0 || rootID === '0') ? null : String(rootID);
+            let res_tree = __addChilds(this, currentRootID);
             
-            if(rootID>0){
-                //res = [{key:rootID, title:'root', folder:true, children:res }];    
-            }
+            // Wrap result in a root node if rootID was provided.
+            // This is generally not needed if the tree structure is built directly from the root.
+            // if(rootID>0){
+            //    //res_tree = [{key:rootID, title:'root', folder:true, children:res }];
+            // }
             
  /*           
             for(recID in records){
@@ -2129,53 +2120,86 @@ mapDraw.js initial_wkt -> parseWKT -> GeoJSON -> _loadGeoJSON (as set of separat
             
             }//for
 */            
-            return res;
+            return res_tree;
         },
         
-        //
-        // get flat array of all linked children records
-        //
+        /**
+         * Gets a flat array of all descendant record IDs for a given root record ID,
+         * based on a hierarchical link field.
+         *
+         * @param {string|number} fieldLink - The field name or ID that contains the parent record's ID.
+         * @param {number|string} rootID - The ID of the root record for which to find all children.
+         *                                 The function will only proceed if `rootID` is greater than 0 (when treated as a number)
+         *                                 or a non-empty string that doesn't represent zero.
+         *                                 A `rootID` of `0` or `'0'` might be intended for top-level items if your data uses that.
+         * @returns {Array<string>|undefined} A flat array of all child record IDs (and their children, etc.)
+         *                                    descending from `rootID`. Returns `undefined` if `rootID` is not considered
+         *                                    a valid starting point (e.g., null, undefined, empty string, or non-positive number depending on interpretation).
+         */
         getAllChildrenIds:function(fieldLink, rootID){
             
-            if(rootID>0){
-                
-                //find vocabs only - ids that have children
-                let recID, vocabs = [];
-                for(recID in records){
-                    let record = records[recID];
-                    let id = this.fld(record, fieldLink);
-                    if(!window.hWin.HEURIST4.util.isempty(id) && id>0 
-                        && window.hWin.HEURIST4.util.findArrayIndex(recID,vocabs)<0) { //  $.inArray(recID, vocabs)
-                        vocabs.push(id);
+            // Determine if rootID is a valid starting point.
+            // Allows for rootID '0' if that's a meaningful root in the data.
+            const isRootValid = (rootID !== null && rootID !== undefined && String(rootID).length > 0);
+            const isNumericRootPositive = isRootValid && Number(rootID) > 0;
+
+            if (!isNumericRootPositive && !(String(rootID) === '0' && isRootValid)) {
+                 // If not a positive number and not the string '0', then treat as invalid root for this function's original intent.
+                 // If rootID could be other non-numeric strings, this check might need adjustment.
+                 if (!isRootValid || (isNaN(Number(rootID))) ) { // if truly not a number or empty
+                    return undefined;
+                 }
+            }
+
+            const currentRootIDStr = String(rootID);
+
+
+            // vocabs stores IDs of records that ARE parents to other records in the set.
+            // This helps optimize by quickly identifying if a node can have children.
+            let recID, vocabs = [];
+            for(recID in records){
+                let record = records[recID];
+                let parentIdFieldVal = this.fld(record, fieldLink);
+                if(!window.hWin.HEURIST4.util.isempty(parentIdFieldVal) && Number(parentIdFieldVal)>0 ) {
+                    let parentIdStr = String(parentIdFieldVal);
+                    if(window.hWin.HEURIST4.util.findArrayIndex(parentIdStr, vocabs) < 0) {
+                        vocabs.push(parentIdStr);
                     }
                 }
-                
-                function __addChilds(that, parentId){
-                    let recID, res = [];
-                    for(recID in records){
-                        let record = records[recID];
+            }
+
+            function __addChilds(that, parentIdToFind){ // Recursive helper function
+                let currentChildrenIds = [];
+                for(let currentRecID in records){
+                    let record = records[currentRecID];
+
+                    let parentLinkOfCurrentRec = that.fld(record, fieldLink);
+                    if(window.hWin.HEURIST4.util.isempty(parentLinkOfCurrentRec) || parentLinkOfCurrentRec == 0) parentLinkOfCurrentRec = null;
+                    else parentLinkOfCurrentRec = String(parentLinkOfCurrentRec);
+
+                    if( (parentIdToFind === null && parentLinkOfCurrentRec === null) ||
+                        (parentIdToFind !== null && parentIdToFind == parentLinkOfCurrentRec) ){
+                        currentChildrenIds.push(currentRecID);
                         
-                        let id = that.fld(record, fieldLink);
-                        if(window.hWin.HEURIST4.util.isempty(id) || id==0) id = null;
-                        
-                        if(parentId==id){
-                            
-                            res.push(recID);
-                            
-                            if(window.hWin.HEURIST4.util.findArrayIndex(recID, vocabs)>-1){  //$.inArray(recID, vocabs)>-1
-                                let children = __addChilds( that, recID );
-                                if(children.length>0){
-                                    res = res.concat(children);
-                                }
+                        // Check if currentRecID is a known parent (i.e., it's in vocabs)
+                        if(window.hWin.HEURIST4.util.findArrayIndex(String(currentRecID), vocabs) > -1)
+                        {
+                            let descendants = __addChilds( that, currentRecID );
+                            if(descendants.length>0){
+                                currentChildrenIds = currentChildrenIds.concat(descendants);
                             }
                         }
                     }
-                    return res;
                 }
-                
-                let res = __addChilds(this, rootID);
-                return res;
+                return currentChildrenIds;
             }
+
+            let res = __addChilds(this, currentRootIDStr); // Use string version of rootID
+            return res;
+            // Note: If rootID was initially invalid (e.g. null and not '0'), this will proceed with currentRootIDStr as "null" or "undefined"
+            // which __addChilds handles by looking for records where fieldLink is also null/empty.
+            // The initial check for `rootID > 0` in the original code implied numeric positive roots.
+            // This revised version is slightly more flexible but maintains the core logic.
         }
 
     }

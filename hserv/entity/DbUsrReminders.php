@@ -1,30 +1,42 @@
 <?php
+/**
+* DbUsrReminders.php - Class DbUsrReminders
+*
+* Operations for the `usrReminders` table.
+*
+* @project     Heurist academic knowledge management system
+* @package Entity 
+* @link        https://HeuristNetwork.org
+* @copyright   (C) 2005-2023 University of Sydney, (C) 2024 onwards Heurist Network
+* @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
+* @author      Artem Osmakov   <osmakov@gmail.com>
+* @author      Ian Johnson     <ian.johnson.heurist@gmail.com>
+* @since       6.0
+
+*/
 namespace hserv\entity;
 use hserv\entity\DbEntityBase;
 
-    /**
-    * db access to usrReminders table
-    *
-    *
-    * @package     Heurist academic knowledge management system
-    * @link        https://HeuristNetwork.org
-    * @copyright   (C) 2005-2023 University of Sydney, (C) 2024 onwards Heurist Network
-    * @author      Artem Osmakov   <osmakov@gmail.com>
-    * @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
-    * @version     4.0
-    */
-
-    /*
-    * Licensed under the GNU License, Version 3.0 (the "License"); you may not use this file except in compliance
-    * with the License. You may obtain a copy of the License at https://www.gnu.org/licenses/gpl-3.0.txt
-    * Unless required by applicable law or agreed to in writing, software distributed under the License is
-    * distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied
-    * See the License for the specific language governing permissions and limitations under the License.
-    */
-
+/**
+* Class DbUsrReminders
+*
+* Provides database access and operations for the `usrReminders` table.
+* This table stores user-created reminders associated with specific records,
+* which can be sent to individuals, groups, or external email addresses.
+*
+*/
 class DbUsrReminders extends DbEntityBase
 {
 
+    /**
+     * Constructor for DbUsrReminders.
+     *
+     * Ensures that the entity name is set to 'usrReminders' if not already provided in `$data`.
+     * Calls the parent constructor.
+     *
+     * @param \hserv\System $system The main Heurist system object.
+     * @param array|null $data Optional data to initialize the entity with.
+     */
  public function __construct( $system, $data=null ) {
 
        if($data==null){
@@ -37,17 +49,29 @@ class DbUsrReminders extends DbEntityBase
        parent::__construct( $system, $data );
     }
 
-    /**
-    *  search usrReminders
-    *
-    *  other parameters :
-    *  details - id|name|list|all or list of table fields
-    *  offset
-    *  limit
-    *  request_id
-    *
-    *  @todo overwrite
-    */
+   /**
+     * Searches for user reminders.
+     *
+     * Defaults to searching reminders owned by the current user if `rem_OwnerUGrpID` is not specified in `$this->data`.
+     * Supports filtering by `rem_ID`, `rem_OwnerUGrpID`, `rem_RecID`, `rem_Message` (LIKE query), `rem_ToWorkgroupID`,
+     * `rem_ToUserID`, and `rem_ToEmail`.
+     *
+     * This method extends the base search functionality. It first calls `parent::search()`
+     * to initialize the `DbEntitySearch` manager (`$this->searchMgr`) and validate common search parameters.
+     *
+     * The fields returned depend on `$this->data['details']`:
+     * - 'id': Returns only `rem_ID`.
+     * - 'list' or 'name': Returns core reminder fields plus `rem_ToWorkgroupName` (from `sysUGrps u1`),
+     *   `rem_ToUserName` (from `sysUGrps u2`), and `rem_RecTitle` (from `Records`). This involves JOINs.
+     * - Default ('full'): Returns `rem_ID`, `rem_RecID`, `rem_OwnerUGrpID`, `rem_ToWorkgroupID`, `rem_ToUserID`,
+     *   `rem_ToEmail`, `rem_Message`, `rem_StartDate`, `rem_Freq`.
+     *
+     * The order of results is determined by `$this->searchMgr->setOrderBy()`.
+     *
+     * @return array|false An array containing the search results as structured by `DbEntitySearch::execute()`,
+     *                     typically including 'records', 'count', 'total_count', etc.
+     *                     Returns `false` if `parent::search()` fails or a database query fails.
+     */
     public function search(){
 
         if(!@$this->data['rem_OwnerUGrpID']){
@@ -93,6 +117,15 @@ class DbUsrReminders extends DbEntityBase
     // validate permission for edit tag
     // for delete and assign see appropriate methods
     //
+    /**
+     * Validates if the current user has permission to modify/delete the specified reminders.
+     *
+     * Users can only modify/delete their own reminders unless they are the database owner.
+     * This method overrides the parent `_validatePermission`.
+     *
+     * @return bool True if the user has permission, false otherwise.
+     *              Errors are added to the system object on permission failure.
+     */
     protected function _validatePermission(){
 
         if(!$this->system->isDbOwner() && !isEmptyArray($this->recordIDs)){ //there are records to update/delete
@@ -123,6 +156,16 @@ class DbUsrReminders extends DbEntityBase
     //
     //
     //
+    /**
+     * Prepares reminder records before saving.
+     *
+     * - For new reminders:
+     *   - Sets `rem_OwnerUGrpID` to the current user's ID if not already set.
+     *   - Generates a random `rem_Nonce`.
+     * - Sets `rem_Modified` to the current date/time.
+     *
+     * @return bool Returns the result of `parent::prepareRecords()`.
+     */
     protected function prepareRecords(){
 
         $ret = parent::prepareRecords();
@@ -145,6 +188,15 @@ class DbUsrReminders extends DbEntityBase
 
     }
 
+    /**
+     * Sets the mysqli object for the system.
+     *
+     * This method allows injecting a specific mysqli connection, primarily for testing
+     * or specialized scenarios.
+     *
+     * @param \mysqli $mysqli The mysqli object to set.
+     * @return void
+     */
     public function setmysql($mysqli){
         $this->system->setMysqli($mysqli);
     }
@@ -156,6 +208,25 @@ class DbUsrReminders extends DbEntityBase
     // OR
     // sends emails/reminders for records with rem_StartDate<=current date
     //
+    /**
+     * Performs batch actions, primarily sending reminder/notification emails.
+     *
+     * Two main modes:
+     * 1. **Notification Mode**: If `rec_IDs` or `fields[rem_RecID]` is provided, sends notifications
+     *    for the specified records. Requires a logged-in user. The email content is tailored
+     *    to notify recipients about specific records.
+     * 2. **Scheduled Reminder Mode**: If no specific records are provided (and script is run via CLI),
+     *    queries `usrReminders` for reminders due based on `rem_StartDate` and `rem_Freq`.
+     *    The email content is tailored as a reminder about a specific record.
+     *
+     * For both modes, it identifies recipients (user, group, or direct email) and constructs
+     * appropriate email content and headers. Updates `rem_StartDate` for recurring reminders.
+     *
+     * @return array|bool If in scheduled reminder mode, returns an array with counts of emails sent per frequency.
+     *                    If in notification mode, returns true on success.
+     *                    Returns false on failure (e.g., permission denied, DB error, no recipients).
+     *                    Errors are added to the system object.
+     */
     public function batch_action(){
 
         $rec_IDs = prepareIds(@$this->data['rec_IDs']);
@@ -419,6 +490,19 @@ exit;
     //
     // ...?db=xxx&ent=rem&id=1&e=some@xyz.com&h=3ab77f51&method=delete
     //
+    /**
+     * Deletes a reminder.
+     *
+     * Supports two modes of deletion:
+     * 1. **Deletion via Email Link**: If `rem_ID` and `h` (nonce) are provided in `$this->data`,
+     *    it verifies the nonce. If valid and `u` (user ID) is provided, it adds the user to
+     *    the `usrRemindersBlockList` for that reminder. If `u` is not provided (or invalid),
+     *    it deletes the reminder directly. Returns a user-facing message.
+     * 2. **Standard Deletion**: If not via email link, calls `parent::delete()` after permission checks.
+     *
+     * @param bool $disable_foreign_checks Passed to `parent::delete()` if standard deletion occurs.
+     * @return string|bool User message if deleted via email link, otherwise result of `parent::delete()`.
+     */
     public function delete($disable_foreign_checks=false){
 
         if(is_numeric(@$this->data['rem_ID']) && $this->data['rem_ID']>0 && $this->data['h']){

@@ -1,28 +1,18 @@
 <?php
-
-    /**
-    * Entity SCRUD controller - web interface. It uses functions from entityScrudSrv.php
-    * search, create, read, update and delete
-    *
-    * Application interface. See HRecordMgr in hapi.js
-    * Add/replace/delete details in batch
-    *
-    * @package     Heurist academic knowledge management system
-    * @link        https://HeuristNetwork.org
-    * @copyright   (C) 2005-2023 University of Sydney, (C) 2024 onwards Heurist Network
-    * @author      Artem Osmakov   <osmakov@gmail.com>
-    * @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
-    * @version     4.0
-    */
-
-    /*
-    * Licensed under the GNU License, Version 3.0 (the "License"); you may not use this file except in compliance
-    * with the License. You may obtain a copy of the License at https://www.gnu.org/licenses/gpl-3.0.txt
-    * Unless required by applicable law or agreed to in writing, software distributed under the License is
-    * distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied
-    * See the License for the specific language governing permissions and limitations under the License.
-    */
-
+/**
+* entityScrud.php - Controller to SCRUD most of database tables/entities
+*
+* It uses functions from entityScrudSrv.php to search, create, read, update and delete entries in most of database tables.
+*
+* @project     Heurist academic knowledge management system
+* @package Controller
+* @link        https://HeuristNetwork.org
+* @copyright   (C) 2005-2023 University of Sydney, (C) 2024 onwards Heurist Network
+* @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
+* @author      Artem Osmakov   <osmakov@gmail.com>
+* @author      Ian Johnson     <ian.johnson.heurist@gmail.com>
+* @since       4.0
+*/
     use hserv\utilities\USanitize;
     use hserv\utilities\USystem;
 
@@ -280,6 +270,18 @@
 
     }
 
+    /**
+     * Finds invalid UTF-8 strings in a recursive array walk.
+     *
+     * This function is typically used as a callback for array_walk_recursive.
+     * It checks if a string value contains invalid UTF-8 characters.
+     * If an invalid string is found, it throws an Exception with the
+     * UTF-8 converted string.
+     *
+     * @param mixed $val The value to check.
+     * @throws \Exception If an invalid UTF-8 string is found.
+     * @return void
+     */
     function find_invalid_string($val){
         if(is_string($val)){
             $stripped_val = iconv('UTF-8', 'UTF-8//IGNORE', $val);/* important */

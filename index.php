@@ -1,15 +1,19 @@
 <?php
-
 /**
-* Main script initializing Heurist layout and performing initial search of parameter q is defined
-*
-* @package     Heurist academic knowledge management system
-* @link        https://HeuristNetwork.org
-* @copyright   (C) 2005-2023 University of Sydney, (C) 2024 onwards Heurist Network
-* @author      Artem Osmakov   <osmakov@gmail.com>
-* @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
-* @version     4.0
-*/
+ * index.php - Main entry point for the Heurist application.
+ *
+ * @fileOverview This script initializes the Heurist layout, handles various URL parameters for actions like
+ * displaying records, CMS content, API requests, file downloads, and asset loading.
+ * It performs initial setup and can trigger an initial search if query parameters are defined.
+ * @project     Heurist academic knowledge management system
+ * @package Core
+ * @link https://HeuristNetwork.org
+ * @copyright (C) 2005-2023 University of Sydney, (C) 2024 onwards Heurist Network
+ * @license https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
+ * @author Artem Osmakov <osmakov@gmail.com>
+ * @author Ian Johnson <ian.johnson.heurist@gmail.com>
+ * @since 4.0
+ */
 
 /*
 * Licensed under the GNU License, Version 3.0 (the "License"); you may not use this file except in compliance
@@ -72,8 +76,15 @@ if( @$_REQUEST['isalive']==1){
         $format = 'website';
 
         if(@$_REQUEST['ver']==3){
-            $controller = new FrontController(isset($params)?$params:null);
-            $controller->run();
+            
+            if(@$_REQUEST['edit']=='start'){
+                unset($_REQUEST['edit']);
+                if(!defined('PDIR')) {define('PDIR','');}
+                include_once dirname(__FILE__).'/hclient/widgets/cms/WebSiteEditor.php';
+            }else{
+                $controller = new FrontController(isset($params)?$params:null);
+                $controller->run();
+            }
         }else{
             //embed - when heurist is run on page on non-heurist server
             if(array_key_exists('embed', $_REQUEST)){
@@ -292,7 +303,7 @@ require_once dirname(__FILE__).'/hclient/framecontent/initPage.php';
 
 <script type="text/javascript" src="<?php echo PDIR;?>hclient/widgets/viewers/staticPage.js"></script>
 <script type="text/javascript" src="<?php echo PDIR;?>hclient/widgets/viewers/connections.js"></script>
-<script type="text/javascript" src="<?php echo PDIR;?>hclient/widgets/profile/profile_login.js"></script>
+<script type="text/javascript" src="<?php echo PDIR;?>hclient/widgets/profile/profileLogin.js"></script>
 
 <!-- edit entity -->
 <script type="text/javascript" src="<?php echo PDIR;?>hclient/widgets/editing/selectFile.js"></script>
@@ -359,19 +370,35 @@ if(false && $isLocalHost){
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js" integrity="sha384-VFQrHzqBh5qiJIU0uGU5CIW3+OWpdGGJM9LBnGbuIH2mkICcFZ7lPd/AAtI7SNf7" crossorigin="anonymous"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.js" integrity="sha384-/RlQG9uf0M2vcTw3CX7fbqgbj/h8wKxw7C3zu9/GxcBPRKOEcESxaxufwRXqzq6n" crossorigin="anonymous"></script>
     <script src="https://cdn.datatables.net/v/dt/jszip-3.10.1/dt-2.1.6/b-3.1.2/b-html5-3.1.2/datatables.min.js" integrity="sha384-naBmfwninIkPENReA9wreX7eukcSAc9xLJ8Kov28yBxFr8U5dzgoed1DHwFAef4y" crossorigin="anonymous"></script>
-
+     
     <?php
 }
 ?>
 
 <script src="<?php echo PDIR;?>hclient/widgets/admin/repositoryConfig.js"></script>
 
+
+<!-- Driver.js
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/driver.js@0.9.8/dist/driver.min.css">
+<script src="https://cdn.jsdelivr.net/npm/driver.js@0.9.8/dist/driver.min.js"></script>
+-->
+
+<!-- Intro.js JS -->
+<script src="https://cdn.jsdelivr.net/npm/intro.js@8.3.2/intro.min.js"></script>
+<link href=" https://cdn.jsdelivr.net/npm/intro.js@8.3.2/minified/introjs.min.css " rel="stylesheet">
+
 <script type="text/javascript">
 
+    /**
+     * Initializes the page after basic setup is complete.
+     * Sets up layout manager, closes 'about' dialog if open, sets system info,
+     * and initializes the main application layout and Matomo tracking.
+     * @param {boolean} success - Indicates if the initial PHP setup was successful.
+     * @returns {void}
+     */
     function onPageInit(success){
 
         if(!success) {return;}
-
 
         $(document).on('focusin', function(e) {
             if ($(e.target).closest(".mce-window, .moxman-window").length) {
@@ -431,9 +458,11 @@ if(@$_SERVER['REQUEST_METHOD']=='POST'){
         onInitCompleted_PerformSearch();
     }
 
-    //
-    // init about dialog
-    //
+    /**
+     * Initializes the "About Heurist" dialog.
+     * This dialog displays version and copyright information.
+     * @returns {void}
+     */
     function onAboutInit(){
         //definition of ABOUT dialog, called from Help > About, see content below
         $( "#heurist-about" ).dialog(
@@ -456,9 +485,12 @@ if(@$_SERVER['REQUEST_METHOD']=='POST'){
 
     }
 
-    //
-    // Performs inital search: parameters from request or from user preferences
-    //
+    /**
+     * Performs initial actions after the main system components are initialized.
+     * This includes version checks, handling record editing/creation requests via URL parameters,
+     * displaying dashboards, and platform-specific warnings (e.g., for mobile or unsupported browsers).
+     * @returns {void}
+     */
     function onInitCompleted_PerformSearch(){
 
         if(!window.hWin.HAPI4.is_publish_mode)
@@ -569,7 +601,7 @@ if(@$_SERVER['REQUEST_METHOD']=='POST'){
         <div class='logo'></div>
         <h4>Heurist Academic Knowledge Management System</h4>
         <p style="margin-top:1em;">version <?=HEURIST_VERSION?></p>
-        <p style="margin-top: 1em;">Copyright (C) 2005-2023 <a href="https://sydney.edu.au/arts/" style="outline:none;" target="_blank" rel="noopener">University of Sydney</a></p>
+        <p style="margin-top: 1em;">Copyright (C) 2005-2023 University of Sydney, (C) 2024 - <a href="https://HeuristNetwork.org" style="outline:none;" target="_blank" rel="noopener">Heurist Network Association</a></p>
     </div>
 
     <div id="heurist-platform-warning" style="display:none;">

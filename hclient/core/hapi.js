@@ -1,58 +1,60 @@
 /**
-* Main class for Heurist 
-*   it stores major config info
-*   local db definitions
-*   and provides methods to call server side 
+ * @file hapi.js
+ * @brief Core Heurist factory function and initialization logic.
+ * @fileOverview This file defines the main Heurist factory function. The hAPI object serves as
+ * the central hub for client-side Heurist operations. It manages configuration information (base URLs,
+ * database name, system info), handles localization, initializes and provides access to various managers
+ * (SystemMgr, RecordMgr, RecordSearch, EntityMgr, LayoutMgr), and includes the core `_callserver`
+ * method for AJAX communication with the Heurist server. It also defines global Heurist events and
+ * provides utility functions for user session management, preference handling, and image URL generation.
+ * @project     Heurist academic knowledge management system
+ *
+ * @link https://HeuristNetwork.org
+ * @copyright (C) 2005-2023 University of Sydney, (C) 2024 onwards Heurist Network
+ * @license https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
+ * @author Artem Osmakov <osmakov@gmail.com>
+ * @author Ian Johnson <ian.johnson.heurist@gmail.com>
+ * @since 4.0
+ */
+ 
+/* global ActionHandler, HSystemMgr, HLayoutMgr */ 
+
+/**
+* Factory function for the Heurist objects.
+* Initializes and returns the central hAPI instance that manages client-side Heurist operations,
+* including configuration, localization, server communication, and access to various managers.
 *
-* Constructor:
-* @param _db - database name, if omit it takes from url parameter
-* @param _oninit - callback function, obtain parameter true if initialization is successeful
-* @returns hAPI Object
+* Properties:
+*    baseURL
+*    baseURL_pro
+*    iconBaseURL - url for record type icon (rty_ID to be added)
+*    database - current database name
+*    sysinfo
+*    is_publish_mode - false if Heurist is inited via main index.php and layout is not from the set of application (DH, EN, WebSearch)
 *
-* @package     Heurist academic knowledge management system
-* @link        https://HeuristNetwork.org
-* @copyright   (C) 2005-2023 University of Sydney, (C) 2024 onwards Heurist Network
-* @author      Artem Osmakov   <osmakov@gmail.com>
-* @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
-* @version     4.0
-*/
-
-/*
-* Licensed under the GNU License, Version 3.0 (the "License"); you may not use this file except in compliance
-* with the License. You may obtain a copy of the License at https://www.gnu.org/licenses/gpl-3.0.txt
-* Unless required by applicable law or agreed to in writing, software distributed under the License is
-* distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied
-* See the License for the specific language governing permissions and limitations under the License.
-*/
-
-/* global ActionHandler, HSystemMgr */
-
-/*
-
-Properties:
-    baseURL
-    baseURL_pro
-    iconBaseURL - url for record type icon (rty_ID to be added)
-    database - current database name
-    sysinfo
-    is_publish_mode - false if Heurist is inited via main index.php and layout is not from the set of application (DH, EN, WebSearch)
-
-Localization routines (assigned to window.hWin)
-
-    HR  returns localized string
-    HRA = localize all elements with class slocale for given element
-    HRes = returns url or loads content for localized resource
-    HRJ = returns localized value for json (options in widget)
-
-LayoutMgr   HLayout object (@todo replace to new version from CMS)
-
-Classes for server interaction
-
-    SystemMgr - user credentials and system utilities
-    RecordMgr - Records SCRUD actions    
-    RecordSearch - wrapper for RecordMgr.search method
-    EntityMgr - SCRUD for database defenitions and user/groups
-
+* Localization routines (assigned to window.hWin)
+*
+*    HR  returns localized string
+*    HRA = localize all elements with class slocale for given element
+*    HRes = returns url or loads content for localized resource
+*    HRJ = returns localized value for json (options in widget)
+*
+* LayoutMgr   HLayout object (@todo replace to new version from CMS)
+*
+* Classes for server interaction
+*
+*    SystemMgr - user credentials and system utilities
+*    RecordMgr - Records SCRUD actions    
+*    RecordSearch - wrapper for RecordMgr.search method
+*    EntityMgr - SCRUD for database defenitions and user/groups
+* 
+* @constructor hAPI
+* @param {string} [_db] - The name of the database to connect to. If omitted, it's typically derived from the URL.
+* @param {function(boolean): void} [_oninit] - A callback function executed after initialization.
+*                                             Receives `true` if initialization is successful, `false` otherwise.
+* @param {string} [_baseURL] - Optional base URL for the Heurist server, used in embedded scenarios
+*                              where client and server locations differ. If omitted, it's auto-detected.
+* @returns {Object} The initialized hAPI instance with methods and properties for interacting with Heurist.
 */
 function hAPI(_db, _oninit, _baseURL) { //, _currentUser
     const _className = "HAPI",
@@ -69,7 +71,6 @@ function hAPI(_db, _oninit, _baseURL) { //, _currentUser
 
         _use_debug = true,
         
-        
        
         actionHandler = null;
                 
@@ -83,7 +84,7 @@ function hAPI(_db, _oninit, _baseURL) { //, _currentUser
     * @param _oninit - callback function, obtain parameter true if initialization is successeful
     * @param _baseURL - defined for embed mode only when location of heurist client is differend from heurist server 
     *
-    */
+    */    
     function _init(_db, _oninit, _baseURL) { //, _currentUser) {
 
         that.SystemMgr = new HSystemMgr(that);
@@ -230,23 +231,7 @@ function hAPI(_db, _oninit, _baseURL) { //, _currentUser
         }
         return _key_count;
     }
-    /**
-     * Signature for _callserver callback
-     * 
-     * A complete list of status codes can be found in `hclient/core/detectHeurist.js`.
-     * They are stored in `hWin.ResponseStatus` when Heurist is initialised in the window.
-     * 
-     * @callback callserverCallback
-     * @param {{status: string, message: string, data: Object}} response - server response
-     */
     
-    /**
-     * Request to Heurist server, specifying action to be taken
-     * @typedef {Object} Request
-     * @property {string} a - action to be performed
-     * @property {string=} db - database to be affected
-     */
-
     /**
      * internal function see HSystemMgr, HRecordMgr - ajax request to server
      *
@@ -256,7 +241,7 @@ function hAPI(_db, _oninit, _baseURL) { //, _currentUser
      * - `status`: a complete list of possible statuses can be found in `hclient/core/detectHeurist.js`
      * - `message`: error message or Ajax response
      * - `data`: data returned for request
-     */
+     */    
     function _callserver(action, request, callback, timeout=0) {
 
         _is_callserver_in_progress = true;
@@ -300,7 +285,7 @@ function hAPI(_db, _oninit, _baseURL) { //, _currentUser
             if(that.baseURL.indexOf('127.0.0.1')>0){
                 alert('Input variables exceeded 1000: '+cnt+' ,'+action);              
             }
-            console.error('Input variables exceeded 1000',cnt);
+            console.error('Input variables exceeded 1000',cnt,action);
         }
 
         let request_code = { script: action, action: request.a };
@@ -381,7 +366,7 @@ function hAPI(_db, _oninit, _baseURL) { //, _currentUser
      * @param {string} response.status - status code of the response, see hclient/core/detectHeurist.js
      * @param {(string|Array)=} response.affectedRty - comma-seperated list or array of record ids
      * @param {Function=} callback
-     */
+     */    
     function _triggerRecordUpdateEvent(response, callback) {
         if (response && response.status == window.hWin.ResponseStatus.OK) {
             // $Db is alias for HEURIST4.dbs, defined in hclient/core/utils_dbs.js
@@ -687,7 +672,7 @@ function hAPI(_db, _oninit, _baseURL) { //, _currentUser
             //
             , lookup_external_service: function (request, callback) {
                 // start search
-                _callserver('record_lookup', request, callback);
+                _callserver('LookupController', request, callback);
             }
 
             //
@@ -938,6 +923,43 @@ function hAPI(_db, _oninit, _baseURL) { //, _currentUser
                     callback(this, true);
                 }
             },
+                                                                
+            //
+            //
+            //
+            initialLoadDatabaseDefintions: function (params, callback){
+
+                if(!$.isEmptyObject(window.hWin.HAPI4.EntityMgr.getEntityData2('defRecTypes'))){ 
+                    //defintions are already loaded
+                    if(window.hWin.HEURIST4.util.isFunction(callback)){ callback(true);}
+                    return;
+                }
+                   
+                //params = {recID:recID} or {rty_ID:rty_ID} - to load defs for particular record or rectype
+                let entities = (params)?params:'all';
+
+                window.hWin.HAPI4.EntityMgr.refreshEntityData(entities, function(){
+                    let res = false;
+                    if(arguments){
+                        if(arguments[1]){
+                            res = true;
+                        }else{
+                            let sMsg = 'Cannot obtain database definitions (refreshEntityData function). '
+                            +'This is probably due to a network timeout. However, if the problem '
+                            +'persists please report to Heurist developers as it could indicate '
+                            +'corruption of the database.';
+
+                            window.hWin.HEURIST4.msg.showMsgErr({
+                                message: sMsg,
+                                error_title: 'Issue with database definitions',
+                                status: window.hWin.ResponseStatus.UNKNOWN_ERROR
+                            });
+                            
+                        }
+                    }
+                    if(window.hWin.HEURIST4.util.isFunction(callback)){ callback(res);}
+                });
+            },
             
             //
             // refresh several entity data at once
@@ -1001,7 +1023,7 @@ function hAPI(_db, _oninit, _baseURL) { //, _currentUser
                 if ($.isEmptyObject(entity_data[entityName]) || force_reload == true) {
 
                     let det = 'list';
-                    if (entityName == 'defRecStructure'){ //|| entityName == 'defTerms') {
+                    if (entityName == 'defRecStructure') {// || entityName == 'defDetailTypes' || entityName == 'defTerms'
                         det = 'full';
                     }
                     
@@ -1013,6 +1035,9 @@ function hAPI(_db, _oninit, _baseURL) { //, _currentUser
 
                                 if (response.data.entityName == 'defRecStructure') {
                                     window.hWin.HAPI4.EntityMgr.createRstIndex();
+                                /*}else if (entityName == 'defTerms') {
+                                    entity_data['trm_Links'] = response.data[entityName]['trm_Links'];
+                                    entity_data['trm_Icons'] = response.data[entityName]['trm_Icons'] ?? [];*/
                                 }
 
                                 if (window.hWin.HEURIST4.util.isFunction(callback)) {
@@ -1047,25 +1072,35 @@ function hAPI(_db, _oninit, _baseURL) { //, _currentUser
             //
             setEntityData: function (entityName, data) {
                 
+                if(!data) return;
+                
                 if(entityName=='timestamp'){ 
                     entity_timestamp = Number(data[entityName]); //db structure cache file last update time
                 }else if (window.hWin.HEURIST4.util.isRecordSet(data)) {
 
                     entity_data[entityName] = data;
-                } else {
+                } else { 
+                    let entytyData = null;                    
+                    if(data[entityName]){
+                        entytyData = data[entityName];
+                    }else if(data.entityName = entityName){
+                        entytyData = data;
+                    }
                     
-                    entity_data[entityName] = new HRecordSet(data[entityName]);
+                    if(!entytyData) return;
+                    
+                    entity_data[entityName] = new HRecordSet(entytyData);
 
                     //build rst index
                     if (entityName == 'defRecStructure') {
                         window.hWin.HAPI4.EntityMgr.createRstIndex();
                     } else if (entityName == 'defTerms') {
-                        entity_data['trm_Links'] = data[entityName]['trm_Links'];
-                        entity_data['trm_Icons'] = data[entityName]['trm_Icons'] ?? [];
+                        entity_data['trm_Links'] = entytyData['trm_Links'];
+                        entity_data['trm_Icons'] = entytyData['trm_Icons'] ?? [];
                     }
 
-                    if (data[entityName]['config']) {
-                        entity_configs[entityName] = data[entityName]['config'];
+                    if (entytyData.config) {
+                        entity_configs[entityName] = entytyData.config;
                         //find key and title fields
                         window.hWin.HAPI4.EntityMgr.resolveFields(entityName);
                     }
@@ -1079,7 +1114,7 @@ function hAPI(_db, _oninit, _baseURL) { //, _currentUser
             doRequest: function (request, callback) {
                 //todo - verify basic params
                 request['request_id'] = window.hWin.HEURIST4.util.random();
-
+                
                 //set d and c=0 to disable debug  https://www.nusphere.com/kb/technicalfaq/faq_dbg_related.htm
                 request.DBGSESSID = (_use_debug) ? '425944380594800002;d=1,p=0,c=1' : '425944380594800002;d=0,p=0,c=0';
 
@@ -1190,6 +1225,7 @@ function hAPI(_db, _oninit, _baseURL) { //, _currentUser
             ON_REC_SEARCHSTART: "ON_REC_SEARCHSTART",
             ON_REC_SEARCH_FINISH: "ON_REC_SEARCH_FINISH",
             ON_CUSTOM_EVENT: "ON_CUSTOM_EVENT", //special event for custom link various widgets
+            ON_ACTION: 'ON_ACTION',
             ON_REC_UPDATE: "ON_REC_UPDATE",
             ON_REC_SELECT: "ON_REC_SELECT",
             ON_REC_STATUS: "ON_REC_STATUS",
@@ -1245,6 +1281,12 @@ function hAPI(_db, _oninit, _baseURL) { //, _currentUser
             }
         },
 
+        /**
+         * Removes a group from the current user's group list and optionally from system-wide group info.
+         * @param {number|string} groupID - The ID of the group to remove.
+         * @param {boolean} [isfinal=false] - If true, also removes the group from `HAPI4.sysinfo.db_usergroups`.
+         * @returns {void}
+         */
         currentUserRemoveGroup: function (groupID, isfinal) {
 
             if (window.hWin.HAPI4.currentUser['ugr_Groups'][groupID]) {
@@ -1262,6 +1304,10 @@ function hAPI(_db, _oninit, _baseURL) { //, _currentUser
         // However, before start any action or open widget popup need to call 
         // SystemMgr.verify_credentials
 
+        /**
+         * Checks if the current user is a guest user.
+         * @returns {boolean} True if the current user is a guest, false otherwise.
+         */
         is_guest_user: function(){
              return window.hWin.HAPI4.currentUser && 
                     window.hWin.HAPI4.currentUser['ugr_Permissions'] && 
@@ -1470,12 +1516,6 @@ function hAPI(_db, _oninit, _baseURL) { //, _currentUser
 
         currentRecordsetSelection: [],  //selected record ids - main assignment in lister of resultListMenu
 
-
-        getClass: function () { return _className; },
-        isA: function (strClass) { return (strClass === _className); },
-        getVersion: function () { return _version; },
-
-
         //UserMgr: new hUserMgr(),
 
         SystemMgr: null,
@@ -1522,6 +1562,21 @@ function hAPI(_db, _oninit, _baseURL) { //, _currentUser
             //not found - English is default
             return (def ?def:(_region?_region:'ENG'));
         },
+
+        //
+        // values - object with contentLNG keys
+        //
+        getContentTranslation: function(values, lang){
+            
+            let content = 'content';
+            if (lang) {
+                lang = window.hWin.HAPI4.getLangCode3(lang, 'def');
+                if (values['content' + lang]) { //exists for this lang
+                    content = 'content' + lang;
+                }
+            }
+            return values[content];
+        },
         
         //
         // values - array of strings
@@ -1555,17 +1610,17 @@ function hAPI(_db, _oninit, _baseURL) { //, _currentUser
                                 return window.hWin.HEURIST4.util.stripFirstElement(val_orig);
                             }
                         
-                            if(val.length>4 && val.substr(3,1)==':'){ //has lang prefix
+                            if(val.length>4 && val.slice(3,4)==':'){ //has lang prefix
 
-                                if(val.substr(0,3).toUpperCase() == lang){
-                                    def_val = (tag_to_remove==null)?val.substr(4).trim() 
+                                if(val.slice(0,3).toUpperCase() == lang){
+                                    def_val = (tag_to_remove==null)?val.slice(4).trim() 
                                                              :__removeFirstTag();
                                     break;
                                 }
-                            }else if(val.length > 3 && val.substr(2, 1) == ':'){ // check for ar2 code
+                            }else if(val.length > 3 && val.slice(2, 3) == ':'){ // check for ar2 code
 
-                                if(val.substr(0, 2).toUpperCase() == a2_lang){
-                                    def_val = (tag_to_remove==null)?val.substr(3).trim() 
+                                if(val.slice(0, 2).toUpperCase() == a2_lang){
+                                    def_val = (tag_to_remove==null)?val.slice(3).trim() 
                                                                     :__removeFirstTag();
                                     break;
                                 }
@@ -1609,7 +1664,8 @@ function hAPI(_db, _oninit, _baseURL) { //, _currentUser
                 _regional = {};
             }
             
-            if (!_regional[region]) {
+            let getLocaleFile = region === 'ENG' || that.sysinfo.localization_files.indexOf(region.toLowerCase()) >= 0;
+            if (!_regional[region] && getLocaleFile) {
                 
                 _region = region;
                 
@@ -1702,7 +1758,7 @@ Automatic translation
                 
                 $.each($(ele).find('.slocale'), function (i, item) {
                     let s = $(item).text();
-                    $(item).html(window.hWin.HR(s));
+                    $(item).text(window.hWin.HR(s));
                 });
 
                 $(ele).find('[slocale-title]').each(function () {

@@ -1,28 +1,20 @@
 <?php
-
 /**
-* configIni.php: configuration file for this Heurist instance.
-*
-* Note: This file is overriden by heuristConfigIni.php in the parent directory, allowing a single config file for all instances
-*       Program version number, however, is always specified by this file and should not be changed
-*
-* @package     Heurist academic knowledge management system
-* @link        https://HeuristNetwork.org
-* @copyright   (C) 2005-2023 University of Sydney, (C) 2024 onwards Heurist Network
-* @author      Artem Osmakov   <osmakov@gmail.com>
-* @author      Ian Johnson     <ian.johnson.heurist@gmail.com>
-* @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
-* @version     6
-*/
-
-/*
-* Licensed under the GNU License, Version 3.0 (the "License"); you may not use this file except in compliance
-* with the License. You may obtain a copy of the License at https://www.gnu.org/licenses/gpl-3.0.txt
-* Unless required by applicable law or agreed to in writing, software distributed under the License is
-* distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied
-* See the License for the specific language governing permissions and limitations under the License.
-*/
-
+ * configIni.php - Configuration file for a Heurist instance.
+ *
+ * @fileOverview This file contains configuration settings for a specific Heurist instance.
+ * It can be overridden by a `heuristConfigIni.php` file located in the parent directory,
+ * which allows for a centralized configuration for multiple Heurist instances on the same server.
+ * The program version number, however, is always determined by this file.
+ * @project     Heurist academic knowledge management system
+ * @package Core
+ * @link https://HeuristNetwork.org
+ * @copyright (C) 2005-2023 University of Sydney, (C) 2024 onwards Heurist Network
+ * @license https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
+ * @author Artem Osmakov <osmakov@gmail.com>
+ * @author Ian Johnson <ian.johnson.heurist@gmail.com>
+ * @since 4.0
+ */
 
 /*
 **************************************************************
@@ -82,10 +74,13 @@ of the codebase and rename it to index.html
 // ---------------------------------------------------------------------------------
 // *** DO NOT CHANGE VERSION NUMBER, THIS IS SET BY THE HEURIST DEVELOPMENT TEAM ***
 
-$version = "6.7.0";// sets current program version number, determined by Heurist development lead
+$version = "7.0.0";// sets current program version number, determined by Heurist development lead
 
 // ---------------------------------------------------------------------------------
+// 7.0.0  29 March 2025
 
+// 6.7.2  12 May 2025
+// 6.7.1  April 2025
 // 6.7.0  22 March 2025
 // 6.6.6  16 Feb 2025
 // 6.6.5  05 Feb 2025
@@ -149,14 +144,14 @@ $defaultRootFileUploadURL = '';
 // [server]                 
 // enter the server name or IP address of your Web server, null will pull SERVER_NAME from the request header
 // you may set this value if several domains point to your server. It will unify urls across links, web pages, reports
-// for example $serverName = "heuristscholar.org";  Be sure to include the port if not port 80
+// for example $serverName = "heurist.huma-num.fr";  Be sure to include the port if not port 80
 $serverName = null; // if not 'null', overrides default taken from request header SERVER_NAME
 $mailDomain = null; // set mail domain if it does not use server domain
 
 // if base $heuristBaseURL is null, heurist detects it automatically 
 // Although it may differ from desired url you wish to see (because web server settings: aliases, rewrite rules etc)
 // Set this value explicitely to avoid possible issues
-$heuristBaseURL = null;     // base url ( ie server url+optional folder https://heuristscholar.org/h6-alpha )  
+$heuristBaseURL = null;     // base url ( ie server url+optional folder https://heurist.huma-num.fr/h7-alpha )  
 // if you have several heurist instances of heurist, set this value to production instance
 //
 // if $heuristBaseURL is set and $heuristBaseURL_pro is null, then production version is the same as $heuristBaseURL
@@ -183,7 +178,7 @@ $hideStandardLogin = 0;
 
 $defaultFaimsModulesPath = "";// FAIMS only: the location where FAIMS module files will be written
 
-// use webserver to fasten access to thumbnail images and uploaded files
+// use webserver to increase speed of access to thumbnail images and uploaded files
 // otherwise images will be accessed via php
 $allowWebAccessThumbnails = true;
 $allowWebAccessUploadedFiles = false;

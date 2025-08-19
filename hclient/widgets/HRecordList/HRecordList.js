@@ -1,15 +1,42 @@
 /**
-* RecordList - listing of record from given HRecordSet
-*
-* @package     Heurist academic knowledge management system
-* @link        https://HeuristNetwork.org
-* @copyright   (C) 2005-2023 University of Sydney, (C) 2024 onwards Heurist Network
-* @author      Artem Osmakov   <osmakov@gmail.com>
-* @version     7.0
-*/
+ * @file HRecordList.js
+ * @brief widget for presentation of the set of records
+ * @fileOverview Content:
+ * Initial content can be defined via:
+ * - A Heurist query (as initial filter to be applied at start)
+ * - Programmatically (via method setRecordSet)
+ * - Smarty template output
+ * - Html or csv content of widget element.
+ * For smarty and html cases, html elements which are considered as record cards/table rows must have an attribute  data-heurist-rec="nnn"  where nnn is the record ID.
+ * For csv input, the value in the column H-ID is considered as the Heurist record ID.
+ *
+ * Appearance/Presentation:
+ * The list can be split into pages (via a parameter in the widget properties). In any case, record cards/rows are rendered incrementally (only in visible viewport), so pagination is useful for quick navigation or for very large recordsets (> 10K entries).
+ * The publisher of the recordset can define two kinds of messages: for the initial state and where there are no data (empty search result).
+ * Each record card/row can be rendered with:
+ * - Built-in renderer (function within widget) corresponding with the standard views in previous versions of Heurist
+ * - One of four sample built-in smarty templates
+ * - The publisher’s smarty template.
+ * - Programmatically it can be defined as a function in options.rendererCard or it can overwrite method _renderRecord if you use HRecordView as a template for a new widget.
+ * When creating a smarty template for this purpose, each record card or row (html element) must be specified with attribute  data-heurist-rec="nnn".
+ * Record cards can be presented in four view modes: grid, horizontal, vertical list or as a table. For table mode, the publisher’s smarty template should generate <tr><td> for records. Otherwise the appearance will look like a vertical list.
+ *
+ * Interaction with other widgets:
+ * If a search group property is specified, HRecordList accepts ON_REC_SEARCHSTART, ON_REC_SEARCH_FINISH, ON_REC_SELECT and triggers ON_REC_SELECT events. So it can accept search result events from HFilter or selection events from other HRecordSet widgets.
+ * The widget has a built-in HRecordView widget. It handles view action (on record card click, or action link click). See HRecordView for details.
+ * Record card/rows can have html elements: links or buttons (to be specified in smarty template) that can trigger an arbitrary or record-specific action. For this purpose they must have an attribute data-heurist-action.
+ * For example  <a href=”#” data-heurist-action=”record-edit”>Edit</a> will open the record edit dialog.
+ * @project     Heurist academic knowledge management system
+ * @link        https://HeuristNetwork.org
+ * @copyright   (C) 2005-2023 University of Sydney, (C) 2024 onwards Heurist Network
+ * @author      Artem Osmakov   <osmakov@gmail.com>
+ * @author      Ian Johnson <ian.johnson.heurist@gmail.com>
+ * @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
+ * @since       7.0
+ */
 
 /*
-* HBaseWidget->HRecordList->HRecordTable, HRecordCards, HRecordMap, HRecordNetwork
+* HBaseWidget->HBaseList->HRecordList ( TBD HRecordCards, HRecordMap, HRecordNetwork)
 *
 * HBaseWidget - loads resources: html, css, localization
 * HRecordList - setDomain, setRecordSet, loadRecordDetails, doSearch(?)
@@ -29,14 +56,18 @@
 * selection
 * open view/edit record
 * 
-* Plan:
-* BaseList, RecordList->RecordTable, RecordCards, 
-* RecordReport 
-* 
 */
 import './HRecordView.js';
 import '../HBase/HBaseList.js';
+import '../HRecordList/HRecordListOpts.js';
 
+/**
+ * @class HRecordList
+ * @augments {HBaseList}
+ * @memberof Widgets.UI
+ * @description widget for presentation of the set of records
+ * @param {object} options - Configuration options for the widget.
+ */
 $.widget( 'heurist.HRecordList', $.heurist.HBaseList, {
 
     //roles in content heurist-role-*
@@ -45,10 +76,34 @@ $.widget( 'heurist.HRecordList', $.heurist.HBaseList, {
     // recordList-content
     // recordList-selection
     
-    // default options
+    /**
+     * @memberof Widgets.UI.HRecordList
+     * @type {object}
+     * @property {string} resourcePath - The path to the widget's resources.
+     * @property {string} searchDomain - The search domain.
+     * @property {string} searchInitial - The initial search query.
+     * @property {boolean} showCounter - Whether to show the counter.
+     * @property {boolean} selectFirstRecord - Whether to select the first record.
+     * @property {number} pageSize - The page size.
+     * @property {boolean} supportCollection - Whether to support collections.
+     * @property {boolean} showMediaViewer - Whether to show the media viewer.
+     * @property {string} selectAction - The select action.
+     * @property {string} selectMode - The select mode.
+     * @property {string} viewMode - The view mode.
+     * @property {string} viewRecordMode - The view record mode.
+     * @property {string} editRecordMode - The edit record mode.
+     * @property {function} rendererCard - The custom card renderer.
+     * @property {string} templateCard - The template for the card.
+     * @property {string} templateView - The template for the view.
+     * @property {boolean} placeholderEmptyBlank - Whether the empty placeholder is blank.
+     * @property {string} placeholderEmpty - The empty placeholder.
+     * @property {string} placeholderEmptyDef - The default empty placeholder.
+     */
     options: {
+
+        resourcePath: 'hclient/widgets/HRecordList/HRecordList', //relative path+filename to resources: html, css and localization
         
-/* inherited from HBaseWidget, HBaseList
+        /* inherited from HBaseWidget, HBaseList
         hapi: null,
         
         htmlContent: null, // custom content
@@ -59,38 +114,42 @@ $.widget( 'heurist.HRecordList', $.heurist.HBaseList, {
         
         entityType: 'rec', //'rec' by default
 
-        searchDomain: null,     // reference to entity HSearchDomains
-        searchInitial: null,    // initial search query
         
         recordSet:null,         // initial recordset
 */                
-        resourcePath: 'hclient/widgets/HRecordList/HRecordList', //relative path+filename to resources: html, css and localization
-
-        showCounter: true,
+        searchDomain: null,     // reference to entity HSearchDomains
+        searchInitial: null,    // initial search query
+        
+        showCounter: true,      // If `true`, displays the total count of records in the list.
+        selectFirstRecord:false,
+        
         pageSize: 0, //   if zero it shows all records, and no pagination, maxvalue is 1000
 
         supportCollection: false, // TBD
         showMediaViewer: false,   // TBD show gallery on thumbnail click - data-heurist-media
         
         //default action of record item click  ????
-        selectAction: 'view', // none, select, view
+        selectAction: 'select', // none, select, view
         
-        selectMode: 'none',   //TBD none, single, multi
+        selectMode: 'single',   //TBD none, single, multi
 
+        viewMode: 'grid', // grid, list (vertical list), row (horizontal list), table
+        
         //where to show view or edit 
-        viewRecordMode: 'none', // none, inline, offcanvas-*, modal-*, popup (jquery dialog), target id, event
+        viewRecordMode: 'popup', // none, inline, offcanvas-*, modal-*, popup (jquery dialog), target id, event
         editRecordMode: 'none',   //TBD none, inline, offset, full, main, page, popup, event
         
         rendererCard: null,     // custom record card renderer that overrides default renderer
-        rendererTable: null,
         
         templateCard: null,     // template for card renderer 
-        templateTable: null,
         templateView: null,     //(if not defined it uses entity default smarty report)
-
+        
+        placeholderEmptyBlank: false,
+        placeholderEmpty: null,
+        placeholderEmptyDef: 'No entries match the filter criteria (entries may exist but may not have been made visible to the public or to your user profile)',
     },
     
-    _needLoadContent: true, //flag to avoid repeatable load of html content
+    _needLoadContent: true,
     _needLoadCss: true,
     /* inherited
     recordSet:null,   // HRecordSet
@@ -99,7 +158,7 @@ $.widget( 'heurist.HRecordList', $.heurist.HBaseList, {
     */ 
     
     record_id_attr: null, //name of attribute of record div that have record ID
-
+    
     //sub-elements
     div_counter: null,
     div_pagination: null,
@@ -111,19 +170,17 @@ $.widget( 'heurist.HRecordList', $.heurist.HBaseList, {
     _cashedItem:{},
     _lastSelectedIndex: null,
 
-
+    /**
+     * @private
+     * @memberof Widgets.UI.HRecordList
+     * @description Initializes the widget.
+     */
     _init: function() {
-        
-        //debug
-        this.options.templateView = null; 
-        this.options.selectAction = 'view';
-        //this.options.viewRecordMode = 'inline';
-        //this.options.viewRecordMode = 'modal-xl';
-        //this.options.viewRecordMode = 'offcanvas-end';
-        this.options.viewRecordMode = 'popup';
-        //this.options.viewRecordMode = 'modal-xl'; //modal-sm modal-lg modal-xl  modal-fullscreen-md-down  modal-fullscreen
-        
+
         this.record_id_attr = `data-heurist-${this.options.entityType}`;
+        
+//console.log('DEF', $.heurist.HRecordList.prototype.options)        
+//console.log('INIT', this.options);      
         
         if(this.options.pageSize>1000){
             this.options.pageSize = 1000;
@@ -132,12 +189,14 @@ $.widget( 'heurist.HRecordList', $.heurist.HBaseList, {
         this._super();
     },
     
-    /*
-    * Use it a) to add event listeners for subelements of this widget
-    *        b) perform some default actions (intial search for example) 
-    */
+    /**
+     * @private
+     * @memberof Widgets.UI.HRecordList
+     * @description Use it a) to add event listeners for subelements of this widget
+     * b) perform some default actions (intial search for example)
+     */
     _initControls:function(){
-        
+
         //TBD
         // init multi-selection elements
         //init showMediaViewer
@@ -158,41 +217,106 @@ $.widget( 'heurist.HRecordList', $.heurist.HBaseList, {
         }
         
         this.div_content = this._$('[data-heurist-role="recordList-content"]');
+        
+        if(this.options.selectMode!='multi'){
+            this._$('[data-heurist-role="recordList-selection"]').hide();
+        }
+        
+        this._$('[data-heurist-role="recordList-options"]').hide();
+        /* this button is for debug 
+        this._on(this._$('[data-heurist-role="recordList-options"]'),
+            {click: ()=>this.openOptionsEditor()});
+        */
+            
+        // create observer to check record's cards visibility within scrollable div_content viewport
+        this._createIntersectionObserver();
 
         //triggers onInitFinished and performs initial search
         this._super();
-        
-    },
-
-    /* 
-    * Cleanup. Removes generated elements and off event listeners
-    */
-    _destroy: function() {
-        // remove generated elements
-        this._clearMultiselect();       
-        this._clearPagination();
     },
     
-    /*
-    * Removes all record elements
-    *  overwrites parent's method
-    */
+    /**
+     * @private
+     * @memberof Widgets.UI.HRecordList
+     * @description Handles the closing of the option editor.
+     * @param {object} newOptions - The new options.
+     */
+    onCloseOptionEditor: function(newOptions){
+        if(newOptions){
+            
+            newOptions = $.extend(this.$H.cloneJSON($.heurist.HRecordList.prototype.options), newOptions);
+            
+            if(this.recordView){
+                this.recordView.remove();   
+                this.recordView = null;
+            }
+            this._cashedItem = {};
+            this._current_page = 0;
+
+            this.element.HRecordList(newOptions);
+        }
+    },
+    
+    /**
+     * @private
+     * @memberof Widgets.UI.HRecordList
+     * @description Cleanup. Removes generated elements and off event listeners
+     */
+    _destroy: function() {
+        // remove generated elements
+        this.clearContent();
+        this._clearMultiselect();       
+    },
+    
+    /**
+     * @memberof Widgets.UI.HRecordList
+     * @description Returns element with atribute data-heurist-rec=recID (this.record_id_attr)
+     * @param {number} recID - The record ID.
+     * @returns {HTMLElement} The record card element.
+     */
+    getRecordCard(recID){
+        
+        return this.div_content[0].querySelector(`${this.options.viewMode=='table'?'tr':'div'}[${this.record_id_attr}="${recID}"]`);
+    },
+    
+    /**
+     * @memberof Widgets.UI.HRecordList
+     * @description Returns array of elements atribute data-heurist-rec (this.record_id_attr)
+     * @returns {jQuery} The record card elements.
+     */
+    getRecordCardAll(){
+        let searchFor = `${this.options.viewMode=='table'?'tr':'div'}[${this.record_id_attr}]`;
+        
+        return this.div_content.find( searchFor );
+    },
+    
+    
+    /**
+     * @memberof Widgets.UI.HRecordList
+     * @description Removes all record elements
+     * overwrites parent's method
+     */
     clearContent: function(){
         
         if(!this._initCompleted) return;
         
+        //stop observing
+        this.observer.disconnect();
+        
         //_off all clicks for actions per record cards
-        this._off( this.div_content.find(`div[${this.record_id_attr}]`), 'click');
+        this._off( this.getRecordCardAll(), 'click');
 
         this.div_content[0].innerHTML = '';
         
         this._clearPagination();
     },
 
-    /*
-    * Adds notification/placeholder message (init, error or for empty result)
-    * overwrites parent's method
-    */
+    /**
+     * @memberof Widgets.UI.HRecordList
+     * @description Adds notification/placeholder message (init, error or for empty result)
+     * overwrites parent's method
+     * @param {string} msg - The message to render.
+     */
     renderMessage: function(msg){
     
         this.clearContent();
@@ -204,9 +328,10 @@ $.widget( 'heurist.HRecordList', $.heurist.HBaseList, {
         
     },
     
-    /*
-    * overwrites parent's method
-    */
+    /**
+     * @memberof Widgets.UI.HRecordList
+     * @description overwrites parent's method
+     */
     renderConent: function(){
 
         this._cashedItem = {}; //reset
@@ -214,7 +339,9 @@ $.widget( 'heurist.HRecordList', $.heurist.HBaseList, {
 
         if(this.recordSet==null || this.recordSet.count_total()==0){
             //render placeholder
-            this.renderMessage('empty recordset');
+            if(!this.options.placeholderEmptyBlank){
+                this.renderMessage(this.options.placeholderEmpty || this.options.placeholderEmptyDef);
+            }
         }else{
             this._setPageStyle();
             this._renderPage(0);
@@ -222,9 +349,10 @@ $.widget( 'heurist.HRecordList', $.heurist.HBaseList, {
     },
     
     /**
-    * selection - HRecordSet or array of record Ids or 'all'
+    * @memberof Widgets.UI.HRecordList
+    * @description selection - HRecordSet or array of record Ids or 'all'
     *
-    * @param selection - record ids
+    * @param {Array|string} selection - record ids
     */
     setSelection: function(selection){
         
@@ -238,9 +366,9 @@ $.widget( 'heurist.HRecordList', $.heurist.HBaseList, {
         if( this.$H.isArrayNotEmpty(this.recordSetSelected) ){
             
             let that = this;
-            this.div_content.find(`div[${this.record_id_attr}]`).each(function(ids, rdiv){
+            this.div_content.getRecordCardAll().each(function(ids, rdiv){
                     let rec_id = $(rdiv).attr(that.record_id_attr);
-                    let idx = window.hWin.HEURIST4.util.findArrayIndex(rec_id, that.recordSetSelected);
+                    let idx = that.$H.findArrayIndex(rec_id, that.recordSetSelected);
                     if(idx>=0){ 
                         $(rdiv).addClass('selected');
                     }
@@ -256,9 +384,11 @@ $.widget( 'heurist.HRecordList', $.heurist.HBaseList, {
 
     //------------------ methods defined in HRecordList
 
-    //
-    //
-    //    
+    /**
+     * @private
+     * @memberof Widgets.UI.HRecordList
+     * @description Clears the pagination.
+     */
     _clearPagination: function(){
         if(this.div_pagination){
             //off events for pagination buttons
@@ -272,9 +402,12 @@ $.widget( 'heurist.HRecordList', $.heurist.HBaseList, {
         this.div_counter?.text('');
     },  
 
-    //
-    // recreates pagination buttons and/or dropdown
-    //  
+    /**
+     * @private
+     * @memberof Widgets.UI.HRecordList
+     * @description recreates pagination buttons and/or dropdown
+     * @param {boolean} refreshMenuOnly - Whether to refresh only the menu.
+     */
     _renderPagination: function(refreshMenuOnly){
         
         let total_inquery = (this.recordSet!=null)?this.recordSet.count_total():0;
@@ -394,39 +527,59 @@ $.widget( 'heurist.HRecordList', $.heurist.HBaseList, {
         
     },
 
-    //
-    // off listeners
-    //    
+    /**
+     * @private
+     * @memberof Widgets.UI.HRecordList
+     * @description off listeners
+     */
     _clearMultiselect: function(){
 
     },    
     
-    //
-    //
-    //    
+    /**
+     * @private
+     * @memberof Widgets.UI.HRecordList
+     * @description Sets the page style.
+     */
     _setPageStyle: function(){
         //grid - move to renderPage
-        this.div_content[0].className = 'row row-cols-auto g-3';  //row-cols-1 row-cols-sm-2 row-cols-md-auto   
-        this.div_content[0].style.overflowX = 'hidden';
-        this.div_content[0].style.overflowY = 'auto';
+        if(this.options.viewMode=='row'){
+        
+            this.div_content[0].className = 'd-flex flex-row flex-nowrap';    
+            this.div_content[0].style.overflowX = 'auto';
+            this.div_content[0].style.overflowY = 'hidden';
+            
+        }else if(this.options.viewMode=='list'){
 
-        //horizontal        
-        //this.div_content[0].className = 'd-flex flex-row flex-nowrap';    
-        //this.div_content[0].style.overflowX = 'auto';
-        //this.div_content[0].style.overflowY = 'hidden';
-
-        //table
+            this.div_content[0].className = 'd-flex flex-column';    
+            this.div_content[0].style.overflowX = 'hidden';
+            this.div_content[0].style.overflowY = 'auto';
+            
+        }else if(this.options.viewMode=='table'){
+            
+            this.div_content[0].className='';
+            this.div_content[0].style.overflowX = 'auto';
+            this.div_content[0].style.overflowY = 'auto';
+            
+        }else { //}if(this.options.viewMode=='grid'){    
+            this.div_content[0].className = 'row row-cols-auto g-0';  //row-cols-1 row-cols-sm-2 row-cols-md-auto   
+            this.div_content[0].style.overflowX = 'hidden';
+            this.div_content[0].style.overflowY = 'auto';
+        }
         
     },
     
-    //
-    //
-    //
+    /**
+     * @private
+     * @memberof Widgets.UI.HRecordList
+     * @description Renders the page.
+     * @param {number} pageno - The page number.
+     */
     _renderPage: function( pageno ){
 
         let html = ''; //result html for content
         
-        //TBD - if pageSize>1000 - imlement implicit pagination - for visible viewport
+        //TBD - if pageSize>1000 - imlement implicit pagination - render for visible viewport only
         pageno = (pageno<0) ?0:pageno;
 
         let pagesize = this.options.pageSize;
@@ -463,60 +616,129 @@ $.widget( 'heurist.HRecordList', $.heurist.HBaseList, {
 
                 html  += this._renderRecordStub(recID);
             
-                rec_toload.push(recID);
+                //check if it is visible
+                rec_toload.push(''+recID);
             }
         }
         
         if(rec_toload.length>0){
-            //loads record to be rendered
-            this._loadRecordsDetails( rec_toload );
+            // loads record to be rendered
+            // this._loadRecordsDetails( rec_toload );
         }else{
-            this._renderPagination(true);    
+            //show empty set message?            
+        }
+        this._renderPagination(true);
+        
+        this.observer.disconnect();
+        
+        if(this.options.viewMode=='table'){
+            
+            let tbl = $('<table class="table table-striped table-hover"></table').appendTo(this.div_content);
+            tbl[0].innerHTML = html;
+        }else{
+            this.div_content[0].innerHTML = html;
         }
         
-        this.div_content[0].innerHTML = html;
         
-        this._on( this.div_content.find(`div[${this.record_id_attr}]`), {
+        let allCards = this.getRecordCardAll();
+        
+        this._on( allCards, {
             click: this._recordDivOnClick
         });
+        
+        if(rec_toload.length>0){
+            let that = this;
+            allCards.each((idx, item)=>{
+                if(rec_toload.indexOf( item.getAttribute(that.record_id_attr) )>=0){
+                    that.observer.observe(item);    
+                }
+            });
+        }
+        
+        
 
     },
     
-    //
-    // Loads record details for page
-    //
+    /**
+     * @private
+     * @memberof Widgets.UI.HRecordList
+     * @description Creates the intersection observer.
+     */
+    _createIntersectionObserver: function () {
+
+          let options = {
+            root: null, //this.div_content[0],
+            rootMargin: '0px',
+            threshold: [0, 0.25, 0.5, 0.75, 1],
+            delay: 300
+          };
+
+          let that = this;
+          this.observer = new IntersectionObserver((entries, observer)=>that._handleIntersect(entries, observer), options);
+    },
+    
+    /**
+     * @private
+     * @memberof Widgets.UI.HRecordList
+     * @description Handles the intersection of the observer.
+     * @param {Array} entries - The entries.
+     * @param {IntersectionObserver} observer - The observer.
+     */
+    _handleIntersect: function(entries, observer){
+         
+         let that = this;
+         let rec_toload = [];
+         entries.forEach((entry) => {
+            if (entry.intersectionRatio > 0.44) {        
+                rec_toload.push( entry.target.getAttribute(that.record_id_attr) );
+                that.observer.unobserve( entry.target );
+            }
+         });
+         
+         if(rec_toload.length>0){
+             this._loadRecordsDetails(rec_toload);
+         }
+                
+    },
+    
+    /**
+     * @private
+     * @memberof Widgets.UI.HRecordList
+     * @description Loads record details for page
+     * @param {Array} rec_toload - The records to load.
+     */
     _loadRecordsDetails: function( rec_toload ){
         
         let that = this;
         let ids = rec_toload.join(',');        
-            
+        
         // template for records
-        if(this.options.templateCard || this.options.templateTable){
+        if(this.options.templateCard){
             //loads template results
-            
             let request = {q:`ids:${ids}`, 
                            db:this.HAPI.database, 
+                           snippet: 1, //without header
                            template:this.options.templateCard,
                            lang: this.HAPI.getLocale()
                           };
             
-            const temp_ele = document.createElement('div');
+            let temp_ele = document.createElement('div');
             let that = this;
-
+                                                            
             $(temp_ele).load(this.HAPI.baseURL, request, function(){ 
                 for (const child of temp_ele.children) {
-                    //find card among stub
+                    //find card among stubs and replace 
                     const recID = child.getAttribute(that.record_id_attr);
                     if(recID>0){
                         that._cashedItem[recID] = child.outerHTML; //keep in cache
-                        let ele = that.div_content[0].querySelector(`div[${that.record_id_attr}="${recID}"]`);
-                        if(ele){
-                            ele.innerHTML = child.innerHTML;
-                        }
+                        
+                        that._replaceStubWithContent(recID);
                     }
-                }   
+                }
+                
+                temp_ele = null;//clear   
             });
-            this._renderPagination(true);
+            //this._renderPagination(true);
             
         }else{
 
@@ -550,9 +772,13 @@ $.widget( 'heurist.HRecordList', $.heurist.HBaseList, {
         
     },
     
-    //
-    //
-    //
+    /**
+     * @private
+     * @memberof Widgets.UI.HRecordList
+     * @description Handles the response of getting record details.
+     * @param {object} response - The response.
+     * @param {Array} rec_toload - The records to load.
+     */
     _onGetRecordsDetails: function(response, rec_toload){
         
         if(!this.recordSet) return;
@@ -570,10 +796,13 @@ $.widget( 'heurist.HRecordList', $.heurist.HBaseList, {
                     let recID = rec_toload[i];
                     if(resp.getById(recID)==null){ //not found
                         this.recordSet.removeRecord(recID);
+                    }else{
+                        this._cashedItem[recID] = this._renderRecord(recID);
+                        this._replaceStubWithContent(recID);
                     }        
                 }
 
-                this._renderPage( this._current_page );
+                //this._renderPage( this._current_page );
             }
 
         }else{
@@ -581,19 +810,54 @@ $.widget( 'heurist.HRecordList', $.heurist.HBaseList, {
         }
         
     },
+    
+    /**
+     * @private
+     * @memberof Widgets.UI.HRecordList
+     * @description Replaces the stub with content.
+     * @param {number} recID - The record ID.
+     */
+    _replaceStubWithContent(recID){
+        
+        //get stub
+        let ele = this.getRecordCard(recID);
+        if(ele){
+            //replace content
+            /*
+            ele.outerHTML = this._cashedItem[recID];
+            this._on( $(ele), {
+                click: this._recordDivOnClick
+            });
+            */
+            ele.innerHTML = $(this._cashedItem[recID]).html();
+        }
+        
+    },
 
-    //
-    // Stub while loading the entire data
-    //    
+    /**
+     * @private
+     * @memberof Widgets.UI.HRecordList
+     * @description Stub while loading the entire data
+     * @param {number} recID - The record ID.
+     * @returns {string} The HTML for the stub.
+     */
     _renderRecordStub: function(recID){
-
-        return `<div class="col" ${this.record_id_attr}="${recID}"><div class="recordList-item shadow-sm">${recID}</div></div>`;
+        
+        if(this.options.viewMode=='table'){
+            return `<tr ${this.record_id_attr}="${recID}"><td>${recID}</td></tr>`;    
+        }else{
+            return `<div class="col" ${this.record_id_attr}="${recID}"><div class="recordList-item shadow-sm">${recID}</div></div>`;    
+        }
         
     },
     
-    //
-    // General renderer for any entity type 
-    //    
+    /**
+     * @private
+     * @memberof Widgets.UI.HRecordList
+     * @description General renderer for any entity type
+     * @param {number} recID - The record ID.
+     * @returns {string} The HTML for the record.
+     */
     _renderRecord: function(recID){
 
         let html = '';
@@ -608,7 +872,7 @@ $.widget( 'heurist.HRecordList', $.heurist.HBaseList, {
             let recTypeID = this.recordSet.fld(record, 'rec_RecTypeID');
             let recThumb = this.recordSet.fld(record, 'rec_ThumbnailURL');
             
-            let recTitleStripped = this.$H.htmlEscape(window.hWin.HEURIST4.util.stripTags(recTitle))+' id:'+recID;
+            let recTitleStripped = this.$H.htmlEscape(this.$H.stripTags(recTitle))+' id:'+recID;
             recTitle = this.$H.stripTags(recTitle,'u, i, b, strong, em');
             //let recTitle_strip2 = this.$H.stripTags(recTitle,'a, u, i, b, strong, em');
             let recTypeIcon = this.HAPI.iconBaseURL+recTypeID;
@@ -616,70 +880,45 @@ $.widget( 'heurist.HRecordList', $.heurist.HBaseList, {
             
             recTypeIcon = `<div class="recordList-icon" style="background-image:url(${recTypeIcon})"></div>`;
             
-            let recThumbImg = '';
-            if(recThumb){
-                recThumbImg = `<div class="recordList-thumb" style="background-image: url(&quot;${recThumb}&quot;);" data-id="${recID}"></div>`;
-            }else{
-                recThumbImg = `<div class="recordList-thumb" style="opacity:0.5;background-image: url(&quot;${this.HAPI.iconBaseURL  + recTypeID}&version=thumb&quot;);"></div>`; //this._icon_timer_suffix
-            }
             
-            html = `<div class="col" ${this.record_id_attr}="${recID}"><div class="recordList-item shadow-sm">${recTypeIcon} ${recThumbImg} <div class="recordList-text">${recID}: ${recTitle}</div></div></div>`;
+            if(this.options.viewMode=='table'){
+
+                html = `<tr ${this.record_id_attr}="${recID}"><td>${recID}</td><td>${recTypeIcon}</td><td>${recTitle}</td></tr>`;
+                
+            }else{
+            
+                let recThumbImg = '';
+                if(recThumb){
+                    recThumbImg = `<div class="recordList-thumb" style="background-image: url(&quot;${recThumb}&quot;);" data-id="${recID}"></div>`;
+                }else{
+                    recThumbImg = `<div class="recordList-thumb" style="opacity:0.5;background-image: url(&quot;${this.HAPI.iconBaseURL  + recTypeID}&version=thumb&quot;);"></div>`; //this._icon_timer_suffix
+                }
+                html = `<div class="col" ${this.record_id_attr}="${recID}"><div class="recordList-item shadow-sm">${recTypeIcon} ${recThumbImg} <div class="recordList-text">${recID}: ${recTitle}</div></div></div>`;
+                
+            }
             
         }
 
         this._cashedItem[recID] = html; //keep in cache
         return html;
-        
-/*
-const interpolate = (str, obj) => {
-  return str.replace(/\${([^}]+)}/g, (_, target) => {
-    let keys = target.split(".");
-    return keys.reduce((prev, curr) => {
-      if (curr.search(/\[/g) > -1) {
-        //if element/key in target array is array, get the value and return
-        let m_curr = curr.replace(/\]/g, "");
-        let arr = m_curr.split("[");
-        return arr.reduce((pr, cu) => {
-          return pr && pr[cu];
-        }, prev);
-      } else {
-        //else it is a object, get the value and return
-        return prev && prev[curr];
-      }
-    }, obj);
-  });
-};
-
-let template = "hello ${a[0][0].b.c}";
-let data = {
-  a: [
-    [{
-      b: {
-        c: "world",
-        f: "greetings"
-      }
-    }, 2], 3
-  ],
-  d: 12,
-  e: 14
-}
-console.log(interpolate(template, { ...data
-}));
-*/        
+       
     },
     
     
-    //
-    //
-    //
+    /**
+     * @private
+     * @memberof Widgets.UI.HRecordList
+     * @description Handles the click on a record div.
+     * @param {Event} event - The event object.
+     */
     _recordDivOnClick: function(event){
 
-        if($(event.target).is('a')) return;
+        if($(event.target).is('a')) return; // || $(event.target).parents('a')
 
         let recdiv = event.target;
         
         if(!recdiv.hasAttribute(this.record_id_attr)){
-            recdiv = $(recdiv).parents(`div[${this.record_id_attr}]`);
+            recdiv = $(recdiv).parents(`${this.options.viewMode=='table'?'tr':'div'}[${this.record_id_attr}]`);
             if(recdiv.length==0){
                 return;
             }
@@ -692,38 +931,69 @@ console.log(interpolate(template, { ...data
         //this.div_content.find('.selected').removeClass('selected');
         this.div_content[0].querySelectorAll('.selected').forEach(sub=>sub.classList.remove('selected'));
         
-        let recdiv_card = recdiv.firstChild;        
-        recdiv_card.classList.add('selected'); //highlight record card
+        let recdiv_card = (this.options.viewMode=='table')?recdiv:recdiv.firstChild;        
+        if(recdiv_card.classList){
+            recdiv_card.classList.add('selected'); //highlight record card
+        }else{
+            recdiv_card.className = 'selected';
+        }
+        
         
         if(this.options.selectAction=='view' && this.options.viewRecordMode!='none')
         {
             if(this.options.viewRecordMode=='inline'){
                 
-                let expanded_col = this.div_content[0].querySelector('.selected_col');
-                if(expanded_col){
-                    // hide expanded column
-                    expanded_col.classList.remove('selected_col');
-                    let recdiv_card = expanded_col.firstChild;
-                    [...recdiv_card.children].forEach((sub)=>{ 
-                        sub.style.display = sub.classList.contains('recordList-fullview')?'none':'block'; 
-                    });
-                }
-                
-                //expand col - record card is a parent
-                recdiv.classList.add('selected_col');
-                
-                //load content
-                let view_div = recdiv_card.querySelector('.recordList-fullview');
-                if(!view_div){
-                    //create new container
-                    view_div = document.createElement('div');
-                    view_div.classList.add('recordList-fullview');
-                    recdiv_card.append(view_div);
-                }
-                [...recdiv_card.children].forEach(function (sub) { sub.style.display = 'none'; });
-                view_div.style.display = 'block';
+                if(this.options.viewMode=='table'){
+                    
+                    //recdiv_card - selected TR
 
-                this.recordView = $(view_div);
+                    // hide expanded TR and show usual row
+                    let expanded_row = this.div_content[0].querySelector('.selected_row');
+                    if(expanded_row){
+                        $(expanded_row).prev().show();
+                        expanded_row.remove();
+                        expanded_row = null;
+                    }
+                    
+                    //insert expanded TR                    
+                    let ncount = recdiv_card.children.length;
+                    this.recordView = $(`<tr class="selected_row"><td class="recordList-fullview" colspan="${ncount}"></td></tr>`).insertAfter($(recdiv_card));
+                    
+                    recdiv_card.style.display = 'none';
+                    
+                    this.recordView = this.recordView.find('.recordList-fullview');
+                    
+                }else{
+                
+                    let expanded_col = this.div_content[0].querySelector('.selected_col');
+                    if(expanded_col){
+                        // hide expanded column
+                        expanded_col.classList.remove('selected_col');
+                        let recdiv_card = expanded_col.firstChild;
+                        [...recdiv_card.children].forEach((sub)=>{ 
+                            sub.style.display = sub.classList.contains('recordList-fullview')?'none':'block'; 
+                        });
+                    }
+                    
+                    //expand col - record card is a parent
+                    recdiv.classList.add('selected_col');
+                    
+                    //load content
+                    let view_div = recdiv_card.querySelector('.recordList-fullview');
+                    if(!view_div){
+                        //create new container
+                        view_div = document.createElement('div');
+                        view_div.classList.add('recordList-fullview');
+                        recdiv_card.append(view_div);
+                    }
+                    [...recdiv_card.children].forEach(function (sub) { sub.style.display = 'none'; });
+                    view_div.style.display = 'block';
+                    
+                    this.recordView = $(view_div);
+                }
+                
+                
+                
             }
             else if ( this.recordView==null ){
                 this.recordView = $('<div>').appendTo(this.element);
@@ -735,7 +1005,7 @@ console.log(interpolate(template, { ...data
                 let that = this;
                 this.recordView.HRecordView({recID: selected_rec_ID,
                                             viewMode: this.options.viewRecordMode, 
-                                            recordTemplate: this.options.templateView,
+                                            templateView: this.options.templateView,
                                             keepInstance: true});
             }
         }
@@ -755,15 +1025,19 @@ console.log(interpolate(template, { ...data
         
     },
     
-    /*
-    *
-    */
+    /**
+     * @private
+     * @memberof Widgets.UI.HRecordList
+     * @description Scrolls to the record div.
+     * @param {HTMLElement|number} selected - The selected element or record ID.
+     * @param {boolean} to_top_of_viewport - Whether to scroll to the top of the viewport.
+     */
     _scrollToRecordDiv: function(selected, to_top_of_viewport){
         
         let rdiv = null;
         if( this.$H.isPositiveInt(selected) ){
             const recID = selected;
-            rdiv = this.div_content[0].querySelector(`div[${this.record_id_attr}="${recID}"]`);
+            rdiv = this.getRecordCard(recID);
         }else{
             rdiv = selected;
         }
