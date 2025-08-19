@@ -294,7 +294,7 @@ require_once dirname(__FILE__).'/hclient/framecontent/initPage.php';
 <script type="text/javascript" src="hclient/widgets/expertnation/expertnation_place.js"></script>
 <script type="text/javascript" src="hclient/widgets/expertnation/expertnation_nav.js"></script>
 <script type="text/javascript" src="hclient/widgets/viewers/connections.js"></script>
-<script type="text/javascript" src="<?php echo PDIR;?>hclient/widgets/search/svs_edit.js"></script>
+<script type="text/javascript" src="<?php echo PDIR;?>hclient/widgets/search/svsEdit.js"></script>
 <script type="text/javascript" src="<?php echo PDIR;?>hclient/widgets/search/svs_list.js"></script>
 <script type="text/javascript" src="<?php echo PDIR;?>hclient/widgets/viewers/resultList.js"></script>
 <script type="text/javascript" src="<?php echo PDIR;?>hclient/widgets/viewers/resultListMenu.js"></script>

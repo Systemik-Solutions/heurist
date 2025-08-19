@@ -115,7 +115,7 @@ $.widget( "heurist.mapping", {
     hie_places_wo_events_style: null,
     */
     
-    //reference to leaflet map object
+    //reference to google or leaflet map
     
     //main elements
     nativemap: null,     //map container

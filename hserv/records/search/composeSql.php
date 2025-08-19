@@ -18,7 +18,7 @@ use hserv\structure\ConceptCode;
 use hserv\utilities\Temporal;
 
 // @todo - get rid global variables ie $mysqli
-
+require_once dirname(__FILE__) . '/../../utilities/Temporal.php';
 require_once dirname(__FILE__).'/composeSqlOld.php';
 
 /**

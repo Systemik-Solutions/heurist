@@ -33,7 +33,6 @@
 
 use hserv\utilities\UImage;
 use hserv\utilities\USanitize;
-use hserv\utilities\UImage;
 
 require_once dirname(__FILE__).'/../../autoload.php';
 require_once 'entityScrudSrv.php';
@@ -176,7 +175,6 @@ if($filename){ //download from scratch (for csv import)
         $default_mode = @$req_params['def'];
         if($default_mode=='check') {$default_mode = 3;}
         elseif($default_mode==null) {$default_mode = 2;}
-
 
         if(file_exists($filename) && !is_dir($filename)){
             if($default_mode==3){ //check

@@ -27,7 +27,8 @@
     require_once dirname(__FILE__).'/../../../hserv/structure/search/dbsData.php';
     require_once dirname(__FILE__).'/../../../hserv/dbaccess/utils_db.php';
     require_once  dirname(__FILE__).'/../../../hserv/utilities/Temporal.php';
-    
+    use hserv\utilities\Temporal;
+
     $response = array();
 
     $system = new System();
@@ -375,9 +376,9 @@ function composeDates( $records, $recID, $prefix='') {
          if(!$date_start) $date_start = $date_end;
          
          if($date_end!=$date_start){
-            $dt = Temporal::mergeTemporals($date_start, $date_end);    
+            $dt = \hserv\utilities\Temporal::mergeTemporals($date_start, $date_end);
          }else{
-            $dt = new Temporal($date_start);
+            $dt = new \hserv\utilities\Temporal($date_start);
          }   
          
          return $dt?$prefix.$dt->toReadable():'';

@@ -128,49 +128,6 @@ function entityRefreshDefs( $system, $entities, $need_config, $search_params=nul
             if($need_config!==false){
                 $need_config[$entity_name]['config'] = $entity->config();
             }
-
-            $path = '/entity/'.$entity_name.'/';
-        }
-
-        if(!$version){
-            //if version is not specified default is thumbnail (except for record types)
-            $version = ($entity_name=='defRecTypes')?'icon':'thumbnail';
-        }elseif($version=='thumb'){
-            $version='thumbnail';
-        }
-
-        if($version!='full' && !($entity_name!='defRecTypes' && $version=='icon'))
-        {
-            $path = $path.$version.'/';
-        }
-
-        // Backward compatibility for term icons (Digital Harlem)
-        if ($entity_name === 'defTerms' && !file_exists(HEURIST_FILESTORE_ROOT . $db_name . $path)) {
-            $path = '/term-icons/';
-        }
-        
-        $filename = null;
-        $content_type = null;
-        $url = null;
-
-        if(intval($rec_id)>0 && mysql__check_dbname($db_name)==null){
-
-            $fname = HEURIST_FILESTORE_ROOT.$db_name.$path.intval($rec_id);
-
-            $exts = $extension?array($extension):array('png','jpg','svg','jpeg','jpe','jfif','gif');
-            foreach ($exts as $ext){
-                if(file_exists($fname.'.'.$ext)){
-                    if($ext=='jpg' || $ext=='jfif' || $ext=='jpe'){
-                        $content_type = 'image/jpeg';
-                    }elseif($ext=='svg'){
-                        $content_type = 'image/svg+xml';
-                    }else{
-                        $content_type = 'image/'.$ext;
-                    }
-                    $filename = $fname.'.'.$ext;
-                    $url =  $defaultRootFileUploadURL.urlencode($db_name).$path.$rec_id.'.'.$ext;
-                    break;
-                }
             if($entity_name == 'defTerms'){
                 $res[$entity_name]['trm_Links'] = $entity->getTermLinks();
                 $res[$entity_name]['trm_Icons'] = $entity->getTermIcons();
@@ -256,6 +213,11 @@ function resolveEntityFilename($entity_name, $rec_id, $version, $db_name=null, $
     if($version!='full' && !($entity_name!='defRecTypes' && $version=='icon'))
     {
         $path = $path.$version.'/';
+    }
+
+    // Backward compatibility for term icons (Digital Harlem)
+    if ($entity_name === 'defTerms' && !file_exists(HEURIST_FILESTORE_ROOT . $db_name . $path)) {
+        $path = '/term-icons/';
     }
 
     $filename = null;

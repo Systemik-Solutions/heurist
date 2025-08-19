@@ -195,7 +195,7 @@ if($isWebPage){ //set in websiteRecord.php
 ?>
 
     <div class="ent_wrapper heurist-website selectmenu-parent">
-    <div id="main-header" class="ent_header ui-heurist-header2" <?php print $image_banner?'style="background-repeat: repeat-x;background-size:auto 170px;background: none !important;"':'' ?>>
+    <div id="main-header" class="ent_header ui-heurist-header2" <?php print $image_banner?'style="background-repeat: repeat-x !important;background-size:auto 170px !important;background: none !important;"':'' ?>>
 
 <?php
     if($showWarnAboutPublic){
@@ -214,7 +214,7 @@ if($isWebPage){ //set in websiteRecord.php
 
         <div id="main-languages" class="mceNonEditable header-element" style="position:absolute;top:10px;right:40px;max-height:90px;"></div>
 
-        <div id="main-menu" class="mceNonEditable header-element" style="position:absolute;bottom:0px;width:100%;min-height:40px;border:2px none yellow;color:black;font-size:1.1em;" data-heurist-app-id="heurist_Navigation" data-generated="1">
+        <div id="main-menu" class="mceNonEditable header-element" style="position:absolute;bottom:20px;width:100%;min-height:40px;border:2px none yellow;color:black;font-size:1.1em;" data-heurist-app-id="heurist_Navigation" data-generated="1">
             <?php print $page_header_menu; ?>
         </div>
 

@@ -31,6 +31,7 @@ $system->defineConstants();
 <script type="text/javascript" src="<?php echo PDIR;?>external/jquery.widgets/evol.colorpicker.js" charset="utf-8"></script>
 <link type="text/css" href="<?php echo PDIR;?>external/jquery.widgets/evol.colorpicker.css" rel="stylesheet"/>
 
+<script src="https://maps.googleapis.com/maps/api/js?key=<?php echo $accessToken_GoogleAPI;?>&libraries=drawing,geometry,marker&callback=initMap" async></script>
 <!--
 <script src="https://developers.google.com/maps/documentation/javascript/examples/markerclusterer/markerclusterer.js"></script>
 

@@ -1,15 +1,8 @@
 /**
-* @file        app_timemap.js
-* @brief       Heurist Timemap application wrapper for Leaflet mapping.
-* @fileOverview This file provides the `heurist.app_timemap` jQuery UI widget.
-*              It acts as a controller and wrapper for the main mapping interface
-*              (map.php, which uses Leaflet and potentially the SIMILE Timemap library
-*              or similar timeline components). It handles loading the map and
-*              timeline into an iframe, manages record sets and selections for
-*              display, and listens to system events to refresh or update the map
-*              content. It supports dynamic loading of map data based on search
-*              results and selections within the Heurist interface.
-* @project     Heurist academic knowledge management system
+* app_timemap.js - load map + timeline into an iframe in the interface.
+* This widget acts as a wrapper for viewers/gmap/map.php (google maps) or viewers/map/map.php (leaflet)
+* 
+* app_timemap -> map.php -> mapping.js
 *
 * @link        https://HeuristNetwork.org
 * @copyright   (C) 2005-2023 University of Sydney, (C) 2024 onwards Heurist Network
@@ -76,7 +69,7 @@ $.widget( "heurist.app_timemap", {
         eventbased:true,
         tabpanel:false,  //if true located on tabcontrol need top:30
         
-        leaflet: true,
+        leaflet: false,
         search_realm:  null,  //accepts search/selection events from elements of the same realm only
         search_initial: null,  //query string or svs_ID for initial search
 
@@ -369,7 +362,6 @@ $.widget( "heurist.app_timemap", {
                     this.options.mapdocument = mapdoc;    
                 }
                 let url;
-
                 if(this.options.leaflet){
                     url = window.hWin.HAPI4.baseURL + 'viewers/map/map.php?';
                 }else{
@@ -379,7 +371,17 @@ $.widget( "heurist.app_timemap", {
                 
                 if(this.options.layout_params){
             
-                    if(this.options.layout_params.controls?.indexOf('legend') !== -1){
+                    if(!this.options.leaflet){ //for leafleat we assign parameters onMapInit
+                        
+                        for(let key in this.options.layout_params){
+                            if(key=='style' && window.hWin.HEURIST4.util.isJSON(this.options.layout_params[key])){
+                                url = url + '&'+key + '=' +  encodeURIComponent(JSON.stringify( this.options.layout_params[key] ));
+                            }else{
+                                url = url + '&'+key + '=' + this.options.layout_params[key];    
+                            }
+                        }
+                    
+                    }else if(this.options.layout_params.controls?.indexOf('legend') !== -1){
                         url += '&controls=legend'; // avoid destroying legend controls
                     }
 
@@ -453,7 +455,50 @@ $.widget( "heurist.app_timemap", {
      */
     _initmap: function( cnt_call ){
         if( !window.hWin.HEURIST4.util.isnull(this.mapframe) && this.mapframe.length > 0){
-            this._applyCurrentSearch(); 
+
+            if(this.options.leaflet){
+                
+                this._applyCurrentSearch(); 
+                
+                return;
+            }
+            
+            //all stuff below for google maps only
+            
+            //access mapping object in mapframe to referesh content 
+            let mapping = null;
+            if(this.mapframe[0].contentWindow){
+                mapping = this.mapframe[0].contentWindow.mapping;
+            }
+
+            let that = this;
+
+            if(!mapping){
+                this.is_map_inited = false; 
+                cnt_call = (cnt_call>0) ?cnt_call+1 :1;
+                setTimeout(function(){ that._initmap(cnt_call); }, 1000); //bad idea
+                return;
+            }
+            
+            if(this.is_map_inited && cnt_call>0) return;
+            
+            //google to remove
+            this.is_map_inited = true;
+            this.options.init_completed = true;
+            mapping.load( null, //mapdataset,
+                this.options.selection,  //array of record ids
+                this.options.mapdocument,    //map document on load
+                function(selected){  //callback if something selected on map
+                    $(that.document).trigger(window.hWin.HAPI4.Event.ON_REC_SELECT,
+                        { selection:selected, source:that.element.attr('id'), search_realm:that.options.search_realm } );
+                },
+                function(){ //callback function on native map init completion
+                    let params = {id:'main', recordset:that.options.recordset, title:'Current query'};
+                    that.addRecordsetLayer(params, -1);
+                }
+            );
+
+            this.recordset_changed = false;
         }
 
     },
@@ -612,7 +657,14 @@ $.widget( "heurist.app_timemap", {
         if (this.mapframe[0].contentWindow.mapping) {
             let  mapping = this.mapframe[0].contentWindow.mapping;  
             
-            mapping.mapping('setFeatureSelection', this.options.selection, true);
+            if(this.options.leaflet){ //leaflet
+
+                mapping.mapping('setFeatureSelection', this.options.selection, true);
+                
+            }else{
+                mapping.showSelection(this.options.selection);  //see viewers/gmap/map.js
+            }
+            
         }
     },
     
@@ -637,10 +689,13 @@ $.widget( "heurist.app_timemap", {
         if (this.mapframe[0].contentWindow.mapping) {
             let  mapping = this.mapframe[0].contentWindow.mapping;  
 
-            //if layer is visible - select and zoom to record in search results
-            let recID = selection[0];
-            let layer_rec = mapping.mapping('getMapManager').getLayer( 0, recID );
-            (layer_rec['layer']).getMapData();
+            if(this.options.leaflet){ //leaflet
+                //if layer is visible - select and zoom to record in search results
+                let recID = selection[0];
+                let layer_rec = mapping.mapping('getMapManager').getLayer( 0, recID );
+                (layer_rec['layer']).getMapData();
+                
+            }
             
         }        
     },
@@ -657,11 +712,13 @@ $.widget( "heurist.app_timemap", {
         if (this.mapframe[0].contentWindow.mapping && selection && selection.length>0) {
             let  mapping = this.mapframe[0].contentWindow.mapping;  
 
-            //if layer is visible - select and zoom to record in search results
-            let recID = selection[0];
-            let layer_rec = mapping.mapping('getMapManager').getLayer( 0, recID );
-            if(layer_rec && layer_rec['layer']){
-                (layer_rec['layer']).zoomToLayer();    
+            if(this.options.leaflet){ //leaflet
+                //if layer is visible - select and zoom to record in search results
+                let recID = selection[0];
+                let layer_rec = mapping.mapping('getMapManager').getLayer( 0, recID );
+                if(layer_rec && layer_rec['layer']){
+                    (layer_rec['layer']).zoomToLayer();    
+                }
             }
         }        
     },
@@ -685,13 +742,16 @@ $.widget( "heurist.app_timemap", {
 
         if (this.mapframe[0].contentWindow.mapping) {
             let  mapping = this.mapframe[0].contentWindow.mapping;  
-            
-            if(!(mapdoc_ID>=0)) mapdoc_ID = 0;
-            let mapManager = mapping.mapping( 'getMapManager' );
-            mapManager.setLayersVisibility(mapdoc_ID, selection, new_visiblity);
 
-            //zoom to visible elements only
-            this.zoomToSelection( new_visiblity );
+            if(this.options.leaflet){ //leaflet
+            
+                if(!(mapdoc_ID>=0)) mapdoc_ID = 0;
+                let mapManager = mapping.mapping( 'getMapManager' );
+                mapManager.setLayersVisibility(mapdoc_ID, selection, new_visiblity);
+
+                //zoom to visible elements only
+                this.zoomToSelection( new_visiblity );
+            }
             
         }        
     },
@@ -739,16 +799,55 @@ $.widget( "heurist.app_timemap", {
     */
     reloadMapFrame: function(){
         this._reload_frame();    
-    },
+    }
+    
+    //google to remove
+    , getMapDocumentDataById: function(mapdocument_id){
+        let mapping = this.mapframe[0].contentWindow.mapping;
+        if(mapping && mapping.map_control){
+            return mapping.map_control.getMapDocumentDataById(mapdocument_id);
+        }else{
+            return null;
+        }
+    }
+    
+    //google to remove
+    , loadMapDocumentById: function(recId){
+        let mapping = this.mapframe[0].contentWindow.mapping;
+        if(mapping && mapping.map_control){
+            mapping.map_control.loadMapDocumentById(recId);  //see viewers/gmap/map.js
+        }
+    }
 
     /**
-     * @memberof heurist.app_timemap
-     * @instance
-     * @description Public method to zoom the map to a given selection.
-     * @param {Array<number>|Object} selection - The selection to zoom to (e.g., array of record IDs,
-     *                                           or an object defining bounds/features).
-     * @param {Object} [fly_params] - Optional parameters for "fly to" animation, if supported by the map.
-     */
+    * Add dataset on map
+    * params = {id:$.uniqueId(), title:'Title for Legend', query: '{q:"", rules:""}'}
+    */
+    //google to remove
+    , addQueryLayer: function(params){
+        let mapping = this.mapframe[0].contentWindow.mapping;
+        if(mapping && mapping.map_control){
+            mapping.map_control.addQueryLayer(params);
+        }
+    }
+    
+    //google to remove
+    , addRecordsetLayer: function(params){
+        let mapping = this.mapframe[0].contentWindow.mapping;
+        if(mapping && mapping.map_control){
+            mapping.map_control.addRecordsetLayer(params);
+        }
+    }
+    
+    //google to remove
+    , editLayerProperties: function( dataset_id, legendid, callback ){
+        let mapping = this.mapframe[0].contentWindow.mapping;
+        if(mapping && mapping.map_control){
+            mapping.map_control.editLayerProperties(dataset_id, legendid, callback);
+        }
+    },
+    
+    //leaflet
     zoomToSelection:function(selection, fly_params){
         let mapping = this.mapframe[0].contentWindow.mapping;
         if(mapping){
