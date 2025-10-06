@@ -1,27 +1,27 @@
 <?php
 /**
-* Loads Heurist user custom theme from usr_Preferences
+* initPageTheme.php - Generates CSS rules for Heurist user custom themes.
 *
-* @package     Heurist academic knowledge management system
+* This script retrieves theme settings from user preferences (usr_Preferences) or falls back to
+* predefined default color values. It then outputs CSS rules that apply these theme colors
+* to various UI elements across the Heurist interface. The output of this script is intended
+* to be included within a <style> tag in the HTML head.
+*
+* @project     Heurist academic knowledge management system
+* @package  hclient\framecontent
 * @link        https://HeuristNetwork.org
 * @copyright   (C) 2005-2023 University of Sydney, (C) 2024 onwards Heurist Network
-* @author      Artem Osmakov   <osmakov@gmail.com>
 * @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
-* @version     4.0
+* @author      Artem Osmakov   <osmakov@gmail.com>
+* @author      Ian Johnson     <ian.johnson.heurist@gmail.com>
+* @since       4.0
 */
 
 /*
-* Licensed under the GNU License, Version 3.0 (the "License"); you may not use this file except in compliance
-* with the License. You may obtain a copy of the License at https://www.gnu.org/licenses/gpl-3.0.txt
-* Unless required by applicable law or agreed to in writing, software distributed under the License is
-* distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied
-* See the License for the specific language governing permissions and limitations under the License.
-*/
-
-/*
-
-There are 3 color themes in Heurist.
-Main (gray) with option of different bg (white) for lists and popups
+* Developer Notes on Heurist Color Themes:
+*
+* There are 3 color themes in Heurist.
+* Main (gray) with option of different bg (white) for lists and popups
 Editor (light blue)
 Header (iron head flower color)
 Each theme has its own set for text/label, background, inputs bg and border colors.  Main and Editor share the same Color for buttons/clickable elements (default:lightgray; focus:gray with border; pressed:blue). Header’s buttons are always the same color as main background.
@@ -31,7 +31,6 @@ Optgroup (group header in dropdown)  bg: #ECF1FB - can be changed to #95A7B7 (he
 Resource selector (in edit form)  bg: #F4F2F4 - can be changed to button light gray or pressed button (light blue)
 Select linked record button   bg:#f0ecf0 - can be changed to button light gray or pressed button (light blue)
 Scrollbar tracks and thumbs  rgba(0,0,0,0.3)/#bac4cb
-
 */
 require_once dirname(__FILE__).'/../../autoload.php';
 
@@ -131,6 +130,18 @@ $def_ut = array(
 
 );
 
+/**
+ * Outputs a user-defined theme value or a default value.
+ *
+ * This function checks the global $ut array (user theme settings) for a value
+ * at the given index. If the value is null or an empty string, it prints the
+ * provided default value. Otherwise, it prints the user's theme value.
+ *
+ * @global array $ut User theme settings.
+ * @param string $idx The index (key) of the theme setting in the $ut array.
+ * @param string $def The default value to print if the user setting is not found or is empty.
+ * @return void
+ */
 function uout($idx, $def){
     global $ut;
     if(@$ut[$idx]==null || @$ut[$idx]==''){
@@ -191,7 +202,7 @@ select.ui-heurist-header2, input.ui-heurist-header2{
 }
 
 .ui-heurist-header2, .ui-heurist-btn-header1 {
-    background:<?php uout('ca_bg', '#364050');?> !important;
+    background-color:<?php uout('ca_bg', '#364050');?> !important;
     color:<?php uout('ca_color', CLR_WHITE);?> !important;
 }
 .ui-heurist-btn-header1 {

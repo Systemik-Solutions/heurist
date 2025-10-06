@@ -1,44 +1,37 @@
 /**
-* Class to perform action on set of records in popup dialog
+* recordAction.js - record batch actions dialogue 
+* 
+* Handles batch actions on records: change record type, add,update or delete details
+* 
+* @todo - converts to widget based on HBaseView
+* 
+* @project     Heurist academic knowledge management system
 *
-* @param action_type - name of action - used to access help, widget name and method on server side
-* @returns {Object}
-* @see  hclient/framecontent/record for widgets
-* @see  migrated/search/actions
-* @see  record_action_help_xxxx in localization.txt for description and help
-
-IT USES
-    window.hWin.HAPI4.currentRecordset
-    window.hWin.HAPI4.currentRecordsetSelection
-
-
-*
-* @package     Heurist academic knowledge management system
 * @link        https://HeuristNetwork.org
 * @copyright   (C) 2005-2023 University of Sydney, (C) 2024 onwards Heurist Network
-* @author      Artem Osmakov   <osmakov@gmail.com>
 * @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
-* @version     4.0
+* @author      Artem Osmakov   <osmakov@gmail.com>
+* @author      Ian Johnson     <ian.johnson.heurist@gmail.com>
+* @since       5.0
 */
 
-/*
-* Licensed under the GNU License, Version 3.0 (the "License"); you may not use this file except in compliance
-* with the License. You may obtain a copy of the License at https://www.gnu.org/licenses/gpl-3.0.txt
-* Unless required by applicable law or agreed to in writing, software distributed under the License is
-* distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied
-* See the License for the specific language governing permissions and limitations under the License.
-*/
-
-/*
-
-1) record detail batch update
-2) record type change
-
-see    
-_createInputElements - create custom input elements specific for particular action
-_startAction - start the action
-
-*/
+/**
+ * Constructor for the hRecordAction object.
+ * This object manages the UI and logic for performing batch actions on records,
+ * such as adding, replacing, or deleting details, changing record types,
+ * and other specialized actions like case conversion or file operations.
+ *
+ * @param {string} _action_type - The type of action to perform (e.g., 'add_detail', 'replace_detail',
+ *                                'delete_detail', 'rectype_change', 'extract_pdf', 'url_to_file',
+ *                                'local_to_repository', 'case_conversion', 'nl2br', 'translation', 'reset_thumbs').
+ *                                This determines the UI and server-side handling.
+ * @param {string|number} [_scope_type] - The initial scope of records to act upon.
+ *                                     Can be a string like 'All', 'Current', 'Selected', 'Collected',
+ *                                     or a numeric record type ID (rtyID) to target records of a specific type.
+ * @param {number} [_field_type] - The initial field type ID (dtyID) to be modified, if applicable to the action.
+ * @param {*} [_field_value] - An initial value for the field, if applicable. (Currently seems unused in init).
+ * @returns {object} An instance of hRecordAction with public methods.
+ */
 function hRecordAction(_action_type, _scope_type, _field_type, _field_value) {
     const _className = "RecordAction",
     _version   = "0.4";
@@ -99,8 +92,7 @@ function hRecordAction(_action_type, _scope_type, _field_type, _field_value) {
 
         let request = {
             serviceType: 'nakala',
-            service: 'nakala_get_metadata',
-            type: 'licenses'
+            metadata: 'licenses'
         };
 
         window.hWin.HEURIST4.msg.bringCoverallToFront($('body'), null, 'Retrieving available licenses...');
@@ -398,7 +390,7 @@ function hRecordAction(_action_type, _scope_type, _field_type, _field_value) {
 
             _createInputElement('fld-1', window.hWin.HR('Remove value matching'));
 
-            $('#delete_type').on('change', function(){ 
+            $('input[name="delete_type"]').on('change', function(){ 
                 if ($('#cb_delete_all').is(':checked')){
                     $('#fld-1').hide();
                 }else{
@@ -469,7 +461,6 @@ function hRecordAction(_action_type, _scope_type, _field_type, _field_value) {
                             if(repo.indexOf('nakala')===0 || repo.indexOf('nakala')===1){
                                 $('#sel_license').parent().show();
                                 _popuplateNakalaLicense();
-                                repo.indexOf('nakala')===0 ? $('#ch_use_test_server').parent().show() : $('#ch_use_test_server').parent().hide();
                             }
                         });
                         
@@ -681,7 +672,7 @@ function hRecordAction(_action_type, _scope_type, _field_type, _field_value) {
             let id = ele.find('select').attr('id');
             let widget_ele, menu_parent;
 
-			// check that the select is supposed to be a hSelect/selectmenu
+            // check that the select is supposed to be a hSelect/selectmenu
             if(ele.find('select').hSelect('instance') != undefined){ 
 
                 const selObj = ele.find('select');
@@ -689,23 +680,23 @@ function hRecordAction(_action_type, _scope_type, _field_type, _field_value) {
                 menu_parent = selObj.hSelect('menuWidget').parent();
             }else if($('#'+id+'-button').length > 0){ // widget exists in current document
 
-				if(parent.document && $('#'+id+'-menu', parent.document).length > 0){ // check if current menuWidget can be accessed
+                if(parent.document && $('#'+id+'-menu', parent.document).length > 0){ // check if current menuWidget can be accessed
 
-					widget_ele = $('#'+id+'-button');
-					menu_parent = $('#'+id+'-menu', parent.document).parent();
-				}else{
+                    widget_ele = $('#'+id+'-button');
+                    menu_parent = $('#'+id+'-menu', parent.document).parent();
+                }else{
 
-					$('#'+id+'-button').remove();
-					
-					const selObj = window.hWin.HEURIST4.ui.initHSelect(ele.find('select')[0], false);
+                    $('#'+id+'-button').remove();
+                    
+                    const selObj = window.hWin.HEURIST4.ui.initHSelect(ele.find('select')[0], false);
 
-					widget_ele = selObj.hSelect('widget');
-					menu_parent = selObj.hSelect('menuWidget').parent();
-				}
+                    widget_ele = selObj.hSelect('widget');
+                    menu_parent = selObj.hSelect('menuWidget').parent();
+                }
             }
 
             if(widget_ele && menu_parent){
-				widget_ele.on("click", function(e){
+                widget_ele.on("click", function(e){
                     menu_parent.css('top', widget_ele.offset().top + 54);
                 });
 
@@ -836,8 +827,7 @@ function hRecordAction(_action_type, _scope_type, _field_type, _field_value) {
                         window.hWin.HEURIST4.msg.showMsgFlash('Please select a license', 3000);
                         return;
                     }
-                    request['use_test_url'] = $('#ch_use_test_server').is(':checked') || request['repository'].indexOf('nakala')===1 ?
-                                                1 : 0;
+                    request['use_test_url'] = request['repository'].indexOf('nakala') === 1 ? 1 : 0;
                 }
 
             }else if(action_type=='delete_detail'){
@@ -1130,10 +1120,6 @@ function hRecordAction(_action_type, _scope_type, _field_type, _field_value) {
 
     //public members
     let that = {
-        getClass: function () {return _className;},
-        isA: function (strClass) {return (strClass === _className);},
-        getVersion: function () {return _version;},
-
     }
 
     

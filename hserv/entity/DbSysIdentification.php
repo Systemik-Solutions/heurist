@@ -1,63 +1,56 @@
 <?php
+/**
+* DbSysIdentification.php - Class DbSysIdentification
+*
+* Operations for the `sysIdentification` table.
+*
+* @project     Heurist academic knowledge management system
+* @package Entity 
+* @link        https://HeuristNetwork.org
+* @copyright   (C) 2005-2023 University of Sydney, (C) 2024 onwards Heurist Network
+* @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
+* @author      Artem Osmakov   <osmakov@gmail.com>
+* @author      Ian Johnson     <ian.johnson.heurist@gmail.com>
+* @since       6.0
+
+*/
 namespace hserv\entity;
 use hserv\entity\DbEntityBase;
 
-    /**
-    * db access to sysIdentification table
-    *
-    *
-    * @package     Heurist academic knowledge management system
-    * @link        https://HeuristNetwork.org
-    * @copyright   (C) 2005-2023 University of Sydney, (C) 2024 onwards Heurist Network
-    * @author      Artem Osmakov   <osmakov@gmail.com>
-    * @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
-    * @version     4.0
-    */
-
-    /*
-    * Licensed under the GNU License, Version 3.0 (the "License"); you may not use this file except in compliance
-    * with the License. You may obtain a copy of the License at https://www.gnu.org/licenses/gpl-3.0.txt
-    * Unless required by applicable law or agreed to in writing, software distributed under the License is
-    * distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied
-    * See the License for the specific language governing permissions and limitations under the License.
-    */
-
+/**
+* Class DbSysIdentification
+*
+* Provides database access and operations for the `sysIdentification` table.
+* This table stores a single row of database-specific properties and settings,
+* such as its name, version, owner, and various configuration options.
+*
+*/
 class DbSysIdentification extends DbEntityBase
 {
-/*
-    'dty_Documentation'=>5000,
-    'dty_EntryMask'=>'text',
-    'dty_OriginatingDBID'=>'int',
-    'dty_NameInOriginatingDB'=>255,
-    'dty_IDInOriginatingDB'=>'int',
-
-    'dty_OrderInGroup'=>'int',
-    'dty_TermIDTreeNonSelectableIDs'=>1000,
-    'dty_FieldSetRectypeID'=>'int',
-    'dty_LocallyModified'=>'bool2'
-*/
 
     /**
-    *  search user or/and groups
-    *
-    *  sysUGrps.ugr_ID
-    *  sysUGrps.ugr_Type
-    *  sysUGrps.ugr_Name
-    *  sysUGrps.ugr_Enabled
-    *  sysUGrps.ugr_Modified
-    *  sysUsrGrpLinks.ugl_UserID
-    *  sysUsrGrpLinks.ugl_GroupID
-    *  sysUsrGrpLinks.ugl_Role
-    *  (omit table name)
-    *
-    *  other parameters :
-    *  details - id|name|list|all or list of table fields
-    *  offset
-    *  limit
-    *  request_id
-    *
-    *  @todo overwrite
-    */
+     * Retrieves the single record from the `sysIdentification` table.
+     *
+     * This table contains database-specific properties and settings. This method
+     * directly queries the table (expecting only one row) and formats the result
+     * to mimic a standard Heurist search result structure.
+     *
+     * It adds a calculated field `sys_dbVersion` to the result, which is a concatenation of
+     * `sys_dbVersion`, `sys_dbSubVersion`, and `sys_dbMinorVersion` from the table.
+     *
+     * Note: This method does not use `parent::search()` or the `DbEntitySearch` manager
+     * as it targets a single, specific row.
+     *
+     * @return array|false An array structured like a search result:
+     *                     - `count`: 1 if the record is found.
+     *                     - `reccount`: 1 if the record is found.
+     *                     - `fields`: Array of field names from `sysIdentification` plus 'sys_dbVersion'.
+     *                     - `records`: An associative array where the key is the `sys_ID` (typically 1)
+     *                       and the value is a numerically indexed array of the record's values.
+     *                     - `order`: The `sys_ID` of the record.
+     *                     - `entityName`: 'sysIdentification'.
+     *                     Returns `false` if there's a database query error.
+     */
     public function search(){
 
         $query = 'SELECT * FROM sysIdentification LIMIT 1';
@@ -100,6 +93,15 @@ class DbSysIdentification extends DbEntityBase
         return $response;
     }
 
+    /**
+     * Saves the `sysIdentification` record.
+     *
+     * Before calling `parent::save()`, it checks if the `sys_ExternalReferenceLookups` column
+     * exists in the `sysIdentification` table and attempts to add it if missing.
+     * After saving, it handles the `sys_Thumb` image by renaming any temporary file.
+     *
+     * @return array|false The result from `parent::save()` (array of saved IDs, typically just one, or false).
+     */
     public function save(){
 
 
@@ -112,6 +114,12 @@ class DbSysIdentification extends DbEntityBase
             $res = $mysqli->query($query);
         }
 
+        foreach($this->records as $record){
+            if(array_key_exists('sys_CommonLanguages', $record)){
+                unset($record['sys_CommonLanguages']);
+                break;
+            }
+        }
 
         $ret = parent::save();
 
@@ -134,11 +142,61 @@ class DbSysIdentification extends DbEntityBase
     //
     // deletion not allowed for db properties
     //
+    /**
+     * Disables deletion of the `sysIdentification` record.
+     *
+     * This record is essential for database operation and should not be deleted.
+     *
+     * @param bool $disable_foreign_checks Unused.
+     * @return false Always returns false.
+     */
     public function delete($disable_foreign_checks = false){
         //virtual method
         return false;
     }
 
+    /**
+     * Save list and order of allowed languages to database settings directory
+     *
+     * @param string|array<string> $languages Array or comma separated list of AR3 language codes
+     * @return array|false Array of allowed language details or false on error
+     */
+    private function saveLanguageSettings($languages){
 
+        if(is_string($languages)){
+            $languages = explode(',', $languages);
+        }
+        if(!is_array($languages)){
+            $this->system->addError(HEURIST_INVALID_REQUEST, 'Invalid list of AR3 language codes provided');
+            return false;
+        }
+
+        $finalList = [];
+        foreach($languages as $lang){
+            $lang = getLangCode3($lang);
+            if(empty($lang) || strlen($lang) !== 3){
+                continue;
+            }
+            $finalList[] = $lang;
+        }
+
+        $commonLanguages = [];
+        if($this->system->settings->setDatabaseSetting('Languages', $finalList)){
+            [$commonLanguages] = getPreparedLanguageList($this->system);
+        }
+
+        return $commonLanguages;
+    }
+
+    public function batch_action(){
+
+        $res = true;
+
+        if(array_key_exists('languages', $this->data)){
+            $res = $this->saveLanguageSettings($this->data['languages']);
+        }
+
+        return $res;
+    }
 }
 ?>

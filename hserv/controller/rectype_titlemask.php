@@ -1,41 +1,33 @@
 <?php
-
 /**
-* Controller for operations with record type title mask
-* See records/edit/recordTitleMask.php
+* rectype_titlemask.php - handler for record's title masks operations
+* 
+* @see records/edit/recordTitleMask.php
 *
-* @package     Heurist academic knowledge management system
+* parameters:
+* 
+* rty_id - The ID of the record type to check or use.
+* mask   - The title mask string. If not defined and 'check' is 0, the current mask for the rty_id is used.
+* rec_id - (Optional) The record ID for which to execute/generate the title mask. Used when 'check' is 0.
+* 
+* check  - (Optional) Defines the operation mode:
+*          0 - Execute: Generate title for the given rec_id using the mask (default if 'check' is not provided).
+*          1 - Validate: Validate the provided title mask syntax for the given rty_id.
+*          2 - Get Coded: Convert the human-readable mask to its internal coded format.
+*          3 - Get Human Readable: Convert the internal coded mask back to a human-readable format.
+* 
+* @project     Heurist academic knowledge management system
+* @package Controller
 * @link        https://HeuristNetwork.org
 * @copyright   (C) 2005-2023 University of Sydney, (C) 2024 onwards Heurist Network
-* @author      Jan Jaap de Groot  <jjedegroot@gmail.com>
 * @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
-* @version     4.0
+* @author      Jan Jaap de Groot  <jjedegroot@gmail.com>
+* @author      Artem Osmakov   <osmakov@gmail.com>
+* @author      Ian Johnson     <ian.johnson.heurist@gmail.com>
+* @since       4.0 
 */
-
-/*
-* Licensed under the GNU License, Version 3.0 (the "License"); you may not use this file except in compliance
-* with the License. You may obtain a copy of the License at https://www.gnu.org/licenses/gpl-3.0.txt
-* Unless required by applicable law or agreed to in writing, software distributed under the License is
-* distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied
-* See the License for the specific language governing permissions and limitations under the License.
-*/
-
 require_once dirname(__FILE__).'/../../autoload.php';
 require_once dirname(__FILE__).'/../records/edit/recordTitleMask.php';
-
-/*
-parameters
-
-rty_id - record type id to check
-mask - title mask, if not defined we get current mask if check=0
-rec_id - execute mask for this record
-
-check 0 - execute for given record id
-      1 - validate mask
-      2 - get coded mask
-      3-  get human readable
-
-*/
 
 // Initialize a System object that uses the requested database
 $system = new hserv\System();

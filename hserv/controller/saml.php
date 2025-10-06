@@ -1,29 +1,23 @@
 <?php
 /**
-* Simplesaml authentification
+* saml.php - simplesaml authentification
 *
 * parameters:
-* db - database name
-* sp - service prodiver
-* a - logout -  logout heurist and simplesaml
-*   - login  - does saml authentication, closes dialog (javascript), returns user id as context
-*
-* @package     Heurist academic knowledge management system
+* db - The target Heurist database name for SAML authentication.
+* sp - The service provider identifier for SimpleSAMLphp. Defaults to 'default-sp'.
+* a  - Action to perform. Possible values:
+*      logout - Logs the user out of both Heurist and the SimpleSAMLphp session.
+*      login  - Initiates SAML authentication. On success, closes the authentication dialog (JavaScript) and returns the user ID as context.
+* 
+* @project     Heurist academic knowledge management system
+* @package Controller
 * @link        https://HeuristNetwork.org
 * @copyright   (C) 2005-2023 University of Sydney, (C) 2024 onwards Heurist Network
-* @author      Artem Osmakov   <osmakov@gmail.com>
 * @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
-* @version     4.0
+* @author      Artem Osmakov   <osmakov@gmail.com>
+* @author      Ian Johnson     <ian.johnson.heurist@gmail.com>
+* @since       6.6
 */
-
-/*
-* Licensed under the GNU License, Version 3.0 (the "License"); you may not use this file except in compliance
-* with the License. You may obtain a copy of the License at https://www.gnu.org/licenses/gpl-3.0.txt
-* Unless required by applicable law or agreed to in writing, software distributed under the License is
-* distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied
-* See the License for the specific language governing permissions and limitations under the License.
-*/
-
 require_once dirname(__FILE__).'/../../autoload.php';
 require_once dirname(__FILE__).'/../utilities/USaml.php';
 
@@ -67,7 +61,7 @@ if($error!=null){
                     $res2 = json_encode($res);
                     //pass to window.close('echo $res;');
                     ?>
-                    <!DOCTYPE HTML>
+                    <!DOCTYPE html>
                     <html lang="en">
                     <head>
                     <title>Heurist external authentification</title>
@@ -112,7 +106,7 @@ if($msg==null){
     }
 }
 ?>
-<!DOCTYPE HTML>
+<!DOCTYPE html>
 <html lang="en">
 <head>
 <title>Heurist external authentification</title>

@@ -1,33 +1,44 @@
 <?php
-/*
-* Licensed under the GNU License, Version 3.0 (the "License"); you may not use this file except in compliance
-* with the License. You may obtain a copy of the License at https://www.gnu.org/licenses/gpl-3.0.txt
-* Unless required by applicable law or agreed to in writing, software distributed under the License is
-* distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied
-* See the License for the specific language governing permissions and limitations under the License.
-*/
-
 /**
-* General viewer for user's Heurist record
-*
-* @author      Tom Murtagh
-* @author      Kim Jackson
-* @author      Ian Johnson   <ian.johnson.heurist@gmail.com>
-* @author      Stephen White
-* @author      Artem Osmakov   <osmakov@gmail.com>
-* @copyright   (C) 2005-2023 University of Sydney, (C) 2024 onwards Heurist Network
-* @link        https://HeuristNetwork.org
-* @version     3.1.0
-* @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
-* @package     Heurist academic knowledge management system
-* @subpackage  Records/View
-*/
-if(!defined('PDIR')) {define('PDIR','../../');}//need for proper path to js and css
+ * renderRecordData.php - General viewer for Heurist records.
+ *
+ * @fileOverview This script is responsible for fetching and displaying the details of a Heurist record.
+ * It handles various display contexts, such as standard record view, map popups, and print views.
+ * The script retrieves record data, including its fields, relationships, and associated files (media).
+ * It respects user permissions and visibility settings for records and their details.
+ * It also includes functionality for displaying personal and workgroup tags, ratings,
+ * and provides links for editing and citing the record.
+ *
+ * Key functionalities:
+ * - Initializes the Heurist system and required libraries.
+ * - Retrieves record information based on `recID` or bookmark ID (`bkmk_id`).
+ * - Handles different layout parameters (`ll`, `noclutter`, `mapPopup`, `noheader`, `privateDetails`, `hideImages`, `fontsize`).
+ * - Displays public details, relationship details, and linked record details.
+ * - Optionally displays private details (ownership, dates, tags, ratings) based on user preferences and permissions.
+ * - Manages the display of media files (thumbnails, players, download links) associated with the record.
+ * - Implements client-side JavaScript for interactions like image zooming, local time display, and opening linked records.
+ * - Supports localization for term labels and potentially other content.
+ * - Provides helper functions for outputting record information in a structured HTML format.
+ *
+ * @project     Heurist academic knowledge management system
+ * @package  Viewers\Record
+ * @link        https://HeuristNetwork.org
+ * @copyright   (C) 2005-2023 University of Sydney, (C) 2024 onwards Heurist Network
+ * @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
+ * @author      Tom Murtagh
+ * @author      Kim Jackson
+ * @author      Stephen White
+ * @author      Artem Osmakov <osmakov@gmail.com>
+ * @author      Ian Johnson ian.johnson.heurist@gmail.com
+ * @since       3.1.0
+ */
+
+if(!defined('PDIR')) {define('PDIR','../../');} //need for proper path to js and css
 
 use hserv\utilities\USanitize;
+use hserv\utilities\Temporal;
 
 require_once dirname(__FILE__).'/../../autoload.php';
-require_once dirname(__FILE__).'/../../hserv/utilities/Temporal.php';
 require_once dirname(__FILE__).'/../../hserv/structure/dbsTerms.php';
 
 $system = new hserv\System();
@@ -37,7 +48,6 @@ if(!$system->init(@$_REQUEST['db'])){
     exit;
 }
 
-//require_once dirname(__FILE__).'/../../records/woot/woot.php';
 require_once dirname(__FILE__).'/../../hserv/records/search/recordFile.php';
 require_once dirname(__FILE__).'/../../hserv/records/search/recordSearch.php';
 require_once dirname(__FILE__).'/../../hserv/records/search/relationshipData.php';
@@ -50,7 +60,7 @@ define('CSS_HIDDEN', 'display:none;');
 define('NBSP','&nbsp; ');
 define('DIV_MAP_POPUP','<div class="map_popup">');
 
-define('ALLOWED_TAGS', '<i><b><u><em><strong><sup><sub><small><br>');//for record title see output_chunker for other fields
+define('ALLOWED_TAGS', '<i><b><u><em><strong><sup><sub><small><br><span>');//for record title see output_chunker for other fields
 //'<a><u><i><em><b><strong><sup><sub><small><br><h1><h2><h3><h4><p><ul><li><img>'
 
 $noclutter = array_key_exists('noclutter', $_REQUEST);//like for map popup, but with header
@@ -189,7 +199,7 @@ if(!($is_map_popup || $without_header)){
         <link rel="stylesheet" type="text/css" href="<?=HEURIST_BASE_URL?>external/jquery-ui-iconfont-master/jquery-ui.icon-font.css" />
         <link rel="stylesheet" type="text/css" href="<?php echo HEURIST_BASE_URL;?>h4styles.css">
 
-        <script type="text/javascript" src="<?=HEURIST_BASE_URL?>hclient/core/hintDiv.js"></script> <!-- for mapviewer roolover -->
+        <script type="text/javascript" src="<?=HEURIST_BASE_URL?>hclient/core/hintDiv.js"></script> <!-- for mapviewer rollover -->
         <script type="text/javascript" src="<?=HEURIST_BASE_URL?>hclient/core/detectHeurist.js"></script>
 <?php
 if(!$system->hasAccess()){
@@ -278,16 +288,6 @@ if(!$system->hasAccess()){
                     wfe.style.height = final_height + 'px';
 
                     clearInterval(window.roll_open_id);
-                }
-            }
-
-            //
-            // for edit link
-            //
-            function sane_link_opener(link) {
-                if (window.frameElement  &&  window.frameElement.name == 'viewer') {
-                    top.location.href = link.href;
-                    return false;
                 }
             }
 
@@ -437,15 +437,19 @@ if(!$system->hasAccess()){
                 var $eles = $('.cmsContent');
 
                 if($eles.length > 0){
-
+                    
                     $eles.each(function(idx, ele){
                         var $ele = $(ele);
 
+                        if(window.hWin?.HAPI4){
+                        
                         $ele.find('img').each(function(i,img){window.hWin.HEURIST4.util.restoreRelativeURL(img);});
 
                         $('<div class="detail" style="cursor:pointer;text-decoration:underline;" title="Click to view web page content in a popup">View web page content</div>').on('click', function(){
                             window.hWin.HEURIST4.msg.showElementAsDialog({'element': $ele[0], 'default_palette_class': 'ui-heurist-explore', 'title': 'Web page content', height: '75%', width: '50%'});
                         }).insertBefore($ele);
+                        
+                        }
 
                         $ele.hide().removeClass('detail').css('overflow-wrap', 'anywhere');
                     })
@@ -930,6 +934,10 @@ if(!$system->hasAccess()){
 
             function recviewer_showMap(event, rec_id){
 
+                if(!hint_popup){
+                    hint_popup = new HintDiv('mapPopup', 300, 300, '<div id="recviewer_map_popup" style="width:100%;height:100%;"></div>');
+                }
+
                 hint_popup.showAt(event);
 
                 if(!$map_frame || $map_frame.length == 0){ // create iframe
@@ -944,12 +952,61 @@ if(!$system->hasAccess()){
                 $map_frame.attr('src', URL);
             }
 
+            function initImageRefreshLink(){
+
+                let refreshing = false;
+
+                $('.refreshThumb_link').on('click', (event) => {
+
+                    if(refreshing){
+                        window.hWin.HEURIST4.msg.showMsgErr('A thumbnail is already being refreshed, please wait for it to complete before refreshing another thumbnail.');
+                        return;
+                    }
+                    refreshing = true;
+
+                    let ulf_ObfuscatedFileID = $(event.target).attr('data-id');
+                    let $thumb = $(event.target).parent().next().find('img');
+
+                    if(window.hWin.HEURIST4.util.isempty(ulf_ObfuscatedFileID) || $thumb.length === 0){
+                        return;
+                    }
+
+                    let refreshURL = `${baseURL}hserv/controller/fileDownload.php`;
+                    let request = {
+                        db: database,
+                        thumb: ulf_ObfuscatedFileID,
+                        refresh: 1
+                    };
+
+                    window.hWin.HEURIST4.msg.showMsgFlash('Refreshing thumbnail...', 2500);
+
+                    window.hWin.HEURIST4.util.sendRequest(refreshURL, request, null, (response) => {
+
+                        refreshing = false;
+
+                        if(response.message.startsWith('Error_')){
+                            window.hWin.HEURIST4.msg.showMsgErr(response);
+                            return;
+                        }
+
+                        window.hWin.HEURIST4.msg.showMsgFlash('Thumbnail has been refreshed', 3000);
+
+                        let url = `${baseURL}?db=${database}&offer_download=1&thumb=${ulf_ObfuscatedFileID}&${window.hWin.HEURIST4.util.random()}`;
+                        $thumb.attr('src', url);
+
+                        window.hWin.HAPI4.triggerEvent(window.hWin.HAPI4.Event.ON_STRUCTURE_CHANGE, {type: 'ulf'}); // refresh thumbnails
+                    });
+                });
+            }
+
             $(document).ready(function() {
                 showHidePrivateInfo(null);
 
                 initMediaViewer();
 
                 showMediaViewer();//init thumbs for iiif
+
+                initImageRefreshLink();
 
                 // Set default setting for show linked media, stored within session
                 let def_ImageSettings = sessionStorage.getItem('Heurist_RecView_LinkedMedia');
@@ -965,8 +1022,6 @@ if(!$system->hasAccess()){
 
                 onWindowResize();
                 $(document).on('resize', onWindowResize);
-
-                hint_popup = new HintDiv('mapPopup', 300, 300, '<div id="recviewer_map_popup" style="width:100%;height:100%;"></div>');
 
                 let $login_icon = $('.login-viewer');
                 if(window.hWin?.HAPI4){
@@ -1185,6 +1240,13 @@ elseif(!$is_map_popup){
                         +':'+(''+date.getMinutes()).padStart(2, "0")
                         +':'+(''+date.getSeconds()).padStart(2, "0");
             }
+            
+            //
+            // stub
+            //
+            function link_open(link, is_record_viewer = true) {
+                return true;
+            }          
 
 </script>
 <?php
@@ -1329,14 +1391,12 @@ function print_details($bib) {
         if(!$is_map_popup && $show_private_details != 0){
             print_private_details($bib);
             print_other_tags($bib);
-
-            //print_text_details($bib);
         }
 
         $system->userLogActivity('viewRec', $bib['rec_ID']);// log action
     }else{
-        $login_link = $system->hasAccess() ? '' : '<br><br><a onclick="window.hWin.HEURIST4.ui.checkAndLogin(true, () => {location.reload();})" href="#">Click here to login</a>';
-        print "Sorry, your group membership does not allow you to view the content of this record{$login_link}";
+        $login_link = $system->hasAccess() ? '' : '<br><br><a onclick="{window.hWin.HEURIST4.ui.checkAndLogin(true, ()=>location.reload() );}" href="#">Click here to login</a>';
+        print "Sorry, your group membership does not allow you to view the content of this record {$login_link}";
     }
 
 }
@@ -1373,7 +1433,6 @@ function print_header_line($bib) {
         <?php if($system->hasAccess()){ ?>
 
             <span class="link"><a id=edit-link class="normal"
-                onClick="return sane_link_opener(this);"
                 target=_new href="<?php echo HEURIST_BASE_URL;?>?fmt=edit&db=<?=HEURIST_DBNAME?>&recID=<?= $bib['rec_ID'] ?>">
                 <img class="rv-editpencil" src="<?php echo HEURIST_BASE_URL;?>hclient/assets/edit-pencil.png" alt="Edit record" title="Edit record" style="vertical-align: top"></a>
             </span>
@@ -1579,7 +1638,7 @@ function print_private_details($bib) {
                                 $grp_kwd = $grp.'\\\\'.$kwd;
                                 $label = 'Tag "'.$grp_kwd.'"';
                                 if (preg_match('/\\s/', $grp_kwd)) {$grp_kwd = '"'.$grp_kwd.'"';}
-                                print htmlspecialchars($grp.' - ').'<a class=normal style="vertical-align: top;" target=_parent href="'.HEURIST_BASE_URL.'?db='.HEURIST_DBNAME.'&ver=1&amp;q=tag:'.urlencode($grp_kwd).'&amp;w=all&amp;label='.urlencode($label).'" title="Search for records with tag: '.htmlspecialchars($kwd).'">'.htmlspecialchars($kwd).'<img style="vertical-align: middle; margin: 1px; border: 0;" class="rv-magglass" src="'.HEURIST_BASE_URL.'hclient/assets/magglass_12x11.gif"></a>';
+                                print htmlspecialchars($grp.' - ').'<a class=normal style="vertical-align: top;" target=_parent href="'.HEURIST_BASE_URL.'?db='.HEURIST_DBNAME.'&ver=1&amp;q=tag:'.urlencode($grp_kwd).'&amp;w=all&amp;label='.urlencode($label).'" title="Search for records with tag: '.htmlspecialchars($kwd).'">'.htmlspecialchars($kwd).'<img style="vertical-align: middle; margin: 1px; border: 0;" class="rv-magglass" src="'.HEURIST_BASE_URL.'hclient/assets/v6/magglass_12x11.gif"></a>';
                             }
                             ?>
                         </div>
@@ -1617,7 +1676,7 @@ function print_personal_details($bkmk) {
                     $tag = $tags[$i];
                     $label = 'Tag "'.$tag.'"';
                     if (preg_match('/\\s/', $tag)) {$tag = '"'.$tag.'"';}
-                    print '<a class=normal style="vertical-align: top;" target=_parent href="'.HEURIST_BASE_URL.'?db='.HEURIST_DBNAME.'&ver=1&amp;q=tag:'.urlencode($tag).'&amp;w=bookmark&amp;label='.urlencode($label).'" title="Search for records with tag: '.htmlspecialchars($tags[$i]).'">'.htmlspecialchars($tags[$i]).'<img style="vertical-align: middle; margin: 1px; border: 0;" class="rv-magglass" src="'.HEURIST_BASE_URL.'hclient/assets/magglass_12x11.gif"></a>';
+                    print '<a class=normal style="vertical-align: top;" target=_parent href="'.HEURIST_BASE_URL.'?db='.HEURIST_DBNAME.'&ver=1&amp;q=tag:'.urlencode($tag).'&amp;w=bookmark&amp;label='.urlencode($label).'" title="Search for records with tag: '.htmlspecialchars($tags[$i]).'">'.htmlspecialchars($tags[$i]).'<img style="vertical-align: middle; margin: 1px; border: 0;" class="rv-magglass" src="'.HEURIST_BASE_URL.'hclient/assets/v6/magglass_12x11.gif"></a>';
                 }
                 if (!empty($tags)) {
                     print "<br>\n";
@@ -1972,8 +2031,8 @@ function print_public_details($bib) {
                     }
                     $geoimage =
                     "<img class='geo-image' style='vertical-align:top;' src='".HEURIST_BASE_URL
-                    ."hclient/assets/geo.gif' onmouseout='{if(typeof recviewer_hideMap === \"function\"){recviewer_hideMap();}else if(mapViewer){mapViewer.hide();}}' "
-                    ."onmouseover='{if(typeof recviewer_showMap === \"function\"){recviewer_showMap(event,".$bib['rec_ID'].");}else if(mapViewer){mapViewer.showAtStatic(event, ".$bib['rec_ID'].");}}'>&nbsp;";
+                    ."hclient/assets/geo.gif' onmouseout='{if(typeof recviewer_hideMap === \"function\"){recviewer_hideMap();}else if(typeof mapViewer !== 'undefined'){mapViewer.hide();}}' "
+                    ."onmouseover='{if(typeof recviewer_showMap === \"function\"){recviewer_showMap(event,".$bib['rec_ID'].");}else if(typeof mapViewer !== 'undefined'){mapViewer.showAtStatic(event, ".$bib['rec_ID'].");}}'>&nbsp;";
 
                     $bd['val'] = $geoimage.$bd['val'];
 
@@ -2030,23 +2089,23 @@ function print_public_details($bib) {
 
     //2021-12-17 fancybox viewer is disabled IJ doesn't like it - Except iiif
     if(!($is_map_popup || $without_header)){
-        print '<script>';
+        print '<script>try{';
         foreach ($thumbs as $thumb) {
             if(strpos($thumb['orig_name'], ULF_IIIF)===0 || $thumb['mode_3d_viewer']!=''){
 
                 $to_array = 'rec_Files_IIIF_and_3D' . ($thumb['linked'] ? '_linked' : '');
                 print $to_array.'.push({rec_ID:'.$bib['rec_ID']
-                                            .', id:"'.$thumb['nonce']
-                                            .'",mimeType:"'.$thumb['mimeType']
+                                            .', id:"'.htmlspecialchars($thumb['nonce'])
+                                            .'",mimeType:"'.htmlspecialchars($thumb['mimeType'])
                                             .'",mode_3d_viewer:"'.$thumb['mode_3d_viewer']
                                             .'",filename:"'.htmlspecialchars($thumb['orig_name'])
                                             .'",external:"'.htmlspecialchars($thumb['external_url']).'"});';
             }else{
-                print 'rec_Files.push({rec_ID:'.$bib['rec_ID'].', id:"'.$thumb['nonce'].'",mimeType:"'.$thumb['mimeType'].'",filename:"'.htmlspecialchars($thumb['orig_name']).'",external:"'.htmlspecialchars($thumb['external_url']).'"});';
+                print 'rec_Files.push({rec_ID:'.$bib['rec_ID'].', id:"'.htmlspecialchars($thumb['nonce']).'",mimeType:"'.htmlspecialchars($thumb['mimeType']).'",filename:"'.htmlspecialchars($thumb['orig_name']).'",external:"'.htmlspecialchars($thumb['external_url']).'"});';
             }
         }
-        print '</script>';
-    }
+        print '}catch(e){console.error("error fill rec_Files for record# '.$bib['rec_ID'].'")}</script>';
+    }           
     print '<div class="thumbnail2 main-media" style="text-align:center"></div>';
 
     $hasAudioVideo = '';
@@ -2131,6 +2190,11 @@ function print_public_details($bib) {
                     print '<a href="' . htmlspecialchars($thumb['external_url'])
                                     . '" class="external-link" target=_blank>open in new tab'
                                     . (@$thumb['linked']?'<br>(linked media)':'').'</a>';
+
+                    if($system->hasAccess()){
+                        print '<a href="#" data-id="'. htmlspecialchars($thumb['nonce']) .'" class="refreshThumb_link">'
+                            . '<span class="ui-icon ui-icon-refresh" style="font-size:1.2em;display:inline-block;vertical-align: middle;"></span>&nbsp;refresh thumbnail</a>';
+                    }
                 }else{
                     print '<a href="' . htmlspecialchars($download_url)
                                     . '" class="image_tool" target="_surf">'
@@ -2305,7 +2369,7 @@ function print_public_details($bib) {
                     || ($bd['rst_NonOwnerVisibility'] != 'public' && $bd['rst_NonOwnerVisibility'] != 'pending')) ? ' grayed' : ' ';
 
         print '<span class="value'.$is_grayed_out.'"'.(@$bd['rollover']?' title="'.htmlspecialchars($bd['rollover']).'"':'')
-                .'>' . ($bd['val']) . '</span>';// add value
+                .'>' . strip_tags($bd['val'], ALLOWED_TAGS.'<p><a><em>') . '</span>';// add value
         $prevLbl = $bd['name'];
     }
 
@@ -2659,30 +2723,6 @@ function print_linked_details($bib, $link_cnt)
 
 }
 
-//
-// functions below for WOOT and Comments are not used
-//
-function print_text_details($bib) {
-        $cmts = getAllComments($bib["rec_ID"]);
-        $result = loadWoot(array("title" => "record:".$bib["rec_ID"]));
-        if (! $result["success"] && empty($cmts)) {return;}
-
-        $content = "";
-        $woot = @$result["woot"];
-        if(is_array($woot) && is_array($woot["chunks"])){
-            foreach ($woot["chunks"] as $chunk) {
-                $content .= $chunk["text"] . " ";
-            }
-        }
-        if (strlen($content) == 0 && empty($cmts)) {return;}
-
-
-        print '<div class=detailRowHeader>Text';
-        print_woot_precis($content, $bib);
-        print_threaded_comments($cmts);
-        print '</div><br>&nbsp;';// avoid ugly spacing
-}
-
 function output_chunker($val, $return_lang = false) {
 
     list($lang, $val) = extractLangPrefix($val);// remove possible language prefix
@@ -2692,153 +2732,6 @@ function output_chunker($val, $return_lang = false) {
     /* it adds word breaker incorrectly, so Arabic words are displayed incorrecly
     return preg_replace('/(\\b.{15,20}\\b|.{20}.*?(?=[\x0-\x7F\xC2-\xF4]))/', '\\1<wbr>', $val);
     */
-}
-
-/*
-    loadWoot returns:
-
-    {    success
-    errorType?
-    woot? : {    id
-    title
-    version
-    creator
-    permissions : {    type
-    userId
-    userName
-    groupId
-    groupName
-    } +
-    chunks : {    number
-    text
-    modified
-    editorId
-    ownerId
-    permissions : {    type
-    userId
-    userName
-    groupId
-    groupName
-    } +
-    } +
-    }
-    }
-    Array (
-    [id] => 2372
-    [title] => record:45171
-    [version] => 4
-    [creator] => 1
-    [permissions] => Array (
-    [0] => Array (
-    [type] => RW
-    [userId] => 1
-    [userName] => johnson
-    [groupId] =>
-    [groupName] => ) )
-    [chunks] => Array (
-    [0] => Array (
-    [number] => 1
-    [text] => test private to Ian
-    [modified] => 2010-03-08 16:46:08
-    [editorId] => 1
-    [ownerId] => 1
-    [permissions] => Array (
-    [0] => Array (
-    [type] => RW
-    [userId] => 1
-    [userName] => johnson
-    [groupId] =>
-    [groupName] => ) ) ) ) )
-    */
-function print_woot_precis($content,$bib) {
-        if (strlen($content) == 0) {return;}
-        ?>
-        <div class=detailRow>
-            <div class=detailType>WYSIWYG Text</div>
-            <div class=detail>
-                <?php
-                $content = preg_replace("/<.*?>/", " ", $content);
-                if (strlen($content) > 500) {
-                    print substr($content, 0, 500) . " ...";
-                } else {
-                    print $content;
-                }
-                ?>
-
-                <div><a target="_blank" rel="noopener" href="<?=HEURIST_BASE_URL?>records/woot/woot.html?db=<?=HEURIST_DBNAME?>&w=record:<?= $bib['rec_ID'] ?>&t=<?= $bib['rec_Title'] ?>">Click here to edit</a></div>
-            </div>
-        </div>
-        <?php
-    }
-
-
-function print_threaded_comments($cmts) {
-        if (empty($cmts)) {return;}
-        ?>
-        <div class=detailRow>
-            <div class=detailType>Thread Comments</div>
-            <div class=detail>
-                <?php
-                $printOrder = orderComments($cmts);
-                $level = 1;
-                foreach ($printOrder as $pair) {
-                    $level = 20 * $pair["level"];
-                    print '<div style=" font-style:italic; padding: 0px 0px 0px ';
-                    print $level;
-                    print  'px ;"> ['.$cmts[$pair['id']]["user"]. "] " . $cmts[$pair['id']]["text"] . DIV_E;
-                }
-                ?>
-            </div>
-        </div>
-    <?php
-}
-
-
-function orderComments($cmts) {
-    $orderedCmtIds = array();
-    $orderErrCmts = array();
-    foreach ($cmts as $id => $cmt) {
-        //handle root nodes
-        if ($cmt['owner'] == 0) {
-            // skip deleted or children with deleted parents
-            if ($cmt['deleted']) {continue;}
-            $level = $cmts[$id]["level"] = 0;
-            array_push($orderedCmtIds,$id);
-        }else {    //note this algrithm assumes comments are ordered by date and that a child comment always has a more recent date
-            // handle deleted or children of deleted
-            if ($cmts[$cmt["owner"]]["deleted"]) {$cmt["deleted"] = true;}
-            if ($cmt["deleted"]) {continue;}
-            $ownerIndex = array_search($cmt["owner"],$orderedCmtIds);
-            $insertIndex = count($orderedCmtIds);//set insertion to end of array as default
-            if($ownerIndex === false) {  // breaks assumption write code to fix up the ordering here
-                array_push($orderErrCmts,array( 'id' => $id, 'level' => 1));
-            }elseif($ownerIndex +1 < $insertIndex) { //not found at the end of the array  note array index +1 = array offset
-                if (array_key_exists($cmt["owner"],$cmts) && array_key_exists("level",$cmts[$cmt["owner"]])){
-                    $cmts[$id]["level"]  = 1 + $cmts[$cmt["owner"]]["level"] ;//child so increase the level
-                    for ($i = $ownerIndex+1; $i < $insertIndex; $i++) {
-                        if ( $cmts[$orderedCmtIds[$i]]["level"] < $cmts[$id]["level"]) { //found insertion point
-                            $insertIndex = $i;
-                            break;
-                        }
-                    }
-                    // insert id at index point
-                    array_splice($orderedCmtIds,$insertIndex,0,$id);
-                }else{
-                    //something is wrong just add it to the end
-                    array_push($orderErrCmts,array( 'id' => $id, 'level' => 1));
-                }
-            }else{ //parent node is at the end of the array so just append
-                $cmts[$id]["level"]  = 1 + $cmts[$cmt["owner"]]["level"] ;//child so increase the level
-                array_push($orderedCmtIds,$id);
-            }
-        }
-    }
-    $ret = array();
-    foreach ( $orderedCmtIds as $id) {
-        array_push($ret, array( 'id' => $id, 'level' => $cmts[$id]['level']));
-    }
-    if (!empty($orderErrCmts)) {$orderedCmtIds = array_merge($orderedCmtIds,$orderErrCmts);}
-    return $ret;
 }
 
 //sort array by order_by_date for resource (record pointer) details

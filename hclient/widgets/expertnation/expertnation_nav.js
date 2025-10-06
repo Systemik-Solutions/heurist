@@ -658,7 +658,7 @@ content = content.replace('http://heurist.sydney.edu.au/heurist/',window.hWin.HA
             if(idx>0){
                 img.hide().attr('src',$(alink).attr('href'));
             }else{
-                img.load(__onImageLoad).attr('src',$(alink).attr('href')); 
+                img.on('load', __onImageLoad).attr('src', $(alink).attr('href'));
             } 
         });
 

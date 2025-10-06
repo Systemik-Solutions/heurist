@@ -1,13 +1,21 @@
 /**
-* editCMS_WidgetCfg.js - configuration dialog for widget properties - this is either popup or use provided container
-* 
-* @package     Heurist academic knowledge management system
-* @link        https://HeuristNetwork.org
-* @copyright   (C) 2005-2023 University of Sydney, (C) 2024 onwards Heurist Network
-* @author      Artem Osmakov   <osmakov@gmail.com>
-* @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
-* @version     4.0
-*/
+ * @file editCMS_WidgetCfg.js
+ * @brief Provides a configuration dialog for Heurist widgets within the CMS editor.
+ * @fileOverview This file defines the 'editCMS_WidgetCfg' function. This function is responsible
+ *               for creating and managing a configuration dialog or panel that allows users to set
+ *               specific options for various Heurist widgets (e.g., SearchInput, ResultList, Map, StoryMap).
+ *               The dialog's content and available fields adapt based on the type of widget being configured.
+ *               It can be displayed as a standalone popup or integrated into a container provided by
+ *               another component like 'editCMS_ElementCfg.js'.
+ * @project     Heurist academic knowledge management system
+ *
+ * @link https://HeuristNetwork.org
+ * @copyright (C) 2005-2023 University of Sydney, (C) 2024 onwards Heurist Network
+ * @license https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
+ * @author Artem Osmakov <osmakov@gmail.com>
+ * @author Ian Johnson <ian.johnson.heurist@gmail.com>
+ * @since 4.0
+ */
 
 /*
 * Licensed under the GNU License, Version 3.0 (the "License"); you may not use this file except in compliance
@@ -17,10 +25,25 @@
 * See the License for the specific language governing permissions and limitations under the License.
 */
 
-//
-// widget_cfg -json cfg for widget to be edited 
-// _layout_content- json cfg for website
-//
+/**
+ * Initializes and manages a configuration dialog/panel for a Heurist widget's properties.
+ * The specific UI fields and options presented are tailored to the `widget_cfg.appid`.
+ *
+ * @param {Object} widget_cfg - The JSON configuration of the widget to be edited.
+ *      Must contain `appid` (widget type) and `options` (current widget settings).
+ * @param {Array<Object>} _layout_content - The full layout JSON of the current page,
+ *      used for context (e.g., finding related map widgets for StoryMap).
+ * @param {jQuery} [$dlg] - Optional jQuery object of the container where this editor panel will be rendered.
+ *      If not provided, the editor is shown in a new modal dialog.
+ * @param {function(Object):void} [main_callback] - Callback function executed when changes are applied (only if shown as a dialog).
+ *      Receives the updated widget options object.
+ * @param {function():void} [on_change=jQuery.noop] - Callback function executed whenever a value in the form changes.
+ * @returns {Object} An object with public methods for the widget configuration editor.
+ *
+ * @property {string} _className - Internal class name identifier.
+ * @property {Object} _def_labels - Default label/placeholder text for certain widgets.
+ * @property {boolean} _using_dialog - True if the editor is running in a standalone dialog, false if in a provided container.
+ */
 function editCMS_WidgetCfg( widget_cfg, _layout_content, $dlg, main_callback, on_change = null ){
 
     const _className = 'editCMS_WidgetCfg';
@@ -51,6 +74,11 @@ function editCMS_WidgetCfg( widget_cfg, _layout_content, $dlg, main_callback, on
 
     let _using_dialog = !$dlg || $dlg.length == 0;
     
+    /**
+     * Initializes the widget configuration editor.
+     * Determines if it should run as a dialog or in a container, then loads the HTML structure.
+     * @private
+     */
     function _init(){
 
         let buttons= [
@@ -118,9 +146,13 @@ function editCMS_WidgetCfg( widget_cfg, _layout_content, $dlg, main_callback, on
 
     }
     
-    //
-    // Assign widget properties to UI
-    //
+    /**
+     * Initializes the UI controls within the widget configuration panel after its HTML is loaded.
+     * Sets up tabs, hides/shows sections relevant to the current widget type, populates fields
+     * with current widget options, and initializes special UI elements like record selectors,
+     * symbology editors, and template selectors based on the widget type.
+     * @private
+     */
     function _initControls(){
         
         let widget_name = widget_cfg.appid;
@@ -184,7 +216,7 @@ function editCMS_WidgetCfg( widget_cfg, _layout_content, $dlg, main_callback, on
             //find map widget on this page
             if(widget_name=='heurist_StoryMap'){
                 if(!opts.map_widget_id){
-                    const ele =  window.hWin.HAPI4.layoutMgr.layoutContentFindWidget(_layout_content, 'heurist_Map');
+                    const ele = window.hWin.HAPI4.layoutMgr.layoutContentFindWidget(_layout_content, 'heurist_Map');
                     
                     if(ele && ele.options.search_realm=='' && ele.dom_id){
                         opts.map_widget_id = ele.dom_id;
@@ -195,8 +227,8 @@ function editCMS_WidgetCfg( widget_cfg, _layout_content, $dlg, main_callback, on
             //find and assign prevail search group (except heurist_Map if heurist_StoryMap exists)
             if(!opts.search_realm){ //not defined yet
             
-                if(!(widget_name=='heurist_Map' &&  window.hWin.HAPI4.layoutMgr.layoutContentFindWidget(_layout_content, 'heurist_StoryMap')!=null)){
-                    let sg =  window.hWin.HAPI4.layoutMgr.layoutContentFindMainRealm(_layout_content);    
+                if(!(widget_name=='heurist_Map' && window.hWin.HAPI4.layoutMgr.layoutContentFindWidget(_layout_content, 'heurist_StoryMap')!=null)){
+                    let sg = window.hWin.HAPI4.layoutMgr.layoutContentFindMainRealm(_layout_content);    
                     if(sg=='') sg = 'search_group_1';
                     opts.search_realm = sg;
                 }
@@ -653,13 +685,15 @@ function editCMS_WidgetCfg( widget_cfg, _layout_content, $dlg, main_callback, on
                             $dlg.find('#simple_search_header').parent().css('display','none');
                             $dlg.find('#simple_search_text').parent().css('display','none');
                         }
+                        $dlg.find('#allowed_UGrpID').find('.header label').text('EITHER Show all filters in these workgroups');
                     }else if(selval==1){
                         //tree
                         $dlg.find('#allowed_UGrpID').css('display','table-row');
-                        $dlg.find('#allowed_svsIDs').css('display','none');
+                        $dlg.find('#allowed_svsIDs').css('display','table-row');
                         $dlg.find('#allowed_UGrpID').editing_input('setDisabled', false);
                         $dlg.find('#allowed_svsIDs').editing_input('setDisabled', true);
                         $dlg.find('input[name="allowed_svsIDs"]').val('');
+                        $dlg.find('#allowed_UGrpID').find('.header label').text('Show all filters in these workgroups');
                     }else{
                         //full
                         $dlg.find('#allowed_UGrpID').css('display','none');
@@ -695,7 +729,7 @@ function editCMS_WidgetCfg( widget_cfg, _layout_content, $dlg, main_callback, on
                         showclear_button: true,
                         dtFields:{
                             dty_Type:"resource", rst_MaxValues:1,
-                            rst_DisplayName: 'EITHER Show all filters in these workgroups', 
+                            rst_DisplayName: 'Show all filters in these workgroups', 
                             rst_DisplayHelpText:'',
                             rst_FieldConfig: {entity:'sysGroups', csv:true}
                         },
@@ -1163,9 +1197,12 @@ function editCMS_WidgetCfg( widget_cfg, _layout_content, $dlg, main_callback, on
     }
     
    
-    //
-    // from UI to widget properties
-    //
+    /**
+     * Retrieves the current configuration values from the UI input fields for the widget.
+     * Performs widget-specific validation (e.g., for SearchTree, Navigation).
+     * @private
+     * @returns {Object|false} The updated widget options object, or `false` if validation fails.
+     */
     function _getValues(){
         
         
@@ -1270,7 +1307,7 @@ function editCMS_WidgetCfg( widget_cfg, _layout_content, $dlg, main_callback, on
                 layout_params['basemaps'] = $dlg.find('input[name="basemaps"]').val();    
             }
 
-            opts['showCurrentResults'] = $dlg.find('input[name="showCurrentResults"]').is(':checked');
+            opts['showCurrentResults'] = $dlg.find('#showCurrentResults').is(':checked');
 
             opts['custom_links'] = $dlg.find('textarea[name="custom_links"]').val(); 
             opts['current_search_filter'] = $dlg.find('input[name="current_search_filter"]').val();   
@@ -1487,14 +1524,12 @@ function editCMS_WidgetCfg( widget_cfg, _layout_content, $dlg, main_callback, on
     //public members
     let that = {
 
-        getClass: function () {
-            return _className;
-        },
-
-        isA: function (strClass) {
-            return (strClass === _className);
-        },
-
+        /**
+         * Public method to retrieve the current configuration values from the UI.
+         * Delegates to the private _getValues method.
+         * @returns {Object|false} The updated widget options object, or `false` if validation fails.
+         * @public
+         */
         getValues: function(){
             return _getValues();
         }

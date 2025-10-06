@@ -1,24 +1,21 @@
 <?php
-
 /**
-*  Init page with minimal client (HAPI) and forceful login
+* initPageLogin.php - Handles the initialization of page that require user login
 *
-* @package     Heurist academic knowledge management system
+* This script sets up a minimal HTML page, includes core JavaScript libraries for HAPI (Heurist API)
+* and login functionalities, and then initiates a forceful login prompt if the user is not already authenticated
+* or does not meet the required access level for the page. It's typically used for pages that
+* should not be accessed by unauthenticated users.
+*
+* @project     Heurist academic knowledge management system
+* @package  hclient\framecontent
 * @link        https://HeuristNetwork.org
 * @copyright   (C) 2005-2023 University of Sydney, (C) 2024 onwards Heurist Network
-* @author      Artem Osmakov   <osmakov@gmail.com>
 * @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
-* @version     4.0
+* @author      Artem Osmakov   <osmakov@gmail.com>
+* @author      Ian Johnson     <ian.johnson.heurist@gmail.com>
+* @since       4.0
 */
-
-/*
-* Licensed under the GNU License, Version 3.0 (the "License"); you may not use this file except in compliance
-* with the License. You may obtain a copy of the License at https://www.gnu.org/licenses/gpl-3.0.txt
-* Unless required by applicable law or agreed to in writing, software distributed under the License is
-* distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied
-* See the License for the specific language governing permissions and limitations under the License.
-*/
-
 require_once 'initPageMin.php';//without client hapi
 
 if(!@$_REQUEST['db']){
@@ -30,8 +27,6 @@ if(!@$_REQUEST['db']){
 /*
 Workflow:
 loads main page for logo, icon, banner, style
-
-
 */
 
 $system->defineConstants();
@@ -56,8 +51,8 @@ $hasAccess = ($system->isAdmin());
     <script type="text/javascript" src="<?php echo PDIR;?>hclient/core/utils_msg.js"></script>
     <script type="text/javascript" src="<?php echo PDIR;?>hclient/core/hapi.js"></script>
     <script type="text/javascript" src="<?php echo PDIR;?>hclient/core/HSystemMgr.js"></script>
-    <script type="text/javascript" src="<?php echo PDIR;?>hclient/widgets/profile/profile_login.js"></script>
-    <script type="text/javascript" src="<?php echo PDIR;?>hclient/widgets/profile/profile_edit.js"></script>
+    <script type="text/javascript" src="<?php echo PDIR;?>hclient/widgets/profile/profileLogin.js"></script>
+    <script type="text/javascript" src="<?php echo PDIR;?>hclient/widgets/profile/profileEdit.js"></script>
 <?php
     include_once dirname(__FILE__).'/initPageCss.php';
 
@@ -65,12 +60,20 @@ $hasAccess = ($system->isAdmin());
     $dbname = (preg_match('[\W]', $dbname))?'':$dbname;
 ?>
 <script>
-var login_warning = ''
-var requiredLevel = 0; //1-admin, 2-owner, 0 logged in
-var database = '<?php echo htmlspecialchars($dbname);?>';
+var login_warning = ''; // Holds any warning message related to login.
+var requiredLevel = 0;  // Specifies the required access level: 0 for any logged-in user, 1 for admin, 2 for owner.
+var database = '<?php echo htmlspecialchars($dbname);?>'; // The current database name.
 //
 //
 //
+/**
+ * Callback function executed after HAPI (Heurist API) is initialized.
+ * If HAPI initialization fails, it shows an error message.
+ * Otherwise, it populates HAPI sysinfo with database statistics
+ * and then calls verify_credentials.
+ *
+ * @param {boolean} success - Indicates whether HAPI initialization was successful.
+ */
 function onHapiInit(success){
 
     if(!success){
@@ -93,6 +96,15 @@ function onHapiInit(success){
     verify_credentials( false );
 }
 
+/**
+ * Verifies if the current user has the required access level.
+ * If the user does not have access, it constructs a message and
+ * either shows a warning dialog (if show_warning is true) or
+ * directly shows the login dialog.
+ *
+ * @param {boolean} show_warning - If true, a warning dialog is shown before the login dialog.
+ *                                 If false, the login dialog is shown directly.
+ */
 function verify_credentials( show_warning ){
 
     if(window.hWin.HAPI4.has_access(requiredLevel)){
@@ -137,6 +149,11 @@ function verify_credentials( show_warning ){
 //
 //init hapi
 //
+/**
+ * Executes when the HTML document is fully loaded and parsed.
+ * Initializes the HAPI (Heurist API) interface with the current database
+ * and sets onHapiInit as the callback function.
+ */
 $(document).ready(function() {
     window.hWin.HAPI4 = new hAPI(database, onHapiInit);
 });

@@ -1,3 +1,17 @@
+<!--
+/**
+ * resultListMenuRecode.html - Template for the 'Recode' menu in the result list
+ * @fileOverview HTML template for the 'Recode' submenu actions, allowing users to perform recoding operations on selected records.
+ * @project     Heurist academic knowledge management system
+ * @package hclient\widgets\viewers
+ * @link https://HeuristNetwork.org
+ * @copyright (C) 2005-2023 University of Sydney, (C) 2024 onwards Heurist Network
+ * @license https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
+ * @author Artem Osmakov <osmakov@gmail.com>
+ * @author Ian Johnson <ian.johnson.heurist@gmail.com>
+ * @since 4.0
+ */
+-->
 <ul>
 <li id="menu-selected-value-add" class="logged-in-only" data-user-admin-status="1">
     <a href="#">
@@ -23,12 +37,13 @@
     </a>
 </li>
 
+<li class="logged-in-only">-</li>
+
 <li id="menu-selected-add-link-match" class="logged-in-only" data-user-admin-status="1">
     <a href="#">
         Foreign Key match
     </a>
 </li>
-
 
 <li id="menu-selected-rectype-change" class="logged-in-only" data-user-admin-status="1">
     <a href="#">
@@ -36,11 +51,7 @@
     </a>
 </li>
 
-<li id="menu-selected-extract-pdf" class="logged-in-only" data-user-experience-level="0" data-user-admin-status="1">
-    <a href="#">
-        Extract text from PDF (experimental)
-    </a>
-</li>
+<li class="logged-in-only">-</li>
 
 <li id="menu-selected-url-to-file" class="logged-in-only" data-user-admin-status="1">
     <a href="#">
@@ -60,6 +71,8 @@
     </a>
 </li>
 
+<li class="logged-in-only">-</li>
+
 <li id="menu-selected-case-conversion" class="logged-in-only" data-user-admin-status="1">
     <a href="#">
         Case conversion
@@ -75,6 +88,12 @@
 <li id="menu-selected-translation" class="logged-in-only" data-user-admin-status="1">
     <a href="#">
         Translation
+    </a>
+</li>
+
+<li id="menu-selected-extract-pdf" class="logged-in-only" data-user-experience-level="0" data-user-admin-status="1">
+    <a href="#">
+        Extract text from PDF (experimental)
     </a>
 </li>
 </ul>

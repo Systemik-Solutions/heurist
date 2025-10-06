@@ -1,29 +1,31 @@
 /**
-*  CmsManager - select CMS to view and edit, addition new website or page
-*
-*
-* @package     Heurist academic knowledge management system
-* @link        https://HeuristNetwork.org
-* @copyright   (C) 2005-2023 University of Sydney, (C) 2024 onwards Heurist Network
-* @author      Artem Osmakov   <osmakov@gmail.com>
-* @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
-* @version     4.0
-*/
-
-/*
-* Licensed under the GNU License, Version 3.0 (the "License"); you may not use this file except in compliance
-* with the License. You may obtain a copy of the License at https://www.gnu.org/licenses/gpl-3.0.txt
-* Unless required by applicable law or agreed to in writing, software distributed under the License is
-* distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied
-* See the License for the specific language governing permissions and limitations under the License.
-*/
+ * @file CmsManager.js
+ * @brief Manages CMS websites and pages, including creation, selection, and editing.
+ * @fileOverview This file contains the CmsManager class, which is responsible for all CMS-related actions within the Heurist client. It handles the lifecycle of websites and standalone pages, from creation through to loading and displaying them.
+ * @project     Heurist academic knowledge management system
+ *
+ * @link https://HeuristNetwork.org
+ * @copyright (C) 2005-2023 University of Sydney, (C) 2024 onwards Heurist Network
+ * @license https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
+ * @author Artem Osmakov <osmakov@gmail.com>
+ * @author Ian Johnson <ian.johnson.heurist@gmail.com>
+ * @since 6.0
+ */
 
 /**
- * Class: CmsManager
- * 
+ * @class CmsManager
  * The CmsManager class is responsible for managing the CMS (Content Management System) 
  * functionalities such as selecting, viewing, and editing websites or pages.
  * It also provides methods for creating new websites or pages.
+ * @property {object|null} cms_home_counts Stores counts related to CMS home pages.
+ * @property {number} RT_CMS_HOME Record Type ID for CMS Home.
+ * @property {number} RT_CMS_MENU Record Type ID for CMS Menu.
+ * @property {number} DT_CMS_TOP_MENU Detail Type ID for CMS Top Menu.
+ * @property {number} DT_CMS_MENU Detail Type ID for CMS Menu field.
+ * @property {number} DT_NAME Detail Type ID for Name.
+ * @property {number} DT_CMS_HEADER Detail Type ID for CMS Header.
+ * @property {number} DT_LANGUAGES Detail Type ID for Languages.
+ * @property {number} DT_CMS_PAGETYPE Detail Type ID for CMS Page Type.
  */
 class CmsManager {
 
@@ -40,15 +42,14 @@ class CmsManager {
     DT_CMS_PAGETYPE;
     
     /**
-     * Constructor: Initializes the CmsManager instance.
-     * It does not take any parameters, but loads the CMS-specific constants later when needed.
+     * Initializes the CmsManager instance.
+     * CMS-specific constants are loaded later when specific methods requiring them are called.
+     * @constructor
      */
     constructor() {
     }
 
     /**
-     * Private Method: #initDefCodes
-     * 
      * Initializes CMS-specific codes from system constants. These include record types and field definitions related to CMS.
      * This method is called internally to load necessary definitions.
      * 
@@ -67,24 +68,23 @@ class CmsManager {
     }
 
     /**
-     * Method: executeAction
-     * 
-     * Executes a CMS action based on the given action ID. Depending on the action type, it may create a website, create a page, or edit/view an existing page or website.
-     * 
-     * @param {string} actionid - The ID of the action to execute.
+     * Executes a CMS action based on the given action ID.
+     * Depending on the action type, it may create a website, create a page,
+     * or trigger the editing/viewing of an existing page or website.
+     * Also handles loading a specific webpage if `actionid` is 'data-heurist-pageid'.
+     * @param {string} actionid - The ID of the action to execute (e.g., 'menu-cms-create', 'data-heurist-pageid').
+     * @param {object} [options] - Optional parameters. Used when actionid is 'data-heurist-pageid'.
+     * @param {string} [options.container] - The jQuery selector for the container to load the page into.
+     * @param {string} [options.page_id] - The ID of the page to load.
+     * @param {object} [options.supp_options] - Supplementary options passed to layoutManager.
+     * @param {function} [options.callback] - Callback function after page load.
+     * @returns {void}
      */
     executeAction(actionid, options) {
         if (!this.isCmsAllowedOnThisServer()) {
             return;
         }
         
-        if(actionid=='data-heurist-pageid'){ //load webpage
-            this.#initDefCodes();
-            this.#loadWebPage(options);
-            return;
-        }
-        
-
         if (!this.checkRequiredRecordTypes(() => {
             this.executeAction(actionid);
         })) {
@@ -102,6 +102,7 @@ class CmsManager {
                 break;
             case 'menu-cms-edit-page':
             case 'menu-cms-view-page':
+                //standalone page
                 this.#selectPage(actionid, -1);
                 break;
             case 'menu-cms-edit':
@@ -240,7 +241,7 @@ class CmsManager {
 
         let is_view_mode = (action == 'menu-cms-view');
 
-        if (this.cms_home_counts.count == 1) {
+        if (false && this.cms_home_counts.count == 1) {
             this.#openCMS(0, is_view_mode ? '' : 'edit');
             return;
         }
@@ -268,6 +269,16 @@ class CmsManager {
      */
     #openCMSlist(sTitle, query_search, is_view_mode) {
         let that = this;
+        
+        
+        let layout = '<div class="ent_wrapper">'
+                                +    '<div class="searchForm" style="display:none;"></div>'
++'<div class="ent_header" style="padding:0 5px"><label>Use CMS version 3 <input type="checkbox" id="useVersion3"></label>'
++'&nbsp;&nbsp;&nbsp;&nbsp;Websites created in previous verion can be distored '+(is_view_mode?'':'if you save in')+' in new version</div>'    
++'<div class="ent_content_full" style="top:30px">' 
+                                +    '<div class="ent_content_full recordList" style="top:0"></div></div>'
+                     +'</div>';
+        
 
         let popup_options = {
             select_mode: 'select_single',
@@ -277,6 +288,7 @@ class CmsManager {
             title: sTitle,
             fixed_search: query_search,
             layout_mode: 'listonly',
+            layout: layout,
             width: 500, height: 400,
             default_palette_class: 'ui-heurist-publish',
             resultList: {
@@ -291,10 +303,13 @@ class CmsManager {
                 }
             },
             onselect: function(event, data) {
+               
                 if (window.hWin.HEURIST4.util.isRecordSet(data.selection)) {
+                    let version = data.useNewCmsVersion?'3':'2';
+                    
                     let recordset = data.selection;
                     let rec_ID = recordset.getOrder()[0];
-                    that.#openCMS(rec_ID, is_view_mode ? '' : 'edit');
+                    that.#openCMS(rec_ID, is_view_mode ? '' : 'edit', version);
                 }
             }
         };
@@ -360,9 +375,9 @@ class CmsManager {
      * @param {number} rec_ID - The record ID of the CMS item.
      * @param {string} mode - The mode to open the CMS in ('edit', 'development', or 'production').
      */
-    #openCMS(rec_ID, mode) {
+    #openCMS(rec_ID, mode, version) {
         if (mode == 'edit') {
-            this.#openCMSedit({ record_id: rec_ID });
+            this.#openCMSedit({ record_id: rec_ID, version:version });
             return;
         }
 
@@ -376,12 +391,12 @@ class CmsManager {
             buttons[window.hWin.HR('Current (development) version')] = function() {
                 let $dlg = window.hWin.HEURIST4.msg.getMsgDlg();
                 $dlg.dialog("close");
-                that.#openCMS(rec_ID, 'development');
+                that.#openCMS(rec_ID, 'development', version);
             };
             buttons[window.hWin.HR('Production version')] = function() {
                 let $dlg = window.hWin.HEURIST4.msg.getMsgDlg();
                 $dlg.dialog("close");
-                that.#openCMS(rec_ID, 'production');
+                that.#openCMS(rec_ID, 'production', version);
             };
 
             window.hWin.HEURIST4.msg.showMsgDlg('<p>You are currently running a development version of Heurist.</p>' +
@@ -392,17 +407,16 @@ class CmsManager {
             return;
         }
         
-        url = window.hWin.HEURIST4.ui.getCmsLink({mode:mode, websiteid:rec_ID});
+        url = window.hWin.HEURIST4.ui.getCmsLink({mode:mode, websiteid:rec_ID, version:version, use_redirect:false});
         window.open(url, '_blank');
     }
 
     /**
-     * Private Method: #getCountWebPageRecords
-     * 
      * Retrieves the count of CMS page records with the type "page".
      * 
      * @private
-     * @param {function} callback - A callback function that is executed after the count is retrieved.
+     * @param {function(number):void} callback - A callback function that is executed after the count is retrieved.
+     *                                          The count of webpage records is passed as an argument.
      */
     #getCountWebPageRecords(callback) {
         let DT_CMS_PAGETYPE = window.hWin.HAPI4.sysinfo['dbconst']['DT_CMS_PAGETYPE'];
@@ -421,12 +435,12 @@ class CmsManager {
     }
 
     /**
-     * Private Method: #getCountWebSiteRecords
-     * 
-     * Retrieves the count of CMS website (RT_CMS_HOME) records and the number of private records among them.
+     * Retrieves the count of CMS website (RT_CMS_HOME) records and details about private records.
+     * Updates `this.cms_home_counts` with the retrieved data.
      * 
      * @private
-     * @param {function} callback - A callback function that is executed after the count is retrieved.
+     * @param {function(CmsManager):void} callback - A callback function that is executed after the counts are retrieved.
+     *                                              The CmsManager instance (`this`) is passed as an argument.
      */
     #getCountWebSiteRecords(callback) {
         let request = {
@@ -488,9 +502,9 @@ class CmsManager {
             this.#createNewWebContent(options);
             return;
         }
-
-        let sURL = window.hWin.HEURIST4.ui.getCmsLink({mode:'edit', websiteid:options.record_id})
-
+                                                    
+        let sURL = window.hWin.HEURIST4.ui.getCmsLink({mode:'edit', websiteid:options.record_id, version:options.version, use_redirect:false})
+console.log(sURL);
         if (options.newlycreated) {
             sURL = sURL + '&newlycreated';
         }
@@ -606,68 +620,4 @@ class CmsManager {
         });
     }
     
-    /**
-    * Loads given RT_CMS_MENU into container (by default main (v3) or #main-content (v2) )
-    */
-    #loadWebPage(options){
-        
-        let page_target = $(options.container??'main');
-        if(page_target.length==0){
-            page_target = $('#main-content');
-        }
-        if(page_target.length==0){
-            window.hWin.HEURIST4.msg.showMsgErr('Web Page can not be loaded. Targer element not found');
-            return;
-        }
-        
-        const DT_NAME = window.hWin.HAPI4.sysinfo['dbconst']['DT_NAME'];
-        const DT_EXTENDED_DESCRIPTION = window.hWin.HAPI4.sysinfo['dbconst']['DT_EXTENDED_DESCRIPTION'];
-        const supp_options = options.supp_options;
-        
-        const server_request = {
-                        q: 'ids:'+options.page_id,
-                        restapi: 1,
-                        columns: ['rec_ID', DT_NAME, DT_EXTENDED_DESCRIPTION],
-                        zip: 1,
-                        format:'json'};
-                        
-        //perform search see record_output.php       
-        window.hWin.HAPI4.RecordMgr.search_new(server_request,
-            function(response){
-              
-                if(window.hWin.HEURIST4.util.isJSON(response)) {
-                    let record = response['records'];
-                    if(record && record.length>0){
-                        record = record[0];
-                        let res = record['details'];
-                        let keys = Object.keys(res);
-                        for(let idx in keys){
-                            let key = keys[idx];
-                            res[key] = res[key][ Object.keys(res[key])[0] ];
-                        }
-                        res['rec_ID'] = record['rec_ID'];
-                        //res[DT_NAME] = res[DT_NAME]
-                        //res[DT_NAME, DT_EXTENDED_DESCRIPTION, DT_CMS_SCRIPT, DT_CMS_CSS, DT_CMS_PAGETITLE]
-                        
-                        //reload content of page_target
-                        const pageTreeData = window.hWin.HAPI4.layoutMgr.layoutInit( res[DT_EXTENDED_DESCRIPTION], page_target, supp_options );
-                        
-                        res['pageTreeData'] = pageTreeData;
-                        
-                        if (window.hWin.HEURIST4.util.isFunction(options.callback)) options.callback.call(this, res);
-                         
-
-                    }else{
-                        window.hWin.HEURIST4.msg.showMsgErr({
-                            message: `Web Page not found (record #${options.page_id})`,
-                            error_title: 'Failed to load page'
-                        });
-                    }
-                }else{
-                    window.hWin.HEURIST4.msg.showMsgErr(response);
-                }
-            });
-        
-
-    }
 }

@@ -1,42 +1,62 @@
 <?php
+/**
+* DbSysWorkflowRules.php - Class DbSysWorkflowRules
+*
+* Operations for the `sysWorkflowRules` table.
+*
+* @project     Heurist academic knowledge management system
+* @package Entity 
+* @link        https://HeuristNetwork.org
+* @copyright   (C) 2005-2023 University of Sydney, (C) 2024 onwards Heurist Network
+* @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
+* @author      Artem Osmakov   <osmakov@gmail.com>
+* @author      Ian Johnson     <ian.johnson.heurist@gmail.com>
+* @since       6.0
+
+*/
 namespace hserv\entity;
 use hserv\entity\DbEntityBase;
 use hserv\utilities\USanitize;
 
-    /**
-    * db access to usrReminders table
-    *
-    *
-    * @package     Heurist academic knowledge management system
-    * @link        https://HeuristNetwork.org
-    * @copyright   (C) 2005-2023 University of Sydney, (C) 2024 onwards Heurist Network
-    * @author      Artem Osmakov   <osmakov@gmail.com>
-    * @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
-    * @version     4.0
-    */
-
-    /*
-    * Licensed under the GNU License, Version 3.0 (the "License"); you may not use this file except in compliance
-    * with the License. You may obtain a copy of the License at https://www.gnu.org/licenses/gpl-3.0.txt
-    * Unless required by applicable law or agreed to in writing, software distributed under the License is
-    * distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied
-    * See the License for the specific language governing permissions and limitations under the License.
-    */
-
+/**
+* Class DbSysWorkflowRules
+*
+* Provides database access and operations for the `sysWorkflowRules` table,
+* which defines workflow rules and stages for different record types.
+*
+*/
 class DbSysWorkflowRules extends DbEntityBase
 {
 
     /**
-    *  search usrReminders
-    *
-    *  other parameters :
-    *  details - id|name|list|all or list of table fields
-    *  offset
-    *  limit
-    *  request_id
-    *
-    *  @todo overwrite
-    */
+     * Searches for workflow rules (`sysWorkflowRules`) based on criteria in `$this->data`.
+     *
+     * This method extends the base search functionality. It first calls `parent::search()`
+     * to initialize the `DbEntitySearch` manager (`$this->searchMgr`) and validate
+     * common search parameters.
+     *
+     * A special case exists if `$this->data['details'] == 'rty'`, where it returns a distinct list
+     * of `swf_RecTypeID`s that have workflow rules defined.
+     *
+     * Otherwise, it adds specific predicates for this entity:
+     * - `swf_ID`: If provided in `$this->data['swf_ID']`.
+     * - `swf_RecTypeID`: If provided in `$this->data['swf_RecTypeID']`.
+     * - `swf_Stage`: If provided in `$this->data['swf_Stage']`.
+     *
+     * The fields returned depend on `$this->data['details']`:
+     * - 'id': Returns only `swf_ID`.
+     * - 'name' (treats as 'list'): Returns `swf_ID`, `swf_RecTypeID`, `swf_Stage`, `swf_Order`, `swf_StageRestrictedTo`,
+     *   `swf_SetOwnership`, `swf_SetVisibility`, `swf_SendEmail`, `swf_EmailList`, `swf_RecEmailField`, `swf_EmailText`.
+     * - 'list': Same as 'name'.
+     * - 'full': Same as 'list'.
+     * - If `$this->data['details']` is an array or comma-separated string, those specific fields are selected.
+     *
+     * Results are ordered by `swf_RecTypeID, swf_Order, swf_Stage ASC`.
+     *
+     * @return array|false An array containing the search results as structured by `DbEntitySearch::execute()`,
+     *                     or a simple array of `swf_RecTypeID`s if `details` is 'rty'.
+     *                     Returns `false` if `parent::search()` fails or a database query fails.
+     */
     public function search(){
 
 
@@ -117,6 +137,19 @@ class DbSysWorkflowRules extends DbEntityBase
     //
     //
     //
+    /**
+     * Prepares workflow rule records before saving.
+     *
+     * - Normalizes empty string values for certain fields to null.
+     * - Sets `swf_Order` to 0 if empty or less than 0, and caps it at 255.
+     * - Sets `swf_RecEmailField` to null if not a positive integer.
+     * - Validates and cleans `swf_EmailList` (comma-separated emails).
+     * - Sanitizes and formats `swf_EmailText` (replaces newlines with `<br>`).
+     * - Temporarily, may alter the `swf_EmailText` column type to TEXT if it's currently VARCHAR(255)
+     *   and the text length is >= 200 (this part is marked as @temporary).
+     *
+     * @return bool Returns the result of `parent::prepareRecords()`.
+     */
     protected function prepareRecords(){
 
         $ret = parent::prepareRecords();
@@ -157,8 +190,15 @@ class DbSysWorkflowRules extends DbEntityBase
             }
 
             if(!empty($this->records[$idx]['swf_EmailText'])){
+
                 $this->records[$idx]['swf_EmailText'] = USanitize::sanitizeString($this->records[$idx]['swf_EmailText']);
                 $this->records[$idx]['swf_EmailText'] = str_replace(["\r\n", "\r", "\n"], "<br>", $this->records[$idx]['swf_EmailText']);
+
+                $mysqli = $this->system->getMysqli();
+                if(mb_strlen($this->records[$idx]['swf_EmailText']) >= 200 && hasColumn($mysqli, 'sysWorkflowRules', 'swf_EmailText', '', 'varchar(255)')){
+                    // @temporary
+                    $mysqli->query("ALTER TABLE `sysWorkflowRules` MODIFY `swf_EmailText` TEXT DEFAULT NULL COMMENT 'Email body text to be sent on stage change, allows field value substitutions'");
+                }
             }
         }
 
@@ -170,6 +210,17 @@ class DbSysWorkflowRules extends DbEntityBase
     // 1) adds entire ruleset for record type
     // 2) set order of stages per record type
     //
+    /**
+     * Performs batch actions for workflow rules, primarily adding a default ruleset for a record type.
+     *
+     * If `rty_ID` is provided in `$this->data`:
+     * - Checks if rules already exist for this record type; if so, blocks action.
+     * - Requires admin rights.
+     * - Inserts a new set of rules for the `rty_ID` based on terms defined under `TRM_SWF` (workflow stages vocabulary).
+     *
+     * @return bool True on success, false on failure (e.g., rules already exist, not admin, DB error).
+     *              Errors are added to the system object on failure.
+     */
     public function batch_action(){
 
         $ret = true;

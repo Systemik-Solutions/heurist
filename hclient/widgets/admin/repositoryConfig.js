@@ -1,25 +1,36 @@
 /**
-* lookupConfig.js - configuration for record lookup services
-*                       original config is hserv/controller/record_lookup_config.json
+* @file repositoryConfig.js
+* @brief configuration for external repositories
+* @fileOverview
 *
-* @package     Heurist academic knowledge management system
+* @project     Heurist academic knowledge management system
+*
 * @link        https://HeuristNetwork.org
 * @copyright   (C) 2005-2023 University of Sydney, (C) 2024 onwards Heurist Network
-* @author      Artem Osmakov   <osmakov@gmail.com>
 * @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
-* @version     4.0
+* @author      Brandon McKay   <blmckay13@gmail.com>
+* @author      Ian Johnson     <ian.johnson.heurist@gmail.com>
+* @version     6.0
 */
 
-/*  
-* Licensed under the GNU License, Version 3.0 (the "License"); you may not use this file except in compliance
-* with the License. You may obtain a copy of the License at https://www.gnu.org/licenses/gpl-3.0.txt
-* Unless required by applicable law or agreed to in writing, software distributed under the License is
-* distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied
-* See the License for the specific language governing permissions and limitations under the License.
+/**
+* @class repositoryConfig
+* @augments baseConfig
+* @memberof Widgets.Admin
+* @description configuration for external repositories
+*
+* @property {object} options - Configuration options for the widget.
 */
 $.widget( "heurist.repositoryConfig", $.heurist.baseConfig, {
 
-    // default options
+    /**
+    * @memberof Widgets.Admin.repositoryConfig
+    * @type {object} Extends {@link baseConfig.options}.
+    * @property {string} [title='External repositories configuration'] - The title displayed for the widget dialog.
+    * @property {string} [htmlContent='repositoryConfig.html'] - The path to the HTML template file for the widget.
+    * @property {string|null} [helpContent=null] - The path to the help content file.
+    * @property {string} [type='repository'] - The type of configuration.
+    */    
     options: {
         title: 'External repositories configuration',
         htmlContent: 'repositoryConfig.html',
@@ -28,9 +39,12 @@ $.widget( "heurist.repositoryConfig", $.heurist.baseConfig, {
         type: 'repository'
     },
 
-    //
-    //  load configuration and call _initControls
-    //
+    /**
+     * @function _init
+     * @description load configuration and call _initControls
+     * @memberof Widgets.Admin.repositoryConfig
+     * @private
+     */
     _init: function() {
 
         let _services = ['Nakala','Flickr','Zenodo','Isidore','MediHAL','DSpace'];
@@ -50,9 +64,12 @@ $.widget( "heurist.repositoryConfig", $.heurist.baseConfig, {
         this.getConfigurations(this._super());
     },
 
-    //  
-    // invoked from _init after loading of html content
-    //
+    /**
+     * @function _initControls
+     * @description invoked from _init after loading of html content
+     * @memberof Widgets.Admin.repositoryConfig
+     * @private
+     */
     _initControls:function(){
 
         //fill record type selector
@@ -83,9 +100,12 @@ $.widget( "heurist.repositoryConfig", $.heurist.baseConfig, {
         return this._super();
     },
 
-    //
-    // get configurations from server for current user
-    //
+    /**
+     * @function getConfigurations
+     * @description get configurations from server for current user
+     * @param {function} callback
+     * @memberof Widgets.Admin.repositoryConfig
+     */
     getConfigurations: function(callback){
 
         let that = this;
@@ -115,9 +135,11 @@ $.widget( "heurist.repositoryConfig", $.heurist.baseConfig, {
         
     },
     
-    //
-    // save on server
-    //
+    /**
+     * @function saveConfigrations
+     * @description save on server
+     * @memberof Widgets.Admin.repositoryConfig
+     */
     saveConfigrations: function(){
 
         let that = this;
@@ -146,11 +168,14 @@ $.widget( "heurist.repositoryConfig", $.heurist.baseConfig, {
 
     },
 
-    //
-    // fill in contents of right panel
-    //    
-    // {service_id:'nakala_0', service:'nakala', usr_ID:0, params:{readApiKey:,readUser:,readPwd...}}
-    //
+    /**
+     * @function _fillConfigForm
+     * @description fill in contents of right panel
+     * @param {string} service_id
+     * @param {object} cfg0 - {service_id:'nakala_0', service:'nakala', usr_ID:0, params:{readApiKey:,readUser:,readPwd...}}
+     * @memberof Widgets.Admin.repositoryConfig
+     * @private
+     */
     _fillConfigForm: function( service_id, cfg0 ){
         
         if(service_id && this.options.service_config[service_id]){
@@ -198,9 +223,12 @@ $.widget( "heurist.repositoryConfig", $.heurist.baseConfig, {
         this._updateStatus();
     },
     
-    //
-    // set _is_modified flag
-    //
+    /**
+     * @function _updateStatus
+     * @description set _is_modified flag
+     * @memberof Widgets.Admin.repositoryConfig
+     * @private
+     */
     _updateStatus: function(){
 
         this._is_modified = false;
@@ -276,9 +304,13 @@ $.widget( "heurist.repositoryConfig", $.heurist.baseConfig, {
         }
     },
     
-    //
-    // prepare form for service type change
-    //
+    /**
+     * @function _changeService
+     * @description prepare form for service type change
+     * @param {string} service_name
+     * @memberof Widgets.Admin.repositoryConfig
+     * @private
+     */
     _changeService: function( service_name ){
 
         let cfg0 = this.getServiceDefInfo(service_name, false);
@@ -286,9 +318,12 @@ $.widget( "heurist.repositoryConfig", $.heurist.baseConfig, {
         this._fillConfigForm(null, cfg0);
     },
 
-    //
-    // create map fields dropdowns
-    //
+    /**
+     * @function _onUserGroupChange
+     * @description create map fields dropdowns
+     * @memberof Widgets.Admin.repositoryConfig
+     * @private
+     */
     _onUserGroupChange: function(){
      
         let usr_ID = this.selectUserGroups.val();   
@@ -315,9 +350,12 @@ $.widget( "heurist.repositoryConfig", $.heurist.baseConfig, {
         
     },
 
-    //
-    // save current service details
-    //
+    /**
+     * @function _applyConfig
+     * @description save current service details
+     * @memberof Widgets.Admin.repositoryConfig
+     * @private
+     */
     _applyConfig: function(){
 
         let usr_ID = this.selectUserGroups.val();
@@ -387,9 +425,13 @@ $.widget( "heurist.repositoryConfig", $.heurist.baseConfig, {
         }
     },
     
-    //
-    // Remove service's details, thus removing it completely
-    //
+    /**
+     * @function _removeConfig
+     * @description Remove service's details, thus removing it completely
+     * @param {string} service_id
+     * @memberof Widgets.Admin.repositoryConfig
+     * @private
+     */
     _removeConfig: function(service_id){
 
         if(this.options.service_config[service_id] != null && this.options.service_remove.indexOf(service_id) < 0){

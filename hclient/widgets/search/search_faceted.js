@@ -1,34 +1,33 @@
 /**
-*  Apply faceted search
-* TODO: Check that this is what it does and that it is not jsut an old version
+* @file search_faceted.js
+* @brief Applies faceted search functionality.
+* @fileOverview This file defines the `heurist.search_faceted` jQuery UI widget,
+* which provides a faceted search interface. It allows users to refine search
+* results by selecting values from various facets. The widget handles the
+* creation of facet queries, retrieval of facet values and counts, and
+* redrawing the facet display based on user selections and search results.
+* It supports different display modes for facets (list, dropdown, columns)
+* and can integrate with spatial and temporal filters.
 * 
-* @package     Heurist academic knowledge management system
+* Key methods:
+* main methods
+*     _initFacetQueries - creates facet searches (counts and values for particular facets) and main query
+*     _fillQueryWithValues - fille queries with values
+*     doSearch - performs main search
+*     _recalculateFacets - search for facet values as soon as main search finished
+*     _redrawFacets - called from _recalculateFacets then call _recalculateFacets for next facet
+* 
+* @project     Heurist academic knowledge management system
+*
 * @link        https://HeuristNetwork.org
 * @copyright   (C) 2005-2023 University of Sydney, (C) 2024 onwards Heurist Network
-* @author      Artem Osmakov   <osmakov@gmail.com>
 * @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
-* @version     4.0
-*/
-
-/*
-* Licensed under the GNU License, Version 3.0 (the "License"); you may not use this file except in compliance
-* with the License. You may obtain a copy of the License at https://www.gnu.org/licenses/gpl-3.0.txt
-* Unless required by applicable law or agreed to in writing, software distributed under the License is
-* distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied
-* See the License for the specific language governing permissions and limitations under the License.
+* @author      Artem Osmakov   <osmakov@gmail.com>
+* @author      Ian Johnson <ian.johnson.heurist@gmail.com>
+* @since       4.0
 */
 
 /* global TDate, temporalSimplifyDate */
-
-/*
-main methods
-    _initFacetQueries - creates facet searches (counts and values for particular facets) and main query
-    _fillQueryWithValues - fille queries with values
-    doSearch - performs main search
-    _recalculateFacets - search for facet values as soon as main search finished
-    _redrawFacets - called from _recalculateFacets then call _recalculateFacets for next facet
-
-*/
 
 /* Explanation of faceted search
 
@@ -134,10 +133,12 @@ show_accordion_icons - show or hide toggle arrow in accordion header
 rectypes[0] 
 */            
 
-/*
-requires:
-editing_input
-*/
+/**
+ * @widget heurist.search_faceted
+ * @description
+ * jQuery UI widget for applying faceted search.
+ * It allows users to refine search results by selecting values from various facets.
+ */
 $.widget( "heurist.search_faceted", {
 
     _MIN_DROPDOWN_CONTENT: 50,//0, //min number in dropdown selector, otherwise facet values are displayed in explicit list
@@ -147,14 +148,31 @@ $.widget( "heurist.search_faceted", {
     _FT_COLUMN: 3,  //wrapped list view mode
 
     
-    // default options
+    /**
+     * @memberof heurist.search_faceted
+     * @instance
+     * @property {Object} options - Default options for the widget.
+     * @property {boolean} options.is_h6style - If true, applies H6 styling.
+     * @property {Object} options.params - Parameters for configuring the faceted search, including facet definitions.
+     * @property {boolean} options.ispreview - If true, runs in preview mode (e.g., limiting results).
+     * @property {boolean} options.showclosebutton - Whether to show the close button.
+     * @property {boolean} options.showresetbutton - Whether to show the reset button.
+     * @property {?number} options.svs_ID - ID of a saved search view.
+     * @property {?function} options.onclose - Callback function triggered when the widget is closed.
+     * @property {boolean} options.is_publication - If true, adapts styling for publication mode.
+     * @property {boolean} options.respect_relation_direction - Global flag for respecting relation direction, or use facet.relation.
+     * @property {string} options.language - Language code for multilingual support.
+     * @property {boolean} options.hide_no_value_facets - If true, hides facets that currently have no selectable values.
+     * @property {?string} options.search_page - Target page for search results (used in CMS).
+     * @property {?string} options.search_realm - Search realm for event scoping.
+     */
     options: {
         is_h6style: true,
         params: {},
         ispreview: false,
         showclosebutton: true,
         showresetbutton: true,
-        svs_ID: null,
+        svs_ID: null,   //for hamburg only
         onclose: null,// callback
         is_publication: false,
         respect_relation_direction: false, //global otherwise use facet.relation=='directed'
@@ -203,7 +221,12 @@ $.widget( "heurist.search_faceted", {
     _expanded_count_order: [], // order of retrieval for above
     _expanded_count_cancel: false,
     
-    // the widget's constructor
+    /**
+     * @memberof heurist.search_faceted
+     * @instance
+     * @private
+     * @description Widget creation method. Initializes the UI, loads HTML for facets, and sets up event handlers.
+     */
     _create: function() {
         
         if(!this.options.language) this.options.language = 'def'; //"xx" means use current language
@@ -481,9 +504,7 @@ $.widget( "heurist.search_faceted", {
                 let svsID = this.options.query_name;
                 if(svsID > 0){
                     
-                    if (window.hWin.HAPI4.currentUser.usr_SavedSearch && 
-                                window.hWin.HAPI4.currentUser.usr_SavedSearch[svsID])
-                    {
+                    if(window.hWin.HAPI4.currentUser?.usr_SavedSearch?.[svsID]){
                          new_title = window.hWin.HAPI4.currentUser.usr_SavedSearch[svsID][0];//Hul._NAME];                
                     }else if(window.hWin.HAPI4.has_access()){
                         let that = this;
@@ -656,7 +677,7 @@ $.widget( "heurist.search_faceted", {
 
                 let code = field['code'];
                 code = code.split(':')
-                const linktype = code[code.length-1].substr(0,2);
+                const linktype = code[code.length-1].slice(0,2);
                 if(linktype=='lt' || linktype=='lf' || linktype=='rt' || linktype=='rf'){
                     //unconstrained link
                     code.push('0');         //!!!!!!!!
@@ -675,7 +696,7 @@ $.widget( "heurist.search_faceted", {
                     if(rtid > 0 || rtid.indexOf(',') > 0){  //AA!!  ||  rtid.indexOf(',')>0
                         curr_level = __checkEntry(curr_level,"t",rtid);
                     }
-                    const linktype = dtid.substr(0,2);
+                    const linktype = dtid.slice(0,2);
                     let slink = null;
 
                     if(linktype=='rt'){
@@ -694,7 +715,7 @@ $.widget( "heurist.search_faceted", {
                     if(slink!=null){
 
                         const rtid_linked = code[j+2];  //linked record type, if null or 0 - unconstrained
-                        key  = slink+rtid_linked+":"+dtid.substr(2); //rtid need to distinguish links/relations for various recordtypes
+                        key  = slink+rtid_linked+":"+dtid.slice(2); //rtid need to distinguish links/relations for various recordtypes
                         val = [];
                     }else{
                         //multifield search for datetime
@@ -705,7 +726,7 @@ $.widget( "heurist.search_faceted", {
                         }
                         
                         if(dtid.indexOf('r.')==0){
-                            key = "r:"+dtid.substr(2);
+                            key = "r:"+dtid.slice(2);
                         }else if(dtid>0){
                             key = "f:"+dtid;
                         }else{
@@ -1121,7 +1142,7 @@ $.widget( "heurist.search_faceted", {
                  
                  let dty_ID = field['id'];
                  if(dty_ID.indexOf('r.')==0){
-                    dty_ID = dty_ID.substr(2);    
+                    dty_ID = dty_ID.slice(2);    
                  }
                  
                  let fld_type = (field['type'] == 'blocktext') ? 'freetext' : field['type'];
@@ -1979,7 +2000,7 @@ let s_time = new Date().getTime() / 1000;
                 
                 let fieldid = field['id'];
                 if(fieldid.indexOf('r.')==0){
-                    fieldid = fieldid.substr(2);    
+                    fieldid = fieldid.slice(2);    
                 }
                 
 
@@ -2233,7 +2254,7 @@ let s_time = new Date().getTime() / 1000;
 
                     let dty_ID = field['id']; 
                     if(dty_ID.indexOf('r.')==0){
-                        dty_ID = dty_ID.substr(2);    
+                        dty_ID = dty_ID.slice(2);    
                     }
 
                     if((field['type']=='enum' || field['type']=='reltype') && field['groupby']!='firstlevel'){
@@ -2616,8 +2637,8 @@ let s_time = new Date().getTime() / 1000;
                                        
                                         let parts = val.split('.');
                                         let year = parts[0];
-                                        let month = parts[1]?parts[1].substr(0,2):0;
-                                        let day = parts[1]?parts[1].substr(2):0;
+                                        let month = parts[1]?parts[1].slice(0,2):0;
+                                        let day = parts[1]?parts[1].slice(2):0;
                                         
                                         val = (year<0?'-':'')+(''+Math.abs(year)).lpad('0',parseInt(year)<0?6:4)
                                             +'-'+((month==0)?'01':month.lpad('0',2))
@@ -2953,7 +2974,7 @@ let s_time = new Date().getTime() / 1000;
 
                                     let dty_ID = field['id'];
                                     if(dty_ID.indexOf('r.')==0){
-                                        dty_ID = dty_ID.substr(2);    
+                                        dty_ID = dty_ID.slice(2);    
                                     }
                                     
                                     let request = {
@@ -3949,7 +3970,7 @@ let s_time = new Date().getTime() / 1000;
                 }
                 if(iscurrent) 
                     //do not highlight if initals selected
-                    //|| (currval.length==2 &&  currval.substr(1,1)=='%' && currval.substr(0,1)==cterm.value.substr(0,1)) )
+                    //|| (currval.length==2 &&  currval.slice(1,2)=='%' && currval.slice(0,1)==cterm.value.slice(0,1)) )
                 {
                      
                      f_link_content.css({ 'font-weight': 'bold', 'font-size':'1.1em', 'font-style':'normal' });   
@@ -4075,7 +4096,7 @@ let s_time = new Date().getTime() / 1000;
 
         let dty_ID = field['id']; 
         if(dty_ID.indexOf('r.')==0){
-            dty_ID = dty_ID.substr(2);    
+            dty_ID = dty_ID.slice(2);    
         }
         
         let facet_title = window.hWin.HEURIST4.util.htmlEscape(window.hWin.HRJ('title', field, this.options.language));

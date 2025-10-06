@@ -1,28 +1,24 @@
 <?php
-
 /**
-* Information page
+* infoPage.php - Displays system or error messages
+* 
+* Displays system or error messages within a minimal Heurist page structure, with an option for user login if required.
 *
-* @package     Heurist academic knowledge management system
+* @project     Heurist academic knowledge management system
+* @package  hclient\framecontent
 * @link        https://HeuristNetwork.org
 * @copyright   (C) 2005-2023 University of Sydney, (C) 2024 onwards Heurist Network
-* @author      Artem Osmakov   <osmakov@gmail.com>
 * @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
-*/
-
-/*
-* Licensed under the GNU License, Version 3.0 (the "License"); you may not use this file except in compliance
-* with the License. You may obtain a copy of the License at https://www.gnu.org/licenses/gpl-3.0.txt
-* Unless required by applicable law or agreed to in writing, software distributed under the License is
-* distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied
-* See the License for the specific language governing permissions and limitations under the License.
+* @author      Artem Osmakov   <osmakov@gmail.com>
+* @author      Ian Johnson     <ian.johnson.heurist@gmail.com>
+* @since       4.0
 */
 use hserv\utilities\USanitize;
 
-$is_inlcuded = false;
+$is_included = false; // True if this file is included by another script, false if accessed directly
 
 if(!defined('PDIR')) {
-    $is_inlcuded = true;
+    $is_included = true;
     define('PDIR','../../');
     require_once dirname(__FILE__).'/../../autoload.php';
 }
@@ -32,7 +28,7 @@ if(!isset($is_error)){
     $is_error = true;
 }
 
-$is_error_unknown = false;
+$is_error_unknown = false; // True if the source or exact nature of the error is unknown
 
 //variable message can be defined as global
 if(!isset($message)){
@@ -113,11 +109,15 @@ if(!isset($message)){
         <script type="text/javascript" src="<?php echo PDIR;?>hclient/core/utils.js"></script>
         <script type="text/javascript" src="<?php echo PDIR;?>hclient/core/utils_ui.js"></script>
         <script type="text/javascript" src="<?php echo PDIR;?>hclient/core/utils_msg.js"></script>
-        <script type="text/javascript" src="<?php echo PDIR;?>hclient/widgets/profile/profile_login.js"></script>
-        <script type="text/javascript" src="<?php echo PDIR;?>hclient/widgets/profile/profile_edit.js"></script>
+        <script type="text/javascript" src="<?php echo PDIR;?>hclient/widgets/profile/profileLogin.js"></script>
+        <script type="text/javascript" src="<?php echo PDIR;?>hclient/widgets/profile/profileEdit.js"></script>
 
         <script>
 
+            /**
+             * Callback function executed after HAPI (Heurist API) is initialized.
+             * Sets up a click handler for login links if present.
+             */
             function onHapiInit() {
                 let $login_ele = $(document).find('.login-link');
                 if($login_ele.length > 0 && window.hWin && window.hWin.HEURIST4){
@@ -137,6 +137,10 @@ if(!isset($message)){
                 }
             }
 
+            /**
+             * Executes when the HTML document is fully loaded and parsed.
+             * Initializes the HAPI interface.
+             */
             $(document).ready(() => {
                 window.hWin.HAPI4 = new hAPI('<?php echo htmlspecialchars($dbname);?>', onHapiInit);
             });

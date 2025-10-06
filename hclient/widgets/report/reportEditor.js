@@ -1,27 +1,52 @@
 /**
-* reportEditor.js - edit smarty report temaplate
+* @file reportEditor.js
+* @brief Provides a widget for editing Smarty report templates.
+* @fileOverview Provides a widget for editing Smarty report templates. This widget allows users to create, modify, and test Smarty templates
 *
-* @package     Heurist academic knowledge management system
+* used for generating reports within the Heurist system. It integrates
+* CodeMirror for template editing and provides tools for inserting
+* template variables and patterns, as well as a test environment
+* to preview the report output with actual data.
+*
+* @project     Heurist academic knowledge management system
+*
 * @link        https://HeuristNetwork.org
 * @copyright   (C) 2005-2023 University of Sydney, (C) 2024 onwards Heurist Network
-* @author      Artem Osmakov   <osmakov@gmail.com>
 * @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
-* @version     4.0
-*/
-
-/*  
-* Licensed under the GNU License, Version 3.0 (the "License"); you may not use this file except in compliance
-* with the License. You may obtain a copy of the License at https://www.gnu.org/licenses/gpl-3.0.txt
-* Unless required by applicable law or agreed to in writing, software distributed under the License is
-* distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied
-* See the License for the specific language governing permissions and limitations under the License.
+* @author      Artem Osmakov   <osmakov@gmail.com>
+* @author      Ian Johnson <ian.johnson.heurist@gmail.com>
+* @since       6.0
 */
 
 /* global CodeMirror */
 
+/**
+ * @widget heurist.reportEditor
+ * @augments $.heurist.baseAction
+ * @description
+ * jQuery UI widget for editing Smarty report templates.
+ * Provides an interface with a CodeMirror editor, tools for inserting
+ * template variables and patterns, and a test environment.
+ */
 $.widget( "heurist.reportEditor", $.heurist.baseAction, {
 
-    // default options
+    /**
+     * @memberof heurist.reportEditor
+     * @instance
+     * @property {Object} options - Default options for the widget.
+     * @property {number} options.height - Default height of the editor dialog.
+     * @property {number} options.width - Default width of the editor dialog.
+     * @property {string} options.title - Default title of the editor dialog.
+     * @property {string} options.default_palette_class - CSS class for the default palette.
+     * @property {string} options.actionName - Name of the action.
+     * @property {string} options.htmlContent - HTML file for the widget's content.
+     * @property {string} options.path - Path to the widget's resources.
+     * @property {?number} options.rty_ID - Record Type ID.
+     * @property {boolean} options.listAllRecTypes - Flag to list all record types.
+     * @property {boolean} options.keep_instance - Flag to keep the widget instance.
+     * @property {?string} options.template - The name of the template to load.
+     * @property {?function} options.onChange - Callback function triggered on editor content change.
+     */
     options: {
         height: 640,
         width:  1000,
@@ -31,15 +56,31 @@ $.widget( "heurist.reportEditor", $.heurist.baseAction, {
         htmlContent: 'reportEditor.html',
         path: 'widgets/report/',
 
-        is_snippet_editor: false,
+        isWidgetTemplate: false,
+        isCalcFieldTemplate: false,
+        
         rty_ID:null, 
+        listAllRecTypes: false,
         
         keep_instance: true,
-        template: null,
+        template: null,  //path to smarty tpl
+        template_body: null, // template text 
+        template_css: null,  // css file to be added to html output
         
         onChange: null
     },
     
+    /**
+     * @memberof heurist.reportEditor
+     * @instance
+     * @property {Object} usrPreferences - User-specific preferences for layout.
+     * @property {number} usrPreferences.insertForm_width - Width of the insert form panel.
+     * @property {boolean} usrPreferences.insertForm_closed - Initial state of the insert form panel.
+     * @property {number} usrPreferences.testForm_width - Width of the test form panel.
+     * @property {boolean} usrPreferences.testForm_closed - Initial state of the test form panel.
+     * @property {number} usrPreferences.width - User-preferred width of the dialog.
+     * @property {number} usrPreferences.height - User-preferred height of the dialog.
+     */
     usrPreferences:{
             insertForm_width:300, 
             insertForm_closed:false, 
@@ -49,19 +90,71 @@ $.widget( "heurist.reportEditor", $.heurist.baseAction, {
             height:(window.hWin?window.hWin.innerHeight:window.innerHeight)*0.95
     },
     
+    /**
+     * @memberof heurist.reportEditor
+     * @instance
+     * @private
+     * @property {string} _keepTemplateValue - Stores the initial template content to check for modifications.
+     */
     _keepTemplateValue:'',
+    /**
+     * @memberof heurist.reportEditor
+     * @instance
+     * @property {?Object} codeEditor - CodeMirror editor instance.
+     */
     codeEditor: null,
+    /**
+     * @memberof heurist.reportEditor
+     * @instance
+     * @private
+     * @property {string} _currentTemplate - Name of the currently loaded template.
+     */
     _currentTemplate: '',
     
+    /**
+     * @memberof heurist.reportEditor
+     * @instance
+     * @private
+     * @property {?jQuery} _addVariableDlg - Dialog for inserting variables.
+     */
     _addVariableDlg: null,
     
+    /**
+     * @memberof heurist.reportEditor
+     * @instance
+     * @private
+     * @property {?jQuery} _tempForm - Temporary form used for testing templates.
+     */
     _tempForm: null,
     
+    /**
+     * @memberof heurist.reportEditor
+     * @instance
+     * @private
+     * @property {?string} _last_disabled_message - Stores the last warning message about disabled functions.
+     */
     _last_disabled_message: null,
+
+    /**
+     * @memberof heurist.reportEditor
+     * @instance
+     * @private
+     * @property {boolean} is_snippet_editor - Flag indicating if it's a snippet editor.
+     */
+     is_snippet_editor: false,
     
+    /**
+     * @memberof heurist.reportEditor
+     * @instance
+     * @private
+     * @description Widget creation method. Initializes options and sets up beforeClose behavior.
+     */
     _create: function() {
         this._super();
-        if(this.options.is_snippet_editor){
+        
+        this.is_snippet_editor = this.options.isWidgetTemplate || this.options.isCalcFieldTemplate;
+        
+        if(this.options.isCalcFieldTemplate){
             this.options.width  = (window.hWin?window.hWin.innerWidth:window.innerWidth)*0.7
             this.options.height = (window.hWin?window.hWin.innerHeight:window.innerHeight)*0.7
            
@@ -77,6 +170,12 @@ $.widget( "heurist.reportEditor", $.heurist.baseAction, {
 
     }, //end _create
     
+    /**
+     * @memberof heurist.reportEditor
+     * @instance
+     * @private
+     * @description Widget initialization method. Loads the template if already initialized.
+     */
     _init: function() {
         
         this._super();
@@ -86,6 +185,12 @@ $.widget( "heurist.reportEditor", $.heurist.baseAction, {
         }
     },
     
+    /**
+     * @memberof heurist.reportEditor
+     * @instance
+     * @private
+     * @description Widget destruction method. Removes the temporary test form.
+     */
     _destroy: function() {
         if(this._tempForm){
             this._tempForm.remove();
@@ -93,9 +198,13 @@ $.widget( "heurist.reportEditor", $.heurist.baseAction, {
     },
 
    
-    //  
-    // invoked from _init after loading of html content
-    //
+    /**
+     * @memberof heurist.reportEditor
+     * @instance
+     * @private
+     * @description Initializes controls after HTML content is loaded. Sets up layout, CodeMirror, and event handlers.
+     * @returns {boolean} False if superclass initialization fails, otherwise true.
+     */
     _initControls: function(){
         
         let res  = this._super();
@@ -108,6 +217,7 @@ $.widget( "heurist.reportEditor", $.heurist.baseAction, {
                 let layout_opts =  {
                     applyDefaultStyles: true,
                     maskContents: true,
+                    enableCursorHotkey: false,
                     //togglerContent_open:    '&nbsp;',
                     //togglerContent_closed:  '&nbsp;',
                     west:{
@@ -194,16 +304,18 @@ $.widget( "heurist.reportEditor", $.heurist.baseAction, {
         //init Insert Pattern controls
         let rtSelect = this._$('#rectype_selector');
         let $rec_select = window.hWin.HEURIST4.ui.createRectypeSelect( rtSelect.get(0), 
-                                        this.options.rty_ID,
+                                        this.options.listAllRecTypes ? null : this.options.rty_ID,
                                         this.options.rty_ID>0?null:window.hWin.HR('select record type'), true );
         this._on($rec_select,{change: function(){
            this._loadRecordTypeTreeView();
            const rty_ID = this._$('#rectype_selector').val();
            this._loadTestRecords( rty_ID );
         }});
-        if(!this.options.rty_ID && this.options.is_snippet_editor){
+        if(!this.options.rty_ID && this.is_snippet_editor){
             rtSelect.val(rtSelect.find('option').get(1).value);
             rtSelect.trigger('change');
+        }else if(this.options.rty_ID){
+            rtSelect.val(this.options.rty_ID).trigger('change');
         }
         
       
@@ -214,7 +326,7 @@ $.widget( "heurist.reportEditor", $.heurist.baseAction, {
             {click:()=>{this._doTest();}});
         
 
-        if(this.options.is_snippet_editor){
+        if(this.is_snippet_editor){
             this._$('.editForm').css({top:'90px'});
             this._$('.insertForm > .ent_content_full').css({top:'50px'});
             this._$('.hide-for-snippet').hide();
@@ -222,9 +334,14 @@ $.widget( "heurist.reportEditor", $.heurist.baseAction, {
             
             this._loadRecordTypeTreeView();
             this._loadTestRecords();
-            
+        }
+        
+        if(this.options.isCalcFieldTemplate){ 
+            //snippet for calculation field
             this._initEditor(this.options.template_body);
         }else{
+            //template for widget
+            this._$('.editForm').css({top:'0px'});
             //init editor (load codeMirror)
             this._loadTemplate();
         }        
@@ -234,9 +351,12 @@ $.widget( "heurist.reportEditor", $.heurist.baseAction, {
         return true;
     },
     
-    //
-    // Test action
-    //
+    /**
+     * @memberof heurist.reportEditor
+     * @instance
+     * @private
+     * @description Executes the report test. Prepares request, submits it, and displays results.
+     */
     _doTest:function(){
 
         let template_body = this.codeEditor.getValue();
@@ -252,7 +372,7 @@ $.widget( "heurist.reportEditor", $.heurist.baseAction, {
                        recordset: 1,
                        template_body:1};
 
-        if(this.options.is_snippet_editor){
+        if(this.is_snippet_editor){
                 let rec_ID = this._$('#listRecords').val();
                 if(!window.hWin.HEURIST4.util.isPositiveInt(rec_ID)){
                     window.hWin.HEURIST4.msg.showMsgErr({
@@ -261,7 +381,7 @@ $.widget( "heurist.reportEditor", $.heurist.baseAction, {
                     });
                     return;
                 }
-                request['publish'] = 4;
+                request['publish'] = this.options.template?0:4;
                 recset = {records:[rec_ID], reccount:1}; //JSON.stringify(
                 
         }else if(window.hWin.HAPI4.currentRecordset?.length()==0){
@@ -283,12 +403,15 @@ $.widget( "heurist.reportEditor", $.heurist.baseAction, {
             replevel = 0;
         }
         request['replevel'] = replevel;
+        if(this.options.isWidgetTemplate){
+            request['testwidget'] = 1;
+        }
         
         window.hWin.HEURIST4.msg.bringCoverallToFront(this._$('.testForm'));
         
         let inputs = '';
         for (let [key, value] of Object.entries(request)) {
-          inputs += `<input type="hidden" name="${key}" value="${value}"/>`;
+            inputs += `<input type="hidden" name="${key}" value="${value}"/>`;
         }       
         
         if(this._tempForm){
@@ -303,7 +426,7 @@ $.widget( "heurist.reportEditor", $.heurist.baseAction, {
                 this._showWarningAboutDisabledFunction();
             }});
         }
-        
+
         this._tempForm.html(inputs);
         this._tempForm.find('input[name="recordset"]').val(JSON.stringify(recset));
         this._tempForm.find('input[name="template_body"]').val(template_body);
@@ -311,9 +434,12 @@ $.widget( "heurist.reportEditor", $.heurist.baseAction, {
         
     },
     
-    //
-    //
-    //
+    /**
+     * @memberof heurist.reportEditor
+     * @instance
+     * @private
+     * @description Shows a warning if a disabled PHP function is used in the template.
+     */
     _showWarningAboutDisabledFunction: function(){    
         
         let txt = this._$('#test_container_frame')[0].contentDocument.body.innerHTML;
@@ -325,12 +451,18 @@ $.widget( "heurist.reportEditor", $.heurist.baseAction, {
         
     },
     
-    //
-    //
-    //
+    /**
+     * @memberof heurist.reportEditor
+     * @instance
+     * @private
+     * @description Loads the Smarty template content into the editor.
+     *              If it's a snippet editor, it uses `options.template_body`.
+     *              Otherwise, it fetches the template from the server.
+     */
     _loadTemplate: function(){    
         
-        if(this.options.is_snippet_editor){
+        if(this.options.isCalcFieldTemplate){
+            //for calculation field
             this._initEditor(this.options.template_body);
         }else
         // null means new template
@@ -350,9 +482,13 @@ $.widget( "heurist.reportEditor", $.heurist.baseAction, {
         }
     },
     
-    //
-    //
-    //
+    /**
+     * @memberof heurist.reportEditor
+     * @instance
+     * @private
+     * @description Changes the title of the editor dialog.
+     * @param {string} [new_title] - The new title. If not provided, a default title is generated.
+     */
     changeTitle: function( new_title ){
         if(!new_title){
            new_title = window.hWin.HR('Edit Report Template')+': '+
@@ -361,9 +497,14 @@ $.widget( "heurist.reportEditor", $.heurist.baseAction, {
         this._super(new_title);
     },
     
-    //
-    //
-    // 
+    /**
+     * @memberof heurist.reportEditor
+     * @instance
+     * @private
+     * @description Initializes the CodeMirror editor with the given content.
+     *              Loads CodeMirror library if not already loaded.
+     * @param {string} content - The template content to load into the editor.
+     */
     _initEditor: function(content){
     
         let that = this;
@@ -403,7 +544,7 @@ $.widget( "heurist.reportEditor", $.heurist.baseAction, {
                     indentUnit     : 2,
                     indentWithTabs : false,
                     lineNumbers    : true,
-                    smartyVersion  : 3,
+                    smartyVersion  : 5,
                     matchBrackets  : true,
                     smartIndent    : true,
                     extraKeys: {
@@ -453,9 +594,16 @@ $.widget( "heurist.reportEditor", $.heurist.baseAction, {
     },
     
     
-    //
-    // "IF" for root rectypes
-    //
+    /**
+     * @memberof heurist.reportEditor
+     * @instance
+     * @private
+     * @description Generates a Smarty `if` condition for a specific record type.
+     * @param {Object} _nodep - The node object from the Fancytree representing the field/element.
+     * @param {string} parent - The parent variable name in the Smarty template.
+     * @param {string|number} rectypeId - The record type ID to check against.
+     * @returns {string} The generated Smarty `if` block.
+     */
     _insertPatternRectypeIf: function(_nodep, parent, rectypeId){
         
         let _remark = '{* ' + this._getRemark(_nodep) + ' *}';
@@ -464,9 +612,17 @@ $.widget( "heurist.reportEditor", $.heurist.baseAction, {
 
     },
     
-    //
-    // NEW
-    //    
+    /**
+     * @memberof heurist.reportEditor
+     * @instance
+     * @private
+     * @description Generates a Smarty `if` condition for a variable.
+     * @param {Object} _nodep - The node object from Fancytree.
+     * @param {string} varname - The variable name to check.
+     * @param {string} [language_handle=''] - Optional language handle for translated content.
+     * @param {string} [file_handle=''] - Optional file handle for file-specific content.
+     * @returns {string} The generated Smarty `if` block.
+     */
     _insertPatternIfOperator: function(_nodep, varname, language_handle = '', file_handle = ''){
         let _remark = '{* ' + this._getRemark(_nodep) + ' *}';
         let inner_val = language_handle !== '' ? language_handle : "{$"+varname+"}";
@@ -474,9 +630,17 @@ $.widget( "heurist.reportEditor", $.heurist.baseAction, {
         return "\n{if ($"+varname+")}"+_remark+"\n\n   "+inner_val+" \n\n{/if}\n"+_remark+" {* you can also add {/else} before {/if}} *}\n";
     },
     
-    //
-    // insert foreach operator
-    //
+    /**
+     * @memberof heurist.reportEditor
+     * @instance
+     * @private
+     * @description Generates a Smarty `foreach` loop for a variable.
+     * @param {Object} _nodep - The node object from Fancytree.
+     * @param {string} varname - The variable name to loop over.
+     * @param {string} [language_handle=''] - Optional language handle for translated content within the loop.
+     * @param {string} [file_handle=''] - Optional file handle for file-specific content within the loop.
+     * @returns {string} The generated Smarty `foreach` block.
+     */
     _insertPatternMagicLoop: function(_nodep, varname, language_handle = '', file_handle = ''){
         
         let _remark = '{* ' + this._getRemark(_nodep) + ' *}';
@@ -516,9 +680,14 @@ $.widget( "heurist.reportEditor", $.heurist.baseAction, {
 
     },
     
-    //
-    //
-    //
+    /**
+     * @memberof heurist.reportEditor
+     * @instance
+     * @private
+     * @description Generates a remark (comment) string for a Fancytree node.
+     * @param {Object} _nodep - The node object from Fancytree.
+     * @returns {string} The remark string.
+     */
     _getRemark: function(_nodep){
 
         let s = _nodep.title;
@@ -535,9 +704,19 @@ $.widget( "heurist.reportEditor", $.heurist.baseAction, {
         return s;
     },
     
-    //
-    // _addVariable2
-    //
+    /**
+     * @memberof heurist.reportEditor
+     * @instance
+     * @private
+     * @description Generates the Smarty code for inserting a variable.
+     * @param {Object} _nodep - The node object from Fancytree.
+     * @param {string} varname - The variable name.
+     * @param {number} insertMode - The insertion mode (0 for variable only, 1 for label+field, other for wrap function).
+     * @param {boolean} inLoop - Whether the variable is inside a loop.
+     * @param {string} [language_handle=''] - Optional language handle.
+     * @param {string} [file_handle=''] - Optional file handle.
+     * @returns {string} The generated Smarty code for the variable.
+     */
     _insertPatternVariable: function(_nodep, varname, insertMode, inLoop, language_handle = '', file_handle = ''){
         
         let res= '';
@@ -581,9 +760,14 @@ $.widget( "heurist.reportEditor", $.heurist.baseAction, {
         return (res+((insertMode==0)?' ':'\n'));
     },
 
-    //
-    // returns false if token not found in current and lines until first "if" or "for" above
-    //
+    /**
+     * @memberof heurist.reportEditor
+     * @instance
+     * @private
+     * @description Checks if a token exists in the lines above the cursor, up to the first `if` or `for` statement.
+     * @param {string} token - The token to search for.
+     * @returns {boolean} True if the token is found, false otherwise.
+     */
     _findAboveCursor: function(token) {
         
         //for codemirror
@@ -611,9 +795,12 @@ $.widget( "heurist.reportEditor", $.heurist.baseAction, {
         return false;   
     },
     
-    //
-    //
-    //
+    /**
+     * @memberof heurist.reportEditor
+     * @instance
+     * @private
+     * @description Inserts the Smarty code to get related records if not already present.
+     */
     _insertGetRelatedRecords: function(){
         
         //find main loop and {$r = $heurist->getRecord($r)}
@@ -645,7 +832,12 @@ $.widget( "heurist.reportEditor", $.heurist.baseAction, {
         }
     },
    
-    
+    /**
+     * @memberof heurist.reportEditor
+     * @instance
+     * @private
+     * @description Inserts a predefined Smarty pattern into the editor based on user selection.
+     */
     _insertPattern: function(){
         
         let pattern_id = Number(this._$('#selInsertPattern').val());
@@ -765,9 +957,12 @@ $.widget( "heurist.reportEditor", $.heurist.baseAction, {
         
     },
 
-    //
-    //
-    //
+    /**
+     * @memberof heurist.reportEditor
+     * @instance
+     * @private
+     * @description Loads the Fancytree for selecting record types and fields.
+     */
     _loadRecordTypeTreeView: function(){
         
         let rty_ID = this._$('#rectype_selector').val();
@@ -791,7 +986,7 @@ $.widget( "heurist.reportEditor", $.heurist.baseAction, {
 
         treedata[0].expanded = true; //first expanded
 
-        if(this.options.is_snippet_editor){
+        if(this.is_snippet_editor){
             //hide root - record type title
             treedata = treedata[0];
         }
@@ -838,7 +1033,12 @@ $.widget( "heurist.reportEditor", $.heurist.baseAction, {
                 if(ele.is('a')){
                     
                     if(ele.text()=='insert'){
-                        if(that.options.is_snippet_editor){
+
+                        let code = data.node.data.code;
+                        let parts = code.split(':');
+                        let multival = $Db.rst(parts[parts.length - 2], parts[parts.length - 1], 'rst_MaxValues') != 1;
+
+                        if(that.is_snippet_editor && !multival){
                             that._insertSelectedVars2(data.node, 0, false, 0);
                         }else{
                             //insert-popup
@@ -901,9 +1101,13 @@ $.widget( "heurist.reportEditor", $.heurist.baseAction, {
         
     },
     
-    //
-    //
-    //
+    /**
+     * @memberof heurist.reportEditor
+     * @instance
+     * @private
+     * @description Inserts text at the current cursor position in the CodeMirror editor, maintaining indentation.
+     * @param {string} myValue - The text to insert.
+     */
     _insertAtCursor: function(myValue){
 
         
@@ -948,9 +1152,18 @@ $.widget( "heurist.reportEditor", $.heurist.baseAction, {
         
     },
     
-    //
-    //
-    //
+    /**
+     * @memberof heurist.reportEditor
+     * @instance
+     * @private
+     * @description Inserts selected Smarty variables/patterns into the editor based on Fancytree node selection and options.
+     * @param {Object} _nodep - The Fancytree node object.
+     * @param {number} inloop - Loop insertion mode (0: outside loop, 1: insert loop operator, 2: inside loop).
+     * @param {boolean} isif - Whether to insert an `if` condition.
+     * @param {number} _insertMode - Variable insertion mode.
+     * @param {string} [language_code] - Language code for translation.
+     * @param {string} [file_field] - Specific field for file data.
+     */
     _insertSelectedVars2: function( _nodep, inloop, isif, _insertMode, language_code, file_field ){
 
         let _text = "",
@@ -1139,14 +1352,26 @@ this_id       : "term"
         }
     },
 
-
+    /**
+     * @memberof heurist.reportEditor
+     * @instance
+     * @private
+     * @description Closes the insert variable/pattern popup dialog if it's open.
+     */
     _closeInsertPopup: function(){
         if(this._addVariableDlg?.dialog('instance')){
             this._addVariableDlg.dialog('close');
         }
     },
     
-    
+    /**
+     * @memberof heurist.reportEditor
+     * @instance
+     * @private
+     * @description Shows the popup dialog for inserting variables/patterns with various options.
+     * @param {Object} _nodep - The Fancytree node object for which to show the popup.
+     * @param {jQuery} elt - The jQuery element that triggered the popup, used for positioning.
+     */
     _showInsertPopup2: function( _nodep, elt ){
         
         let that = this;
@@ -1304,19 +1529,30 @@ this_id       : "term"
         
     },
     
-    //
-    //
-    //
+    /**
+     * @memberof heurist.reportEditor
+     * @instance
+     * @description Checks if the template content has been modified since it was last loaded or saved.
+     * @returns {boolean} True if modified, false otherwise.
+     */
     isModified: function(){
         return (this._keepTemplateValue && this._keepTemplateValue!=this.codeEditor.getValue());  
     },
     
-
+    /**
+     * @memberof heurist.reportEditor
+     * @instance
+     * @private
+     * @description Handles the beforeClose event of the dialog. Prompts the user to save if there are modifications.
+     * @returns {boolean} False if there are unsaved changes and the user chooses to cancel closing, true otherwise.
+     */
     _beforeClose: function() {
         if(this.isModified()){
-        
+            
+            const isSaveAs = this.options.isWidgetTemplate && this.options.template.indexOf('def/')===0;
+      
             window.hWin.HEURIST4.msg.showMsgOnExit(window.hWin.HR('Warn_Lost_Data'),
-                ()=>{this.doAction(false, true);}, //save
+                ()=>{this.doAction(isSaveAs, true);}, //save
                 ()=>{this._keepTemplateValue=false; this.closeDialog();}); //ignore and close
            
             return false;
@@ -1325,10 +1561,13 @@ this_id       : "term"
         }
     },
     
-
-    //    
-    //
-    //
+    /**
+     * @memberof heurist.reportEditor
+     * @instance
+     * @private
+     * @description Gets the action buttons for the dialog (Close, Save, Save As).
+     * @returns {Array<Object>} Array of button definition objects.
+     */
     _getActionButtons: function(){
         let res = this._super();
 
@@ -1337,30 +1576,57 @@ this_id       : "term"
         res[0].text = window.hWin.HR('Close');
         
         res[1].text = window.hWin.HR('Save');
-        res[1].disabled = null;
+        if(this.options.isWidgetTemplate && this.options.template.indexOf('def/')==0){
+            res[1].disabled = true;
+        }else{
+            res[1].disabled = null;
+        }
         
-        if(!this.options.is_snippet_editor){
-        res.splice(1,0,{text:window.hWin.HR('Save As'),
-                    class:'ui-button-action btnDoAction2',
-                    css:{'float':'right'},  
-                    click: function() { 
-                            that.doAction(true); 
-                    }}
-                    );
+        if(!this.options.isCalcFieldTemplate)
+        {
+            res.splice(1,0,{text:window.hWin.HR('Save As'),
+                        class:'ui-button-action btnDoAction2',
+                        css:{'float':'right'},  
+                        click: function() { 
+                                that.doAction(true); 
+                        }}
+                        );
+        }
+        
+        if(this.options.isWidgetTemplate){
+
+            res.splice(2,0,{text:window.hWin.HR('Delete'),
+                        class:'ui-button-action btnDoAction3',
+                        css:{'float':'left','margin-right':'150px'},  
+                        click: function() { 
+                                that._onTemplateDelete(); 
+                        }}
+                        );
+            
+            if(this.options.template.indexOf('def/')<0){
+                res[2].disabled = null;
+            }else{
+                res[2].disabled = true;
+            }
         }
         
         return res;
     },
 
-    //
-    // Save template
-    //
+    /**
+     * @memberof heurist.reportEditor
+     * @instance
+     * @description Saves the current template. Handles "Save As" functionality and prompts for a name if needed.
+     * @param {boolean} [is_save_as=false] - If true, prompts for a new template name.
+     * @param {boolean} [need_close=false] - If true, closes the dialog after saving.
+     */
     doAction: function(is_save_as, need_close){
 
         let that = this;
         
-        if(this.options.is_snippet_editor)
+        if(this.options.isCalcFieldTemplate)
         {
+            //snippet for calculation field
             if(this.isModified()){
                 this._context_on_close = this.codeEditor.getValue();    
             }
@@ -1375,7 +1641,7 @@ this_id       : "term"
             window.hWin.HEURIST4.msg.showPrompt('Please enter template name', function(tmp_name){
                 if(!window.hWin.HEURIST4.util.isempty(tmp_name)){
                     that._currentTemplate = tmp_name;
-                    that._context_on_close = true;
+                    that._context_on_close = true; //to update list in parent window
                     that.doAction(false);
                 }
                 }, {title:'Save template as',yes:'Save as',no:"Cancel"});
@@ -1394,6 +1660,8 @@ this_id       : "term"
                     window.hWin.HEURIST4.msg.showMsgFlash('Report template has been saved');
                     if(need_close){
                         that.closeDialog();
+                    }else{
+                        window.hWin.HEURIST4.util.setDisabled( that.element.parents('.ui-dialog').find('.btnDoAction'), false); 
                     }
                 } else {
                     window.hWin.HEURIST4.msg.showMsgErr(response);
@@ -1402,12 +1670,16 @@ this_id       : "term"
 
     },
     
-    //
-    // Load limited list of records of given record types (to test template)
-    //
+    /**
+     * @memberof heurist.reportEditor
+     * @instance
+     * @private
+     * @description Loads a list of records of a given record type for testing the template (snippet editor only).
+     * @param {?number} rty_ID - The Record Type ID. If not provided, uses `this.options.rty_ID`.
+     */
     _loadTestRecords: function( rty_ID )
     {
-        if(!this.options.is_snippet_editor){
+        if(!this.is_snippet_editor){
             return;
         }
         
@@ -1427,22 +1699,56 @@ this_id       : "term"
                     
                 
                 //search for record type
-                window.hWin.HAPI4.RecordMgr.search_new(server_request,
-                        function(response){
+                window.hWin.HAPI4.RecordMgr.search_new(server_request, function(response){
 
-                           if(window.hWin.HEURIST4.util.isJSON(response)) {
-                               let options = [];
-                               response.records.forEach((item) => {
-                                    options.push({key:item.rec_ID, 
-                                    title:window.hWin.HEURIST4.util.stripTags(item.rec_Title)});
-                               });
-                               window.hWin.HEURIST4.ui.createSelector(selector, options);
-                           }else{
-                                window.hWin.HEURIST4.msg.showMsgErr(response);
-                           }
+                    if(window.hWin.HEURIST4.util.isJSON(response)) {
+                        let options = [];
+                        response.records.forEach((item) => {
+                            let rec_Title = window.hWin.HEURIST4.util.stripTags(item.rec_Title);
+                            rec_Title = rec_Title.length > 60 ? `${rec_Title.slice(0, 60)}...` : rec_Title;
+                            options.push({ key: item.rec_ID, title: rec_Title });
+                        });
+                        window.hWin.HEURIST4.ui.createSelector(selector, options);
+                    }else{
+                        window.hWin.HEURIST4.msg.showMsgErr(response);
+                    }
                 });            
         }
-    }    
+    },
+    
+    //
+    //
+    //
+    _onTemplateDelete: function(unconditionally) {
+
+        let that = this;
+        
+        if(!this.options.template || this.options.template.indexOf('def/')===0){
+            return;
+        }
+
+        if(unconditionally===true){
+
+            window.hWin.HAPI4.SystemMgr.reportAction({action:'delete', template:this.options.template}, 
+                function(response){
+                    if (response.status == window.hWin.ResponseStatus.OK) {
+                        that._context_on_close = true;
+                        that.closeDialog();                        
+                    } else {
+                        window.hWin.HEURIST4.msg.showMsgErr(response);
+                    }
+            });
+
+        }else{
+            window.hWin.HEURIST4.msg.showMsgDlg(
+                'Are you sure you wish to delete template "'+this.options.template+'"?', 
+                function(){ that._onTemplateDelete(true) }, 
+                {title:'Warning',yes:'Proceed',no:'Cancel'});        
+        }
+    },
+
+        
+
         
 });
 

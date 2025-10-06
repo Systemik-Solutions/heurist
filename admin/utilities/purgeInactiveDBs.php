@@ -1,55 +1,36 @@
 <?php
-
 /**
-* purgeInactiveDBs.php: Reports (default) or purge/archive inactive databases
+* purgeInactiveDBs.php - Reports on or purges/archives inactive Heurist databases and their components.
 *
-* Report/purge occurs if no data added/edited for more than:
+* @fileOverview This script is designed to manage server space by identifying and acting upon inactive
+*               Heurist databases. It can run in report-only mode or perform actual purge/archive operations.
+*               Key functionalities include:
+*               - **Database Purge/Archive:** Databases are flagged for archival based on inactivity period
+*                 and record count (e.g., >3 months inactive with <=10 records). Archived databases
+*                 are dropped, and their filestores are moved to `DELETED_DATABASES`. Owners are notified.
+*               - **Import Table Purge:** Old imported data tables (`sysImportFiles` entries and associated
+*                 temporary tables) are dumped and compressed into `_PURGES_IMPORTS`.
+*               - **sysArchive Table Purge:** If the `sysArchive` table exceeds a certain size (e.g., 50,000 records),
+*                 it's dumped and compressed into `_PURGES_SYSARCHIVE`.
+*               - **Exclusion List:** Databases listed in `databases_not_to_purge.txt` (in Heurist root) are skipped.
+*               - **Reporting:** Provides detailed output of actions taken or proposed. Sends email summaries to admin.
+*               Intended primarily for shell execution. Use `-- -purge` to enable actions.
 *
-*           3 months with 10 records or less
-*           6 months with 50 records or less
-*           one year with 200 records or less
-*
-* Sends sysadmin a list of databases
-*            inactive for more than a year with more than 200 records
-
-* @TODO: Should send the message out as a warning message one month before and 1 week before
-*        stressing in particular the need to tell us if you want your database marked as non-purging
-*
-* @TODO: Should also check date of last modification of record types and record type structures
-*        to detect databases which are being configured but have very little data
-*
-* Dump and bz2 import tables that are
-*           more than 2 months old
-*           older than 1 month if more than 10 tables
-*           reduce to 20 most recent tables if more than 20 left
-*
-*           HEURIST_FILESTORE/_PURGES_IMPORTS/dbname_[name of original file]_yyyy-mm-dd.bz2
-*
-* Dump and bzip the sysArchive table if it exceeds 50,000 records (50K records is ~10MB)
-*   with a name structured as below.
-*          …HEURIST_FILESTORE/_PURGES_SYSARCHIVE/dbname_yyyy-mm-dd.bz2
-* @TODO: should retain last week of archive records when table is purged
-*
-* Databases in HEURIST/databases_not_to_purge.txt are ignored
-*
-* Runs from shell only
-*
-* @package     Heurist academic knowledge management system
+* @project     Heurist academic knowledge management system
+* @package Admin
 * @link        https://HeuristNetwork.org
 * @copyright   (C) 2005-2023 University of Sydney, (C) 2024 onwards Heurist Network
+* @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
 * @author      Artem Osmakov   <osmakov@gmail.com>
 * @author      Ian Johnson     <ian.johnson.heurist@gmail.com>
-* @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
-* @version     6
+* @since       6
+*
+* @todo Send warning messages one month and one week before actual purging.
+* @todo Consider last modification of record types/structures to detect databases under configuration.
+* @todo Retain last week of archive records when `sysArchive` table is purged.
 */
 
-/*
-* Licensed under the GNU License, Version 3.0 (the "License"); you may not use this file except in compliance
-* with the License. You may obtain a copy of the License at https://www.gnu.org/licenses/gpl-3.0.txt
-* Unless required by applicable law or agreed to in writing, software distributed under the License is
-* distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied
-* See the License for the specific language governing permissions and limitations under the License.
-*/
+
 
 global $arg_no_action;
 
@@ -199,8 +180,8 @@ if(!$arg_no_action){
     }
 
     echo 'Deleted databases: '.$backup_root."\n";
-    echo 'Archieved import tables: '.$backup_imports."\n";
-    echo 'Archieved sysArchive tables: '.$backup_sysarch."\n";
+    echo 'Archived import tables: '.$backup_imports."\n";
+    echo 'Archived sysArchive tables: '.$backup_sysarch."\n";
 
 
     $action = 'purgeOldDBs';
@@ -215,24 +196,24 @@ if(!$arg_no_action){
 $databases = array('AmateurS1');
 */
 
-set_time_limit(0);//no limit
-ini_set('memory_limit','1024M');
+set_time_limit(0); // No time limit for execution to avoid timeout
+ini_set('memory_limit','1024M');  // Increase memory limit to 1GB
 
-$datetime1 = date_create('now');
+$datetime1 = date_create('now');  // current time stamp for comparison
 $cnt_archived = 0;
 $email_list = array();
 $email_list_deleted = array();
 $email_list_failed = array();
 
-foreach ($databases as $idx=>$db_name){
+foreach ($databases as $idx=>$db_name){  // iterate over all databases
 
-    if(in_array($db_name,$exclusion_list)){
+    if(in_array($db_name,$exclusion_list)){  // skip databases listed in databases_not_to_purge.txt
         continue;
     }
 
-    $res = mysql__usedatabase($mysqli, $db_name);
+    $res = mysql__usedatabase($mysqli, $db_name);  // switch to target database
     if($res!==true){
-        if(is_array($res) && $mysqli->error){
+        if(is_array($res) && $mysqli->error){  // report error
             //$mysqli->error 'gone away'
             $sMsg = 'Cannot execute purgeInactiveDBs. Execution stopped on database '
                 .$db_name.' ('.$arg_no_action.','.$is_shell.'). Error message: '.$mysqli->error;
@@ -259,17 +240,21 @@ foreach ($databases as $idx=>$db_name){
     //find number of records and date of last update
     $query = 'SELECT count(rec_ID) as cnt, max(rec_Modified) as mdate FROM Records';
     $vals = mysql__select_row_assoc($mysqli, $query);
+    
     if($vals==null){
         echo $tabs0.$db_name.' cannot execute query for Records table'.$eol;
         continue;
     }
-    if(@$vals['cnt']==0){
-        //find date of last modification from definitions
+    
+    if(@$vals['cnt']==0){  // if there are no records, checks date when structure last modified
+        // this only looks at record structure, could also look at fields amd terms added      
         $vals['mdate'] = mysql__select_value($mysqli, 'select max(rst_Modified) from defRecStructure');
     }
 
     $d2 = $vals['mdate'];
-/*
+
+    /*  A more comprehensive check, but probably unecessary to go this far
+    
     $query = 'SELECT max(rty_Modified) as mdate FROM defRecTypes';
     $val = mysql__select_value($mysqli, $query);
     if($d2<$val){ $d2 = $val; }
@@ -285,7 +270,8 @@ foreach ($databases as $idx=>$db_name){
     $query = 'SELECT max(trm_Modified) as mdate FROM defTerms';
     $val = mysql__select_value($mysqli, $query);
     if($d2<$val){ $d2 = $val; }
-*/
+    */
+    
     $datetime2 = date_create($d2);
 
     if(!$datetime2){
@@ -293,18 +279,17 @@ foreach ($databases as $idx=>$db_name){
         continue;
     }
 
-    //"processing ".
-    //echo $db_name.' ';//.'  in '.$folder
     $report = '';
 
     $interval = date_diff($datetime1, $datetime2);
     $diff = $interval->format('%y')*12 + $interval->format('%m');
 
+    // Check inactivity time against number of records to decide if it should be purged
     $archive_db = ($vals['cnt']<11 && $diff>=6) || ($vals['cnt']<51 && $diff>=12) || ($vals['cnt']<101 && $diff>=24);
 
     if($archive_db){ // check for structure updates
 
-        $datetime3 = getDefinitionsModTime($mysqli);//see utils_db
+        $datetime3 = getDefinitionsModTime($mysqli); //see utils_db
         
         //check user modification time also        
         $usr_mod = mysql__select_value($mysqli, 'SELECT CONVERT_TZ(MAX(ugr_Modified), @@session.time_zone, "+00:00") FROM sysUgrps');
@@ -319,7 +304,7 @@ foreach ($databases as $idx=>$db_name){
         $interval = date_diff($datetime1, $datetime3);
         $diff = $interval->format('%y') * 12 + $interval->format('%m');
 
-        $archive_db = $diff > 6; // more than six months ago
+        $archive_db = $diff > 6; // Don't purge if structure updated within last six months
     }
 
     if($archive_db){
@@ -338,30 +323,43 @@ foreach ($databases as $idx=>$db_name){
                     $server_name = HEURIST_SERVER_NAME;
                     $email_title = 'Your Heurist database '.$db_name.' has been archived';
                     $email_text = <<<EOD
-Dear {$usr_owner['ugr_FirstName']} {$usr_owner['ugr_LastName']},
-<br><br>
-Your Heurist database {$db_name} on {$server_name} has been archived. We would like to help you get (re)started, and can restore the database if it is still required (please read through this email before contacting us).
-<br><br>
-In order to conserve server space and reduce clutter we have archived your database on {$server_name} since it has not been modified for several months and/or no data has ever been created (you may also get this message if we are migrating a database to a new server for you).
-<br><br>
-The criteria for purging unused databases are:
-<br><br>
-   <span style="padding-left:15px">No data modification for 3 months and <= 10 records</span><br>
-   <span style="padding-left:15px">No data modification for 6 months and <= 50 records</span><br>
-   <span style="padding-left:15px">No data modification for 1 year and <= 100 records</span>
-<br><br>
-Note that structure modification is not taken into account in this calculation.
-<br><br>
-If you got as far as creating a database but did not know how to proceed you are not alone, but those who persevere, even a little, will soon find the system easy to use and surprisingly powerful. We invite you to get in touch ( support@HeuristNetwork.org ) so that we can help you over that (small) initial hump and help you see how it fits with your research (or other use).
-<br><br>
-Please contact us if you need your database re-enabled or visit one of our free servers to create a new database (visit HeuristNetwork dot org). If you didn't do any work on your database (entry of real data or setting up a structure for future use) please just create a new database (you can re-use the same name).
-<br><br>
-IMPORTANT: If the database was a finished project or reference database which will not be further modified, please let us know so that we can mark it as protected from future purges.
-<br><br>
-Heurist is research-led and responds rapidly to evolving user needs - we often turn around small user suggestions (and most bug-fixes) in a day and larger ones within a couple of weeks. Visit our website to see current developments. We aim for stable backwards compatibility and long-term sustainability, with active databases going back as far as the earliest version of Heurist (2005).
-<br><br>
-For more information email us at support@HeuristNetwork.org and visit our website at HeuristNetwork.org. We normally respond within hours, depending on time zones.
-EOD;
+                    Dear {$usr_owner['ugr_FirstName']} {$usr_owner['ugr_LastName']},
+                    <br><br>
+                    Your Heurist database {$db_name} on {$server_name} has been archived. We would like to help you get (re)started, 
+                    and can restore the database if it is still required (please read through this email before contacting us).
+                    <br><br>
+                    In order to conserve server space and reduce clutter we have archived your database on {$server_name} 
+                    since it has not been modified for several months and/or no data has ever been created 
+                    (you may also get this message if we are migrating a database to a new server for you).
+                    <br><br>
+                    The criteria for purging unused databases are:
+                    <br><br>
+                       <span style="padding-left:15px">No data modification for 3 months and <= 10 records</span><br>
+                       <span style="padding-left:15px">No data modification for 6 months and <= 50 records</span><br>
+                       <span style="padding-left:15px">No data modification for 1 year and <= 100 records</span>
+                    <br><br>
+                    Note that structure modification is not taken into account in this calculation.
+                    <br><br>
+                    If you got as far as creating a database but did not know how to proceed you are not alone, but those who persevere, 
+                    even a little, will soon find the system easy to use and surprisingly powerful. 
+                    We invite you to get in touch ( support@HeuristNetwork.org ) so that we can help you over that (small) initial hump 
+                    and help you see how it fits with your research (or other use).
+                    <br><br>
+                    Please contact us if you need your database re-enabled or visit one of our free servers to create a new database 
+                    (visit HeuristNetwork dot org). If you didn't do any work on your database (entry of real data or setting up a structure 
+                    for future use) please just create a new database (you can re-use the same name).
+                    <br><br>
+                    IMPORTANT: If the database was a finished project or reference database which will not be further modified, 
+                    please let us know so that we can mark it as protected from future purges.
+                    <br><br>
+                    Heurist is research-led and responds rapidly to evolving user needs - we often turn around small user suggestions 
+                    (and most bug-fixes) in a day and larger ones within a couple of weeks. Visit our website to see current developments. 
+                    We aim for stable backwards compatibility and long-term sustainability, with active databases going back as far as 
+                    the earliest version of Heurist (2005).
+                    <br><br>
+                    For more information email us at support@HeuristNetwork.org and visit our website at HeuristNetwork.org. 
+                    We normally respond within hours, depending on time zones.
+                    EOD;
 
 if($need_email){
     sendEmail(array($usr_owner['ugr_eMail']), $email_title, $email_text, true);
@@ -395,12 +393,16 @@ if($need_email){
 
 
         }
+        
+        
+// --- Purge old import tables (used by CSV importer)-------------------------------------------------
+
 /*
 * Dump and bz2 import tables that are
 *           more than 2 months old
 *           older than 1 month if more than 10 tables
 *           reduce to 20 most recent tables if more than 20 left
-* HEURIST_FILESTORE/_PURGES_IMPORTS/dbname_[name of original file]_yyyy-mm-dd.bz2
+*           saved in HEURIST_FILESTORE/_PURGES_IMPORTS/dbname_[name of original file]_yyyy-mm-dd.bz2
 */
 
         $sif_purge = array();
@@ -422,8 +424,6 @@ if($need_email){
                 if(!$data ||!@$data['import_table'] || !@$data['import_name'] ){
                     continue;
                 }
-
-//{"reccount":"697","import_table":"import20210630112638","import_name":"Glossaire.txt 2021-06-30 11:26:38"
 
                 $imp_table = $data['import_table'];
                 $file_name = $data['import_name'];
@@ -612,7 +612,7 @@ if($need_email){
                             $mysqli->query($query);
                             $mysqli->query("CREATE TABLE sysArchive (
   arc_ID int(10) unsigned NOT NULL auto_increment COMMENT 'Primary key of archive table',
-  arc_Table enum('rec','cfn','crw','dtg','dty','fxm','ont','rst','rtg','rty','rcs','trm','trn','urp','vcb','dtl','rfw','rrc','snd','cmt','ulf','sys','lck','tlu','ugr','ugl','bkm','hyf','rtl','rre','rem','rbl','svs','tag','wprm','chunk','wrprm','woot') NOT NULL COMMENT 'Identification of the MySQL table in which a record is being modified',
+  arc_Table enum('rec','cfn','crw','dtg','dty','fxm','ont','rst','rtg','rty','rcs','trm','trn','urp','vcb','dtl','rfw','rrc','snd','cmt','ulf','sys','lck','tlu','ugr','ugl','bkm','hyf','rtl','rre','rem','rbl','svs','tag') NOT NULL COMMENT 'Identification of the MySQL table in which a record is being modified',
   arc_PriKey int(10) unsigned NOT NULL COMMENT 'Primary key of the MySQL record in the table being modified',
   arc_ChangedByUGrpID smallint(5) unsigned NOT NULL COMMENT 'User who is logged in and modifying this data',
   arc_OwnerUGrpID smallint(5) unsigned default NULL COMMENT 'Owner of the data being modified (if applicable eg. records, bookmarks, tags)',
@@ -640,9 +640,7 @@ if($need_email){
     if($report!=''){
         echo $tabs0.$db_name.$tabs.htmlspecialchars($report).$eol; //htmlspecialchars for snyk
     }
-
-
-    //echo "   ".$db_name." OK \n";//.'  in '.$folder
+    
 }//for
 
 
@@ -669,6 +667,17 @@ if(!isEmptyArray($email_list) && $need_email)
         .implode(",\n", $email_list));
 }
 
+/**
+ * Reads the exclusion list of database names from 'databases_not_to_purge.txt'.
+ * This file is expected to be in the Heurist root directory.
+ * Lines starting with '#' or empty lines in the file are ignored.
+ * If the file is not found and the script is in action mode (not report-only),
+ * it sends an error email to the admin and returns false, halting further processing.
+ *
+ * @global bool $arg_no_action Indicates if the script is in "action mode" (false) or "report mode" (true).
+ * @return array<string>|false An array of database names to exclude. Returns false if the exclusion
+ *                             file is critical and not found.
+ */
 function exclusion_list(){
     global $arg_no_action;
 

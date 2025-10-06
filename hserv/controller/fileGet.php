@@ -1,29 +1,38 @@
 <?php
 /**
-* Service to get icons and thumbs for entities
+* fileGet.php - handler to get icons and thumbs for entities
+*
+* 1) get image for given entity, record ID, version and color
+* 2) get or check file from code folders - tips, help, doc content
+* 3) load file from scratch folder (tries to convert to UTF8) - for import terms
 * (for recUploadFiles see fileDownload.php)
+* 
+* Parameters:
+* db - The target database name.
+* entity - The name of the entity type (e.g., rst, dty) for which to retrieve an image.
+* id - The record ID of the specific entity instance.
+* version - (Optional) Specifies the image version to retrieve, typically 'icon' or 'thumb'.
+* color - (Optional) Specifies the color for the icon (if applicable and not an SVG).
+* circle - (Optional) If set, renders the icon within a circle.
+* bg - (Optional) Specifies the background color of the circle (if `circle` is used).
+* 
+* Special parameter for csv import file downloading:
+* file - The name of the CSV file (located in the scratch folder) to be downloaded.
+* encoding - (Optional) The character encoding of the CSV file, if it's not UTF-8 (will be converted to UTF-8).
+* 
 *
-* fileGet.php - 1) get image for given entity, record ID, version and color
-*               2) get or check file from code folders - tips, help, doc content
-*               3) load file from scratch folder (tries to convert to UTF8) - for import terms
-*
-* @package     Heurist academic knowledge management system
+* @project     Heurist academic knowledge management system
+* @package Controller
 * @link        https://HeuristNetwork.org
 * @copyright   (C) 2005-2023 University of Sydney, (C) 2024 onwards Heurist Network
-* @author      Artem Osmakov   <osmakov@gmail.com>
 * @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
-* @version     4.0
+* @author      Artem Osmakov   <osmakov@gmail.com>
+* @author      Ian Johnson     <ian.johnson.heurist@gmail.com>
+* @since       4.0
 */
 
-/*
-* Licensed under the GNU License, Version 3.0 (the "License"); you may not use this file except in compliance
-* with the License. You may obtain a copy of the License at https://www.gnu.org/licenses/gpl-3.0.txt
-* Unless required by applicable law or agreed to in writing, software distributed under the License is
-* distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied
-* See the License for the specific language governing permissions and limitations under the License.
-*/
-use hserv\utilities\USanitize;
 use hserv\utilities\UImage;
+use hserv\utilities\USanitize;
 
 require_once dirname(__FILE__).'/../../autoload.php';
 require_once 'entityScrudSrv.php';
@@ -167,7 +176,6 @@ if($filename){ //download from scratch (for csv import)
         if($default_mode=='check') {$default_mode = 3;}
         elseif($default_mode==null) {$default_mode = 2;}
 
-
         if(file_exists($filename) && !is_dir($filename)){
             if($default_mode==3){ //check
 
@@ -233,9 +241,15 @@ if($filename){ //download from scratch (for csv import)
 }
 
 
-//
-//
-//
+/**
+ * Outputs a file for download.
+ *
+ * Sets appropriate headers and reads the file content to the output buffer.
+ *
+ * @param string $filename The path to the file to be downloaded.
+ * @param string|null $content_type The MIME type of the file. If null, it's omitted from headers.
+ * @return void
+ */
 function _download_file($filename, $content_type){
 
         ob_start();

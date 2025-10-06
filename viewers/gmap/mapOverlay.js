@@ -153,8 +153,8 @@ function HMappingControls( mapping, startup_mapdocument_id ) {
         // Clean old data
         $('#map_extents').css('visibility','hidden');
         _removeMapDocumentOverlays();
-        let selBookmakrs = document.getElementById('selMapBookmarks');
-        $(selBookmakrs).empty();
+        let selBookmarks = document.getElementById('selMapBookmarks');
+        $(selBookmarks).empty();
         let btnMapRefresh = $("#btnMapRefresh");
         let btnMapEdit = $("#btnMapEdit");
         window.hWin.HEURIST4.util.setDisabled(btnMapEdit, true);
@@ -228,7 +228,7 @@ function HMappingControls( mapping, startup_mapdocument_id ) {
         let doc = _getMapDocumentDataById(mapdocument_id);
         let lt = window.hWin.HAPI4.sysinfo['layout'];   
 
-        let selBookmakrs = document.getElementById('selMapBookmarks');
+        let selBookmarks = document.getElementById('selMapBookmarks');
         let btnMapRefresh = $("#btnMapRefresh");
         let btnMapEdit = $("#btnMapEdit");
         if( !window.hWin.HEURIST4.util.isnull(doc) ) {
@@ -236,7 +236,7 @@ function HMappingControls( mapping, startup_mapdocument_id ) {
             let bounds = null, err_msg_all = '';
 
             map_bookmarks = [];
-            window.hWin.HEURIST4.ui.addoption(document.getElementById('selMapBookmarks'), -1, 'bookmarks...');
+            window.hWin.HEURIST4.ui.addoption(selBookmarks, -1, 'bookmarks...');
 
             // Longitude,Latitude centrepoint, Initial minor span
             // add initial bookmarks based on long lat  minorSpan

@@ -1,31 +1,39 @@
 /**
-*  appInitAll - main function which initialises everything
-* 
-*  to be replaced with HLayoutMgr
-*
-*  @see ext/layout
-*  @see layout_defaults.js - configuration file
-*
-* @package     Heurist academic knowledge management system
-* @link        https://HeuristNetwork.org
-* @copyright   (C) 2005-2023 University of Sydney, (C) 2024 onwards Heurist Network
-* @author      Artem Osmakov   <osmakov@gmail.com>
-* @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
-* @version     4.0
-*/
-
-/*
-* Licensed under the GNU License, Version 3.0 (the "License"); you may not use this file except in compliance
-* with the License. You may obtain a copy of the License at https://www.gnu.org/licenses/gpl-3.0.txt
-* Unless required by applicable law or agreed to in writing, software distributed under the License is
-* distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied
-* See the License for the specific language governing permissions and limitations under the License.
-*/
+ * @file layout.js
+ * @brief Defines the HLayout factory for an older layout management system.
+ * @fileOverview This file contains the HLayout factory function, which provides an older system for
+ * initializing and managing web page layouts in Heurist. It is based on configurations typically
+ * defined in `layout_defaults.js` and can handle cardinal (pane-based) and "free" layouts
+ * (derived from HTML attributes). It supports dynamic creation of panes, tabs, and embedding
+ * of Heurist widgets. This system is noted as intended to be replaced by HLayoutMgr.
+ * Key functions include `_appInitAll` for overall layout initialization, and helpers for
+ * managing panes, widgets, and drag-drop listeners.
+ * 
+ * @see ext/layout
+ * @see layout_defaults.js
+ * @project     Heurist academic knowledge management system
+ *
+ * @link https://HeuristNetwork.org
+ * @copyright (C) 2005-2023 University of Sydney, (C) 2024 onwards Heurist Network
+ * @license https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
+ * @author Artem Osmakov <osmakov@gmail.com>
+ * @author Ian Johnson <ian.johnson.heurist@gmail.com>
+ * @since 4.0
+ */
 
 /* global cfg_widgets, cfg_layouts */
-//
-// 
-//
+
+/**
+ * Factory function for the HLayout object, an older layout management system for Heurist.
+ * It initializes based on widget and layout configurations (typically from `cfg_widgets` and `cfg_layouts`).
+ * The returned object provides methods to initialize layouts within specified containers,
+ * manage widgets, and handle cardinal (pane-based) layouts.
+ *
+ * @constructor HLayout
+ * @param {Object} [args] - Arguments for initialization (currently seems unused in the provided snippet,
+ *                          as `_init` takes `cfg_widgets` and `cfg_layouts` which are global).
+ * @returns {Object} An HLayout instance with methods for layout management.
+ */
 function HLayout(args) {
      const _className = "HLayout",
          _version   = "0.4";      
@@ -390,6 +398,8 @@ function HLayout(args) {
         __layoutAddPane('east');
         __layoutAddPane('south');
 
+        layout_opts['enableCursorHotkey'] = false;
+
         // 2) init layout container
         $container.layout( layout_opts );
 
@@ -439,7 +449,7 @@ function HLayout(args) {
 
                 var app = _appGetWidgetById($app_content.attr('widgetid')); //ART04-26
                 var offset = $pane_content.offset();
-                var $tab = appCreateTabControl($pane_content, {appid: $app_content.attr('widgetid'), content_id: content_id.substr(1) }, //to remove #
+                var $tab = appCreateTabControl($pane_content, {appid: $app_content.attr('widgetid'), content_id: content_id.slice(1) }, //to remove #
                     {dockable: true, dragable:true, resizable:true,
                         css:{top:event.pageY-offset.top,left:event.pageX-offset.left,height:200,width:200}});
                 appAdjustContainer();
@@ -552,6 +562,7 @@ function HLayout(args) {
 
     
     /**
+    * This function is called by both `_initLayoutCardinal` and `_initLayoutFree`.
     * Adds application/widgets to specified pane
     *
     * @param $container
@@ -610,7 +621,7 @@ function HLayout(args) {
                         let locationUrl = window.hWin.HAPI4.baseURL;
                         $pane.find('li > a').each(function(idx, item){
                            let href = $(item).attr('href');
-                           href = href.substr(href.indexOf('#'));           
+                           href = href.slice(href.indexOf('#'));           
                            $(item).attr('href', locationUrl + href);
                         });
                         $pane.tabs();    
@@ -660,6 +671,7 @@ console.error('Cardinal layout widget does not have proper options');
                     layout_opts['onresize_end'] = function(){
                             $(document).trigger(window.hWin.HAPI4.Event.ON_LAYOUT_RESIZE); //global app event
                     };
+                    layout_opts['enableCursorHotkey'] = false;
 
 
                     if(!$cardinal_container.is(':visible')){
@@ -741,14 +753,14 @@ console.error('Cardinal layout widget does not have proper options');
                             }
                         }}
                     );
-					
+                    
                     if(pos == 'east'){ 
                         // Prevent east pane's tabs from navigating with arrow keys
                         $tabs.find('.ui-tabs-anchor').on('keydown',function(e){
                             e.stopPropagation();
                             e.preventDefault();
 
-							return false;
+                            return false;
                         });
                     }
                 
@@ -804,7 +816,7 @@ console.error('Cardinal layout widget does not have proper options');
                 let $src_tab = $app_content.parent();
 
                 let offset = $pane_content.offset();
-                let $tab = appCreateTabControl($pane_content, {appid: $app_content.attr('widgetid'), content_id: content_id.substr(1) }, //to remove #
+                let $tab = appCreateTabControl($pane_content, {appid: $app_content.attr('widgetid'), content_id: content_id.slice(1) }, //to remove #
                     {dockable: true, dragable:true, resizable:true,
                         css:{top:event.pageY-offset.top,left:event.pageX-offset.left,height:200,width:200}});
                 appAdjustContainer();
@@ -1287,12 +1299,10 @@ console.error('Cardinal layout widget does not have proper options');
                         $(window).trigger('resize'); 
                         //change/restore z-index and background color
                         $(ui.newTab[0]).css({'z-index': ui.newTab.attr('data-zmax'),
-                                       'background': 'url(hclient/assets/tab_shape_sel.png)',
                             'background-size': 'cover',
                             'background-repeat': 'no-repeat',
                         });
                         $(ui.oldTab[0]).css({'z-index': ui.newTab.attr('data-zkeep'),
-                                       'background': 'url(hclient/assets/tab_shape.png)',
                             'background-size': 'cover',
                             'background-repeat': 'no-repeat',
                         });   
@@ -1316,9 +1326,6 @@ console.error('Cardinal layout widget does not have proper options');
                             'padding': '12px 20px 0 1px',
                             'margin': '12px 0px 0px -4px',
                             'z-index': 3,
-                            'background': 'url(hclient/assets/tab_shape.png)',
-                            'background-size': 'cover',
-                            'background-repeat': 'no-repeat',
                             'text-align': 'center',
                             'width': '200px',
                             'height': (navigator.userAgent.indexOf('Firefox')<0)?'33px':'45px' });
@@ -1376,12 +1383,13 @@ console.error('Cardinal layout widget does not have proper options');
     //public members
     let that = {
 
-        getClass: function () {return _className;},
-        isA: function (strClass) {return (strClass === _className);},
-        getVersion: function () {return _version;},
 
-        //returns widget options from cfg_widgets
         //WRONG USAGE, TO REMOVE: used to obtain instance of widget
+        /**
+         * Retrieves the configuration for a widget by its ID.
+         * @param {string} id - The ID of the widget to find.
+         * @returns {Object|null} The widget configuration object if found, otherwise null.
+         */        
         appGetWidgetById: function(id){
             return _appGetWidgetById(id);
         },
@@ -1390,9 +1398,12 @@ console.error('Cardinal layout widget does not have proper options');
             return _appGetWidgetByName( widgetname );
         },
         
-        //
-        // 
-        //
+        /**
+         * Retrieves a widget instance or related component by its widget name.
+         * Special handling for 'svs_list' to get it from 'slidersMenu'.
+         * @param {string} widgetname - The name of the widget (e.g., 'slidersMenu', 'resultList').
+         * @returns {jQuery|Object|null} The jQuery widget instance or relevant object, or null if not found/initialized.
+         */
         getWidgetByName: function( widgetname ){
             
             if(widgetname=='svs_list'){
@@ -1409,10 +1420,15 @@ console.error('Cardinal layout widget does not have proper options');
                 return null;
             }
         },
-
-        //
-        // once in map.php
-        //
+        
+        /**
+         * Executes a method on a specified widget instance.
+         * @param {string} element_id - The DOM ID of the element the widget is attached to.
+         * @param {string} widgetname - The name of the jQuery UI widget (e.g., 'slidersMenu').
+         * @param {string} method - The name of the method to call on the widget.
+         * @param {*} [params] - Parameters to pass to the widget method.
+         * @returns {void}
+         */
         executeWidgetMethod: function( element_id, widgetname, method, params ){
             let app = window.hWin.document.getElementById(element_id);
             if(app && window.hWin.HEURIST4.util.isFunction($(app)[widgetname]) && $(app)[widgetname]('instance')){
@@ -1426,20 +1442,28 @@ console.error('Cardinal layout widget does not have proper options');
             }
         },
     
-        //
-        // loads cfg from layout_default by layoutid and init layout in element with containerid
-        // see index.php and slidersMenu
-        //
+        /**
+        * Initializes the layout defined by `layoutid` within the container specified by `containerid`.
+        * This is a primary entry point for setting up layouts.
+        * @param {string|Object} layoutid - The ID of the layout to load (from `cfg_layouts`) or a layout configuration object.
+        * @param {string} containerid - The DOM ID of the container element for the layout.
+        * @returns {void}
+        */
         appInitAll: function(layoutid, containerid){
             _containerid = containerid
             let $container = $(containerid);
             _appInitAll(layoutid, $container);
         },
         
-        //
-        // get layout properties from attributes of elements and init free layout
-        // see init main menu in cms, init layout v1 in HLayoutMgr
-        //
+        /**
+        * Initializes a layout from HTML element attributes within a specified container.
+        * Widgets are defined using `data-heurist-app-id` and options in `data-heurist-app-options` or element content.
+        * @param {Document} [document_context] - The document context to search for the container. Defaults to current document.
+        * @param {string} containerid - The DOM ID of the container element.
+        * @param {Object} [supp_options] - Supplementary options to extend widget configurations.
+        * @param {function(): void} [onInitComplete] - Callback executed after layout initialization.
+        * @returns {void}
+        */
         appInitFromContainer: function( document, containerid, supp_options, onInitComplete ){
             
             _containerid = containerid;
@@ -1464,9 +1488,13 @@ console.error('Cardinal layout widget does not have proper options');
             _defineMediaSource($container); 
         },
         
-        //
-        // init layout in popup
-        //
+        /**
+         * Initializes a layout based on HTML attributes within a given jQuery container.
+         * Similar to `appInitFromContainer` but directly takes a jQuery object.
+         * @param {jQuery} $container - The jQuery container element with widget configurations in attributes.
+         * @param {Object} [supp_options] - Supplementary options to extend widget configurations.
+         * @returns {void}
+         */
         appInitFromContainer2: function( $container, supp_options ){
             //create layout based on heurist-app-id and heurist-app-options
             let layout = _getLayoutParams($container, supp_options); 
@@ -1485,15 +1513,29 @@ console.error('Cardinal layout widget does not have proper options');
             _putAppOnTopById( widgetname );
         },
         
-        init: function(cfg_widgets, cfg_layouts){
-            _init(cfg_widgets, cfg_layouts)
+        /**
+        * Initializes the HLayout instance with widget and layout configurations.
+        * Typically called with global `cfg_widgets` and `cfg_layouts`.
+        * @param {Array<Object>} cfg_widgets_param - Array of widget configurations.
+        * @param {Array<Object>} cfg_layouts_param - Array of layout definitions.
+        * @returns {void}
+        */
+        init: function(cfg_widgets_param, cfg_layouts_param){ // Renamed params
+            _init(cfg_widgets_param, cfg_layouts_param)
         },
         
-        //
-        // to increase/reduce cardinal panel (for mapping, crosstab)
-        //
-        cardinalPanel:function(pane, action, element){
-            return _cardinalPanel(pane, action, element);
+        /**
+         * Controls a pane within a cardinal layout (e.g., open, close, resize).
+         * @param {string} action - The action to perform ('open', 'close', 'getSize', 'sizePane').
+         * @param {string|Array} args - For 'open'/'close', the pane name (e.g., 'west').
+         *                             For 'getSize', `[paneName, property]` (e.g., ['center', 'outerWidth']).
+         *                             For 'sizePane', `[paneName, size]` (e.g., ['east', 300]).
+         * @param {HTMLElement|jQuery} [element] - Optional element within the layout to help locate the target cardinal layout container.
+         *                                        If not provided, uses the main layout container.
+         * @returns {*|boolean} The result of the action (e.g., size for 'getSize'), or false if the action is not returning a value or fails.
+         */
+        cardinalPanel:function(action_param, args_param, element_param){ // Renamed params
+            return _cardinalPanel(action_param, args_param, element_param);
         },
 
     }
@@ -1501,7 +1543,3 @@ console.error('Cardinal layout widget does not have proper options');
     _init( cfg_widgets, cfg_layouts );
     return that;  //returns object
 }
-
-
-
-

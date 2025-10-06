@@ -1,0 +1,192 @@
+<!--
+/**
+* profileEdit.html - HTML structure for user profile editing and registration dialog
+*
+* @fileOverview Provides the HTML layout for the user profile editing and new user
+*               registration dialog. This interface is managed by profileEdit.js.
+*               It includes form fields for user details, password management,
+*               and captcha for registration.
+*
+* @project     Heurist academic knowledge management system
+* @package  hclient\widgets\profile
+* @link        https://HeuristNetwork.org
+* @copyright   (C) 2005-2023 University of Sydney, (C) 2024 onwards Heurist Network
+* @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
+* @author      Artem Osmakov   <osmakov@gmail.com>
+* @author      Ian Johnson     <ian.johnson.heurist@gmail.com>
+* @since       4.0
+*/
+-->
+<form name="formReg"  style="position:absolute;top:0;bottom:0;left:0;right:0;overflow-y: auto;">
+<fieldset><legend style="display:none"></legend>
+
+    <div class="mode-edit">
+        <div class="header"><label for="ugr_ID">User ID</label></div>
+        <input type="text" name="ugr_ID" id="ugr_ID" class="text ui-widget-content ui-corner-all" readonly="readonly"/>
+    </div>
+    <div>
+        <div class="header"><label for="ugr_FirstName">Given name</label></div>
+        <input type="text" name="ugr_FirstName" id="ugr_FirstName" class="text ui-widget-content ui-corner-all mandatory"  maxlength="40" style="width:20em"/>
+    </div>
+    <div>
+        <div class="header"><label for="ugr_LastName">Family name</label></div>
+        <input type="text" name="ugr_LastName" id="ugr_LastName" class="text ui-widget-content ui-corner-all mandatory" maxlength="63" style="width:20em"/>
+    </div>
+    <div>
+        <div class="header"><label for="ugr_eMail">Email</label></div>
+        <input type="text" name="ugr_eMail" id="ugr_eMail" class="text ui-widget-content ui-corner-all mandatory" style="width:20em"/>
+    </div>
+    <div>
+        <div class="header"><label for="ugr_Name">Login name</label></div>
+        <input type="text" name="ugr_Name" id="ugr_Name" class="text ui-widget-content ui-corner-all mandatory" 
+            style="width:20em" maxlength="60" />
+        <div class="heurist-helper1" style="display:none;">
+            The login field is auto-populated with your email address.
+            <br>You may change it to a shorter name, eg. your given name or family name.
+        </div>
+    </div>
+    <div>
+        <div class="header"><label for="ugr_Password">Password</label></div>
+        <input type="password" name="ugr_Password" id="ugr_Password" autocomplete="new-password" class="text ui-widget-content ui-corner-all" style="width:10em;" maxlength="16" />&nbsp;
+        <i>3 - 16 char.</i>
+        <span class="mode-edit">Leave blank for no change</span>
+        <div style="font-size: smaller; margin-top: 2px;">
+        </div>
+    </div>
+    <div>
+        <div class="header"><label for="password2">Repeat password</label></div>
+        <input type="password" name="password2" id="password2" autocomplete="new-password" class="text ui-widget-content ui-corner-all" style="width:10em;" maxlength="16"/>
+        <div class="heurist-helper1"  style="display:none;">
+            Note: http:// web traffic is non-encrypted. You should not assume this server is secure.<br>
+            Therefore, please don't use an important password such as institutional or banking login.<br>
+            If you need to store data of a confidential nature, such as personal records, please<br>
+            contact the Heurist team or your system administrator about setting up a secured server.
+        </div>
+    </div>
+
+    <div class="mode-registration">
+        <div class="header">
+            <span id="imgdiv" style="float:right;display:inline-block;display:none;"></span>
+        </div>
+        <div class="heurist-helper1">
+        </div>
+        <input type="text" name="ugr_Captcha" id="ugr_Captcha" class="text ui-widget-content ui-corner-all" style="width:10em;" maxlength="16" />
+        <i>&nbsp;&nbsp;&nbsp;to prove you're human</i>
+        <!--
+        -->
+    </div>
+
+    <div>
+        <div class="header"><label for="ugr_Organisation">Institution/company</label></div>
+        <input type="text" name="ugr_Organisation" id="ugr_Organisation" class="text ui-widget-content ui-corner-all mandatory" style="width:35em;" maxlength="120"/>
+        <div class="heurist-helper1" style="display:none;">
+            Enter 'None' if not affiliated with an institution or company.
+        </div>
+    </div>
+
+    <div>
+        <div class="header" style="vertical-align:top;"><label for="ugr_Interests">Research interests</label></div>
+        <textarea id="ugr_Interests" name="ugr_Interests" rows="2" cols="80" style="width:35em;"
+            class="text ui-widget-content ui-corner-all mandatory"></textarea>
+        <div class="heurist-helper1" style="display:none;">
+            Enter a concise description (up to 250 characters) of your research interests.
+        </div>
+    </div>
+    <div class="mode-admin">
+        <div class="header"><label for="ugr_Enabled">Enabled</label></div>
+        <input type="checkbox" id="ugr_Enabled" name="ugr_Enabled" class="text ui-widget-content ui-corner-all" checked="checked"/>
+        <div class="heurist-helper1">
+            Check to enable the user, unchecked users will not be able to log in.
+        </div>
+    </div>
+    <div style="display:none;">
+        <div class="header"><label for="ugr_IsModelUser">Model user</label></div>
+        <input type="checkbox" id="ugr_IsModelUser" name="ugr_IsModelUser" class="text ui-widget-content ui-corner-all"/>
+        <div class="heurist-helper1">
+            If checked, user's tags, searches and bookmarks will appear in Profile &gt; Load Profiles.
+        </div>
+    </div>
+    
+    <div class="mode-registration" style="height:40px">
+        <div class="header"></div>
+        <input type="checkbox" id="cbAgree" style="margin-top:20px">
+        <label for="cbAgree"><b>I have read and agree to the Terms and Conditions of Use below</b></label>
+    </div>
+    
+</fieldset>
+
+
+<div class="mode-registration" style="margin-left: 60px; margin-bottom: 20px;">
+    <p style="font-size:0.9em">
+        Note: This system should not be used for the storage of confidential and/or personally-identifiable
+        <br>information, such as health information, without the express permission of the system managers.
+    </p>
+    <p id="contactDetails"> (database owner)</p>
+</div>
+
+
+<!-- OPTIONAL FIELDS  -->
+<div id="accordion" style="margin-left: 60px; margin-right: 70px;">
+    <h3>Optional information</h3>
+    <fieldset style="display: none;padding:1em 0;" class="ui-heurist-bg-light"><legend style="display:none"></legend>
+
+        <div>
+            <div class="header" style="vertical-align:top;"><label for="ugr_IncomingEmailAddresses">Incoming email addresses</label></div>
+            <textarea id="ugr_IncomingEmailAddresses" name="ugr_IncomingEmailAddresses" rows="3" cols="80" style="width:35em;"
+                class="text ui-widget-content ui-corner-all"></textarea>
+            <div class="heurist-helper1" style="padding-bottom: 1em">
+                Comma-separated list of email addresses you may use to send email to the database
+                Email sent from these addresses may be harvested into database records
+            </div>
+        </div>
+        <div>
+            <div class="header" style="vertical-align:top;"><label for="ugr_TargetEmailAddresses">Outgoing email addresses</label></div>
+            <textarea id="ugr_TargetEmailAddresses" name="ugr_TargetEmailAddresses" rows="3" cols="80" style="width:35em;"
+                class="text ui-widget-content ui-corner-all"></textarea>
+            <div class="heurist-helper1" style="padding-bottom: 1em">
+                Comma-separated list of email addresses to which you may want to send database records as email.
+                This will be added to the default list for the database when choosing an email destination to which to email records.
+            </div>
+        </div>
+        <div>
+            <div class="header"><label for="ugr_Department">Department</label></div>
+            <input type="text" name="ugr_Department" id="ugr_Department" class="text ui-widget-content ui-corner-all" style="width:35em;" maxlength="120"/>
+        </div>
+        <div>
+            <div class="header"><label for="ugr_City">Suburb/City</label></div>
+            <input type="text" name="ugr_City" id="ugr_City" class="text ui-widget-content ui-corner-all" style="width:30em;" maxlength="63"/>
+        </div>
+        <div>
+            <div class="header"><label for="ugr_State">State</label></div>
+            <input type="text" name="ugr_State" id="ugr_State" class="text ui-widget-content ui-corner-all" style="width:20em;" maxlength="40"/>
+        </div>
+        <div>
+            <div class="header"><label for="ugr_Postcode">Zip/postcode</label></div>
+            <input type="text" name="ugr_Postcode" id="ugr_Postcode" class="text ui-widget-content ui-corner-all" style="width:20em;" maxlength="20"/>
+        </div>
+
+        <div>
+            <div class="header" style="vertical-align:top;"><label for="ugr_URLs">Personal Website URLs</label></div>
+            <textarea id="ugr_URLs" name="ugr_URLs" rows="1" cols="80" style="width:35em"
+                class="text ui-widget-content ui-corner-all"></textarea>
+        </div>
+
+    </fieldset>
+    
+    <h3 class="mode-registration">Terms and Conditions of Use</h3>
+    <div id="divConditions">
+        <!-- content is loaded from terms_and_conditions.html  -->
+    </div>
+</div>
+
+
+<br>
+<p class="messages"></p>
+
+</form>
+<!--
+<div class="mode-registration" style="position:absolute;height:2em;bottom:0;width:90%; margin-left: 60px;">
+<input type="checkbox" id="agree" onClick="enable_register(this.checked)">
+<label for="agree">I have read and agree to the Terms and Conditions of Use above</label>
+</div>
+-->

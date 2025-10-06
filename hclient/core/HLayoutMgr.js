@@ -1,83 +1,111 @@
-/*
-* HLayoutMgr.js - web page generator based on json configuration
-* 
-* @package     Heurist academic knowledge management system
-* @link        https://HeuristNetwork.org
-* @copyright   (C) 2005-2023 University of Sydney, (C) 2024 onwards Heurist Network
-* @author      Artem Osmakov   <osmakov@gmail.com>
-* @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
-* @version     4.0
-*/
+/**
+ * @file HLayoutMgr.js
+ * @brief Web page generator based on JSON configuration.
+ * @fileOverview The HLayoutMgr class is responsible for dynamically generating and managing web page layouts
+ * based on JSON configurations. It handles the initialization of various layout types such as groups, tabs,
+ * accordions, and cardinal layouts (multi-pane). It also initializes and manages Heurist widgets embedded
+ * within these layouts, loading their scripts if necessary. The manager supports converting older HTML-based
+ * layout formats to the new JSON structure and can also render layouts into a human-readable HTML format
+ * for storage or editing. It provides utilities for finding elements and widgets within the layout
+ * configuration, handling different languages, and preparing layout templates.
+ * @project     Heurist academic knowledge management system
+ *
+ * @link https://HeuristNetwork.org
+ * @copyright (C) 2005-2023 University of Sydney, (C) 2024 onwards Heurist Network
+ * @license https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
+ * @author Artem Osmakov <osmakov@gmail.com>
+ * @author Ian Johnson <ian.johnson.heurist@gmail.com>
+ * @since 4.0
+ */
+/* global cfg_widgets, prepareTemplateBlog, layoutMgr, cfg_layouts */
 
-/*  
-* Licensed under the GNU License, Version 3.0 (the "License"); you may not use this file except in compliance
-* with the License. You may obtain a copy of the License at https://www.gnu.org/licenses/gpl-3.0.txt
-* Unless required by applicable law or agreed to in writing, software distributed under the License is
-* distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied
-* See the License for the specific language governing permissions and limitations under the License.
-*/
-/* global cfg_widgets, prepareTemplateBlog, layoutMgr */
-
-
-/*
-* HLayoutMgr.js - web page generator based on JSON configuration
-*/
-
+/**
+ * Manages the generation and initialization of web page layouts from JSON configurations.
+ * It supports various layout structures like tabs, accordions, cardinal panes, and groups,
+ * and handles the embedding and initialization of Heurist widgets within these layouts.
+ */
 class HLayoutMgr {
     
     pnl_counter;
     body;
-    isEditMode = false;
     _supp_options = {};
+    _isEditMode = false;
     _main_layout_cfg = null;
     
-    
+    /**
+     * Initializes a new instance of the HLayoutMgr.
+     * Sets up initial properties like panel counter, body reference, edit mode status,
+     * supplementary options, and main layout configuration.
+     */
   constructor() {
 
     this.pnl_counter = 1;
     this.body = $(document).find("body");
-    this.isEditMode = false;
+    this._isEditMode = false;
     this._supp_options = {};
     this._main_layout_cfg = null;
   }
 
-  //
-  // assigns unique key for layout element
-  //
+  /**
+   * Assigns a unique key to a layout element if it doesn't already have one.
+   * Also sets a default title and folder status based on children.
+   * This key is used internally for managing layout elements.
+   *
+   * @param {Array<Object>} layout_array - The array of layout configuration objects.
+   * @param {number} i - The index of the element in the layout array to process.
+   * @returns {void}
+   */
   #layoutInitKey(layout, i) {
-    if (!layout[i].key) {
-      layout[i].key = this.pnl_counter;
-      layout[i].title = `<span data-lid="${this.pnl_counter}">${layout[i].name}</span>`;
-      layout[i].folder = layout[i].children?.length > 0;
+      
+    if(Array.isArray(layout) && i>=0){
+        layout = layout[i];
+    }  
+      
+    if (!layout.key) {
+      layout.key = this.pnl_counter;
+      layout.title = `<span data-lid="${this.pnl_counter}">${layout.name}</span>`;
+      layout.folder = layout.children?.length > 0;
       this.pnl_counter++;
     }
   }
-  
-  #layoutInitFromHTML(container){
+
+  /**
+  * Not fully implemented
+  * At the moment it 
+  * 1) Creates page tree (json) (convertHTMLtoJSON)
+  * 2) Inits widgets only
+  * 
+   * Initializes a layout by parsing existing HTML content within a container.
+   * It looks for elements with `data-heurist-widget` or `data-heurist-app-id` attributes
+   * to identify and initialize widgets.
+   *
+   * @param {(jQuery|HTMLElement|string)} container - The container element whose HTML content will be parsed.
+   * @param {Object} [supp_options] - Supplementary options for widget parameters.
+   * @returns {void} This method primarily has side effects (initializing widgets).
+   */  
+  layoutInitFromHTML( container, supp_options )
+  {
+
+      this._supp_options = supp_options || {};
 
       container = $(container);
+      
+      let pageTreeData;
+      
+      if(this._isEditMode){
+            pageTreeData = this.convertHTMLtoJSON(container, 0);
+      }
 
-      //find all elements with data-heurist-widget
-      $.each(container.find('[data-heurist-widget]'), (idx, ele) => {
+      //****************************
+      //find all elements with data-heurist-cms
+      $.each(container.find('[data-heurist-cms]'), (idx, ele) => {
           ele = $(ele);
           
-          let widget_cfg = window.hWin.HEURIST4.util.isJSON(ele.attr('data-heurist-widget'));
-          
-          if(!widget_cfg){
-              widget_cfg = window.hWin.HEURIST4.util.isJSON(ele.text());
-              if(!widget_cfg){
-                    widget_cfg = {};
-              }
-              widget_cfg.appid = ele.attr('data-heurist-widget');
-          }
-          
+          let widget_cfg = this.#convertWidgetHTMLtoJSON(ele);
           if(widget_cfg && widget_cfg.appid){
-               if(!widget_cfg.options){
-                   widget_cfg = {appid:widget_cfg.appid, options:widget_cfg};
-               }
-               widget_cfg.key = this.pnl_counter;
-               this.pnl_counter++;
-               ele.attr('data-hid', widget_cfg.key);
+               //widget_cfg.key = this.pnl_counter;
+               //this.pnl_counter++;
+               ele.attr('data-hid', widget_cfg.key); //.addClass('cms-element');
                this.#layoutInitWidget(widget_cfg, ele);
           }
       });
@@ -87,13 +115,15 @@ class HLayoutMgr {
             //old format v1: html with some widgets
             window.hWin.HAPI4.LayoutMgr.appInitFromContainer(null, container, this._supp_options);
       }
-
+      
+      return pageTreeData;
   }
   
   //
   //
   //
   #layoutInitFromJSON(layout, container, forStorage, isFirstLevel) {
+    
     if (container == null) {
       container = document.createElement("div");
     }
@@ -137,9 +167,10 @@ class HLayoutMgr {
       if (this._supp_options.page_name) {
         layout[0].name = "Page";
       }
-      if (this._supp_options.keep_top_config && this.isEditMode) {
+      if (this._supp_options.keep_top_config && this._isEditMode) {
         this._main_layout_cfg = layout;
       }
+      layout[0].isPage = true;
     }
 
     for (let i = 0; i < layout.length; i++) {
@@ -148,17 +179,17 @@ class HLayoutMgr {
       const ele = layout[i];
       switch (ele.type) {
         case "cardinal":
-          this.#layoutInitCardinal(ele, container, forStorage);
+          this.layoutInitCardinal(ele, container, forStorage);
           break;
         case "tabs":
-          this.#layoutInitTabs(ele, container, forStorage);
+          this.layoutInitTabs(ele, container, forStorage);
           break;
         case "accordion":
-          this.#layoutInitAccordion(ele, container, forStorage);
+          this.layoutInitAccordion(ele, container, forStorage);
           break;
         default:
           if (ele.children && ele.children.length > 0) {
-            this.#layoutInitGroup(ele, container, forStorage);
+            this.layoutInitGroup(ele, container, forStorage);
           } else if ((ele.type && ele.type.indexOf("text") === 0) || ele.content) {
             this.#layoutInitText(ele, container, forStorage);
           } else if (ele.type === "widget" || ele.appid) {
@@ -179,6 +210,11 @@ class HLayoutMgr {
   }
 
   #layoutSanitize(container) {
+    
+    if(!container || container.length==0){
+        return;
+    }  
+      
     $.each(container.children(), (idx, ele) => {
       ele = $(ele);
       this.#layoutSanitize(ele);
@@ -192,118 +228,168 @@ class HLayoutMgr {
     }
   }
 
+  //  cms-widget - for widgets
+  //  cms-group  - for containers: group,flex,cardinal,tabs,accordion
+  //  cms-content - for content/text
+  //
   #layoutCreateDiv(layout, classes, forStorage) {
-    if (layout.dom_id && layout.dom_id.indexOf("cms-tabs-") === 0) {
-//id is reassigned on every page reload
-      layout.dom_id = `cms-tabs-${layout.key}`;
-    }
-
-    let $d;
-
-    if (forStorage) {
-            //attributes
-            // key - unique id withing edit session - it is assigned every time layout recreated in edit mode   
-            // dom_id - unique html id                                                                          
-            // name - dats-cms-name
-            // type - data-cms-type
-            // css - css  
-            // classes - classes
-
-      $d = $(
-        `<div id="${layout.dom_id}" data-cms-name="${layout.name}" data-cms-type="${layout.type}"></div>`
-      );
-    } else {
-      $d = $(document.createElement("div"));
-
-      if (!layout.dom_id) {
-        let uid = "" + window.hWin.HEURIST4.util.random();
-
-        do {
-          layout.dom_id = layout.appid
-            ? `cms-widget-${uid}`
-            : `cms-content-${uid}`;
-        } while (this.body.find(`#${layout.dom_id}`).length > 0);
+      
+      if (layout.dom_id && layout.dom_id.indexOf('cms-group-') === 0) {
+          //id is reassigned on every page reload
+          layout.dom_id = `cms-group-${layout.key}`;
       }
 
-      $d.attr("id", layout.dom_id).attr("data-hid", layout.key);
+      let $d;
 
-      if (classes) {
-        $d.addClass(classes);
-      }
-    }
-
-    if (layout.classes) {
-      $d.addClass(layout.classes);
-    }
-
-    return $d;
-  }
-
-  #layoutInitGroup(layout, container, forStorage) {
-    const $d = this.#layoutCreateDiv(layout, "cms-element brick", forStorage);
-    $d.appendTo(container);
-
-    if (!layout.css) layout.css = {};
-    if (layout.css && !$.isEmptyObject(layout.css)) {
-      $d.css(layout.css);
-    }
-
-    this.#layoutInitFromJSON(layout.children, $d, forStorage);
-  }
-
-  #layoutInitText(layout, container, forStorage) {
-    const $d = this.#layoutCreateDiv(
-      layout,
-      "editable tinymce-body cms-element brick",
-      forStorage
-    );
-    $d.appendTo(container);
-
-    if (!layout.css) layout.css = {};
-    if (layout.css && !$.isEmptyObject(layout.css)) {
-      $d.css(layout.css);
-    }
-
-    let content = "content";
-    if (forStorage) {
-      const aLangs = Object.keys(layout).filter((key) =>
-        key.indexOf("content") === 0
-      );
-
-      if (aLangs.length > 1) {
-        aLangs.forEach((lang) => {
-          const lang_code = lang.substring(7) || "def";
-          $(
-            `<div css="${
-              lang_code === "def" ? "" : "display:none"
-            }" data-lang="${lang_code}">${layout[lang]}</div>`
-          ).appendTo($d);
-        });
+      if (forStorage) {
+          //attributes
+          // key - unique id withing edit session - it is assigned every time layout recreated in edit mode   
+          // dom_id - unique html id                                                                          
+          // css - css   
+          // bsClasses
+          
+          // appid, type, name
+          // layout.classes - user classes
+          // layout.options - widget options
+          let opts = layout.options?window.hWin.HEURIST4.util.cloneJSON(layout.options):{};
+          if(layout.appid){
+              opts.appid = layout.appid;
+          }else if(layout.type){
+              opts.type = layout.type;
+          }
+          if(layout.name){
+              opts.name = layout.name;
+          }
+          if(layout.classes){
+             opts.classes = layout.classes;
+          }
+          $d = $(`<div id="${layout.dom_id}"></div>`);
+          opts = JSON.stringify(opts);
+          $d[0].setAttribute('data-heurist-cms', opts);
+          //$d.data('heurist-cms', opts);
+          
       } else {
-        $d.html(layout[aLangs[0]]);
+          $d = $(document.createElement("div"));
+
+          if (!layout.dom_id) {
+              
+              do {
+                  let uid = "" + window.hWin.HEURIST4.util.random();
+                  uid = uid.substring(0,4);
+                  
+                  layout.dom_id = layout.appid
+                  ? `cms-widget-${uid}`
+                  : `cms-content-${uid}`;
+              } while (this.body.find(`#${layout.dom_id}`).length > 0);
+          }
+
+          $d.attr("id", layout.dom_id).attr("data-hid", layout.key);
+
+          if (classes) {
+              $d.addClass(classes);
+          }
       }
-    } else {
-      if (this._supp_options["lang"]) {
-        const lang = window.hWin.HAPI4.getLangCode3(
-          this._supp_options["lang"],
-          "def"
-        );
-        if (layout[content + lang]) {
-          content = content + lang;
-        }
-        $d.attr("data-lang", lang);
+
+      if (layout.classes) { //adds publisher's classes
+              $d.addClass(layout.classes);
       }
-      $d.html(layout[content]);
+
+      return $d;
+  }
+  
+  /*
+  
+  */
+  #layoutSetCssAndClasses(layout, element){
+    if (!layout.css) layout.css = {};
+    if (layout.css && !$.isEmptyObject(layout.css)) {
+      element.css(layout.css);
+    }
+    if (layout.bsClasses){
+        element.addClass(layout.bsClasses);
     }
   }
   
- //
- // layout - json configuration
- // container - if not defined - it tries to find current one
- //
+  /*
+  
+  */
+  layoutInitGroup(layout, container, forStorage) {
+      
+        if(!layout.dom_id) layout.dom_id = 'cms-group-'+layout.key;
+        
+        let $d = this.#layoutCreateDiv(layout, !forStorage && this._isEditMode?'cms-element brick':'', forStorage);
+        
+        this.#layoutReplaceGroupDiv(container, $d)
+        
+        this.#layoutSetCssAndClasses(layout, $d);
+
+        this.#layoutInitFromJSON(layout.children, $d, forStorage);
+        
+        return $d;
+  }
+
+  /*
+  * assign text content to element
+  */
+  #layoutInitText(layout, container, forStorage) {
+
+        const $d = this.#layoutCreateDiv(
+            layout,
+            !forStorage && this._isEditMode ? 'tinymce-body cms-element brick' : '', //later need to use either cms-element or brick
+            forStorage
+        );
+        $d.appendTo(container);
+
+        this.#layoutSetCssAndClasses(layout, $d);
+
+        let content = "content";
+        if (forStorage) {
+            const aLangs = Object.keys(layout).filter((key) =>
+                key.indexOf("content") === 0
+            );
+            //save all localizations
+            if (aLangs.length > 1) {
+                aLangs.forEach((lang) => {
+                    const lang_code = lang.substring(7) || 'def';
+                    $(
+                        `<div css="${lang_code === 'def' ? '' : 'display:none'}" data-lang="${lang_code}">${layout[lang]}</div>`
+                    ).appendTo($d);
+                });
+            } else {
+                $d.html(layout[aLangs[0]]);
+            }
+        } else {
+            //assign text content to element
+            let lang = window.hWin.HAPI4.getLangCode3(this._supp_options['lang'], 'def');
+            content = window.hWin.HAPI4.getContentTranslation(layout, lang);
+
+            if(lang) $d.attr('data-lang', lang);
+
+            
+//TBD - call smarty to perform replaces                     
+/*
+console.log(content);
+            if(content.indexOf('{$')>=0 && this._supp_options['page']  || this._supp_options['website']){
+                content = content.replace('{$website.title}', this._supp_options.website?.title);
+                content = content.replace('{$website.description}', this._supp_options.website?.description)
+                content = content.replace('{$page.title}', this._supp_options.page?.title)
+                content = content.replace('{$page.description}', this._supp_options.$page?.description)
+            }
+*/            
+            $d.html(content);
+        }
+  }
+  
+  /**
+   * Adds a widget to the layout.
+   *
+   * @param {Object} layout - The JSON configuration for the widget.
+   * @param {jQuery} container - The container to add the widget to.
+   * @returns {void}
+   */
  #layoutAddWidget(layout, container, forStorage){
 
-        let $d = this.#layoutCreateDiv(layout, 'editable heurist-widget cms-element brick');
+        let $d = this.#layoutCreateDiv(layout, !forStorage && this._isEditMode?'heurist-widget cms-element brick':'');
 
         //remove previous one
         let old_widget = container.find('div[data-hid='+layout.key+']');
@@ -313,7 +399,6 @@ class HLayoutMgr {
         }else{
             $d.appendTo(container);    
         }
-        
         
         if(!layout.css){
             layout.css  = {};    
@@ -357,7 +442,9 @@ class HLayoutMgr {
             $d.css( layout.css );    
         }
         
-        this.#layoutInitWidget(layout, container.find('div[data-hid='+layout.key+']'));
+        if(!forStorage){
+            this.#layoutInitWidget(layout, container.find('div[data-hid='+layout.key+']'));
+        }
 
     }
     
@@ -384,31 +471,39 @@ class HLayoutMgr {
         let app = this.#getWidgetById(layout.appid); //find in app array (appid is heurist_Search for example)
 
         if(!layout.options) layout.options = {};
-        
+
+        let widgetOptions = $.extend({},layout.options); //window.hWin.HEURIST4.util.cloneJSON
+         
         if(layout.appid=='heurist_Map'){
-            layout.options['leaflet'] = true;
-            layout.options['init_at_once'] = true;
+            widgetOptions['leaflet'] = true;
+            widgetOptions['init_at_once'] = true;
         }
         
         if(this._supp_options[layout.appid]){
-            layout.options = $.extend(layout.options, this._supp_options[layout.appid]);        
+            widgetOptions = $.extend(widgetOptions, this._supp_options[layout.appid]);        
             
             if(layout.appid=='heurist_Navigation'){
                 //keep supp_options separately for Navigation - since they are required for page init 
-                layout.options['supp_options'] = this._supp_options;
+                widgetOptions['supp_options'] = this._supp_options;
             }
         }
         
+        //lang,siteId,isEditMode
+        
         if(this._supp_options['lang']){
             // xx - means it will use current language
-            layout.options['language'] = window.hWin.HAPI4.getLangCode3(this._supp_options['lang'],'def');    
+            widgetOptions['language'] = window.hWin.HAPI4.getLangCode3(this._supp_options['lang'],'def');    
         }
+        if(this._supp_options['siteId']){
+            widgetOptions['siteId'] = this._supp_options['siteId'];
+        }
+        widgetOptions['isEditMode'] = this._supp_options['isEditMode'];
         
         if (app && app.script && app.widgetname) { //widgetname - function name to init widget
 
             if(window.hWin.HEURIST4.util.isFunction($('body')[app.widgetname])){ //OK! widget script js has been loaded            
 
-                container[app.widgetname]( layout.options );   //call function
+                container[app.widgetname]( widgetOptions );   //call function
                 
                 container.attr('data-widgetname',app.widgetname);
 
@@ -416,7 +511,7 @@ class HLayoutMgr {
 
                 $.getScript( window.hWin.HAPI4.baseURL + app.script, function() {  //+'?t='+(new Date().getTime())
                     if(window.hWin.HEURIST4.util.isFunction(container[app.widgetname])){
-                        container[app.widgetname]( layout.options );   //call function
+                        container[app.widgetname]( widgetOptions );   //call function
                     }else{
                         window.hWin.HEURIST4.msg.showMsgErr({
                             message: `Widget ${app.widgetname} not loaded. Verify your configuration`,
@@ -433,35 +528,55 @@ class HLayoutMgr {
 
     }
   
-  
-  #layoutInitCardinal(layout, container, forStorage){
-      
-        let $d, $parent;
+    /*
+    *
+    */
+    #layoutReplaceGroupDiv(container, new_element){
+
+        const dom_id = new_element.attr('id');
         
-        layout.dom_id = 'cms-tabs-'+layout.key;
-        
-        if(container.attr('id')==layout.dom_id){
-            $d = container;    
+        //find old one
+        let old_element;
+        if(container.attr('id')==dom_id){
+            old_element = container;    
         }else{
-            $d = container.find('#'+layout.dom_id);
+            old_element = container.find('#'+dom_id);
         }
         
-        if($d.length>0){
-            container = $d.parent();            
-            $d.remove(); //remove itself
+        //replace old one
+        if(old_element.length>0){
+            new_element.insertBefore(old_element);
+            old_element.remove();
+        }else{
+            new_element.appendTo(container);
         }
         
-        //create parent div
-        $parent = this.#layoutCreateDiv(layout, '', forStorage);
+        //remove old header (for tabs)
+        //$('#'+dom_id+'-header').remove();
+    }    
+    
+  
+/**
+   * Initializes or reinitializes a cardinal (multi-pane) layout structure within the given container.
+   * Allows for defining regions like north, south, east, west, and center.
+   *
+   * @param {Object} layout - The JSON configuration object for the cardinal layout.
+   * @param {jQuery} container - The jQuery object representing the container element for the cardinal layout.
+   * @returns {void}
+   */
+    layoutInitCardinal(layout, container, forStorage){
+
+        if(!layout.dom_id) layout.dom_id = 'cms-group-'+layout.key;
+        
+        let $parent = this.#layoutCreateDiv(layout, '', forStorage);
+        
+        this.#layoutReplaceGroupDiv(container, $parent)
         
         if( layout.css && !$.isEmptyObject(layout.css) ){
             $parent.css( layout.css );
         }
         
-        $parent.appendTo(container);
-        
-        
-        let layout_opts = {applyDefaultStyles: true, maskContents: true};
+        let layout_opts = {applyDefaultStyles: true, maskContents: true, enableCursorHotkey: false};
     
         for(let i=0; i<layout.children.length; i++){
             
@@ -504,21 +619,20 @@ class HLayoutMgr {
                 $d2 = this.#layoutCreateDiv( layout.children[i], '', forStorage )
             
                 if(!$.isEmptyObject(layout.children[i].options)){
-//console.log('assign css ', layout.children[i].options);                    
                     $d2.attr('data-cms-options',JSON.stringify(layout.children[i].options));
                 }
             
                 $d2.appendTo($parent);
             }else{
                 //create cardinal div
-                $d = $(document.createElement('div'));
+                let $d = $(document.createElement('div'));
             
                 $d.addClass('ui-layout-'+pos)
                   .appendTo($parent);
 
                 if(layout.children[i].children.length>1){
                   
-                    lpane.dom_id = 'cms-tabs-'+lpane.key;
+                    if(!layout.dom_id) lpane.dom_id = 'cms-group-'+lpane.key;
                     //@todo additional container for children>1        
                     layout_opts[pos+'__contentSelector'] = '#'+lpane.dom_id;
                     
@@ -529,7 +643,7 @@ class HLayoutMgr {
                     
                     let dom_id = layout.children[i].children[0].dom_id;
                     if(!dom_id){
-                        dom_id = 'cms-tabs-'+lpane.key;
+                        dom_id = 'cms-group-'+lpane.key;
                         layout.children[i].children[0].dom_id = dom_id;
                     }
                     if(!layout.children[i].children[0].classes){
@@ -550,114 +664,153 @@ class HLayoutMgr {
         if(!forStorage){
             $parent.layout( layout_opts );
         }
-        
-      
       
   }
   
-   //
-    //
-    //
-  #layoutInitTabs(layout, container, forStorage){
-        
-        
-        let $d;
-        
-        layout.dom_id = 'cms-tabs-'+layout.key;
-        
-        if(container.attr('id')==layout.dom_id){
-            $d = container;    
-        }else{
-            $d = container.find('#'+layout.dom_id);
-        }
-        
-        if($d.length>0){
-            container = $d.parent();            
-            $d.remove();
-        }
-        
-        //create parent div
-        $d = this.#layoutCreateDiv(layout, '', forStorage);
-        
-        if (!layout.css) layout.css = {};
-        if (layout.css && !$.isEmptyObject(layout.css)) {
-            $d.css(layout.css);
-        }        
-        
-        $d.appendTo(container);
-          
-        if($d.parent().hasClass('layout-content')){
-            $d.addClass('ent_wrapper');    
-        }
+  /**
+   * Initializes or reinitializes a tabbed layout structure within the given container.
+   * This is typically used during layout editing or dynamic updates.
+   *
+   * @param {Object} layout - The JSON configuration object for the tabs layout.
+   * @param {jQuery} container - The jQuery object representing the container element for the tabs.
+   * @returns {void}
+   */
+  layoutInitTabs(layout, container, forStorage){
 
-        //tab panels    
+        if(!layout.dom_id) layout.dom_id = 'cms-group-'+layout.key;
+        
+        let $d = this.#layoutCreateDiv(layout, !forStorage && this._isEditMode?'cms-element brick':'', forStorage);
+                                          
+        this.#layoutReplaceGroupDiv(container, $d)
+        this.#layoutSetCssAndClasses(layout, $d);     
+        
+        //adds tab panels    
         this.#layoutInitFromJSON(layout.children, $d, forStorage);
-               
+        
         if(!forStorage) {
-            //tab header
-            $d = this.body.find('#'+layout.dom_id);
-            let groupTabHeader = $('<ul>').prependTo($d);
-            
+            //adds tab header
+            let groupTabHeader = $('<ul>').attr('id',layout.dom_id+'-header');
+
             for(let i=0; i<layout.children.length; i++){
-          
-                //.addClass('edit-form-tab')
                 $('<li>').html('<a href="#'+layout.children[i].dom_id
                                     +'"><span style="font-weight:bold">'
                                     +layout.children[i].name+'</span></a>')
                             .appendTo(groupTabHeader);
             }
             
-            $d.tabs();
+            if(!layout.options?.nav_type){
+                if(!layout.options) layout.options = {};
+                layout.options.nav_type='nav-jquery';
+            }
+            
+            if(layout.options?.nav_type!='nav-jquery'){
+                //d-flex align-items-start
+                
+                //move all children to tabContent
+                let tabContent = $('<div>').addClass('tab-content');
+                $d.children().appendTo(tabContent);
+                
+                tabContent.prependTo($d);
+                groupTabHeader.prependTo($d);
+                
+                // adds bootstrap classes
+                groupTabHeader.addClass('nav');
+                groupTabHeader.addClass(layout.options.nav_type);
+                
+                if(layout.options?.nav_dir=='nav-col'){
+                    groupTabHeader.addClass('flex-column');
+                    $d.addClass('d-flex align-items-start');
+                }
+                groupTabHeader.find('li').addClass('nav-item');
+                groupTabHeader.find('li>a').addClass('nav-link')
+                    .attr('data-bs-toggle','tab');
+
+                $(groupTabHeader.find('li>a')[0]).addClass('active');
+                    
+                tabContent.children().addClass('tab-pane fade');
+                $(tabContent.children()[0]).addClass('show active');
+                
+            }else{
+                groupTabHeader.prependTo($d); //adds as a first child
+                $d.tabs();        
+            }
         }
+        
+        return $d;
+        
     }
     
-    //
-    //
-    //
-    #layoutInitAccordion(layout, container, forStorage){
+  /**
+   * Initializes or reinitializes an accordion layout structure within the given container.
+   * Useful for layout editing or dynamic content updates.
+   *
+   * @param {Object} layout - The JSON configuration object for the accordion layout.
+   * @param {jQuery} container - The jQuery object representing the container element for the accordion.
+   * @returns {void}
+   */
+    layoutInitAccordion(layout, container, forStorage){
        
-        let $d;
+        if(!layout.dom_id) layout.dom_id = 'cms-group-'+layout.key;
         
-        layout.dom_id = 'cms-tabs-'+layout.key;
+        let $d = this.#layoutCreateDiv(layout, !forStorage && this._isEditMode?'cms-element brick':'', forStorage);
         
-        if(container.attr('id')==layout.dom_id){
-            $d = container;    
-        }else{
-            $d = container.find('#'+layout.dom_id);
-        }
-        
-        if($d.length>0){
-            container = $d.parent();            
-            $d.remove();
-        }
-            
-        //create parent div
-        $d = this.#layoutCreateDiv(layout, '', forStorage);
-        
-        $d.appendTo(container);
+        this.#layoutReplaceGroupDiv(container, $d)
+        this.#layoutSetCssAndClasses(layout, $d);    
        
         //accordion panels    
         this.#layoutInitFromJSON(layout.children, $d, forStorage);
-        
-        if(!forStorage){
-       
-        //accordion headers
-        for(let i=0; i<layout.children.length; i++){
+
+
+        if(!forStorage) {
+            
+            if(layout.options?.acc_type=='acc-bs'){
+                // adds bootstrap classes
+                $d.addClass('accordion');
+                
+                const isBtnCollapsed = layout.options?.acc_collapse?'collapsed':'';
+                const isItemShow = layout.options?.acc_collapse?'':'show';
+
+                for(let i=0; i<layout.children.length; i++){
+              
+                    let $child = $d.find('#'+layout.children[i].dom_id);
+                    
+      let $item = $(`<div class="accordion-item">
+        <h2 class="accordion-header">
+          <button class="accordion-button ${isBtnCollapsed}" type="button" data-bs-toggle="collapse" data-bs-target="#${layout.children[i].dom_id}">
+            ${layout.children[i].name}
+          </button>
+        </h2>
+      </div>`);
+      $d.append($item);
+      $child.addClass(`accordion-collapse collapse accordion-body ${isItemShow}`).attr('data-bs-parent',`#${layout.dom_id}`);
+      $item.append($child);
       
-            $d = this.body.find('#'+layout.children[i].dom_id);
-            
-            $('<h3>').html( layout.children[i].name )
-                     .insertBefore($d);
-            
+    /*
+        <div id="${layout.children[i].dom_id}" class="accordion-collapse collapse show" data-bs-parent="#${layout.dom_id}">
+          <div class="accordion-body">
+
+          </div>
+        </div>
+    */                            
+                }//for children
+                
+            }else{
+                
+                //accordion headers
+                for(let i=0; i<layout.children.length; i++){
+                    const child_dom_id = '#'+layout.children[i].dom_id;
+                    $('<h2>').html( layout.children[i].name )
+                             .insertBefore(child_dom_id);
+                }
+                
+                $d.accordion({heightStyle: "content", 
+                      active: false,
+                      //active:(currGroupType == 'expanded')?0:false,
+                      collapsible: layout.options?.acc_collapse!==false });        
+            }
         }
         
-        $d = this.body.find('#'+layout.dom_id);
-        $d.accordion({heightStyle: "content", 
-                      active:false,
-                //active:(currGroupType == 'expanded')?0:false,
-                      collapsible: true });
-                      
-        }
+        return $d;
     }
     
     //
@@ -666,6 +819,9 @@ class HLayoutMgr {
     #layoutContentFindElement(content, ele_key){
 
         if(!Array.isArray(content)){
+            if(content.key==ele_key){
+                return content;    
+            }
             if(content.children && content.children.length>0){
                 return this.#layoutContentFindElement(content.children, ele_key);    
             }else{
@@ -829,11 +985,13 @@ class HLayoutMgr {
 
                 try{
                 
+                let that = this;                    
+                    
                 let sURL2 = window.hWin.HAPI4.baseURL+'hclient/widgets/cms/templates/snippets/blog.js';
                 // 3. Execute template script to replace template variables, adds filters and smarty templates
                     $.getScript(sURL2, function(data, textStatus, jqxhr){ //it will trigger oncomplete
                           //function in blog.js
-                          prepareTemplateBlog(layout, callback);
+                          prepareTemplateBlog(that, layout, callback);
                           
                     }).fail(function( jqxhr, settings, exception ) {
                         console.error( 'Error in template script: '+exception );
@@ -850,19 +1008,47 @@ class HLayoutMgr {
         
     
     //
-    // rea
+    // Converts html to layout json
     //
-    #convertOldCmsFormat(container, lvl){
-
+    convertHTMLtoJSON(container, lvl){
 
         let res = [];
+        let children = container.children();
+        let that = this;
+        
 
-        $.each(container.children(), function(idx, ele){
+        if(lvl==0 && container.find('div[data-heurist-app-id]').length==0 && container.find('div[data-heurist-cms]').length==0){
+
+            let ele;
+            if(children.length==1){
+                ele = $(children[0]);
+            }else{
+                ele = $('<div>');
+                if(children.length>0){
+                    container.children().appendTo(ele);
+                }
+                ele.appendTo( container );
+            }
+            
+            res.push({name:'Content', type:"text",  content: ele[0].outerHTML });
+            if(this._isEditMode){
+                this.#layoutInitKey(res, 0);
+                ele.attr('data-hid', res[0].key).addClass('cms-element');
+                ele.addClass('tinymce-body cms-element brick');
+            }
+            
+        }else{
+            
+        $.each(children, function(idx, ele){
 
             ele = $(ele);
-
+            
             let child;
-
+            
+            let cmsClasses = 'cms-element brick';
+            
+            let widget_cfg = that.#convertWidgetHTMLtoJSON(ele);
+            /*
             if(ele.attr('data-heurist-app-id')){
                 //this is widget
                 let opts = window.hWin.HEURIST4.util.isJSON(ele.text());
@@ -874,169 +1060,165 @@ class HLayoutMgr {
                     child.name = opts.__widget_name.replaceAll('=','').trim();
                 }
                 if(!child.name) child.name = "Widget "+lvl+'.'+idx;
-            }else 
-                if(ele.find('div[data-heurist-app-id]').length==0){ //no widgets
+            */
+            if(widget_cfg && widget_cfg.appid){
+                
+                child = widget_cfg;
+                //widget_cfg.key = this.pnl_counter;
+                //this.pnl_counter++;
+                if(!child.name) child.name = `Widget ${lvl}.${idx}`;
+                
+            }else if(widget_cfg && widget_cfg.type!='text') {
+                //publisher defined GROUP|tabs|accordion|cardinal
+                child = widget_cfg;
+                if(!child.name) child.name = `Group ${lvl}.${idx}`;
+                child.children = that.convertHTMLtoJSON(ele, lvl+1);
+                
+            }else if(widget_cfg?.type=='text' || ele.find('div[data-heurist-app-id]').length==0 && ele.find('div[data-heurist-cms]').length==0){
+                
+                //no widgets among children - convert to content
+                child = widget_cfg?widget_cfg:{type: 'text'};
+                
+                if(!child.name) child.name = `Content ${lvl}.${idx}`;
+                child.content = ele[0].innerHTML;
+                cmsClasses = 'tinymce-body '+cmsClasses;
 
-                    let tag = ele[0].nodeName;
-                    let s = '<' + tag + '>'+ele.html()+'</' + tag + '>';
-
-                    child = {name:"Content "+lvl+'.'+idx, 
-                        type:"text", 
-                        content: s };
-                }else{
-
-                    //if(ele[0].nodeName=='TABLE'){}
-
-                    //there are widgets among children
-                    child = {name:"Group "+lvl+'.'+idx,
-                        type:"group", 
-                        folder:true, 
-                        children: this.#convertOldCmsFormat(ele, lvl+1) };
-                }
+            }else{
+                //assume these is a group of mixed unstructured content
+                child = {name:`Group ${lvl}.${idx}`, type:'group', folder:true};
+                
+                child.children = that.convertHTMLtoJSON(ele, lvl+1);
+                /*                
+                cmsClasses = 'tinymce-body '+cmsClasses;
+                //find all elements with data-heurist-cms
+                $.each(ele.find('[data-heurist-cms]'), (idx, ele2) => {
+                      ele2 = $(ele2);
+                      let widget_cfg = that.#convertWidgetHTMLtoJSON(ele2);
+                      that.#layoutInitKey( widget_cfg );
+                      if(widget_cfg){
+                          widget_cfg.mixed = true;
+                          res.push(widget_cfg);
+                      }
+                });
+                */
+            }
 
             if(child){
-                if(ele.attr('style')){
-
-
-                    let styles = ele.attr('style').split(';'),
-                    i= styles.length,
-                    css = {},
-                    style, k, v;
-
-
-                    while (i--)
-                    {
-                        style = styles[i].split(':');
-                        k = String(style[0]).trim();
-                        v = String(style[1]).trim();
-                        if (k.length > 0 && v.length > 0)
-                        {
-                            css[k] = v;
-                        }
-                    }                 
-
-                    if(!$.isEmptyObject(css)) child['css'] = css;
+                if(ele.attr('style') && !child['css']){
+                    child['css'] = that.#css2json(ele.attr('style'));    
                 }
+                if(ele.attr('class')){
+                    if(!child['classes']) child['classes'] = '';
+                    child['classes'] += ele.attr('class');
+                }
+                
+                if(this._isEditMode){
+                    that.#layoutInitKey(child);
+                    ele.attr('data-hid', child.key).addClass('cms-element');
+                    ele.addClass(cmsClasses);
+                }
+
                 res.push(child);
             }
-        });
+        }); //each children
+        
+        }
 
-        if(lvl == 0){
-            res = [{name:"Name of this page",type:"group",folder:true, children:res }];
+        if(lvl == 0){ //PAGE wrapper for root level
+            let root_css = {};
+            let root_cfg = that.#convertWidgetHTMLtoJSON(container);
+            if(!root_cfg){
+                root_cfg = {name:'Page', type:'group', folder:true, isPage:true, children:res};
+            }else if(root_cfg.type=='group'){
+                root_cfg['children'] = res; 
+            }
+            if(container.attr('style')){
+                root_css = that.#css2json(container.attr('style'));    
+                root_cfg['css'] = root_css;
+            }
+            if(container.attr('class')){
+                if(!root_cfg['classes']) root_cfg['classes'] = '';
+                root_cfg['classes'] += container.attr('class');
+            }
+            
+            res = root_cfg;
+            this.#layoutInitKey(res, 0);
+            container.attr('data-hid', res.key).addClass('cms-element');
         }
 
         return res;
-    }
+  }
 
     
-    // 1. Save result of CMS edit as human-readble html
-    // <div id="cms-content-23" data-cms-name="Page" data-cms-type="text|group|accordion|tabs|cardianl|app" css=""> content </div>
-    // <div id="cms-widget-51" data-cms-name="Menu"  data-cms-type="app" css=""> options:{} </div>
-    //
-    // 2. Convert html to json (to edit)
-    //     id=>dom_id, data-cms-name=>name, data-cms-type=>type, css=>css, folder: true if it has children, 
-    //        children|options|content , appid  
-    // 
-    // 3. Init layout from html (as from json), if there are not accordion|tabs|cardianl|app it will be loaded "as is"
-    // 4. CMS editor for header and footer
-    //   a) create html content as Group+MainMenu   
-    // 
-    //
-    #convertHTMLtoJSON(ele, lvl){
-        
-        ele = $(ele);
+  /*
+  * Converts element with widget config to JSON configuration
+  *  data-heurist-cms="{appid: , type: }"
+  */ 
+  #convertWidgetHTMLtoJSON(element){
 
-        let res;
-        
-        if(ele.length>1){
+      let widgetId = element.attr('data-heurist-cms');
+      
+      if(!widgetId){ //old version
+          widgetId = element.attr('data-heurist-app-id');
+      }
 
-            if(ele.find('[data-cms-type]').length>0 || ele.attr('data-lang') || ele.find('div[data-lang]').length>0){
-                res = [];
-                ele.each((i, item)=>{
-                    res.push(this.#convertHTMLtoJSON(item, lvl));
-                });
-                return res;
-            }else{
-                return {content:ele.html()};
-            }
-        }
-        
-        
-        if(!ele.attr('data-cms-type')){
-            if(lvl==0){
-                res = [{name:'Page', type:'group',
-                        children:[
-                            {name:'Content', type:'text', css:{}}
-                        ] 
-                    }];
-            }else{
-                res = {};
-            }
-            
-            let translations = ele.children('[data-lang]');
-            if(translations.length>0){
-                translations.each((i,item)=>{
-                    res['content'+item.getAttribute('data-lang')] = item.html();                    
-                });
-            }else{
-                if(ele.attr('data-lang') && ele.attr('data-lang')!='def'){
-                    res['content'+ele.attr('data-lang')] = ele.html();
-                }else{
-                    res.content = ele.html();    
-                }
-                
-            }
-             
-            
-        }else{
-        
-            res = {dom_id: ele.attr('id'), 
-                   name: ele.attr('data-cms-name'),
-                   type: ele.attr('data-cms-type')};
-                   
-            if(ele.attr('style')){
-                if(res.type=='north' || res.type=='south' || res.type=='west' || res.type=='east'){
-                    let cardinal_opts = window.hWin.HEURIST4.util.isJSON(ele.attr('data-cms-options'));
-                    if(cardinal_opts){
-                        res['options'] = cardinal_opts;        
-                    }
-                    
-                }else{
-                    res['css'] = this.#css2json(ele.attr('style'));    
-                }
-            }
-            if(ele.attr('class')){
-                res['classes'] = ele.attr('class');
-            }
-                   
-            if(res.type == 'app'){
-                res.options = window.hWin.HEURIST4.util.isJSON(ele.text());
-                res.appid = res.options.appid;
-            }else{
-                
-                let children = ele.children('[data-cms-type]');
-                if(children.length>0){
-                    
-                    res.children = [];
-                    children.each((i,item)=>{
-                        res.children.push(this.#convertHTMLtoJSON(item, lvl+1));                    
-                    });
-                    res.folder = true;    
-                    
-                }else{
-                    //no more css layout elements 
-                    if(ele.attr('data-lang') || ele.find('div[data-lang]').length>0){
-                            res = $.extend(res, this.#convertHTMLtoJSON(ele.html(), lvl+1));
-                    }else{
-                            res.content = ele.html();
-                    }
-                }
-            }
-        
-        }
-        
-        return res;
-    }
+      if(!widgetId || widgetId=='text'){
+          //widget is not defined
+          return null;    
+      }
+
+      //widget configuration is value of attribute      
+      let widget_cfg = window.hWin.HEURIST4.util.isJSON(widgetId);
+
+      if(widget_cfg){ //attribute value is valid json
+          widgetId = widget_cfg.appid || widget_cfg.type;
+          if(widgetId=='text' || widgetId?.type=='text'){
+               return widget_cfg;    
+          }
+      }else{          
+         //take configuration from content of div
+         widget_cfg = window.hWin.HEURIST4.util.isJSON(element.text());
+         if(widget_cfg){
+             element.empty();
+             if(widgetId=='app'){
+                widgetId = widget_cfg.appid;
+             }
+         }
+      }
+      
+      if(!widget_cfg) widget_cfg = {};
+      if(!widget_cfg.options){
+            widget_cfg.options = window.hWin.HEURIST4.util.cloneJSON(widget_cfg);
+            //except appid, name, type, classes
+            delete widget_cfg.options.appid;
+            delete widget_cfg.options.name;
+            delete widget_cfg.options.type;
+            delete widget_cfg.options.classes;
+      }
+      
+      if(widgetId=='group' || widgetId=='tabs' || widgetId=='accordion'){
+
+          widget_cfg.type = widgetId;
+          widget_cfg.folder = true;
+          
+      }else{
+          if(!widget_cfg.appid) widget_cfg.appid = widgetId;
+          let app = this.#getWidgetById(widget_cfg.appid);
+
+          if(!widget_cfg.name){
+            const defName = app?app.name:'Widget not defined';
+            widget_cfg.name = defName;
+          }
+      }
+      
+      widget_cfg.dom_id = element.attr('id');
+      
+      if(element.attr('style') && !widget_cfg['css']){
+        widget_cfg['css'] = this.#css2json(element.attr('style'));    
+      }
+      
+      return widget_cfg;
+  }
     
     //
     //
@@ -1046,37 +1228,53 @@ class HLayoutMgr {
         if (!css) return s;
         if (css instanceof CSSStyleDeclaration) {
             for (let i in css) {
-                if ((css[i]).toLowerCase) {
+                if ((css[i]).toLowerCase()) {
                     s[(css[i]).toLowerCase()] = (css[css[i]]);
                 }        
             }
         } else if (typeof css == "string") {
-            css = css.split("; ");
+            css = css.split(';');
             for (let i in css) {
-                let l = css[i].split(": ");
-                s[l[0].toLowerCase()] = (l[1]);
+                let vs = css[i].split(':');
+                const key = String(vs.shift()).trim();
+                const val = vs.join(':').trim();
+                s[key.toLowerCase()] = val;
             }
         }
         return s;
     }    
 
+
+  //============================================================================
+  // Public methods
+
+    
     // NEW 
-    // Convert from JSON to human readable HTML string 
+    // Convert from JSON to human readable HTML string (to store in record page)
     // (without widget initialization)
-    // <div id="cms-content-23" data-cms-name="Page" data-cms-type="text|group|accordion|tabs|cardianl|app" css=""> content </div>
-    // <div id="cms-widget-51" data-cms-name="Menu"  data-cms-type="app" css=""> options:{} </div>
     // 
-    #convertJSONtoHTML(content){
+    //  <div data-heurist-cms='cardinal|tabs|accordion|text'>
+    //  <div data-heurist-cms='{"type":"cardinal|tabs|accordion|text","options":...}'
+    //  <div data-heurist-cms='{"appid":"HRecordList","searchDomain":"sr1","viewMode": "offcanvas-start"}'
+    //  <div data-heurist-cms='{"appid":"HRecordList","searchDomain":"sr1","viewMode": "offcanvas-start"}'
+    //  <div data-heurist-cms="HRecordList">{options}</div>
+    //
+  /**
+   * Converts a JSON layout configuration into a human-readable HTML string representation.
+   * This HTML can be used for storage or for display in contexts where live widgets are not needed.
+   * The private version also performs a round-trip conversion (JSON -> HTML -> JSON) for debugging.
+   *
+   * @param {(Array<Object>|Object)} content - The JSON layout configuration.
+   * @returns {Array<Object>|Object} The result of converting the generated HTML back to JSON (primarily for debugging from the private method).
+   */
+   convertJSONtoHTML(content) {
         
         //from json
-        console.log(content);
-        
-        //to html
+        //to html for storage        forStorage = true
         let res = this.#layoutInitFromJSON(content, null, true, true);
-        console.log(res);
         
-        //and back to json
-        res = this.#convertHTMLtoJSON(res, 0);
+        //TEST PURPOSE and back to json
+        //res = this.convertHTMLtoJSON(res, 0);
         
         console.log(res);
         
@@ -1084,105 +1282,126 @@ class HLayoutMgr {
     }
       
   
-
-  //============================================================================
-
-  // Public methods
-
   /**
-  * Edit web. Recreate tabs
-  */
-  layoutInitTabs(layout, container) {
-    this.#layoutInitTabs(layout, container);
-  }
-
-  /**
-  * Edit web. Recreate accordion
-  */
-  layoutInitAccordion(layout, container) {
-    this.#layoutInitAccordion(layout, container);
-  }
-
-  /**
-  * Edit web. Recreate cardinal layout
-  */
-  layoutInitCardinal(layout, container) {
-    this.#layoutInitCardinal(layout, container);
-  }
-  
-  /**
-  * Inits layout from v1 format 
-  * html, if div has attribute "data-heurist-app-id" it contains widget json configurations
-  * 
-  * returns page configuration json 
-  */
+   * Converts an older v1 HTML-based CMS layout format to the current JSON configuration format.
+   * In the v1 format, widget configurations are embedded within HTML elements using `data-heurist-app-id`.
+   *
+   * @param {string} layout_html - The HTML string of the old layout format.
+   * @param {(jQuery|HTMLElement|string)} container_element - The container element where the old layout HTML will be temporarily rendered for parsing.
+   * @returns {Array<Object>} The page configuration in the new JSON format.
+   */
   convertOldCmsFormat(layout, container) {
     container = $(container);
     container.empty();
     container.html(layout);
-    return this.#convertOldCmsFormat(container, 0);
+    return this.convertHTMLtoJSON(container, 0);
   }
   
   /**
-  * assigns unique key for layout element
-  */
-  layoutInitKey(layout, i) {
-    this.#layoutInitKey(layout, i);
-  }
-
-  // not used
-  layoutAddWidget(layout, container) {
-    this.#layoutAddWidget(layout, container);
-  }
-
-  /**
-  * Find element by internal key
-  */
-  layoutContentFindElement(_layout_cfg, ele_key) {
-    return this.#layoutContentFindElement(_layout_cfg, ele_key);
-  }
-
-  layoutContentFindParent(parent, ele_key) {
-    return this.#layoutContentFindParent(parent, ele_key);
-  }
+   * Assigns a unique key to a layout element if it doesn't already have one.
+   * Also sets a default title and folder status based on children.
+   * This key is used internally for managing layout elements.
+   *
+   * @param {Array<Object>} layout_array - The array of layout configuration objects.
+   * @param {number} i - The index of the element in the layout array to process.
+   * @returns {void}
+   */
+    layoutInitKey(layout, i) {
+        this.#layoutInitKey(layout, i);
+    }
 
   /**
-  * Find widget by application/widget name in cfg_widgets such as "heurist_SearchInput"
-  */
-  layoutContentFindWidget(_layout_cfg, widget_name) {
-    return this.#layoutContentFindWidget(_layout_cfg, widget_name);
-  }
+   * Finds a specific layout element within a layout configuration tree by its internal key.
+   *
+   * @param {(Array<Object>|Object)} layout_cfg - The layout configuration (or a part of it) to search within.
+   * @param {(string|number)} ele_key - The unique key of the element to find.
+   * @returns {Object|null} The found layout element configuration, or null if not found.
+   */
+   layoutContentFindElement(layout_cfg, ele_key) {
+    return this.#layoutContentFindElement(layout_cfg, ele_key);
+   }
+
 
   /**
-  * Finds prevail(most used) realm id 
-  */
-  layoutContentFindMainRealm(_layout_cfg) {
-    return this.#layoutContentFindMainRealm(_layout_cfg);
+   * Finds the parent configuration object of a layout element specified by its key.
+   *
+   * @param {(Array<Object>|Object)} parent_config - The layout configuration (or a part of it, or 'root' for the top level) to search within.
+   * @param {(string|number)} ele_key - The key of the element whose parent is to be found.
+   * @returns {Object|string|false} The parent configuration object, 'root' if the element is at the top level, or false if not found.
+   */
+   layoutContentFindParent(parent_config, ele_key) {
+    return this.#layoutContentFindParent(parent_config, ele_key);
   }
+
 
   /**
-  * Updates layout configuration with new values (replace element in json cfg)
-  */
-  layoutContentSaveElement(_layout_cfg, new_cfg) {
-    return this.#layoutContentSaveElement(_layout_cfg, new_cfg);
+   * Finds a widget configuration within a layout tree by its application ID (e.g., "heurist_SearchInput").
+   *
+   * @param {(Array<Object>|Object)} layout_cfg - The layout configuration to search within.
+   * @param {string} widget_name - The `appid` of the widget to find.
+   * @returns {Object|null} The found widget configuration object, or null if not found.
+   */
+   layoutContentFindWidget(layout_cfg, widget_name) {
+    return this.#layoutContentFindWidget(layout_cfg, widget_name);
   }
 
-  setEditMode(newmode) {
+
+  /**
+   * Finds the most frequently used `search_realm` ID among widgets in the layout configuration.
+   * This can be used to determine a default or primary realm for the page.
+   *
+   * @param {(Array<Object>|Object)} layout_cfg - The layout configuration to analyze.
+   * @returns {string} The `search_realm` ID that appears most often, or an empty string if none are found.
+   */
+   layoutContentFindMainRealm(layout_cfg) {
+    return this.#layoutContentFindMainRealm(layout_cfg);
+  }
+
+
+  /**
+   * Updates an element within the layout configuration JSON with new values.
+   * The element is identified by its `key` property in `new_cfg`.
+   *
+   * @param {Array<Object>} layout_cfg - The layout configuration array to update.
+   * @param {Object} new_cfg - The new configuration for the element, including its `key`.
+   * @returns {boolean} True if the element was found and updated, false otherwise.
+   */
+   layoutContentSaveElement(layout_cfg, new_cfg) {
+    return this.#layoutContentSaveElement(layout_cfg, new_cfg);
+  }
+
+
+  /**
+   * Sets the edit mode for the layout manager.
+   *
+   * @param {boolean} newmode - True to enable edit mode, false to disable.
+   * @returns {void}
+   */
+   setEditMode(newmode) {
     this.isEditMode = newmode;
   }
 
-  /**
-  * Replace search id in layout template (used for blog page)
-  */
-  prepareTemplate(layout, callback) {
-    this.#prepareTemplate(layout, callback);
-  }
+   /**
+   * Prepares a layout template, potentially loading additional scripts or modifying the configuration.
+   * For example, for a 'blog' template, it might load specific scripts and then invoke a callback.
+   *
+   * @param {Object} layout_config - The layout configuration object, which may include a `template` property.
+   * @param {function} callback - A callback function to be executed after template preparation.
+   * It's called with `this` set to the HLayoutMgr instance and the relevant part of the layout as an argument.
+   * @returns {boolean|undefined} True if an asynchronous operation (like script loading) was initiated, otherwise undefined.
+   */
+    prepareTemplate(layout_config, callback) {
+        return this.#prepareTemplate(layout_config, callback); // Added return
+      }
+
 
   /**
-  * Returns true if all widgets in body are inited
-  */
-  layoutCheckWidgets() {
-    const widgets = this.body.find("div.heurist-widget");
+   * Checks if all Heurist widgets currently in the document body have completed their initialization.
+   *
+   * @returns {boolean} True if all widgets are initialized, false otherwise.
+   */
+ layoutCheckWidgets() {
+    const widgets = this.body.find("div[data-widgetname]");
     let are_all_widgets_inited = true;
 
     $.each(widgets, (i, item) => {
@@ -1199,27 +1418,20 @@ class HLayoutMgr {
       }
     });
     return are_all_widgets_inited;
-  }
-
-  /**
-  * NEW - publish page as html with cfg json either as content of widget div or in common json array
-  */
-  convertJSONtoHTML(content) {
-    return this.#convertJSONtoHTML(content);
-  }
-  
+ }
   
   /**
-  * Finds predifined layout by id
-  *
-  * @param id
-  */
+   * Finds a predefined layout configuration by its ID from a global `cfg_layouts` array.
+   *
+   * @param {string} id - The ID of the predefined layout to find.
+   * @returns {Object|null} The layout configuration object if found, otherwise null.
+   */
   layoutGetById(id){
         if(id){
             id = id.toLowerCase();
-            for(let i=0; i<cfg_layouts.length; i++){
-                if(cfg_layouts[i].id.toLowerCase()==id){
-                    return cfg_layouts[i];
+            for(let i=0; i<window.hWin.cfg_layouts.length; i++){
+                if(window.hWin.cfg_layouts[i].id.toLowerCase()==id){
+                    return window.hWin.cfg_layouts[i];
                 }
             }
         }
@@ -1228,40 +1440,69 @@ class HLayoutMgr {
 
 
   /**
-  * Main method. Generates html and inits widgets
-  * 
-  * layout - page configuration json
-  * container - container element
-  * supp_options - widget parameters that are not icluded into main layoout cfg
-  * 
-  */
-  layoutInit(layout, container, supp_options) 
+   * Main method to initialize a layout. It generates HTML from the given layout configuration
+   * (which can be JSON, HTML string, or sourced from the container itself) and initializes any widgets.
+   *
+   * @param {(Object|Array<Object>|string|null)} layout - The page layout configuration.
+   * Can be a JSON object/array, an HTML string, or null/undefined to infer from the container's content.
+   * @param {(jQuery|HTMLElement|string)} container - The container element to render the layout into.
+   * @param {Object} [supp_options] - Supplementary options that can override or extend widget parameters
+   * defined in the main layout configuration.
+   * @returns {Object|Array<Object>|false|void} The processed layout configuration (if from JSON),
+   * false if old v1 HTML format was processed, or void if initialized from existing HTML.
+   */
+  layoutInit(layout, container, supp_options, isEditMode) 
   {
 //console.log(layout, supp_options);  
     this._supp_options = supp_options || {};
+    this._isEditMode = isEditMode;
   
     //main content
     if(layout && window.hWin.HEURIST4.util.isJSON(layout)){ //init from json
         return this.#layoutInitFromJSON(layout, container, false, true);
-    }else{
-        if(layout){
-            $(container).html(layout);
-        }
-        return this.#layoutInitFromHTML(container);
     }
     
+    //not json, assing html to container and init widgets
+    if(layout){
+        $(container).html(layout);
+    }
+    
+    return this.layoutInitFromHTML(container);
   }
   
-  layoutInitFromJSON(layout, container, supp_options)
+  /**
+   * Initializes a layout specifically from a JSON configuration.
+   *
+   * @param {(Object|Array<Object>)} layout_json - The page layout configuration in JSON format.
+   * @param {(jQuery|HTMLElement|string)} container_element - The container element to render the layout into.
+   * @param {Object} [supp_options] - Supplementary options for widget parameters.
+   * @returns {Object|Array<Object>|false} The processed layout configuration, or false if an error/specific condition met in private method.
+   */
+  layoutInitFromJSON(layout_json, container_element, supp_options, isFirstLevel)
   {
+    isFirstLevel = (isFirstLevel!==false);
     this._supp_options = supp_options || {};
-    return this.#layoutInitFromJSON(layout, container, false, true);
+    return this.#layoutInitFromJSON(layout_json, container_element, false, true);
   }
   
-  layoutInitFromHTML(container, supp_options)
-  {
-    this._supp_options = supp_options || {};
-    return this.#layoutInitFromHTML(container);
-  }
-  
+  /*
+  *
+  */
+  executeWidgetMethod( element, widgetname, method, params ){
+      
+      let app = $(element);
+      if(app && window.hWin.HEURIST4.util.isFunction($(app)[widgetname]) && $(app)[widgetname]('instance')){
+          
+          if(!Array.isArray(params)){
+              params = [params];
+          }
+          
+          $(app)[widgetname](method, ...params);
+      
+      }else if(!app){
+            console.log('widget not found');
+      }else if(!window.hWin.HEURIST4.util.isFunction($(app)[widgetname])){
+            console.log('widget '+widgetname+' not loaded');
+      }
+    } 
 }

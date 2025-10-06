@@ -1,7 +1,7 @@
 /* global layoutMgr */
 //this script will be executed once after addition of template
 //it adds new faceted search and new smarty template
-function prepareTemplateBlog(new_element_json, callback){
+function prepareTemplateBlog(layoutMgr, new_element_json, callback){
 
     let sfilter = {"facets":[{"var":84411,"code":"7:added","title":"Added","groupby":"month",
             "orderby":"desc","type":"date","order":0,"isfacet":"3","help":""},
@@ -18,6 +18,8 @@ function prepareTemplateBlog(new_element_json, callback){
     window.hWin.HAPI4.SystemMgr.ssearch_save(request,
         function(response){
             if(response.status == window.hWin.ResponseStatus.OK){
+                
+                let layoutMgr = window.hWin.HAPI4.layoutMgr;
 
                 let svsID = response.data;
                 //replace search realm

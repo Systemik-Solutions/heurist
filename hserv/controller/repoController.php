@@ -1,26 +1,24 @@
 <?php
 /**
-* Interface/Controller for external repository configuration and file manipulations
+* repoController.php - Handler for external repository configuration and file manipulations
+* 
+* Parameters:
+* action - Specifies the operation to perform regarding external repositories. Possible values:
+*   list   - Retrieves a list of available external repositories for the current user (calls user_getRepositoryList).
+*            Used to populate selection options, e.g., during file upload.
+*   get    - Fetches credentials for a given service and the current user (calls user_getRepositoryCredentials).
+*            Can return values for editing on the client-side or parameters to create a URL/login to the repository.
+*   update - Saves or deletes repository credentials in user preferences (ugr_Preferences) (calls user_saveRepositoryCredentials).
 *
-* @package     Heurist academic knowledge management system
+* @project     Heurist academic knowledge management system
+* @package Controller
 * @link        https://HeuristNetwork.org
 * @copyright   (C) 2005-2023 University of Sydney, (C) 2024 onwards Heurist Network
-* @author      Artem Osmakov   <osmakov@gmail.com>
 * @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
-* @version     4.0
-*/
-
-/*
-action
-
-  list -  get list of available external repositories for given user - user_getRepositoryList
-    (need select available repositories on file upload )
-
-  get - returns credentials for given service and current user - user_getRepositoryCredentials
-    (1. returns values to edit on client side 2. returns parameters to create url or login to repository)
-
-  update - save/delete credentials in ugr_Preferences - user_saveRepositoryCredentials
-
+* @author      Brandon McKay   <blmckay13@gmail.com>
+* @author      Artem Osmakov   <osmakov@gmail.com>
+* @author      Ian Johnson     <ian.johnson.heurist@gmail.com>
+* @since       6.0
 */
 
 /*

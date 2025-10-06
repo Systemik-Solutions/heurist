@@ -1,33 +1,35 @@
 <?php
+/**
+* DbSysArchive.php - Class DbSysArchive
+*
+* Operations for the `sysArchive` table.
+*
+* @project     Heurist academic knowledge management system
+* @package Entity 
+* @link        https://HeuristNetwork.org
+* @copyright   (C) 2005-2023 University of Sydney, (C) 2024 onwards Heurist Network
+* @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
+* @author      Artem Osmakov   <osmakov@gmail.com>
+* @author      Ian Johnson     <ian.johnson.heurist@gmail.com>
+* @since       4.0
+*/
 namespace hserv\entity;
 use hserv\entity\DbEntityBase;
 use hserv\utilities\USanitize;
-
-    /**
-    * db access to sysArchive table
-    *
-    *
-    * @package     Heurist academic knowledge management system
-    * @link        https://HeuristNetwork.org
-    * @copyright   (C) 2005-2023 University of Sydney, (C) 2024 onwards Heurist Network
-    * @author      Artem Osmakov   <osmakov@gmail.com>
-    * @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
-    * @version     4.0
-    */
-
-    /*
-    * Licensed under the GNU License, Version 3.0 (the "License"); you may not use this file except in compliance
-    * with the License. You may obtain a copy of the License at https://www.gnu.org/licenses/gpl-3.0.txt
-    * Unless required by applicable law or agreed to in writing, software distributed under the License is
-    * distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied
-    * See the License for the specific language governing permissions and limitations under the License.
-    */
+use hserv\utilities\Temporal;
 
 require_once dirname(__FILE__).'/../records/edit/recordModify.php';
 require_once dirname(__FILE__).'/../records/search/recordFile.php';
-require_once dirname(__FILE__).'/../utilities/Temporal.php';
 
-
+/**
+* Class DbSysArchive
+*
+* Provides database access and operations for the `sysArchive` table,
+* which logs historical changes to records and their details.
+* This class primarily supports searching the archive and reverting record history.
+* Direct saving and deleting of archive entries via this class is disabled.
+* 
+*/
 class DbSysArchive extends DbEntityBase
 {
 
@@ -40,7 +42,9 @@ class DbSysArchive extends DbEntityBase
     *  limit
     *  request_id
     *
-    *  @todo overwrite
+    * @return array|false An array of found archive records, or false on error.
+    *                     If `convert` parameter is 'records_list', the output is transformed
+    *                     into a Heurist-standard recordset format.
     */
     public function search(){
 
@@ -143,6 +147,18 @@ class DbSysArchive extends DbEntityBase
     //
     // extract data from arc_DataBeforeChange and converts resultset to Heurist records
     //
+    /**
+     * Converts raw `sysArchive` search results into a Heurist-standard recordset format.
+     *
+     * Parses the `arc_DataBeforeChange` field (which stores a CSV-like representation of
+     * the original `Records` table row) and maps it to standard Heurist record fields.
+     *
+     * @param array $response The raw search result from `DbEntitySearch::execute()`.
+     * @param string $details Specifies the level of detail for the converted records
+     *                        ('records_list' for a summary, otherwise a fuller set of fields).
+     * @return array The transformed response array with records in the standard format,
+     *               or the original response if there are no records to convert.
+     */
     private function convertToHeuristRecords($response, $details){
 
         if(is_array($response) && $response['reccount']>0){
@@ -236,6 +252,13 @@ own"0","viewable",NULL,NULL,NULL,NULL
     //
     // this table is updated via triggers only
     //
+    /**
+     * Disables direct saving to the `sysArchive` table.
+     *
+     * Archive entries are created by database triggers.
+     *
+     * @return false Always returns false.
+     */
     public function save(){
         return false;
     }
@@ -243,16 +266,36 @@ own"0","viewable",NULL,NULL,NULL,NULL
     //
     // delete disabled
     //
+    /**
+     * Disables direct deletion from the `sysArchive` table.
+     *
+     * @param bool $disable_foreign_checks Unused.
+     * @return false Always returns false.
+     */
     public function delete($disable_foreign_checks = false){
         return false;
     }
 
     /**
-     * Batch functions
+     * Performs batch actions related to record history from `sysArchive`.
      *
-     * Functions:
-     *  get_record_history - retrieve record value changes, either added (oldest known value) or modified (any following value that's different)
-     *  revert_record_history - rollback value history with values stored within the archive record
+     * Supported actions (determined by parameters in `$this->data`):
+     *  - `get_record_history`: Retrieves the change history for a specific record (`rec_ID`).
+     *    It reconstructs the timeline of changes for each field of the record by querying
+     *    `sysArchive` for entries where `arc_Table = 'dtl'`.
+     *    The result includes the historical values, timestamps, and users who made changes.
+     *    Anonymous functions `__get_value` (extracts and normalizes raw archived value) and
+     *    `__process_value` (formats value for display, e.g., term labels, resource titles) are used internally.
+     *
+     *  - `revert_record_history`: Rolls back specific field values of a record (`rec_ID`) to
+     *    states captured in specified `sysArchive` entries (`arc_ID`s).
+     *    Expects `$this->data['revisions']` as an array mapping `dty_ID` to an array of `arc_ID`s
+     *    representing the desired historical state for that field.
+     *
+     * @global bool $useNewTemporalFormatInRecDetails Used when processing date values for reversion.
+     * @return array|false|null For 'get_record_history', an array `['history' => ..., 'users' => ...]` or false on error.
+     *                          For 'revert_record_history', an array `['errors' => ..., 'issues' => ...]` detailing outcomes, or false on error.
+     *                          Null or false if action is not recognized or initial validation fails.
      */
     public function batch_action(){
 
@@ -383,7 +426,7 @@ own"0","viewable",NULL,NULL,NULL,NULL
                         $value = $json_value;
                     }
 
-                    $value = \Temporal::toHumanReadable($value, true, 1);
+                    $value = Temporal::toHumanReadable($value, true, 1);
 
                     $value = USanitize::cleanupSpaces($value);
 
@@ -738,7 +781,7 @@ own"0","viewable",NULL,NULL,NULL,NULL
                             break;
 
                         case 'date':
-                            $arc_Value = \Temporal::getValueForRecDetails( $arc_Value, $useNewTemporalFormatInRecDetails );
+                            $arc_Value = Temporal::getValueForRecDetails( $arc_Value, $useNewTemporalFormatInRecDetails );
                             break;
 
                         case 'file':

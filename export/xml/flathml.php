@@ -1,27 +1,22 @@
 <?php
-
 /**
-* flathml.php:  flattened version of HML - records are not generated redundantly but are indicated by references within other records.
-*               $hunifile indicates special one-file-per-record + manifest file for HuNI (huni.net.au)
-*               $output_file - file handler to write output, it allows to avoid memory overflow for large databases
+* flathml.php - Export Heurist records to HML (XML) format
+* 
+* Flattened version of HML - records are not generated redundantly but are indicated by references within other records.
+* $hunifile indicates special one-file-per-record + manifest file for HuNI (huni.net.au)
+* $output_file - file handler to write output, it allows to avoid memory overflow for large databases
 *
-* @package     Heurist academic knowledge management system
+* @project     Heurist academic knowledge management system
+* @package Export
 * @link        https://HeuristNetwork.org
 * @copyright   (C) 2005-2023 University of Sydney, (C) 2024 onwards Heurist Network
+* @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
 * @author      Kim Jackson
 * @author      Stephen White
 * @author      Artem Osmakov   <osmakov@gmail.com>
 * @author      Ian Johnson     <ian.johnson.heurist@gmail.com>
-* @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
-* @version     3.1.0
-*/
-
-/*
-* Licensed under the GNU License, Version 3.0 (the "License"); you may not use this file except in compliance
-* with the License. You may obtain a copy of the License at https://www.gnu.org/licenses/gpl-3.0.txt
-* Unless required by applicable law or agreed to in writing, software distributed under the License is
-* distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied
-* See the License for the specific language governing permissions and limitations under the License.
+* @since       3.1.0
+* 
 */
 
 /*
@@ -31,7 +26,6 @@ $REVERSE,  rev  - yes|no include reverse pointer fields
 $EXPAND_REV_PTR, revexpand   yes|no
 $NO_RELATIONSHIPS  yes|no
 
-$WOOT, woot default to not output text content
 $USEXINCLUDELEVEL, hinclude  default to not output xinclude format for related records until beyound 99 degrees of separation
 $USEXINCLUDE hinclude default to not output xinclude format for related records
 $INCLUDE_FILE_CONTENT fc default NOT expand xml file content
@@ -94,7 +88,6 @@ if (@$argv) {
     $_REQUEST['style'] = '';
     $_REQUEST['depth'] = @$ARGV['-depth'] ? $ARGV['-depth'] : 0;
     if (@$ARGV['-rev']) {$_REQUEST['rev'] = $ARGV['-rev'];}
-    if (@$ARGV['-woot']) {$_REQUEST['woot'] = $ARGV['-woot'];}
     if (@$ARGV['-stub']) {$_REQUEST['stub'] = '1';}
     if (@$ARGV['-fc']) {$_REQUEST['fc'] = '1';}// inline file content
     if (@$ARGV['-file']) {$_REQUEST['file'] = '1';}// inline file content
@@ -110,6 +103,7 @@ if (@$argv) {
 }
 
 use hserv\structure\ConceptCode;
+use hserv\utilities\Temporal;
 
 require_once dirname(__FILE__).'/../../autoload.php';
 require_once dirname(__FILE__).'/../../hserv/structure/search/dbsData.php';
@@ -151,8 +145,12 @@ $hunifile = null; //name of file-per-record for HuNI mode
 
 if(!defined('PDIR')){
     $system = new hserv\System();
-    if( !$system->init(@$_REQUEST['db']) ){
-        die('Cannot connect to database');
+    $dbname = @$_REQUEST['db'];
+    if( !$system->init($dbname) ){
+        header("HTTP/1.1 404 Not found");
+        echo "Error: Cannot connect to database.";
+        error_log("flathml.php: Cannot connect to database specified by 'db' parameter: " . base64_encode($dbname));
+        exit;
     }
 }
 
@@ -365,7 +363,6 @@ if(@$_REQUEST['linkmode']){//direct, direct_links, none, all
 
 $REVERSE = @$_REQUEST['rev'] === 'no' ? false : true; //default to including reverse pointers
 $EXPAND_REV_PTR = @$_REQUEST['revexpand'] === 'no' ? false : true;
-$WOOT = @$_REQUEST['woot'] ? intval($_REQUEST['woot']) : 0; //default to not output text content
 $USEXINCLUDELEVEL = array_key_exists('hinclude', $_REQUEST) && is_numeric($_REQUEST['hinclude']) ? $_REQUEST['hinclude'] : 99;
 //default to not output xinclude format for related records until beyound 99 degrees of separation
 $USEXINCLUDE = array_key_exists('hinclude', $_REQUEST) ? true : false; //default to not output xinclude format for related records
@@ -820,6 +817,26 @@ function buildGraphStructure($rec_ids, &$recSet) {
 //
 // new set of functions to find links and related records dynamically
 //
+/**
+ * Fetches reverse pointer information for a given record ID.
+ * It finds all records that point to the specified record ID via a resource pointer field, using the `recLinks` table.
+ * Filters can be applied based on the record type and detail type of the pointing records/fields.
+ * This is one of the active functions for link traversal, replacing older `findReversePointers`.
+ *
+ * @global hserv\System $system The Heurist system object.
+ * @global mysqli       $mysqli The mysqli database connection object.
+ * @global array        $ACCESSABLE_OWNER_IDS Array of owner IDs the current user can access.
+ * @global bool         $PUBONLY If true, only fetch public records.
+ * @global array        $RECTYPE_FILTERS Filters for record types, indexed by depth.
+ * @global array        $PTRTYPE_FILTERS Filters for pointer detail types, indexed by depth.
+ *
+ * @param int $rec_id The ID of the record for which to find reverse pointers.
+ * @param int $depth  The current traversal depth, used for applying depth-specific filters.
+ * @return array<int, array{'rec_RecTypeID': int, 'dty_IDs': list<int>}>
+ *               An associative array where keys are the IDs of records pointing to $rec_id,
+ *               and values are arrays containing the 'rec_RecTypeID' of the pointing record
+ *               and a list 'dty_IDs' of detail type IDs of the pointer fields.
+ */
 function _getReversePointers($rec_id, $depth){
 
     global $system, $mysqli, $ACCESSABLE_OWNER_IDS, $PUBONLY, $RECTYPE_FILTERS, $PTRTYPE_FILTERS;
@@ -856,6 +873,27 @@ function _getReversePointers($rec_id, $depth){
 //
 // get linked records for relationship record
 //
+/**
+ * Fetches forward pointer information for a relationship type record.
+ * Specifically, this retrieves the source and target records linked by a relationship record.
+ * It uses the `recDetails` table directly as relationship records store pointers in details.
+ *
+ * @global hserv\System $system The Heurist system object.
+ * @global mysqli       $mysqli The mysqli database connection object.
+ * @global int          $relSrcDT DetailTypeID for the source pointer in a relationship.
+ * @global int          $relTrgDT DetailTypeID for the target pointer in a relationship.
+ * @global array        $ACCESSABLE_OWNER_IDS Array of owner IDs the current user can access.
+ * @global bool         $PUBONLY If true, only fetch public records.
+ * @global array        $RECTYPE_FILTERS Filters for record types, indexed by depth.
+ * @global array        $PTRTYPE_FILTERS Filters for pointer detail types, indexed by depth.
+ *
+ * @param int $rec_id The ID of the relationship record (RT_RELATION).
+ * @param int $depth  The current traversal depth, used for applying depth-specific filters.
+ * @return array<int, array{'rec_RecTypeID': int, 'dty_IDs': list<int>}>
+ *               An associative array where keys are the IDs of the source/target records,
+ *               and values are arrays containing their 'rec_RecTypeID' and the 'dty_IDs'
+ *               (DT_PRIMARY_RESOURCE or DT_TARGET_RESOURCE) linking them.
+ */
 function _getForwardPointers_for_relRT($rec_id, $depth){
 
     global $system, $mysqli, $relSrcDT, $relTrgDT, $ACCESSABLE_OWNER_IDS, $PUBONLY, $RECTYPE_FILTERS, $PTRTYPE_FILTERS;
@@ -894,6 +932,25 @@ function _getForwardPointers_for_relRT($rec_id, $depth){
 //
 //
 //
+/**
+ * Fetches forward pointer information for a given record ID (non-relationship records).
+ * It finds all records that are pointed to by the specified record ID via resource pointer fields, using the `recLinks` table.
+ * Filters can be applied based on the record type and detail type of the target records/pointer fields.
+ *
+ * @global hserv\System $system The Heurist system object.
+ * @global mysqli       $mysqli The mysqli database connection object.
+ * @global array        $ACCESSABLE_OWNER_IDS Array of owner IDs the current user can access.
+ * @global bool         $PUBONLY If true, only fetch public records.
+ * @global array        $RECTYPE_FILTERS Filters for record types, indexed by depth.
+ * @global array        $PTRTYPE_FILTERS Filters for pointer detail types, indexed by depth.
+ *
+ * @param int $rec_id The ID of the source record.
+ * @param int $depth  The current traversal depth, used for applying depth-specific filters.
+ * @return array<int, array{'rec_RecTypeID': int, 'dty_IDs': list<int>}>
+ *               An associative array where keys are the IDs of records pointed to by $rec_id,
+ *               and values are arrays containing the 'rec_RecTypeID' of the target record
+ *               and a list 'dty_IDs' of detail type IDs of the pointer fields.
+ */
 function _getForwardPointers($rec_id, $depth){
 
     global $system, $mysqli, $ACCESSABLE_OWNER_IDS, $PUBONLY, $RECTYPE_FILTERS, $PTRTYPE_FILTERS;
@@ -930,6 +987,28 @@ function _getForwardPointers($rec_id, $depth){
 //
 //
 //
+/**
+ * Fetches relationship information for a given record ID.
+ * It finds both direct and (optionally) reverse relationships using the `recLinks` table.
+ * Filters can be applied based on the record type of the related records and the relationship type (term ID).
+ *
+ * @global hserv\System $system The Heurist system object.
+ * @global mysqli       $mysqli The mysqli database connection object.
+ * @global array        $ACCESSABLE_OWNER_IDS Array of owner IDs the current user can access.
+ * @global bool         $PUBONLY If true, only fetch public records.
+ * @global array        $RECTYPE_FILTERS Filters for record types of related records, indexed by depth.
+ * @global array        $RELTYPE_FILTERS Filters for relationship types (term IDs), indexed by depth.
+ * @global bool         $REVERSE If true, also fetch reverse relationships.
+ *
+ * @param int $rec_id The ID of the record for which to find relationships.
+ * @param int $depth  The current traversal depth, used for applying depth-specific filters.
+ * @return array<int, array{'termID': int, 'relatedRecordID': int, 'useInverse'?: bool}>
+ *               An associative array where keys are relationship record IDs (rec_ID of the RT_RELATION record).
+ *               Values are arrays containing:
+ *               - 'termID': The term ID of the relationship type.
+ *               - 'relatedRecordID': The ID of the record on the other side of the relationship.
+ *               - 'useInverse' (optional, only for reverse): True if this is an inverse relationship.
+ */
 function _getRelations($rec_id, $depth){
 
     global $system, $mysqli, $ACCESSABLE_OWNER_IDS, $PUBONLY, $RECTYPE_FILTERS, $RELTYPE_FILTERS, $REVERSE;
@@ -1003,6 +1082,27 @@ function _getRelations($rec_id, $depth){
 *
 * @param mixed $result
 */
+/**
+ * Outputs a list of records in HML format.
+ *
+ * This function iterates through an initial set of record IDs, and for each record,
+ * it calls `outputRecord()` to generate its HML representation. It handles
+ * traversing relationships to a specified depth (`$MAX_DEPTH`), collecting related
+ * records and relationship records to be output in subsequent iterations or phases.
+ * Already outputted records are tracked to avoid redundancy.
+ * In HuNI multi-file mode (`$intofile`), it manages opening and closing individual record files.
+ *
+ * @global bool $OUTPUT_STUBS If true, only record stubs are output.
+ * @global bool $FRESH        Indicates if this is a "fresh" export (purpose not entirely clear, possibly cache-related).
+ * @global int  $MAX_DEPTH    Maximum depth to traverse for related records.
+ * @global bool $intofile     True if exporting in HuNI multi-file mode (one file per record).
+ * @global resource|null $hunifile File handle for the current HuNI record file.
+ * @global int  $relRT        Record Type ID for Relationship records.
+ *
+ * @param array $result An array containing the initial set of record IDs to process.
+ *                      Expected structure: `['records' => list<int>, ...]`
+ * @return array<int, int> An associative array of all records that were output, mapping recID to recTypeID.
+ */
 function outputRecords($result) {
 
     global $OUTPUT_STUBS, $FRESH, $MAX_DEPTH, $intofile, $hunifile, $relRT;
@@ -1156,10 +1256,49 @@ function outputRecords($result) {
 //returns recTypeID and array of related records for given record
 //
 // $parentID - NOT USED
+/**
+ * Outputs a single record in HML format.
+ *
+ * This function retrieves a record's data (or template structure), applies filters,
+ * and generates its HML representation including its fields, relationships, and reverse pointers.
+ * It handles different output modes (full record, stub, XInclude, HuNI file-per-record).
+ *
+ * @global hserv\System $system The Heurist system object.
+ * @global array<int,string> $RTN Record Type Name lookup.
+ * @global array<int,string> $DTN Detail Type Name lookup.
+ * @global array<int,int> $INV Inverse Term lookup.
+ * @global array<int,array<string,mixed>> $TL Term details lookup by ID.
+ * @global array<int,array<int,string>> $RQS Record Type Specific Detail Name lookup.
+ * @global array<int,string> $WGN Workgroup Name lookup.
+ * @global array<int,string> $UGN User Name lookup.
+ * @global int $MAX_DEPTH Max traversal depth.
+ * @global int $USEXINCLUDELEVEL Depth for switching to XInclude.
+ * @global array $RECTYPE_FILTERS Record type filters.
+ * @global int $relRT Record Type ID for Relationships.
+ * @global int $relTrgDT Detail Type ID for Target Pointer in Relationship.
+ * @global int $relTypDT Detail Type ID for Relationship Type term.
+ * @global int $relSrcDT Detail Type ID for Source Pointer in Relationship.
+ * @global array<int,int> $selectedIDs List of initially selected record IDs.
+ * @global bool $intofile HuNI multi-file mode flag.
+ * @global resource|null $hunifile File handle for current HuNI record file.
+ * @global string|int $dbID Registered Database ID.
+ * @global bool $EXPAND_REV_PTR Flag to expand reverse pointers.
+ * @global bool $REVERSE Flag to include reverse pointers.
+ * @global bool $NO_RELATIONSHIPS Flag to suppress relationship output.
+ * @global bool|list<int> $rectype_templates Flag or list of IDs for template generation mode.
+ * @global bool $human_readable_names Flag for using human-readable names in templates.
+ *
+ * @param int|string $recID The ID of the record to output.
+ * @param string|float $depth The current traversal depth (can be e.g., "0", "1", "0.5" for relationships).
+ * @param bool $outputStub If true, only output a stub of the record. Defaults to false.
+ * @param int|null $parentID (Not actively used in current logic) ID of the parent record in a traversal, if any. Defaults to null.
+ * @return array|false An array `['recTypeID' => id, 'related' => [ids...], 'relationRecs' => [ids...]]` on success,
+ *                     or false if the record is filtered out or an error occurs.
+ */
 function outputRecord($recID, $depth, $outputStub = false, $parentID = null){
 
 
-    global $system, $RTN, $DTN, $INV, $TL, $RQS, $WGN, $UGN, $MAX_DEPTH, $WOOT, $USEXINCLUDELEVEL, $already_out,
+    global $system, $RTN, $DTN, $INV, $TL, $RQS, $WGN, $UGN, $MAX_DEPTH, $USEXINCLUDELEVEL, $already_out,
     $RECTYPE_FILTERS, $SUPRESS_LOOPBACKS, $relRT, $relTrgDT, $relTypDT, $relSrcDT, $selectedIDs, $intofile, $hunifile, $dbID,
     $EXPAND_REV_PTR, $REVERSE, $NO_RELATIONSHIPS, $rectype_templates, $human_readable_names;
 
@@ -1202,7 +1341,7 @@ function outputRecord($recID, $depth, $outputStub = false, $parentID = null){
         //add attributes
         $recAttr['xmlns'] = 'https://heuristnetwork.org';
         $recAttr['xmlns:xsi'] = 'https://www.w3.org/2001/XMLSchema-instance';
-        $recAttr['xsi:schemaLocation'] = 'https://heuristnetwork.org/documentation/scheme_record.xsd';
+        $recAttr['xsi:schemaLocation'] = 'https://heuristref.net/scheme_record.xsd';
     }
 
     if(!$rectype_templates){
@@ -1283,22 +1422,6 @@ function outputRecord($recID, $depth, $outputStub = false, $parentID = null){
 
         }
     }
-    /* woot is disabled
-    if ($WOOT) {
-    $result = loadWoot(array('title' => 'record:' . $record['rec_ID']));
-    if ($result['success'] && is_numeric($result['woot']['id']) && count($result['woot']['chunks']) > 0) {
-    openTag('woot', array('title' => 'record:' . $record['rec_ID']));
-    openCDATA();
-    foreach ($result['woot']['chunks'] as $chunk) {
-    $text = preg_replace("/&nbsp;/", " ", $chunk['text']);
-    output( replaceIllegalChars($text) . "\n" );
-    }
-    closeCDATA();
-    closeTag('woot');
-    }
-    }
-    */
-
 
     if(!$rectype_templates && strpos($depth, '.')===false){
 
@@ -1366,6 +1489,19 @@ function outputRecord($recID, $depth, $outputStub = false, $parentID = null){
 } //outputRecord
 
 
+/**
+ * Outputs an XInclude directive for a record.
+ * Used when the traversal depth exceeds $USEXINCLUDELEVEL, allowing for linking to
+ * the record's full representation in a separate file (in HuNI mode) or potentially elsewhere.
+ * Includes a fallback providing basic record information if the XInclude target is not available.
+ *
+ * @global array<int,string> $RTN  Lookup array for Record Type Names (recTypeID => name).
+ * @global string|int $dbID Registered Database ID, used in constructing the href for HuNI files.
+ *
+ * @param array $record Associative array of the record's data.
+ *                      Must contain 'rec_ID', 'rec_RecTypeID', and 'rec_Title'.
+ * @return void
+ */
 function outputXInclude($record) {
     global $RTN, $dbID;
     $recID = $record['rec_ID'];
@@ -1382,6 +1518,17 @@ function outputXInclude($record) {
     closeTag('xi:include');
 }
 
+/**
+ * Outputs a minimal "stub" representation of a record.
+ * This typically includes the record's ID, type, and title.
+ * Used when full record details are not required, e.g., for pointers at MAX_DEPTH=0.
+ *
+ * @global array<int,string> $RTN Lookup array for Record Type Names (recTypeID => name).
+ *
+ * @param array $recordStub Associative array of the record's basic data.
+ *                          Expected keys: 'rec_ID' (or 'id'), 'rec_RecTypeID' (or 'type'), 'rec_Title' (or 'title').
+ * @return void
+ */
 function outputRecordStub($recordStub) {
     global $RTN;
     openTag('record', array('isStub' => 1));
@@ -1394,6 +1541,26 @@ function outputRecordStub($recordStub) {
 }
 
 
+/**
+ * Creates and outputs a `<content>` node for XML file details if the MIME type is "application/xml".
+ * It attempts to load the XML content from the file path (if local) or URL (if remote).
+ * The XML content is then cleaned of its XML declaration and DOCTYPE to allow embedding,
+ * and a basic well-formedness check is performed before outputting.
+ *
+ * @global string HEURIST_FILESTORE_DIR Base path to the filestore (used by resolveFilePath indirectly).
+ *
+ * @param array $file An associative array representing the file record. Expected keys:
+ *                    'fxm_MimeType' (string): The MIME type of the file.
+ *                    'fullPath' (string, optional): The local full path to the file.
+ *                    'ulf_OrigFileName' (string): Original filename, used to check for ULF_REMOTE or ULF_IIIF.
+ *                    'URL' (string, optional): The URL of the file if it's remote.
+ *
+ * @uses resolveFilePath() Assumed global utility to get an accessible local file path.
+ * @uses loadRemoteURLContent() Assumed global utility to fetch content from a URL.
+ * @uses ULF_REMOTE Assumed constant for remote file type.
+ * @uses ULF_IIIF Assumed constant for IIIF file type.
+ * @return void
+ */
 function makeFileContentNode($file) {
 
     if (@$file['fxm_MimeType'] !== "application/xml") {
@@ -1842,6 +2009,45 @@ function check($text) {
     return true;
 }
 
+/**
+ * same function in record_output
+ * Retrieve previously saved parameters, this will not replace existing keys
+ *
+ * @param string $type Process type, e.g. 'export' or 'import'
+ * @param array $parameters Parameters array to be updated with stored parameters
+ * @return void
+ */
+function retrieveParameters2($type, &$parameters){
+
+    if(!is_numeric(@$parameters['preparedID'])){
+        return;
+    }
+
+    $id = intval($parameters['preparedID']);
+
+    $paramsFile = HEURIST_SCRATCH_DIR . "{$type}_{$id}.json";//yml
+
+    if(!file_exists($paramsFile)){
+        return;
+    }
+
+    $storedParameters = file_get_contents($paramsFile);
+
+    $storedParameters = json_decode($storedParameters, true);
+    $storedParameters = json_last_error() !== JSON_ERROR_NONE ? [] : $storedParameters;
+
+    foreach($storedParameters as $key => $value){
+        if(array_key_exists($key, $parameters)){
+            continue;
+        }
+        $parameters[$key] = $value;
+    }
+
+    fileDelete($paramsFile);
+
+    return;
+}
+
 //----------------------------------------------------------------------------//
 //  Turn off output buffering
 //----------------------------------------------------------------------------//
@@ -1867,7 +2073,7 @@ $hmlAttrs = array();
 
 $hmlAttrs['xmlns'] = 'https://heuristnetwork.org';
 $hmlAttrs['xmlns:xsi'] = 'https://www.w3.org/2001/XMLSchema-instance';
-$hmlAttrs['xsi:schemaLocation'] = 'https://heuristnetwork.org/documentation/scheme_hml.xsd';
+$hmlAttrs['xsi:schemaLocation'] = 'https://heuristref.net/scheme_hml.xsd';
 
 if ($USEXINCLUDE) {
     $hmlAttrs['xmlns:xi'] = 'https://www.w3.org/2001/XInclude';
@@ -1880,6 +2086,11 @@ if (@$_REQUEST['filename']) {
 */
 
 $params = array();
+
+if(array_key_exists('preparedID', $_REQUEST)){
+    retrieveParameters2('export', $_REQUEST);
+}
+
 foreach($_REQUEST as $key=>$value) { $params[$key] = filter_var($value, FILTER_SANITIZE_STRING);}
 
 $params['q'] = @$_REQUEST['q'];
@@ -1910,7 +2121,7 @@ if($rectype_templates){
     }
 }
 
-$query_attrs = array_intersect_key($_REQUEST, array('q' => 1, 'w' => 1, 'pubonly' => 1, 'hinclude' => 1, 'depth' => 1, 'sid' => 1, 'label' => 1, 'f' => 1, 'limit' => 1, 'offset' => 1, 'db' => 1, 'expandColl' => 1, 'recID' => 1, 'stub' => 1, 'woot' => 1, 'fc' => 1, 'slb' => 1, 'fc' => 1, 'slb' => 1, 'selids' => 1, 'layout' => 1, 'rtfilters' => 1, 'relfilters' => 1, 'ptrfilters' => 1));
+$query_attrs = array_intersect_key($_REQUEST, array('q' => 1, 'w' => 1, 'pubonly' => 1, 'hinclude' => 1, 'depth' => 1, 'sid' => 1, 'label' => 1, 'f' => 1, 'limit' => 1, 'offset' => 1, 'db' => 1, 'expandColl' => 1, 'recID' => 1, 'stub' => 1, 'fc' => 1, 'slb' => 1, 'fc' => 1, 'slb' => 1, 'selids' => 1, 'layout' => 1, 'rtfilters' => 1, 'relfilters' => 1, 'ptrfilters' => 1));
 
 /*if(@$_REQUEST['offset']){
 $offset = intval($_REQUEST['offset']);

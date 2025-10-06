@@ -1,26 +1,37 @@
 /**
-* manageSysBugreport.js - prepare and send bugreport by email
+* @file manageSysBugreport.js
+* @brief Manages System Bug Report entities.
+* @fileOverview Provides a UI for users to submit bug reports and for administrators to manage them. Includes fields for bug description, reproduction steps, severity, status, etc.
+* @project     Heurist academic knowledge management system
 *
-* @package     Heurist academic knowledge management system
 * @link        https://HeuristNetwork.org
 * @copyright   (C) 2005-2023 University of Sydney, (C) 2024 onwards Heurist Network
-* @author      Artem Osmakov   <osmakov@gmail.com>
 * @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
-* @version     6.6.5
+* @author      Artem Osmakov <osmakov@gmail.com>
+* @author      Ian Johnson <ian.johnson.heurist@gmail.com>
+* @since       6.6.5
 */
 
-/*  
-* Licensed under the GNU License, Version 3.0 (the "License"); you may not use this file except in compliance
-* with the License. You may obtain a copy of the License at https://www.gnu.org/licenses/gpl-3.0.txt
-* Unless required by applicable law or agreed to in writing, software distributed under the License is
-* distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied
-* See the License for the specific language governing permissions and limitations under the License.
-*/
+
 
 //
 // there is no search, select mode for bug report - only add and send by email
 //
 
+/**
+ * @widget heurist.manageSysBugreport
+ * @brief Widget for managing System Bug Reports.
+ * @augments $.heurist.manageEntity
+ * @description This widget provides a specialized interface for submitting bug reports.
+ * It operates in 'editonly' mode, meaning it directly presents a form for a new bug report.
+ *
+ * @property {string} title Overridden to 'Heurist feedback'. Defines the title for the widget's dialog.
+ * @property {string} edit_mode Set to 'editonly', so the widget opens directly into the edit form for a new bug report.
+ * @property {string} select_mode Set to 'manager'. Although typically for list management, in this context, combined with 'editonly', it means no list view is presented.
+ * @property {string} layout_mode Set to 'editonly', further reinforcing that only the editing interface is shown.
+ * @property {number} width Default width of the widget dialog, set to 900 pixels.
+ * @property {number} height Default height of the widget dialog, set to 932 pixels.
+ */
 $.widget( "heurist.manageSysBugreport", $.heurist.manageEntity, {
    
     _entityName:'sysBugreport',
@@ -32,9 +43,16 @@ $.widget( "heurist.manageSysBugreport", $.heurist.manageEntity, {
 
     _program_area: null,
 
+    /**
+     * @brief Initializes the widget.
+     * @override
+     * @memberof heurist.manageSysBugreport
+     * Sets default options for title, edit_mode, select_mode, layout_mode, width, and height
+     * to tailor the widget for bug report submission.
+     */
     _init: function() {
         
-        this.options.title = 'Heurist feedback';
+        this.options.title = 'Heurist feedback / bug report / feature requests';
         this.options.edit_mode = 'editonly';
         this.options.select_mode = 'manager';
         this.options.layout_mode = 'editonly';
@@ -45,8 +63,15 @@ $.widget( "heurist.manageSysBugreport", $.heurist.manageEntity, {
     },
     
     //  
-    // invoked from _init after load entity config    
-    //
+    /**
+     * @brief Initializes the controls for the widget.
+     * @override
+     * @memberof heurist.manageSysBugreport
+     * @returns {boolean} Returns false if the parent `_initControls` fails, otherwise true.
+     * Sets the default palette class and then calls the parent's `_initControls`.
+     * Since this widget is 'editonly', it immediately calls `addEditRecord(-1)` to present
+     * a form for a new bug report.
+     */
     _initControls: function() {
 
         this.options.default_palette_class = 'ui-heurist-admin';
@@ -61,7 +86,14 @@ $.widget( "heurist.manageSysBugreport", $.heurist.manageEntity, {
         return true;
     },
     
-    // change label for remove
+    /**
+     * @brief Customizes the buttons for the edit dialog.
+     * @override
+     * @memberof heurist.manageSysBugreport
+     * @returns {Array<object>} An array of button definition objects.
+     * It retrieves the default buttons from the parent widget and then modifies the "Save"
+     * button's text to "Send to heurist development team".
+     */
     _getEditDialogButtons: function(){
         let btns = this._super();
         
@@ -75,6 +107,16 @@ $.widget( "heurist.manageSysBugreport", $.heurist.manageEntity, {
         return btns;
     },
 
+    /**
+     * @brief Validates the form values before submission.
+     * @override
+     * @memberof heurist.manageSysBugreport
+     * @returns {?object} The validated field values, or null if validation fails.
+     * Retrieves values from the parent widget. It then checks if the bug description
+     * (`bug_Description`) has a minimum word count (20 words) if `_checkDescription` is true.
+     * If the description is too short, it shows a dialog prompting the user for more details
+     * or to proceed as-is. It also processes uploaded images for the `bug_Image` field.
+     */
     _getValidatedValues: function(){
 
         let that = this;
@@ -90,8 +132,8 @@ $.widget( "heurist.manageSysBugreport", $.heurist.manageEntity, {
 
             let $dlg;
             let msg = 'In order for bugs to be found and fixed as quickly as possible, the team requires as many details about the issue you are encountering.<br>'
-                + 'Providing the steps that has lead you to this issue will also greatly speed up the initial stages of fixing this issue.<br><br>'
-                + 'Otherwise, you can click \'Proceed as-is\' if you feel that there are no more details you can provided about this issue.';
+                + 'Providing the steps that have led you to an issue will greatly speed up the initial stages of fixing an issue.<br><br>'
+                + 'Otherwise, you can click \'Proceed as-is\' if you feel that there are no more details you need to provided.';
 
             let btns = {};
             btns[window.hWin.HR('Proceed as-is')] = () => {
@@ -123,11 +165,28 @@ $.widget( "heurist.manageSysBugreport", $.heurist.manageEntity, {
     },
     
 //---------------------------------------------------------------------------------- 
+    /**
+     * @brief Handles the event after a bug report is successfully saved (sent).
+     * @override
+     * @memberof heurist.manageSysBugreport
+     * @param {string} message The success message from the server (usually confirmation).
+     * Displays a confirmation dialog titled "Bug report sent" and then closes the main widget dialog.
+     */
     _afterSaveEventHandler: function(message){
         window.hWin.HEURIST4.msg.showMsgDlg(message, null, {title: 'Bug report sent'}, {default_palette_class: 'ui-heurist-admin'});
         this.closeDialog(true); //force to avoid warning
     },
     
+    /**
+     * @brief Performs actions after the edit form is initialized.
+     * @override
+     * @memberof heurist.manageSysBugreport
+     * Calls the parent's `_afterInitEditForm`. Then, it sets up the file uploader's paste zone
+     * to cover the entire dialog for easy screenshot pasting.
+     * It pre-fills the `bug_URL` field with the current page URL.
+     * Adds introductory help text and formats the `bug_Type` and `bug_Image` fields.
+     * Finally, it calls `_setupProgramArea` to initialize the program area dropdown.
+     */
     _afterInitEditForm: function(){
 
         this._super();
@@ -160,8 +219,9 @@ $.widget( "heurist.manageSysBugreport", $.heurist.manageEntity, {
                 let padding = `padding: 0px 15px 20px;`;
                 help = 'We value your feedback and do our best to fix bugs rapidly and to incorporate your suggestions into our development process.<br>'
                      + 'Please don\'t hesitate to let us know about anything which annoys you or which you feel could be improved.<br><br>'
-                     + 'We pop this form up monthly to encourage your feedback. It is accessible at any time through Help > Feedback / bug report.<br>'
-                     + 'You can also paste an image which will be added to the screenshots.';
+                     + 'We pop this form up monthly to encourage your feedback. It is accessible at any time at the top of the Exlpore page'  
+                     + 'or through Help > Feedback / bug report.<br>'
+                     + 'You can paste an image from your clipboard which will be added to the screenshots.';
 
                 // add extra info at top
 				$('<div>', {
@@ -185,6 +245,15 @@ $.widget( "heurist.manageSysBugreport", $.heurist.manageEntity, {
         this._setupProgramArea();
     },
 
+    /**
+     * @brief Sets up the 'Program Area' (bug_Location) dropdown field.
+     * @memberof heurist.manageSysBugreport
+     * This field allows users to specify which part of Heurist the bug relates to.
+     * If the program area terms (`this._program_area`) haven't been loaded yet,
+     * it fetches them from the reference Heurist database (specified in sysinfo).
+     * Once terms are available, it converts the standard text input for `bug_Location`
+     * into an hSelect dropdown populated with these terms, including hierarchical grouping.
+     */
     _setupProgramArea: function(){
 
         let ele = this._editing.getFieldByName('bug_Location');
@@ -202,8 +271,6 @@ $.widget( "heurist.manageSysBugreport", $.heurist.manageEntity, {
                 remote: `${window.hWin.HAPI4.sysinfo.referenceServerURL}?db=${window.hWin.HAPI4.sysinfo.referenceServerBugreportDatabase}`
             };
 
-console.log('AAA',request.remote)            
-            
             window.hWin.HAPI4.SystemMgr.get_defs(request, (response) => {
 
                 if(response.status != window.hWin.ResponseStatus.OK){
@@ -241,6 +308,16 @@ console.log('AAA',request.remote)
         $input.hide();
     },
 
+    /**
+     * @brief Recursively processes terms for the 'Program Area' dropdown.
+     * @memberof heurist.manageSysBugreport
+     * @param {number|string} parent_term_id The ID of the parent term whose children are to be processed.
+     * @param {number} [depth=0] The current depth in the term hierarchy, used for indentation in the dropdown.
+     * This function populates `this._program_area` with term objects suitable for `hSelect`.
+     * It sorts terms by `trm_OrderInBranch` and then alphabetically.
+     * For each term, it adds an object `{key: trm_ID, title: trm_Label, depth: depth}` to `this._program_area`.
+     * If a term has children, it calls itself recursively for that term.
+     */
     _processProgramArea: function(parent_term_id, depth = 0){
 
         let that = this;
@@ -282,6 +359,14 @@ console.log('AAA',request.remote)
         }
     },
 
+    /**
+     * @brief Formats the 'Bug Type' (bug_Type) enum field for better layout.
+     * @memberof heurist.manageSysBugreport
+     * This method adjusts the styling of the radio buttons (or similar enum inputs)
+     * for the `bug_Type` field. It arranges them, typically into multiple columns,
+     * by setting specific widths for the label elements. It also bolds the text
+     * and hides the default field header.
+     */
     _formatBugTypeField: function(){
 
         // Format widths
@@ -307,6 +392,12 @@ console.log('AAA',request.remote)
         ele.find('.header').hide();
     },
 
+    /**
+     * @brief Formats the 'Screenshot' (bug_Image) file upload field.
+     * @memberof heurist.manageSysBugreport
+     * Adjusts styling for the file input area, ensuring the input div is displayed
+     * as inline-block and removes the "move" button typically associated with multi-file uploads.
+     */
     _formatBugImageField: function(){
 
         let ele = this._editing.getFieldByName('bug_Image');
@@ -323,6 +414,14 @@ console.log('AAA',request.remote)
         ele.find('.btn_input_move').remove();
     },
 
+    /**
+     * @brief Handles changes to form elements.
+     * @override
+     * @memberof heurist.manageSysBugreport
+     * @param {object} [changed_element] The element that triggered the change, if available.
+     * Calls the parent `onEditFormChange`. Additionally, if the `bug_Type` field changed (enum buttons),
+     * it re-applies formatting via `_formatBugTypeField`. If a file field changed, it calls `_formatBugImageField`.
+     */
     onEditFormChange: function(changed_element){
 
         this._super(changed_element);
@@ -334,6 +433,14 @@ console.log('AAA',request.remote)
         }
     },
 
+    /**
+     * @brief Handles the event when a new input is added to a multi-value field.
+     * @override
+     * @memberof heurist.manageSysBugreport
+     * @param {object} [added_element] Details about the added input element.
+     * If a new file input is added (e.g., for another screenshot), it calls
+     * `_formatBugImageField` to ensure consistent styling.
+     */
     onEditFormNewInput: function(added_element){
 
         if(added_element?.detailType === 'file'){

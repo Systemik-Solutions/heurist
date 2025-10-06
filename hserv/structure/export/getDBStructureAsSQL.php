@@ -1,30 +1,23 @@
 <?php
-
 /**
-* getDBStructureAsSQL.php: returns database definitions (rectypes, details etc.)
-* as SQL statements ready for INSERT processing
+* getDBStructureAsSQL.php - Returns database definitions (rectypes, details etc.) as SQL statements ready for INSERT processing
 *
 * @param includeUgrps=1 will output user and group information in addition to definitions
 * @param approvedDefsOnly=1 will only output Reserved and Approved definitions
 *
-* @package     Heurist academic knowledge management system
+* @project     Heurist academic knowledge management system
+* @package Structure
 * @link        https://HeuristNetwork.org
 * @copyright   (C) 2005-2023 University of Sydney, (C) 2024 onwards Heurist Network
+* @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
+* @author      Tom Murtagh
+* @author      Kim Jackson
+* @author      Stephen White
 * @author      Artem Osmakov   <osmakov@gmail.com>
 * @author      Ian Johnson     <ian.johnson.heurist@gmail.com>
-* @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
-* @version     4.0
-*/
-
-/*
-* Licensed under the GNU License, Version 3.0 (the "License"); you may not use this file except in compliance
-* with the License. You may obtain a copy of the License at https://www.gnu.org/licenses/gpl-3.0.txt
-* Unless required by applicable law or agreed to in writing, software distributed under the License is
-* distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied
-* See the License for the specific language governing permissions and limitations under the License.
+* @since       3.2.0
 */
 require_once dirname(__FILE__).'/../../../hclient/framecontent/initPageMin.php';
-
 
 global $mysqli, $isHTML, $startToken, $endToken;
 
@@ -80,72 +73,72 @@ $endofFileToken = ">>EndOfFile>>";
 // ------------------------------------------------------------------------------------------
 // defRecTypeGroups
 
-do_print_table('RECORD TYPE GROUPS','defRecTypeGroups');
+doPrintTable('RECORD TYPE GROUPS','defRecTypeGroups');
 // ------------------------------------------------------------------------------------------
 // defDetailTypeGroups
 
-do_print_table('DETAIL TYPE GROUPS','defDetailTypeGroups');
+doPrintTable('DETAIL TYPE GROUPS','defDetailTypeGroups');
 
 // ------------------------------------------------------------------------------------------
 // defVocabularyGroups
 
-do_print_table('VOCABULARY GROUPS','defVocabularyGroups');
+doPrintTable('VOCABULARY GROUPS','defVocabularyGroups');
 
 // ------------------------------------------------------------------------------------------
 // Detail Type ONTOLOGIES
 
-do_print_table('ONTOLOGIES','defOntologies');
+doPrintTable('ONTOLOGIES','defOntologies');
 
 // ------------------------------------------------------------------------------------------
 // Detail Type TERMS
 
-do_print_table('TERMS','defTerms');
+doPrintTable('TERMS','defTerms');
 
 // ------------------------------------------------------------------------------------------
 // TERMS Links by reference   - export terms by reference ONLY
 
-do_print_table('TERMS REFERENCES','defTermsLinks', ', defTerms where trl_TermID=trm_ID AND trl_ParentID!=trm_ParentTermID');
+doPrintTable('TERMS REFERENCES','defTermsLinks', ', defTerms where trl_TermID=trm_ID AND trl_ParentID!=trm_ParentTermID');
 
 // ------------------------------------------------------------------------------------------
 // RECORD TYPES (this will be repeated for each of the tables)
 
-do_print_table('RECORD TYPES','defRecTypes');
+doPrintTable('RECORD TYPES','defRecTypes');
 
 // ------------------------------------------------------------------------------------------
 // DETAIL TYPES
 
-do_print_table('DETAIL TYPES','defDetailTypes');
+doPrintTable('DETAIL TYPES','defDetailTypes');
 
 // ------------------------------------------------------------------------------------------
 // RECORD STRUCTURE
 
-do_print_table('RECORD STRUCTURE','defRecStructure');
+doPrintTable('RECORD STRUCTURE','defRecStructure');
 
 // ------------------------------------------------------------------------------------------
 // RELATIONSHIP CONSTRAINTS
 
-do_print_table('RELATIONSHIP CONSTRAINTS','defRelationshipConstraints');
+doPrintTable('RELATIONSHIP CONSTRAINTS','defRelationshipConstraints');
 
 // ------------------------------------------------------------------------------------------
 // defFileExtToMimetype
 
-do_print_table('FILE EXTENSIONS TO MIME TYPES','defFileExtToMimetype');
+doPrintTable('FILE EXTENSIONS TO MIME TYPES','defFileExtToMimetype');
 
 // ------------------------------------------------------------------------------------------
 // defTranslations
 
-do_print_table('Definitions translations','defTranslations');
+doPrintTable('Definitions translations','defTranslations');
 
 // ------------------------------------------------------------------------------------------
 // usrSavedSearches  (added 24/6/2015)
 
-do_print_table('SAVED SEARCHES','usrSavedSearches');
+doPrintTable('SAVED SEARCHES','usrSavedSearches');
 
 
 // ------------------------------------------------------------------------------------------
 // sysDashboard
 
-do_print_table('Dashboard entries','sysDashboard');
+doPrintTable('Dashboard entries','sysDashboard');
 
 // As at June 2015, we are not extracting further data below this when creating new database
 // Add later if required
@@ -154,17 +147,17 @@ do_print_table('Dashboard entries','sysDashboard');
 // ------------------------------------------------------------------------------------------
 // defCalcFunctions
 
-do_print_table('DEF CALC FUNCTIONS','defCalcFunctions');
+doPrintTable('DEF CALC FUNCTIONS','defCalcFunctions');
 
 // ------------------------------------------------------------------------------------------
 // defCrosswalk
 
-do_print_table('DEF CROSSWALK','defCrosswalk');
+doPrintTable('DEF CROSSWALK','defCrosswalk');
 
 // ------------------------------------------------------------------------------------------
 // defURLPrefixes
 
-do_print_table('DEF URL PREFIXES','defURLPrefixes');
+doPrintTable('DEF URL PREFIXES','defURLPrefixes');
 
 // ------------------------------------------------------------------------------------------
 // Output the following only if parameter switch set and user is an admin
@@ -184,22 +177,22 @@ if (! $system->isAdmin() ) {
 // ------------------------------------------------------------------------------------------
 // sysUGrps
 
-do_print_table('Users and Groups','sysUGrps');
+doPrintTable('Users and Groups','sysUGrps');
 
 // ------------------------------------------------------------------------------------------
 // sysUsrGrpLinks
 
-do_print_table('Users to Group membership and roles','sysUsrGrpLinks');
+doPrintTable('Users to Group membership and roles','sysUsrGrpLinks');
 
 // ------------------------------------------------------------------------------------------
 // usrHyperlinkFilters
 
-do_print_table('User\'s hyperlink filters','usrHyperlinkFilters');
+doPrintTable('User\'s hyperlink filters','usrHyperlinkFilters');
 
 // ------------------------------------------------------------------------------------------
 // usrTags
 
-do_print_table('User\'s tags','usrTags');
+doPrintTable('User\'s tags','usrTags');
 
 // --------------------------------------------------------------------------------------
 print "\n$endofFileToken\n";
@@ -207,10 +200,26 @@ if($isHTML){
     print '</body></html>';
 }
 
-//
-//
-//
-function do_print_table($desc, $tname, $where=null)
+/**
+ * Prints the data of a given table as a series of SQL INSERT-like statements.
+ *
+ * This function fetches all rows from the specified table, formats them as
+ * `('value1','value2',...),` and prints them, bracketed by global start/end tokens.
+ * It handles HTML escaping for string values and substitutes originating DB IDs
+ * and record IDs under certain conditions.
+ *
+ * @global \mysqli $mysqli The global mysqli database connection object.
+ * @global bool $isHTML If true, output includes HTML tags for browser readability.
+ * @global string $startToken Token to print before the data block.
+ * @global string $endToken Token to print after the data block.
+ *
+ * @param string $desc A description of the table/data being printed.
+ * @param string $tname The name of the database table to export.
+ * @param string|null $where (Optional) An additional WHERE clause (including any JOINs)
+ *                           to append to the SELECT query.
+ * @return void
+ */
+function doPrintTable($desc, $tname, $where=null)
 {
     global $mysqli, $isHTML, $startToken, $endToken;
 

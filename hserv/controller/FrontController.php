@@ -1,24 +1,18 @@
 <?php
-/*
-* FrontController.php
+/**
+* FrontController.php - Class FrontController
 *
-* @package     Heurist academic knowledge management system
+* Manages overall flow and delegates request to the appropriate controller.
+*
+* @project     Heurist academic knowledge management system
+* @package Controller
 * @link        https://HeuristNetwork.org
-* @copyright   (C) 2005-2024 University of Sydney
+* @copyright   (C) 2005-2023 University of Sydney, (C) 2024 onwards Heurist Network
+* @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
 * @author      Artem Osmakov   <osmakov@gmail.com>
 * @author      Ian Johnson     <ian.johnson.heurist@gmail.com>
-* @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
-* @version     6.6
+* @since       6.6
 */
-
-/*
-* Licensed under the GNU License, Version 3.0 (the "License"); you may not use this file except in compliance
-* with the License. You may obtain a copy of the License at https://www.gnu.org/licenses/gpl-3.0.txt
-* Unless required by applicable law or agreed to in writing, software distributed under the License is
-* distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied
-* See the License for the specific language governing permissions and limitations under the License.
-*/
-
 namespace hserv\controller;
 
 use hserv\controller\ReportController;
@@ -34,7 +28,6 @@ use hserv\web\WebSite;
  * This class is responsible for managing the overall system flow and handling
  * requests by detecting and delegating to the appropriate controller.
  *
- * @package hserv\controller
  */
 class FrontController
 {
@@ -83,11 +76,11 @@ class FrontController
      */
     public function run()
     {
-        // Detect controller class
         if (!(isset($this->system) && $this->system->isInited())) {
             return;
         }
 
+        // Detect controller class
         if (@$this->req_params['controller'] == 'ReportController'  // $this->req_params['controller']
             || @$this->req_params['template']
             || @$this->req_params['template_body']
@@ -96,11 +89,11 @@ class FrontController
             $controller = new ReportController($this->system, $this->req_params);
             $controller->handleRequest(@$this->req_params['action']);
 
-        }elseif(@$this->req_params['website']){
+        }elseif(array_key_exists('website', $this->req_params)){
 
             $controller = new WebSite($this->system, $this->req_params);
-            $controller->execute();
-
+            
+            $controller->execute();    
             
         }elseif(@$this->req_params['controller'] == 'ImportAnnotations'){
             

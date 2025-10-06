@@ -1,11 +1,7 @@
+# Directory: hserv/dbaccess
 
-Directory:    hserv/dbaccess
+## Overview
+This directory contains files that provide low-level database access utilities and helper functions.
 
-Overview:     Classes to work with database server.
-
-Notes:        
-
-Updated:     26 Oct 2023
-
-----------------------------------------------------------------------------------------------------------------
-
+## Key files
+- `utils_db.php`: utils_db.php - Library of mySql database functions

@@ -1,28 +1,32 @@
 <?php
-
 /**
-* listUploadedFilesErrors.php: Lists orphaned and missed files, broken paths
-* for specific database
+* listUploadedFilesErrors.php - Displays a detailed report and repair interface for file linking errors in a specific database.
 *
-* @package     Heurist academic knowledge management system
+* @fileOverview This script provides a user interface to check and potentially repair issues
+*               with uploaded files within a single Heurist database. It identifies:
+*               - Duplicate file registrations (same path/filename or same external URL).
+*               - Duplicate physical files (identical content based on MD5 hash).
+*               - Orphaned/unused file registrations in `recUploadedFiles`.
+*               - Missing physical files referenced by `recUploadedFiles`.
+*               - Incorrect file paths stored in `recUploadedFiles`.
+*               - Non-registered files found in media folders.
+*               The script offers options to auto-repair some issues (like duplicate registrations
+*               and incorrect paths) and provides checkboxes for manually selecting entries
+*               for repair actions (e.g., removing entries for missing files, registering non-registered files).
+*               It also displays disk quota and usage information.
+*               Requires owner-level access.
+*
+* @project     Heurist academic knowledge management system
+* @package Admin
 * @link        https://HeuristNetwork.org
 * @copyright   (C) 2005-2023 University of Sydney, (C) 2024 onwards Heurist Network
+* @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
 * @author      Tom Murtagh
 * @author      Kim Jackson
 * @author      Artem Osmakov   <osmakov@gmail.com>
 * @author      Ian Johnson     <ian.johnson.heurist@gmail.com>
-* @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
-* @version     3.1.0
+* @since       3.1.0
 */
-
-/*
-* Licensed under the GNU License, Version 3.0 (the "License"); you may not use this file except in compliance
-* with the License. You may obtain a copy of the License at https://www.gnu.org/licenses/gpl-3.0.txt
-* Unless required by applicable law or agreed to in writing, software distributed under the License is
-* distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied
-* See the License for the specific language governing permissions and limitations under the License.
-*/
-
 define('OWNER_REQUIRED',1);
 define('PDIR','../../');//need for proper path to js and css
 
@@ -767,8 +771,7 @@ $mysqli = $system->getMysqli();
                 <?php
                 if(!isEmptyArray($files_unused_local)){
                 ?>
-                <div id="unused_file_local" style="padding-top:20px">
-                    <a href="#unused_local"></a>
+                <div id="unused_local" style="padding-top:20px">
                     <h3>Unused local files</h3>
                     <div style="padding-bottom:10px;font-weight:bold"><?php echo count($files_unused_local);?> entries</div>
                     <div>These files are not referenced by a File field in any record in the database.
@@ -801,8 +804,7 @@ $mysqli = $system->getMysqli();
                 //------------------------------------------
                 if(!isEmptyArray($files_unused_remote)){
                 ?>
-                <div id="unused_file_remote" style="padding-top:20px">
-                    <a href="#unused_remote"></a>
+                <div id="unused_remote" style="padding-top:20px">
                     <h3>Unused remote files</h3>
                     <div style="padding-bottom:10px;font-weight:bold"><?php echo count($files_unused_remote);?> entries</div>
                     <div>These URLs are not referenced by any record in the database.
@@ -834,7 +836,6 @@ $mysqli = $system->getMysqli();
                 if(!isEmptyArray($files_notfound)){
                 ?>
                 <div id="files_notfound" style="padding-top:20px">
-                    <a href="#files_notfound"></a>
                     <h3>Missing registered files </h3>
                     <div style="padding-bottom:10px;font-weight:bold"><?php echo count($files_notfound);?> entries</div>
                     <div>Path specified in database is wrong and file cannot be found.
@@ -861,7 +862,6 @@ $mysqli = $system->getMysqli();
                 if(!isEmptyArray($files_notreg)){
                 ?>
                 <div id="files_notreg" style="padding-top:20px">
-                    <a href="#files_notreg"></a>
                     <h3>Non-registered files</h3>
                     <div style="padding-bottom:10px;font-weight:bold"><?php echo count($files_notreg);?> entries</div>
                     <div>
@@ -893,6 +893,14 @@ $mysqli = $system->getMysqli();
                 print "<br><br><p><h3>All uploaded file entries are valid</h3></p>";
             }
 
+/**
+ * Prints an HTML checkbox input within a label, typically used for listing selectable file entries.
+ *
+ * @param string $ele_class The HTML class to assign to the checkbox input element.
+ * @param int    $ulf_id    The ID of the uploaded file (`ulf_ID`) to be used as a data attribute.
+ * @param string $text      The text label to display next to the checkbox. This text will be HTML-escaped.
+ * @return void
+ */
 function outCheckbox($ele_class, $ulf_id, $text){
 
     $ulf_id = intval($ulf_id);

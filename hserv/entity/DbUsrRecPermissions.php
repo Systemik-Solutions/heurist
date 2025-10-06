@@ -1,31 +1,44 @@
 <?php
+/**
+* DbUsrRecPermissions.php - Class DbUsrRecPermissions
+*
+* Operations for the `usrRecPermissions` table.
+*
+* @project     Heurist academic knowledge management system
+* @package Entity 
+* @link        https://HeuristNetwork.org
+* @copyright   (C) 2005-2023 University of Sydney, (C) 2024 onwards Heurist Network
+* @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
+* @author      Artem Osmakov   <osmakov@gmail.com>
+* @author      Ian Johnson     <ian.johnson.heurist@gmail.com>
+* @since       6.0
+
+*/
 namespace hserv\entity;
 use hserv\entity\DbEntityBase;
 
-    /**
-    * db access to usrRecPermissions table
-    *
-    *
-    * @package     Heurist academic knowledge management system
-    * @link        https://HeuristNetwork.org
-    * @copyright   (C) 2005-2023 University of Sydney, (C) 2024 onwards Heurist Network
-    * @author      Artem Osmakov   <osmakov@gmail.com>
-    * @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
-    * @version     4.0
-    */
-
-    /*
-    * Licensed under the GNU License, Version 3.0 (the "License"); you may not use this file except in compliance
-    * with the License. You may obtain a copy of the License at https://www.gnu.org/licenses/gpl-3.0.txt
-    * Unless required by applicable law or agreed to in writing, software distributed under the License is
-    * distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied
-    * See the License for the specific language governing permissions and limitations under the License.
-    */
-
+/**
+* Class DbUsrRecPermissions
+*
+* Provides database access and operations for the `usrRecPermissions` table.
+* This table stores record-level permissions, granting specific groups ('rcp_UGrpID')
+* defined levels of access (e.g., 'view', 'edit') to specific records ('rcp_RecID').
+*
+*/
 class DbUsrRecPermissions extends DbEntityBase
 {
+    /** @var bool Flag indicating if the usrRecPermissions table exists. Checked/set in init(). */
     private $is_table_exists = false;
 
+    /**
+     * Initializes the DbUsrRecPermissions entity.
+     *
+     * Checks if the `usrRecPermissions` table exists and attempts to create it if it doesn't.
+     * This table is crucial for storing record-specific permissions for user groups.
+     * Also ensures the `rcp_composite_key` index is dropped if it exists (as it's replaced or managed differently).
+     *
+     * @return void
+     */
     public function init(){
 
         $mysqli = $this->system->getMysqli();
@@ -54,33 +67,42 @@ class DbUsrRecPermissions extends DbEntityBase
     }
 
     /**
-    */
+     * Checks if the entity is valid.
+     *
+     * An entity is valid if its underlying table (`usrRecPermissions`) exists
+     * and the parent `isvalid()` check (configuration loaded) also passes.
+     *
+     * @return bool True if the entity is valid, false otherwise.
+     */
     public function isvalid(){
         return $this->is_table_exists && parent::isvalid();
     }
 
 
     /**
-    *  search import sessions
-    *
-    *  sysUGrps.ugr_ID
-    *  sysUGrps.ugr_Type
-    *  sysUGrps.ugr_Name
-    *  sysUGrps.ugr_Enabled
-    *  sysUGrps.ugr_Modified
-    *  sysUsrGrpLinks.ugl_UserID
-    *  sysUsrGrpLinks.ugl_GroupID
-    *  sysUsrGrpLinks.ugl_Role
-    *  (omit table name)
-    *
-    *  other parameters :
-    *  details - id|name|list|all or list of table fields
-    *  offset
-    *  limit
-    *  request_id
-    *
-    *  @todo overwrite
-    */
+     * Searches for record permission entries (`usrRecPermissions`) based on criteria in `$this->data`.
+     *
+     * This method extends the base search functionality. It first calls `parent::search()`
+     * to initialize the `DbEntitySearch` manager (`$this->searchMgr`) and validate
+     * common search parameters from `$this->data`.
+     *
+     * It then adds specific predicates for this entity:
+     * - `rcp_RecID`: If provided in `$this->data['rcp_RecID']`.
+     * - `rcp_UGrpID`: If provided in `$this->data['rcp_UGrpID']`.
+     *
+     * The fields returned in the search results depend on `$this->data['details']`:
+     * - 'id': Returns only `rcp_ID`.
+     * - 'full' (or default if 'details' is not 'id'): Returns all fields defined in `$this->fields` for this entity.
+     * - If `$this->data['details']` is an array or comma-separated string, those specific fields are selected.
+     *
+     * Ordering is not explicitly defined in this method, relying on `DbEntitySearch::setOrderBy()`
+     * or default database order.
+     *
+     * @return array|false An array containing the search results as structured by `DbEntitySearch::execute()`,
+     *                     typically including 'records', 'count', 'total_count', etc.
+     *                     Returns `false` if `parent::search()` fails (e.g., parameter validation error)
+     *                     or if the database query fails.
+     */
     public function search(){
 
         if(parent::search()===false){
@@ -141,6 +163,16 @@ class DbUsrRecPermissions extends DbEntityBase
     //
     // similar see recordCanChangeOwnerwhipAndAccess
     //
+    /**
+     * Validates if the current user has permission to set/change permissions for the specified records.
+     *
+     * An admin can always change permissions. Other users must be the owner (or member of the owner group)
+     * of all records for which permissions are being set.
+     * This method checks ownership of records in `$this->records` (expected to be populated by `prepareRecords`).
+     *
+     * @return bool True if the user has sufficient permissions, false otherwise.
+     *              Errors are added to the system object on permission failure.
+     */
     protected function _validatePermission(){
 
         if($this->system->isAdmin()){  //admin can always change any record
@@ -184,6 +216,17 @@ class DbUsrRecPermissions extends DbEntityBase
     //
     //
     //
+    /**
+     * Saves record permissions.
+     *
+     * This method first deletes all existing permissions for the specified `rcp_RecID`(s)
+     * and then inserts the new permissions provided in `$this->records`.
+     * Currently, it only sets the `rcp_Level` to 'view'.
+     * Operations are performed within a database transaction.
+     *
+     * @return array|false An array containing the insert ID of the first new permission record on success,
+     *                     or false on failure. Errors are added to the system object on failure.
+     */
     public function save(){
 
         //extract records from $_REQUEST data
@@ -251,7 +294,7 @@ class DbUsrRecPermissions extends DbEntityBase
             }
         }
 
-        mysql__end_transaction($mysql, $res, $keep_autocommit);
+        mysql__end_transaction($mysqli, $res, $keep_autocommit);
 
         return $res;
 
@@ -262,6 +305,19 @@ class DbUsrRecPermissions extends DbEntityBase
     // delete permissions for given Record IDs or Group IDs
     // see parameters $this->data['rcp_RecID'] or $this->data['rcp_UGrpID']
     //
+    /**
+     * Deletes record permissions.
+     *
+     * This method can delete permissions based on:
+     * 1. Record IDs (`$this->data['rcp_RecID']`): Deletes all permissions associated with the specified records.
+     *    Requires the current user to have ownership/admin rights over these records.
+     * 2. Group IDs (`$this->data['rcp_UGrpID']`): Deletes all permissions granted to the specified groups.
+     *    Requires the current user to be a member of the groups whose permissions are being deleted.
+     *
+     * @param bool $disable_foreign_checks Unused in this implementation.
+     * @return bool True on successful deletion, false on failure.
+     *              Errors are added to the system object on failure or permission denial.
+     */
     public function delete($disable_foreign_checks = false){
 
         //extract records from $_REQUEST data

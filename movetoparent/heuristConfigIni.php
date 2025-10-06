@@ -4,7 +4,7 @@
 * Override configuration file for a Heurist installation - place in parent of the individual codebases,
 * obviating the need to set these parameters for each version, avoiding redundancy and ensuring consistency
 *
-* @package     Heurist academic knowledge management system
+* @project     Heurist academic knowledge management system
 * @link        https://HeuristNetwork.org
 * @copyright   (C) 2005-2024 University of Sydney
 * @author      Artem Osmakov   <osmakov@gmail.com>
@@ -38,14 +38,14 @@
 // [server url]                 
 // enter the server name or IP address of your Web server, null will pull SERVER_NAME from the request header
 // you may set this value if several domains point to your server. It will unify urls across links, web pages, reports
-// for example $serverName = "heuristscholar.org";  Be sure to include the port if not port 80
+// for example $serverName = "heurist.huma-num.fr";  Be sure to include the port if not port 80
 if (!@$serverName) {$serverName = null;} // if not 'null', overrides default taken from request header SERVER_NAME
 if (!@$mailDomain) {$mailDomain = null;} // set mail domain if it does not use server domain
 
 // if base $heuristBaseURL is null, heurist detects it automatically 
 // Although it may differ from desired url you wish to see (because web server settings: aliases, rewrite rules etc)
 // Set this value explicitely to avoid possible issues
-if (!@$heuristBaseURL) {$heuristBaseURL = null;}  // base url ( ie server url+optional folder https://heuristscholar.org/h6-alpha )  
+if (!@$heuristBaseURL) {$heuristBaseURL = null;}  // base url ( ie server url+optional folder https://heurist.huma-num.fr/h7-alpha )  
 // if you have several heurist instances of heurist, set this value to production instance
 //
 // if $heuristBaseURL is set and $heuristBaseURL_pro is null, then production version is the same as $heuristBaseURL
@@ -54,7 +54,7 @@ if (!@$heuristBaseURL_pro) {$heuristBaseURL_pro = null;}
 
 // [database]
 // enter the host name or IP address of your MySQL server, blank --> localhost
-// for example $dbHost = "heuristscholar.org";  will cause the code to use mysql on the server at heuristscholar.org
+// for example $dbHost = "heuristdb.huma-num.fr";  will cause the code to use mysql on the server at heuristdb.huma-num.fr
 // Can be used to specify a separate database server in a tiered setup
 if (!@$dbHost) {$dbHost= "";}// Optional, blank = localhost for single tier, or set IP of MySQL server
 
@@ -154,14 +154,6 @@ $OPENTHESO_SERVERS = array(
 // Set these to enable translations with DEEPL
 $accessToken_DeepLAPI = 'OBTAIN THIS FROM DEEPL';// To enable DeepL translations
 $serverName_DeepL = "DEPENDS ON WHETHER FREE OR PAID SERVICE";
-
-// Common languages for translation database definitions (ISO639-2 codes) 3 char in upper case
-// change here to set for the entire installation, overriden by list in configIni.php if present for a specific instance
-// The full names and 2 character codes will be looked up in hclient\assets\language-codes-active-list.txt
-// The order puts languages at the top which are most likely to be used on this installation
-// Place languages supported by DEEPL at the top of the list
-// Place languages which are not supported by DEEPL at the end of the list - they can still be used to insert the translation prefix
-$common_languages_for_translation = array('ENG','FRE','CHI','SPA','ITA','DUT','GER','GRE','TUR','DAN','NOR','SWE','EST','FIN','ARA','BUR','CZE','HIN','HUN','IND','JPN','JAV','KOR','KUR','LAO','LAT','MAO','MAY','MKH','BUR','NEP','PER','POR','RUS','SLO','SLV','SWA','THA','TIB','UIG','UKR','VIE','YID','ZUL');
 
 
 // [DATABASE DUMP CONFIGURATION - TIERED SERVERS]

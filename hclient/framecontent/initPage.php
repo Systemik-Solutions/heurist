@@ -1,30 +1,26 @@
 <?php
 /**
-* Main header for all heurist pages.
+* initPage.php - Standard initialization script for Heurist pages
+* 
 * It
 * 1) initializes System.php
 * 2) prints out html header with minimum set of scripts
 * 3) init client side hAPI
-* 4) apply theme
+* 4) apply themes
 * 5) load and init localiztion
 * 6) calls for user defined onPageInit function that should perform further page init - IMPORTANT
 *
-* @package     Heurist academic knowledge management system
+* @project     Heurist academic knowledge management system
+* @package  hclient\framecontent
 * @link        https://HeuristNetwork.org
 * @copyright   (C) 2005-2023 University of Sydney, (C) 2024 onwards Heurist Network
-* @author      Artem Osmakov   <osmakov@gmail.com>
 * @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
-* @version     4.0
-*/
-
-/*
-* Licensed under the GNU License, Version 3.0 (the "License"); you may not use this file except in compliance
-* with the License. You may obtain a copy of the License at https://www.gnu.org/licenses/gpl-3.0.txt
-* Unless required by applicable law or agreed to in writing, software distributed under the License is
-* distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied
-* See the License for the specific language governing permissions and limitations under the License.
+* @author      Artem Osmakov   <osmakov@gmail.com>
+* @author      Ian Johnson     <ian.johnson.heurist@gmail.com>
+* @since       4.0
 */
 use hserv\utilities\USanitize;
+use hserv\utilities\USystem;
 
 require_once dirname(__FILE__).'/../../autoload.php';
 
@@ -147,23 +143,34 @@ $is_admin = $system->isAdmin();
 //
 // to limit access to particular page
 //
+$message = 'To perform this action you must be logged in ';
 if(defined('LOGIN_REQUIRED') && !$system->hasAccess()){
     //No Need to show error message when login is required, login popup will be shown
     //$message = $login_warning
     exit;
 }elseif(defined('MANAGER_MEMBER_REQUIRED') && 
         !($system->isDbOwner() || $system->isMember([$system->settings->get('sys_OwnerGroupID')]))){
-    $message = 'as member of group \'Database Managers\'';     
+    $message .= 'as member of group \'Database Managers\'';     
 }elseif(defined('MANAGER_REQUIRED') && !$is_admin){ //A member should also be able to create and open database
-    $message = 'as Administrator of group \'Database Managers\'';
+    $message .= 'as Administrator of group \'Database Managers\'';
 }elseif(defined('OWNER_REQUIRED') && !$system->isDbOwner()){
-    $message = 'as Database Owner';
+    $message .= 'as Database Owner';
+    
+}elseif(defined('ASSOC_MEMBERSHIP_REQUIRED')
+        && 'nonmember' == USystem::checkAssociationMembership($system, ASSOC_MEMBERSHIP_REQUIRED)){
+    
+        $is_error = false;
+        $message = file_get_contents(dirname(__FILE__).'/../../movetoparent/association_membership.html');
+        if (preg_match('/<div id="content">(.*?)<\/div>/is', $message, $matches)) {
+                $message = $matches[0]; 
+        }
+    
 }else{
+    $message = null;
     $invalid_access = false;
 }
 
 if($invalid_access){
-    $message = 'To perform this action you must be logged in '.$message;
     include_once ERROR_REDIR;
     exit;
 }
@@ -216,7 +223,7 @@ if(!$invalid_access && (defined('CREATE_RECORDS') || defined('DELETE_RECORDS')))
 <link rel="shortcut icon" href="<?php echo PDIR;?>favicon.ico" type="image/x-icon">
 
 <?php
-    includeJQuery();
+    includeJQuery( defined('LOAD_BOOTSTRAP') );
 ?>
 
 <script src="<?php echo PDIR;?>external/jquery-file-upload/js/jquery.fileupload.js"></script>
@@ -264,7 +271,12 @@ if(!$invalid_access && (defined('CREATE_RECORDS') || defined('DELETE_RECORDS')))
 
     //            }
 
-
+    /**
+     * Overrides the standard jQuery show() method.
+     * After calling the original show() method, it triggers a custom event 'myOnShowEvent'.
+     * This allows widgets or elements to listen for this event and refresh their content
+     * or perform actions when they become visible.
+     */
     var orgShow = $.fn.show;
     $.fn.show = function()
     {
@@ -276,7 +288,13 @@ if(!$invalid_access && (defined('CREATE_RECORDS') || defined('DELETE_RECORDS')))
     //
     // overwrite datepicker method
     //
-
+    /**
+     * Overrides the jQuery UI Datepicker's _gotoToday function.
+     * Ensures that when "Today" is clicked, the date is selected and the datepicker closes,
+     * consistent with how selecting any other date works.
+     * @param {string} id The ID of the datepicker input field.
+     * @param {object} inst The datepicker instance.
+     */
     $.datepicker._gotoToday = function(event){
 
         var target = $(event),
@@ -296,12 +314,26 @@ if(!$invalid_access && (defined('CREATE_RECORDS') || defined('DELETE_RECORDS')))
 
 
     window.onAboutInit = null;
-    window.onPageInit = null;
-    window.isHapiInited = false;
+    window.onPageInit = null; // User-defined page initialization function
+    window.isHapiInited = false; // Flag to track HAPI initialization status
 
-    // if hAPI is not defined in parent(top most) window we have to create new instance
+    /**
+     * Executes when the HTML document is fully loaded and parsed.
+     * Initializes HAPI (Heurist API) if it's not already initialized in the parent window.
+     * Calls onHapiInit as a callback.
+     */
     $(document).ready(function() {
 
+        try{
+            //bootstrap workaround
+            if($.fn && window.hWin.HEURIST4.util.isFunction($.fn.button?.noConflict)){
+                $.fn.button.noConflict();
+                $.fn.tooltip.noConflict();
+            }
+        }catch(e){
+            console.error(e);
+        }
+        
         // Standalone check
         if(!window.hWin.HAPI4){
             window.hWin.HAPI4 = new hAPI('<?php echo htmlspecialchars($_REQUEST['db'])?>', onHapiInit);
@@ -315,6 +347,14 @@ if(!$invalid_access && (defined('CREATE_RECORDS') || defined('DELETE_RECORDS')))
     //
     // Callback function on hAPI initialization
     //
+    /**
+     * Callback function executed after HAPI (Heurist API) is initialized.
+     * It applies the theme, calls a user-defined about init (if any),
+     * updates database statistics if needed, and then loads database definitions.
+     * Finally, it calls the user-defined onPageInit function.
+     *
+     * @param {boolean} success - Indicates whether HAPI initialization was successful.
+     */
     function onHapiInit(success)
     {
         window.isHapiInited = true;
@@ -323,7 +363,7 @@ if(!$invalid_access && (defined('CREATE_RECORDS') || defined('DELETE_RECORDS')))
         {
             applyTheme();
 
-            if(!window.hWin.HEURIST4.util.isnull(window.onAboutInit) 
+            if(!window.hWin.HEURIST4.util.isnull(window.onAboutInit)
                 && window.hWin.HEURIST4.util.isFunction(window.onAboutInit))
             {
                     window.onAboutInit();//init about dialog
@@ -333,9 +373,8 @@ if(!$invalid_access && (defined('CREATE_RECORDS') || defined('DELETE_RECORDS')))
                 updateDatabaseStatistics();
             }
 
-            if(initialLoadDatabaseDefintions(null, window.onPageInit)){
-                return;
-            }
+            window.hWin.HAPI4.EntityMgr.initialLoadDatabaseDefintions('all', window.onPageInit);
+            return;
 
         }else{
             window.hWin.HEURIST4.msg.showMsgErr({
@@ -350,10 +389,12 @@ if(!$invalid_access && (defined('CREATE_RECORDS') || defined('DELETE_RECORDS')))
         }
     }
 
+    /**
+     * Updates database statistics by sending a background AJAX request.
+     * This is typically triggered if HAPI sysinfo indicates a refresh is needed.
+     */
     function updateDatabaseStatistics(){
-        
-        return; //2025-04-11 TEMP DISABLED since heuristref is down
-        
+
         let ajax_opts = {
             "url": `${window.hWin.HAPI4.baseURL}/admin/describe/dbStatsBackground.php`,
             "type": "POST",
@@ -379,8 +420,17 @@ if(!$invalid_access && (defined('CREATE_RECORDS') || defined('DELETE_RECORDS')))
     }
 
     //
+    //  TBR - NOT USED
     //
-    //
+    /**
+     * Loads initial database definitions (like record types, fields, etc.) if they haven't been loaded yet.
+     * This function is crucial for the application to understand the database structure.
+     *
+     * @param {?(object|string)} params - Parameters for refreshing entity data. Can be 'all' or an object specifying specific entities.
+     * @param {?function(boolean)} callback - A callback function to execute after definitions are loaded (or failed to load).
+     *                                       It receives a boolean indicating success.
+     * @returns {boolean} True if definitions are being loaded, false if they were already loaded.
+     */
     function initialLoadDatabaseDefintions(params, callback){
 
             if($.isEmptyObject(window.hWin.HAPI4.EntityMgr.getEntityData2('defRecTypes'))){ //defintions are not loaded
@@ -445,6 +495,12 @@ if(!$invalid_access && (defined('CREATE_RECORDS') || defined('DELETE_RECORDS')))
     //
     // it itakes name of theme from preferences , oherwise default theme is heurist
     //
+    /**
+     * Applies the user-selected or default theme to the page.
+     * It also sets the current layout ID in HAPI's sysinfo.
+     * Note: Dynamic theme loading via CSS link injection was found problematic and is commented out.
+     * The theme is expected to be set on the server side or via existing CSS.
+     */
     function applyTheme(){
 
         var prefs = window.hWin.HAPI4.get_prefs();

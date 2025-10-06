@@ -1,33 +1,37 @@
 <?php
+/**
+* ULocale.php - Utility functions for localization
+* 
+* Localization utility functions for Heurist.
+* This file provides a collection of global functions for tasks such as:
+* - Initializing and retrieving standard language codes (initLangCodes, getLangCode3, getLangCode2).
+* - Extracting language prefixes from strings (extractLangPrefix).
+* - Retrieving translations for content, including integration with Smarty (getTranslation, getCurrentTranslation).
+* - Performing external translations using services like DeepL API (getExternalTranslation).
+* - Handling "no translate" tags for content passed to translation services (addNoTranslateTags, removeNoTranslateTags).
+* - Preparing a list of languages for UI presentation (getPreparedLanguageList).
+*
+* @project     Heurist academic knowledge management system
+* @package Utilities
+* @link        https://HeuristNetwork.org
+* @copyright   (C) 2005-2023 University of Sydney, (C) 2024 onwards Heurist Network
+* @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
+* @author      Brandon McKay   <blmckay13@gmail.com>
+* @author      Artem Osmakov   <osmakov@gmail.com>
+* @author      Ian Johnson     <ian.johnson.heurist@gmail.com>
+* @since       6.0
+*/
 
     /**
-    * Localization utilities
-    *
-    * getLangCode3 - validates lang code and returns upper case 3 letters code
-    * extractLangPrefix - splits and extract language code and value from string code:value
-    * getTranslation - for smarty modifier
-    * getCurrentTranslation - returns translated value for multivalue field
-    * getExternalTranslation - translates given string to traget language via Deepl's API
-    *
-    * @package     Heurist academic knowledge management system
-    * @link        https://HeuristNetwork.org
-    * @copyright   (C) 2005-2023 University of Sydney, (C) 2024 onwards Heurist Network
-    * @author      Artem Osmakov   <osmakov@gmail.com>
-    * @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
-    * @version     4.0
-    */
-
-    /*
-    * Licensed under the GNU License, Version 3.0 (the "License"); you may not use this file except in compliance
-    * with the License. You may obtain a copy of the License at https://www.gnu.org/licenses/gpl-3.0.txt
-    * Unless required by applicable law or agreed to in writing, software distributed under the License is
-    * distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied
-    * See the License for the specific language governing permissions and limitations under the License.
-    */
-
-    //
-    //
-    //
+     * Initializes global language code arrays if they haven't been already.
+     * Reads language codes from a JSON file and populates $glb_lang_codes and $glb_lang_codes_index.
+     * $glb_lang_codes: Array of language code objects.
+     * $glb_lang_codes_index: An associative array mapping 3-letter codes (uppercase) to 2-letter codes (uppercase).
+     *
+     * @global array $glb_lang_codes Holds the list of language code objects.
+     * @global array $glb_lang_codes_index Holds an index mapping 3-letter to 2-letter language codes.
+     * @return void
+     */
     function initLangCodes(){
         global $glb_lang_codes, $glb_lang_codes_index;
 
@@ -39,11 +43,15 @@
         }
     }
 
-    //
-    // get 3 letters ISO code
-    //
+    /**
+     * Validates a given language code (2 or 3 letters) and returns its 3-letter ISO 639-2 code (uppercase).
+     *
+     * @global array $glb_lang_codes_index An index mapping 3-letter to 2-letter language codes.
+     * @param string|null $lang The language code to validate (e.g., "en", "ENG").
+     * @return string|null The 3-letter ISO 639-2 language code (uppercase) if valid, otherwise null.
+     */
     function getLangCode3($lang){
-        global $glb_lang_codes, $glb_lang_codes_index;
+        global $glb_lang_codes, $glb_lang_codes_index; // $glb_lang_codes is not directly used here but initLangCodes loads it.
 
         $res = null;
 
@@ -75,12 +83,16 @@
         return $res;
     }
 
-    //
-    // get 2 letters ISO code
-    //
+    /**
+     * Validates a given language code (2 or 3 letters) and returns its 2-letter ISO 639-1 code (uppercase).
+     *
+     * @global array $glb_lang_codes_index An index mapping 3-letter to 2-letter language codes.
+     * @param string|null $lang The language code to validate (e.g., "en", "ENG").
+     * @return string|null The 2-letter ISO 639-1 language code (uppercase) if valid, otherwise null.
+     */
     function getLangCode2($lang){
 
-        global $glb_lang_codes, $glb_lang_codes_index;
+        global $glb_lang_codes, $glb_lang_codes_index; // $glb_lang_codes is not directly used here but initLangCodes loads it.
 
         $res = null;
 
@@ -102,13 +114,18 @@
         return $res;
     }
 
-    //
-    //  splits and extract language code and value from string code:value
-    //  if $val is 2 chars code ISO639-1 - it will be converted to 3 chars ISO639-2
-    //
+    /**
+     * Splits and extracts a language code and value from a string formatted as "code:value" or "code: html_value".
+     * If the extracted language code is a 2-letter ISO 639-1 code, it's converted to its 3-letter ISO 639-2 equivalent.
+     * Handles cases where the value might be wrapped in <p> or <span> tags.
+     *
+     * @param string|mixed $val The input string potentially containing a language prefix. If not a string or too short, it's returned as is with no lang.
+     * @return array An array containing two elements:
+     *               0: The extracted 3-letter language code (uppercase) or "ALL", or null if no valid prefix is found.
+     *               1: The value part of the string. If a prefix was found, this is the substring after the prefix. Otherwise, it's the original value.
+     */
     function extractLangPrefix($val){
 
-        //global $glb_lang_codes, $common_languages_for_translation;
         $lang = null;
 
         if(is_string($val) && mb_strlen($val)>4){
@@ -147,7 +164,7 @@
 
             if($lang){ //lang detected
 
-                //if (strcasecmp($lang,'ALL')===0 || in_array($lang, $common_languages_for_translation)){
+                //if (strcasecmp($lang,'ALL')===0 || in_array($lang, $commonLanguagesForTranslation)){
                 if($tag_to_remove == null){
                     $val = substr($val_orig, $pos);
                 }else{
@@ -163,10 +180,20 @@
         return array($lang, $val);
     }
 
-    //
-    // For smarty modifier "translate"
-    // $filed - label or desc - for terms
-    //
+    /**
+     * Retrieves a translation for a given input, typically used as a Smarty modifier.
+     * It can handle translations for Heurist terms (labels or descriptions) or regular record detail fields.
+     *
+     * @global Smarty|null $smarty The Smarty template engine instance.
+     * @param string|array $input The input value to translate. Can be a string (for record details) or an array (for terms).
+     *                            If an array for a term, it should contain 'id' and the field to translate (e.g., 'label').
+     * @param string $lang The target language code (2 or 3 letters).
+     * @param string|null $field Optional. If translating a term, specifies which field of the term to translate (e.g., 'label', 'desc').
+     *                           Defaults to 'label' for terms.
+     * @return string|array|null The translated string if found. If no translation is available for the specified language,
+     *                    it returns the original input (for strings) or the default language value.
+     *                    Returns null if input is invalid or Smarty context is unavailable for term translation.
+     */
     function getTranslation($input, $lang, $field=null){
         global $smarty;
 
@@ -200,11 +227,18 @@
         return $ret;
     }
 
-    //
-    // It returns translated value for multivalue field
-    // if all values have language prefix (except default one)
-    // $input - array of values
-    //
+    /**
+     * Retrieves the translation for a specific language from a potentially multi-lingual input.
+     * The input can be an array of values (where each value might have a language prefix) or a single string.
+     * If $input is an array, it iterates through values, looking for one matching the target $lang.
+     * If no match is found, it returns a default (non-prefixed) value if available.
+     * If $input is a string, it simply extracts the language prefix and value.
+     *
+     * @param string|array $input The input value or array of values. Values can be strings like "ENG:Hello" or "Bonjour".
+     * @param string $lang The target language code (2 or 3 letters).
+     * @return string|null The translated string for the target language, the default language string,
+     *                     or null if no suitable translation is found or input is invalid.
+     */
     function getCurrentTranslation($input, $lang){
 
         $res = null;
@@ -244,17 +278,23 @@
     }
 
     /**
-     * Translate given string to traget language via Deepl's API
-     *  A valid Deepl API key needs to be assigned to the variable $accessToken_DeepLAPI within heuristConfigIni.php
+     * Translates a given string to a target language using the DeepL API.
+     * Requires a valid DeepL API key to be configured in `$accessToken_DeepLAPI`.
+     * Handles HTML and XML content by attempting to preserve tags using DeepL's tag handling.
      *
-     * @param object $system - Heurist's initialised system object
-     * @param string $string - String to be translated
-     * @param string $target_language - AR2 or AR3 of language being translated to
-     * @param string $source_language - AR2 or AR3 of language being translated from (if missing Deepl uses auto-detection)
+     * @global array $glb_lang_codes_index Global array mapping 3-letter to 2-letter language codes.
+     * @global string|null $accessToken_DeepLAPI The DeepL API authentication key.
+     * @param \hserv\System $system Heurist's initialized system object.
+     * @param string $string The string to be translated.
+     * @param string $target_language The target language code (2 or 3 letters, e.g., "EN", "FRA").
+     * @param string|null $source_language Optional. The source language code (2 or 3 letters).
+     *                                     If null, DeepL attempts auto-detection.
+     * @return string|false The translated string on success, or false on failure (e.g., API error, invalid language).
+     *                      Error details are added to the $system object.
      */
     function getExternalTranslation($system, $string, $target_language, $source_language = null){
 
-        global $glb_lang_codes, $glb_lang_codes_index, $accessToken_DeepLAPI;
+        global $glb_lang_codes, $glb_lang_codes_index, $accessToken_DeepLAPI; // $glb_lang_codes is loaded by initLangCodes
 
         initLangCodes();
 
@@ -331,41 +371,9 @@
         }
 
         $is_xml = strpos($string, '<?xml') === 0;
-        $handling_encoding = false;
-        $handling_copyright = false;
 
-        if($is_xml){
-            [$string, $handling_encoding, $handling_copyright] = addNoTranslateTags($string, true);
-        }else{
-
-            $cleanupQuirks = function($matches){
-                return str_replace('&amp;', '&', $matches[0]);
-            };
-
-            $string = mb_ereg_replace('&', '&amp;', $string); // avoid decoding encoded entities
-
-            $doc = new DOMDocument;
-            $doc->loadHTML($string, LIBXML_HTML_NOIMPLIED | LIBXML_HTML_NODEFDTD); // load html
-            $xpath = new DOMXPath($doc); // retrieve text only
-            $textNodes = $xpath->query('//text()');
-
-            $string = mb_ereg_replace('&amp;', '&', $string);
-
-            foreach($textNodes as $node){
-
-                [$node->textContent, $encoded, $copyright] = addNoTranslateTags($node->textContent, false);
-
-                $handling_encoding |= $encoded;
-                $handling_copyright |= $copyright;
-            }
-
-            $string = $handling_encoding || $handling_copyright ? $doc->saveHTML() : $string;
-
-            $string = mb_ereg_replace_callback('&amp;(?:[a-zA-Z]{2,35}|#[0-9]{1,6}|#x[a-fA-F0-9]{1,6});?', $cleanupQuirks, $string);
-
-            $string = mb_ereg_replace('_LT_', '<', $string);
-            $string = mb_ereg_replace('_GT_', '>', $string);
-        }
+        $string = replaceEncodedEntities($string);
+        $string = replacePunctuation($string);
 
         /**
          * free => api-free.deepl.com
@@ -408,48 +416,55 @@
 
             switch ($code) {
 
-                case 400:
+                // Deepl error codes: https://support.deepl.com/hc/en-us/articles/9773964275868-DeepL-API-error-messages
+                //
+                case 400: // Missing parameter
                     $herror = HEURIST_INVALID_REQUEST;
                     $hmsg = 'Deepl was unable to complete this request.<br>'
                            .'Please make a bug report if this persists.';
                     break;
 
-                case 403:
+                case 403: // Invalid API key
                     $herror = HEURIST_REQUEST_DENIED;
                     $hmsg = 'Heurist was unable to access Deepl.<br>'
                            .'This may be due to an error in handling or the necessary API key is missing.<br>'
                            .'Please contact your system administrator and ask them if the API key has been configured.';
                     break;
 
-                case 404:
+                case 404: // Wrong URL, e.g. using the free version URL for paid access
                 case 504:
                     $herror = HEURIST_INVALID_REQUEST; //HEURIST_NOT_FOUND
                     $hmsg = 'Deepl encountered an error with locating the desired function.<br>'
                            .'Please make a bug report.';
                     break;
 
-                case 429:
-                case 529:
+                case 429: // Too many requests
+                case 529: // Deepl is busy
                     $herror = HEURIST_ACTION_BLOCKED;
                     $hmsg = 'Deepl is currently busy processing other requests.<br>'
-                           .'Please re-try your request in a few minutes.<br>'
-                           .'If this persists, please make a bug report.';
+                           .'Please re-try your request in a few minutes.';
                     $error = '';
                     break;
 
-                case 456:
+                case 456: // [Free] Reached 500,000 character limit, [Paid] Reached cost control limit
                     $herror = HEURIST_ACTION_BLOCKED;
                     $hmsg = 'Heurist has exceeded it\'s quota with Deepl and will be unable to attempt automatic translations of your texts.<br>'
                            .'We apologise for the inconvenience.';
                     break;
 
-                case 413:
-                case 414:
+                case 413: // Request Too Large from Deepl
+                case 414: // HTTP Reuest Too Large
                     $herror = HEURIST_ACTION_BLOCKED;
                     $hmsg = 'The request to Deepl\'s services was too large to process.<br>'
                            .'Please either:<br>'
-                           .'Split the value into smaller parts and then re-combine then when you are finished, or '
+                           .'Split the value into smaller parts and then re-combine them once finished, or '
                            .'Make a bug report including which record and field you were attempting to translate and into which language.';
+                    break;
+
+                case 503: // Unknown Deepl error
+                    $herror = HEURIST_ACTION_BLOCKED;
+                    $hmsg = 'Deepl encountered an unknown error.<br>'
+                           .'Please re-try your request in a few minutes.';
                     break;
 
                 default: // unknown error or no additional handling
@@ -475,100 +490,176 @@
         $translation = $data['translations'];
         if(is_array($translation) && !empty($translation)){
             $res = $translation[0]['text'];
+            $res = replacePunctuation($res, true);
         }
 
-        return removeNoTranslateTags($res, $is_xml, $handling_encoding, $handling_copyright);
+        return $res;
     }
 
-    function addNoTranslateTags($string, $isXML){
+    /**
+     * Replace specific punctuation that Deepl has issues translating with a place holder
+     * Deepl seems to consider any semicolon, even those within HTML attributes, invalid punctuation and cuts off the translation
+     * Also replaces ampersands as Deepl encodes the ampersand
+     *
+     * @param string $string The string potential containing the specific punctuation
+     * @param bool $reverse Whether to reverse the process, done after Deepl has translated the text
+     * @return string The string prepared for translation
+     */
+    function replacePunctuation($string, $reverse = false){
 
-        $handleEntity = false;
-        $handleCopyRight = false;
+        $punc = [ [';', '__SC__'], [':', '__CL__'], ['&', '__AMP__'] ];
 
-        // Add no translate flags where necessary
-        // Use _LT_ and _GT_ to avoid issues replacing the text via DOMDoc node 
-        /**
-         * &[a-zA-Z]; html entity
-         * &#[0-9]; html code
-         * &#x[a-fA-F0-9]; hex code
-         */
-        $regex_entities = '&(?:[a-zA-Z]{2,35}|#[0-9]{1,6}|#x[a-fA-F0-9]{1,6});?';
+        foreach($punc as $punctuation){
 
-        $add_tags = function($matches) use ($isXML) {
-            return $isXML ? "<notranslate>{$matches[0]}</notranslate>" : "_LT_span translate='no'_GT_{$matches[0]}_LT_/span_GT_";
-        };
+            $search = $punctuation[0];
+            $replace = $punctuation[1];
 
-        $original = $string; // backup string before processing
-
-        if(mb_eregi($regex_entities, $string)){ // html encoded entities
-
-            $string = mb_ereg_replace_callback($regex_entities, $add_tags, $string);
-
-            $handleEntity = $string !== false;
-
-            $string = $string ?? $original;
-
-            $original = $string; // update backup string
-        }
-
-        if(mb_eregi("[^\w]©|©[^\w]", $string)){ // copyright symbol, sometimes gets removed by Deepl during translation
-
-            $replacement = $isXML ? '<notranslate>©</notranslate>' : '_LT_span translate="no"_GT_©_LT_/span_GT_';
-            $string = mb_ereg_replace("[^\w]©|©[^\w]", $replacement, $string);
-
-            $handleCopyRight = $string !== false;
-
-            $string = $string ?? $original;
-        }
-
-        return [$string, $handleEntity, $handleCopyRight];
-    }
-
-    function removeNoTranslateTags($string, $isXML, $handlEntity, $handleCopyRight){
-
-        // Remove notranslate tags
-        /**
-         * &[a-zA-Z]; html entity
-         * &#[0-9]; html code
-         * &#x[a-fA-F0-9]; hex code
-         */
-        $regex_entities = '&(?:[a-zA-Z]{2,35}|#[0-9]{1,6}|#x[a-fA-F0-9]{1,6});?';
-        $regex_less_than = '(?:<|&lt;)';
-        $regex_great_than = '(?:>|&gt;)';
-        $regex_quotes = '(?:\'|"|&quot;|&apos;)';
-
-        $remove_tags = function($matches){
-
-            if(count($matches) == 1){
-                return $matches[0];
+            if($reverse){
+                $search = $punctuation[1];
+                $replace = $punctuation[0];
             }
 
-            return $matches[1];
-        };
+            $res = mb_ereg_replace($search, $replace, $string);
 
-        $original = $string; // backup original result
-        if($handlEntity && !empty($string)){
-
-            $match = $isXML
-                    ? "{$regex_less_than}notranslate{$regex_great_than}($regex_entities){$regex_less_than}\/notranslate{$regex_great_than}"
-                    : "{$regex_less_than}span translate={$regex_quotes}no{$regex_quotes}{$regex_great_than}($regex_entities){$regex_less_than}\/span{$regex_great_than}";
-
-            $string = mb_ereg_replace_callback($match, $remove_tags, $string);
-
-            $string = $string ?? $original;
-            $original = $string; // update backup string
-        }
-
-        if($handleCopyRight && !empty($string)){
-
-            $match = $isXML
-                    ? "{$regex_less_than}notranslate{$regex_great_than}©{$regex_less_than}\/notranslate{$regex_great_than}"
-                    : "{$regex_less_than}span translate={$regex_quotes}no{$regex_quotes}{$regex_great_than}©{$regex_less_than}\/span{$regex_great_than}";
-
-            mb_ereg_replace($match, "©", $string);
-
-            $string = $string ?? $original;
+            if($res && !empty($res)){
+                $string = $res;
+            }
         }
 
         return $string;
+    }
+
+    /**
+     * Replace specific HTML entities that could be translated by Deepl with their HTML code counter part
+     * Deepl will translate simple words like 'copy' breaking the entities and displaying all the related ampersands and semicolons
+     * HTML codes will work just as well and, realistically, shouldn't be translated by Deepl
+     *
+     * @param string $string The string potential containing entities that could become translated
+     * @return string The string prepared for translation
+     */
+    function replaceEncodedEntities($string){
+
+        $entities = [
+            'copyright' => [
+                '(?:&copy;|©)',
+                '&#169;'
+            ],
+            'registered' => [
+                '(?:&reg;?|®)',
+                '&#174;'
+            ],
+            'trademark' => [
+                '(?:&trade;?|™)',
+                '&#8482;'
+            ],
+            /*'at' => [
+                '(?:&commat;?|@)',
+                '&#64;'
+            ],*/
+            'euro' => [
+                '(?:&euro;?|€)',
+                '&#8364;'
+            ],
+            'dollar' => [
+                '(?:&dollar;?|\$)',
+                '&#36;'
+            ],
+            'cent' => [
+                '(?:&cent;?|¢)',
+                '&#162;'
+            ],
+            'pound' => [
+                '(?:&pound;?|£)',
+                '&#163;'
+            ],
+            'yen' => [
+                '(?:&yen;?|¥)',
+                '&#165;'
+            ],
+            'section' => [
+                '(?:&sect;?|§)',
+                '&#167;'
+            ],
+            'ampersand' => [
+                '(?:&amp;?)',
+                '&#38;'
+            ]
+        ];
+
+        foreach($entities as $entity){
+
+            $search = $entity[0];
+            $replace = $entity[1];
+
+            $res = mb_ereg_replace($search, $replace, $string);
+
+            if(!empty($res)){
+                $string = $res;
+            }
+        }
+
+        return $string;
+    }
+
+    /**
+     * Prepares a list of common languages for translation and available UI localization files.
+     * Used to populate language selection UI elements.
+     *
+     * @global array $commonLanguagesForTranslation Array of common language codes (3-letter) defined in heuristConfigIni.php.
+     * @global array $glb_lang_codes Global array of language code objects.
+     * @param \hserv\System $system Heurist's initialized system object.
+     * @return array An array containing two elements:
+     *               0: An associative array of common languages (uppercase 3-letter code => language object).
+     *               1: An array of available UI locale file language codes (2-letter, lowercase).
+     */
+    function getPreparedLanguageList($system = null){
+
+        global $commonLanguagesForTranslation, $glb_lang_codes;
+
+        // extracts from $glb_lang_codes names and alpha2 codes to be sent to client
+        initLangCodes();
+
+        $languages = $commonLanguagesForTranslation;
+        if($system && is_a($system, 'hserv\System')){
+            $languages = $system->settings->getDatabaseSetting('Languages');
+            if(empty($languages)){
+                $languages = $commonLanguagesForTranslation;
+                $system->settings->setDatabaseSetting('Languages', $languages);
+            }else{
+                $languages = array_unique(array_map('strtoupper', $languages));
+                $system->settings->setDatabaseSetting('Languages', $languages);
+            }
+        }
+
+        // ordered as in $commonLanguages (defined in heuristConfigIni)
+        $commonLanguages = [];
+        foreach($languages as $code){
+
+            $lang = strtolower($code);
+
+            $key = array_search($lang, array_column($glb_lang_codes, 'a3'));
+            if($key!==false){
+                $commonLanguages[strtoupper($lang)] = $glb_lang_codes[$key];
+            }
+        }
+
+        // Get list of available localisation files
+        $localisationDir = __DIR__ . '/../../hclient/assets/localization/';
+        $localeFiles = [];
+        $localisationFiles = is_dir($localisationDir) ? scandir($localisationDir) : null;
+        if(!empty($localisationFiles)){
+
+            foreach($localisationFiles as $filename){
+
+                if($filename == '.' || $filename == '..' || is_dir($localisationDir.$filename)){
+                    continue;
+                }
+
+                $filename = explode('.', $filename)[0];
+                $language = explode('_', $filename)[1];
+                $localeFiles[] = $language;
+            }
+        }
+
+        return [$commonLanguages, $localeFiles];
     }

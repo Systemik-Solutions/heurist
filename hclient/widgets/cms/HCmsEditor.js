@@ -1,15 +1,14 @@
 /*
-* HLayoutMgr.js - web page generator based on json configuration
+* HCmsEditor.js - web page editor
 * 
-* @package     Heurist academic knowledge management system
+* @project     Heurist academic knowledge management system
 * @link        https://HeuristNetwork.org
 * @copyright   (C) 2005-2023 University of Sydney, (C) 2024 onwards Heurist Network
 * @author      Artem Osmakov   <osmakov@gmail.com>
-* @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
-* @version     4.0
+* @version     7.0
 */
 
-/* global editCMS_SiteMenu */
+/* global editCMS_SiteMenu, HCmsEditorPage */
 
 /*
 * HCmsEditor.js - web page editor
@@ -38,10 +37,11 @@ class HCmsEditor {
     menuContentJSON; // menu content as JSON
                 
     //
+    webSite;
     website_id; // current website
     page_id;    // current page
-    current_language = 'def';
-    default_language = 'def';
+    currentLanguage = null; //this is constant value it is changed on reload only
+    allLanguages = null;
 
     mainMenu; //main menu widget    
     layout_container; // main-content with CMS content
@@ -50,9 +50,11 @@ class HCmsEditor {
     _keep_EditPanelWidth = 0;
 
   constructor(_options, _container) {
-    
+      
     this.website_id = _options.website_id;
     this.page_id = _options.page_id;
+    this.currentLanguage = _options.currentLanguage;
+    this.isWebPage = false;
       
     this._ws_body = _container?$(_container):$('body');  
     
@@ -72,65 +74,44 @@ class HCmsEditor {
             
             window.onbeforeunload = this.onBeforeUnload;
             
-                this._editor_panel = $('div.ui-layout-west');
+             this._editor_panel = $('div.ui-layout-west');
+    
+            let layout_opts =  {
+                applyDefaultStyles: true,
+                maskContents:       true,  //alows resize over iframe
+                //togglerContent_open:    '&nbsp;',
+                //togglerContent_closed:  '&nbsp;',
+                center:{
+                    minWidth:400,
+                    contentSelector: '.heurist-website', //@todo !!!! for particule template heurist-website can be missed
+                    //pane_name, pane_element, pane_state, pane_options, layout_name
+                    onresize_end : function(){
+                        //that.handleTabsResize();                            
+                    }    
+                }
+            };
             
-                    let layout_opts =  {
-                        applyDefaultStyles: true,
-                        maskContents:       true,  //alows resize over iframe
-                        //togglerContent_open:    '&nbsp;',
-                        //togglerContent_closed:  '&nbsp;',
-                        center:{
-                            minWidth:400,
-                            contentSelector: '.heurist-website', //@todo !!!! for particule template heurist-website can be missed
-                            //pane_name, pane_element, pane_state, pane_options, layout_name
-                            onresize_end : function(){
-                                //that.handleTabsResize();                            
-                            }    
-                        }
-                    };
-                    
-                    layout_opts[this.editor_pos] = {
-                        size: 230, //@todo this.usrPreferences.structure_width,
-                        maxWidth:800,
-                        minWidth:230,
-                        spacing_open:6,
-                        spacing_closed:40,  
-                        togglerAlign_open:'center',
-                        //togglerAlign_closed:'top',
-                        togglerAlign_closed:16,   //top position   
-                        togglerLength_closed:80,  //height of toggler button
-                        initHidden: false, //!this.options.edit_structure,   //show structure list at once 
-                        initClosed: false, //!this.options.edit_structure && (this.usrPreferences.structure_closed!=0),
-                        slidable:false,  //otherwise it will be over center and autoclose
-                        contentSelector: '.editStructure',   
-                        onopen_start : function( ){ 
-                            let tog = that._ws_body.find('.ui-layout-toggler-'+that.editor_pos);
-                            tog.removeClass('prominent-cardinal-toggler togglerVertical');
-                            tog.find('.heurist-helper2.'+that.editor_pos+'TogglerVertical').hide();
-                        },
-                        onclose_end : function( ){ 
-                            let tog = that._ws_body.find('.ui-layout-toggler-'+that.editor_pos);
-                            tog.addClass('prominent-cardinal-toggler togglerVertical');
-
-                            if(tog.find('.heurist-helper2.'+this.editor_pos+'TogglerVertical').length > 0){
-                                tog.find('.heurist-helper2.'+this.editor_pos+'TogglerVertical').show();
-                            }else{
-
-                                let margin = (this.editor_pos=='west') ? 'margin-top:270px;' : '';
-                                $('<span class="heurist-helper2 '+this.editor_pos+'TogglerVertical" style="width:270px;'+margin+'">Menu structure and page content</span>').appendTo(tog);
-                            }
-                        },
-                        onresize_end: function(){
-                            let width = that._ws_body.layout().state['west']['outerWidth'] <= 215 ? '60%' : '70%';
-                            that._editor_panel.find('a.website-url').css('width', width);
-                        },
-                        togglerContent_open:    '<div class="ui-icon ui-icon-triangle-1-'+(this.editor_pos=='west'?'w':'e')+'"></div>',
-                        togglerContent_closed:  '<div class="ui-icon ui-icon-carat-2-'+(this.editor_pos=='west'?'e':'w')+'"></div>',
-                    };
-
-                    this._ws_body.layout(layout_opts); //.addClass('ui-heurist-bg-light')
-
-                    let tog = this._ws_body.find('.ui-layout-toggler-'+this.editor_pos);
+            layout_opts[this.editor_pos] = {
+                size: 230, //@todo this.usrPreferences.structure_width,
+                maxWidth:800,
+                minWidth:230,
+                spacing_open:6,
+                spacing_closed:40,  
+                togglerAlign_open:'center',
+                //togglerAlign_closed:'top',
+                togglerAlign_closed:16,   //top position   
+                togglerLength_closed:80,  //height of toggler button
+                initHidden: false, //!this.options.edit_structure,   //show structure list at once 
+                initClosed: false, //!this.options.edit_structure && (this.usrPreferences.structure_closed!=0),
+                slidable:false,  //otherwise it will be over center and autoclose
+                contentSelector: '.editStructure',   
+                onopen_start : function( ){ 
+                    let tog = that._ws_body.find('.ui-layout-toggler-'+that.editor_pos);
+                    tog.removeClass('prominent-cardinal-toggler togglerVertical');
+                    tog.find('.heurist-helper2.'+that.editor_pos+'TogglerVertical').hide();
+                },
+                onclose_end : function( ){ 
+                    let tog = that._ws_body.find('.ui-layout-toggler-'+that.editor_pos);
                     tog.addClass('prominent-cardinal-toggler togglerVertical');
 
                     if(tog.find('.heurist-helper2.'+this.editor_pos+'TogglerVertical').length > 0){
@@ -140,9 +121,33 @@ class HCmsEditor {
                         let margin = (this.editor_pos=='west') ? 'margin-top:270px;' : '';
                         $('<span class="heurist-helper2 '+this.editor_pos+'TogglerVertical" style="width:270px;'+margin+'">Menu structure and page content</span>').appendTo(tog);
                     }
-                    
+                },
+                onresize_end: function(){
+                    let width = that._ws_body.layout().state['west']['outerWidth'] <= 215 ? '60%' : '70%';
+                    that._editor_panel.find('a.website-url').css('width', width);
+                },
+                togglerContent_open:    '<div class="ui-icon ui-icon-triangle-1-'+(this.editor_pos=='west'?'w':'e')+'"></div>',
+                togglerContent_closed:  '<div class="ui-icon ui-icon-carat-2-'+(this.editor_pos=='west'?'e':'w')+'"></div>',
+            };
+
+            this._ws_body.layout(layout_opts); //.addClass('ui-heurist-bg-light')
+
+            let tog = this._ws_body.find('.ui-layout-toggler-'+this.editor_pos);
+            tog.addClass('prominent-cardinal-toggler togglerVertical');
+
+            if(tog.find('.heurist-helper2.'+this.editor_pos+'TogglerVertical').length > 0){
+                tog.find('.heurist-helper2.'+this.editor_pos+'TogglerVertical').show();
+            }else{
+
+                let margin = (this.editor_pos=='west') ? 'margin-top:270px;' : '';
+                $('<span class="heurist-helper2 '+this.editor_pos+'TogglerVertical" style="width:270px;'+margin+'">Menu structure and page content</span>').appendTo(tog);
+            }
+
+            let helpURL = window.hWin.HRes( 'website_instructions.htm' );
+            this._editor_panel.find('#helpLink').attr('href',helpURL)
+            
+            
             this.#initEditControls();
-           
         }//editor panel is already inited
         
         this._ws_body.layout().show(this.editor_pos, true );
@@ -160,33 +165,27 @@ class HCmsEditor {
         let that = this;
 
         this._editor_panel.find('.btn-website-homepage').on('click', ()=>that.#editHomePage()); //load home page content
-        this._editor_panel.find('.btn-website-edit').on('click', ()=>that.#editHomePageRecord()); //open record edit
         
-        if(!this.isWebPage){
-            this._editor_panel.find('.btn-website-edit')
-                         .button({classes:{'ui-button': 'ui-button-action'}})
+        this._editor_panel.find('.btn-website-header').on('click', ()=>that.onMarginEdit(true));
+        this._editor_panel.find('.btn-website-footer').on('click', ()=>that.onMarginEdit(false));
+
+        
+        let btnEdit = this._editor_panel.find('.btn-website-edit');
+        btnEdit.on('click', ()=>that.#editHomePageRecord()); //open record edit
+        btnEdit.button({classes:{'ui-button': 'ui-button-action'}})
                          .css({'padding':'5px','font-size':'smaller'});
-        }
-
-        this._editor_panel.find('.btn-website-addpage').on('click', this.#addNewRootMenu); // button({icon:'ui-icon-plus'}).
-
-        let url = window.hWin.HEURIST4.ui.getCmsLink({websiteid:this.website_id,version:3});
         
-        this._editor_panel.find('.website-url').text(url).attr('title', `Click to copy ${url} to clipboard`).on('click', function(){ // save website url to clipboard
-            window.hWin.HEURIST4.util.copyStringToClipboard(`${url}`);
-            window.hWin.HEURIST4.msg.showMsgFlash('Website URL saved to clipboard', 3000);
-        });
+
+        this._editor_panel.find('.btn-website-addpage').on('click', ()=>that.#addNewRootMenu());
 
         this._editor_panel.find('.btn-website-homepage').parent()
-        .addClass('fancytree-node')
+        //.addClass('fancytree-node')
         .on( 'mouseenter', function(event){ 
             that._editor_panel.find('.btn-website-addpage').show();
         } )
         .on( 'mouseleave', function(event){
             that._editor_panel.find('.btn-website-addpage').hide();
         } );
-        
-        this._editor_panel.find('.bnt-website-menu').button({icon:'ui-icon-menu'}).on('click', this.#showWebSiteMenu);
         
         this._editor_panel.find('.bnt-cms-hidepanel').on('click', function(){ that._ws_body.layout().close(that.editor_pos); } );
      
@@ -201,7 +200,7 @@ class HCmsEditor {
             },
             beforeActivate: function( event, ui ){
 
-                if(that.current_edit_mode=='page' && that._cmsEditorPage.warningOnExit(function(){ that.switchMode( 'website' ) })) {
+                if(that.current_edit_mode=='page' && that._cmsEditorPage && that._cmsEditorPage.warningOnExit(function(){ that.switchMode( 'website' ) })) {
                     return false;  
                 }else{
                     return true;
@@ -213,9 +212,6 @@ class HCmsEditor {
         this._tabControl.find('.ui-tabs-nav')[0].style.setProperty('background', 'none', 'important');
         this._tabControl.find('.ui-tabs-nav')[0].style.setProperty('padding', '0px', 'important');
         
-        if(this.isWebPage){
-            this._tabControl.find('.ui-tabs-tab[aria-controls="treeWebSite"]').hide();
-        }
   }
   
   
@@ -229,25 +225,63 @@ class HCmsEditor {
         }
       
         this._webPageFrame = $('#webPageFrame');
-        const pageURL = window.hWin.HEURIST4.ui.getCmsLink({websiteid:this.website_id,pageid:this.page_id,version:3,edit:2});
+        const pageURL = window.hWin.HEURIST4.ui.getCmsLink({websiteid:this.website_id,
+                                    pageid:this.page_id,
+                                    version:3,mode:'edit',edit:2,
+                                    lang:this.currentLanguage});
         this._webPageFrame.attr('src', pageURL);
-        
-        let that = this;
-        this._webPageFrame.on('load', function(){
-            that.#onWebPageLoadComplete();
-        });
   }
   
   //
-  // This is event for initial loading in iframe
+  // This is event for (first)initial loading in iframe
+  // For particular page - onLoadPageContent
+  // It is called in onHapiInit in WebSiteScripts.php
   //
-  #onWebPageLoadComplete(){
-      //menu as json tree
-      this.menuContentJSON = this._webPageFrame[0].contentWindow.menuContentJSON;
+  onWebSiteLoad()
+  {
+      //website menu as json tree
+      if(this._webPageFrame[0].contentWindow){
+        this.webSite = this._webPageFrame[0].contentWindow.webSite;
+        this.menuContentJSON = this.webSite.siteMenu;
+        this.website_id = this.webSite.siteId;
+        this.page_id = this.webSite.pageId;
+        
+        this.currentLanguage = this.webSite.currentLanguage;
+        this.allLanguages = this.webSite.allLanguages;
+        
+        this.isWebPage = this.webSite.isWebPage;
+        
+      }else{
+        this.menuContentJSON = [];
+        this.website_id = 0;
+        this.page_id = 0;
+        this.allLanguages = null;
+        this.currentLanguage = null;
+      }
       
-      if(this._editCMS_SiteMenu){
-          //refresh website structure tree
-          this._editCMS_SiteMenu.initControls();
+      this._editor_panel.find('.website-url').off('click');
+      if(this.website_id>0){
+            const pageURL = window.hWin.HEURIST4.ui.getCmsLink({websiteid:this.website_id,version:3});//,lang:this.currentLanguage
+            
+            this._editor_panel.find('.website-url').text(pageURL).attr('title', `Click to copy ${pageURL} to clipboard`).on('click', function(){ // save website url to clipboard
+                window.hWin.HEURIST4.util.copyStringToClipboard(`${pageURL}`);
+                window.hWin.HEURIST4.msg.showMsgFlash('Website URL saved to clipboard', 3000);
+            }).show();
+      }else{
+          this._editor_panel.find('.website-url').hide();
+      }
+
+      if(this.isWebPage){
+            this._editor_panel.find('.btn-website-edit').button('option','label','WebPage Properties');
+            this._tabControl.find('ul.ui-tabs-nav').hide();
+            this._editor_panel.find('#treePage').show();
+            this._editor_panel.find('#pageTitle').hide();
+      }else{
+          this._editor_panel.find('div.treePage').css('top','40px');
+          if(this._editCMS_SiteMenu){
+            //refresh website structure tree
+            this._editCMS_SiteMenu.initControls();
+          }
       }
       
       this.mainMenu = null;
@@ -257,19 +291,28 @@ class HCmsEditor {
   //
   // called from editCMS_SiteMenu - load different page into target element
   //
-  loadPageContent(page_id){
+  loadPageContent(pageId){
       
-    if(!window.hWin.HEURIST4.util.isPositiveInt(page_id)){
-        page_id = this.page_id;
+      
+    if(!window.hWin.HEURIST4.util.isPositiveInt(pageId)){
+        pageId = this.page_id;
+    }else if(this.warningOnExit()){
+        return;
     }
 
-    this._webPageFrame[0].contentWindow.HAPI4.actionHandler.executeActionById('data-heurist-pageid', 
-            {page_id:page_id, callback:(rec)=>this.onLoadPageContent(rec)});;
+    if(this._webPageFrame[0].contentWindow.webSite){
+        this._webPageFrame[0].contentWindow.webSite.loadPage( {pageId:pageId} );
+    }
+    //this._webPageFrame[0].contentWindow.HAPI4.actionHandler.executeActionById('data-heurist-pageid', {pageId:pageId}); 
+    //, callback:(rec)=>this.onLoadPageContent(rec)}
   }
 
-  //
-  //  Event handler on page load completed
-  //
+  /*
+  *  Event handler on page load completed (see WebSite.onPageLoad)
+  *  1. Sets container element (layout_container)
+  *  2. Inits HCmsEditorPage instance
+  *  3. Switches to page mode and calls this._cmsEditorPage.initPage
+  */
   onLoadPageContent(record){
 
       let that = this;
@@ -285,6 +328,7 @@ class HCmsEditor {
       }
       */
 
+      //TBD change to webSite.getContainer
       this.layout_container = this._webPageFrame[0].contentDocument.getElementsByTagName('main');
       if(!this.layout_container){
           this.layout_container = this._webPageFrame[0].contentDocument.getElementById('main-content');
@@ -307,11 +351,34 @@ class HCmsEditor {
               that.switchMode('page');
           }
       });
+      
+      //swtich to page tab automatically
+      //let header = this._webPageFrame[0].contentDocument.getElementsByTagName('header'); //TBD or main-header
+      //let footer = this._webPageFrame[0].contentDocument.getElementsByTagName('footer'); 
+      //$(header).on('click',()=>that.onMarginEdit(true));
+      //$(footer).on('click',()=>that.onMarginEdit(false));
+      
+      this.layout_container.on('click',function(event){
+
+          if(that.current_edit_mode!='page'){
+              //switch to page mode                
+              that.switchMode('page');
+          }else{
+              //that._cmsEditorPage.hideMarginProperties();
+          }
+      });
 
       this._cmsEditorPage.initPage(this.layout_container, record);
       this.switchMode('page');
   }
-
+  
+  /*
+  * Start edit header or footer by click in SiteMenu
+  */
+  onMarginEdit(isHeader){
+      this._cmsEditorPage.showMarginProperties(isHeader);
+      this.switchMode('page');
+  }
   
   //
   // Returns tinymce object from webpage iframe
@@ -324,7 +391,8 @@ class HCmsEditor {
   // Returns html element from webpage iframe
   //  
   findInWebSite(selector){
-      return this._webPageFrame[0].contentDocument.querySelector(selector);
+      const matches = this._webPageFrame[0].contentDocument.querySelectorAll(selector);
+      return matches.length>0 ?matches[0] :null;
   }
 
   //
@@ -333,7 +401,7 @@ class HCmsEditor {
   getHapi(){
       return this._webPageFrame[0].contentWindow.HAPI4;
   }
-
+  
   //
   // loads home page content
   //  
@@ -342,9 +410,11 @@ class HCmsEditor {
       if(this.warningOnExit( ()=>that.#editHomePage() )) return;                           
       //reload content of page
       this.loadPageContent( this.website_id );
-      
   }
   
+  /*
+  * Returns true if action is blocked
+  */
   warningOnExit(callback){
       return (this._cmsEditorPage && this._cmsEditorPage.warningOnExit( callback ));                           
   }
@@ -375,13 +445,35 @@ class HCmsEditor {
       }});
   }
   
+  /**
+  * Add new root menu/page
+  */
   #addNewRootMenu(){
+
+        if(this._editCMS_SiteMenu){
+            //refresh website structure tree
+            this._editCMS_SiteMenu.selectMenuRecord(this.website_id);
+        }
+  }
+  
+  /**
+  *   Add new page as a sibling of current page
+  */
+  addNewPage(pageTemplate){
+      
+      if(!this._editCMS_SiteMenu){
+          this._editCMS_SiteMenu = editCMS_SiteMenu( this._editor_panel.find('.treeWebSite'), this );
+      }
+      // Get parent page id
+      let parentPageId = this._editCMS_SiteMenu.getParentPage(this.page_id);
+      parentPageId = (parentPageId == null || parentPageId <= 0) ? window.hWin.website_id : parentPageId;
+
+      this._editCMS_SiteMenu.createMenuRecord(parentPageId, pageTemplate, pageTemplate);
       
   }
   
-  #showWebSiteMenu(){
-      
-  }
+  
+  //#showWebSiteMenu(){}
 
   //
   // Open editor panel
@@ -413,7 +505,9 @@ class HCmsEditor {
   */
   switchMode(mode){
 
-        if(!mode){
+        if(this.isWebPage){
+            mode = 'page';
+        }else if(!mode){
             if(this._tabControl.tabs('option','active')==0){
                 mode='website';           
             }else{
@@ -458,8 +552,9 @@ class HCmsEditor {
 
 
             //load website menu treeview
-            if(!this._editCMS_SiteMenu)
-            this._editCMS_SiteMenu = editCMS_SiteMenu( this._editor_panel.find('.treeWebSite'), this );
+            if(!this._editCMS_SiteMenu){
+                this._editCMS_SiteMenu = editCMS_SiteMenu( this._editor_panel.find('.treeWebSite'), this );
+            }
            
         }
   }
@@ -470,5 +565,250 @@ class HCmsEditor {
   onBeforeUnload(){
       
   }    
+  
+  /*
+  * Utility for working with classes
+  */
+  //
+  // replace classes with given prefix with new classes
+  //
+  static replaceBsClasses(element, removeWithPrefix, newClasses){
+      
+      if(!element) return;
 
+      let classes = Array.from(element.classList);
+
+      classes = HCmsEditor.removeBsClasses(classes, removeWithPrefix); //returns array
+      /*        
+      const bsClasses = Array.isArray(removeWithPrefix)?removeWithPrefix:[removeWithPrefix];
+      classes = classes.filter(function(value) {
+      const res = bsClasses.some(substr => value.startsWith(substr));
+      return !res;
+      });        
+      */
+
+      if(Array.isArray(newClasses)){
+          classes = classes.concat(newClasses);    
+      }else if(newClasses!='' && newClasses!=null){
+          classes.push(newClasses);
+      }
+      element.classList = classes.join(' ');
+      
+      return element.classList;
+  }    
+
+  //
+  // returns only classes started with the given prefix
+  //
+  static getBsClassesAsString(element, withPrefix){
+      let classes = Array.from(element?.classList);
+      let bsClasses = HCmsEditor.getBsClasses(classes, withPrefix);
+      return bsClasses.join(' ').trim();
+  }
+  
+  //
+  // returns only classes started with the given prefix
+  //
+  static getBsClasses(classes, withPrefix){
+      return HCmsEditor.getOrRemoveClasses(classes, withPrefix, false);
+  }
+
+  //
+  // Remove classes with given previx
+  //
+  static removeBsClasses(classes, withPrefix){
+      return HCmsEditor.getOrRemoveClasses(classes, withPrefix, true);
+  }
+
+  //
+  //
+  //
+  static getOrRemoveClasses(classes, withPrefix, isRemove){
+
+      const isArray = Array.isArray(classes);
+
+      if(window.hWin.HEURIST4.util.isempty(classes)){
+          return isArray?[]:'';   
+      }
+
+      if(!isArray){
+          classes = classes.split(' ');    
+      }
+
+      const bsClasses = Array.isArray(withPrefix)?withPrefix:[withPrefix];
+
+      //return all with prefixes
+      classes = classes.filter(function(value) {
+          let res = bsClasses.some(substr => value.startsWith(substr));
+          if(isRemove){
+              res = !res;
+          }
+          return res;
+      });        
+
+      return isArray?classes:classes.join(' ');
+  }
+
+  /*
+  *
+  */
+  static convertToBootstrapSize(value) {
+      
+      value = value.trim();
+      
+      const spacingMap = {
+          '0': '0', '0px': '0',
+          '0.25rem': '1', '4px': '1',
+          '0.5rem': '2', '8px': '2',
+          '1rem': '3', '16px': '3',
+          '1.5rem': '4', '24px': '4',
+          '3rem': '5', '48px': '5'
+      };
+
+      const val = spacingMap[value];
+      if (val !== undefined) {
+          return val;
+      }
+      
+      if(value.indexOf('px')>0){
+          value = parseInt(value);
+          let lastkey = '48px';
+          for (const [bskey, bsvalue] of Object.entries(spacingMap)) {
+              if(bskey.indexOf('px')>0){
+                  let bskey2 = parseInt(bskey);
+                  if(value<=bskey2){
+                      lastkey = bskey;
+                      break;
+                  }
+              }
+          }
+          return spacingMap[lastkey];
+      }
+      
+  }
+  
+  /*
+  *
+  */  
+  static parseBorderShorthand(border) {
+      const result = {
+          borderStyle: '',
+          borderColor: '',
+          borderWidth: ''
+      };
+
+      const styles = [
+          'none', 'hidden', 'dotted', 'dashed', 'solid',
+          'double', 'groove', 'ridge', 'inset', 'outset'
+      ];
+
+      const parts = border.trim().split(/\s+/);
+
+      parts.forEach(part => {
+          if (styles.includes(part)) {
+              result.borderStyle = part;
+          } else if (/^\d+(px|em|rem|%)?$/.test(part)) {
+              result.borderWidth = part;
+          } else {
+              result.borderColor = part;
+          }
+      });
+
+      return result;
+  }
+
+  /*
+  *
+  */
+  static convertToBootstrapClasses(styles) {
+      const bootstrapClasses = [];
+
+      const directions = {
+          'margin': 'm',
+          'margin-top': 'mt',
+          'margin-right': 'me',
+          'margin-bottom': 'mb',
+          'margin-left': 'ms',
+          'padding': 'p',
+          'padding-top': 'pt',
+          'padding-right': 'pe',
+          'padding-bottom': 'pb',
+          'padding-left': 'ps'
+      };
+      
+      let css = {};
+
+      for (const [key, value] of Object.entries(styles)) {
+          // Margin & Padding
+          if (directions[key]) {
+              const sz = HCmsEditor.convertToBootstrapSize(value);
+              bootstrapClasses.push(`${directions[key]}-${sz}`);
+          }
+
+          // Border shorthand
+          else if (key === 'border-color') {
+                css['--bs-border-color'] = value;
+              
+          }
+          else if (key === 'border-style') {
+              
+                css['--bs-border-style'] = value;
+          }
+          else if (key === 'border-radius') {
+              
+              const sz = HCmsEditor.convertToBootstrapSize(value);
+              if(sz>0) bootstrapClasses.push(`rounded-${sz}`);
+              
+          }
+          else if (key === 'border' || key.startsWith('border-')) {
+
+              let base = 'border';
+              if(key.startsWith('border-')){
+                  const side = key.split('-')[1];
+                  const sideClassMap = {
+                      'top': 'border-top',
+                      'right': 'border-end',
+                      'bottom': 'border-bottom',
+                      'left': 'border-start'
+                  };
+                  base = sideClassMap[side];
+                  if (!base) continue;
+              }
+              
+              let bs = HCmsEditor.parseBorderShorthand(value);
+
+              bs.borderWidth = parseInt(bs.borderWidth);
+              if(bs.borderWidth>5){
+                  bs.borderWidth = 5;    
+              }else if(!bs.borderWidth || bs.borderWidth<1){
+                  bs.borderWidth = 0;    
+              }
+              
+              if(bs.borderWidth>0 && bs.borderStyle!='none'){
+                  bootstrapClasses.push('border')
+                  bootstrapClasses.push(`${base}-${bs.borderWidth}`);
+
+                  if(bs.borderStyle){
+                      css['--bs-border-style'] = bs.borderStyle;
+                  }
+                  if(['black', 'white'].includes(bs.borderColor)){
+                      bootstrapClasses.push(`border-${bs.borderColor}`);
+                  }else if(bs.borderColor) {
+                      css['--bs-border-color'] = bs.borderColor;
+                  }
+              
+              }else{
+                  bootstrapClasses.push(`${base}-0`);
+              }
+          }
+      }
+      
+      if(css['--bs-border-style'] && bootstrapClasses.indexOf('border')<0){
+          bootstrapClasses.push('border border-1');
+      }
+
+      return {bsClasses:[...new Set(bootstrapClasses)].join(' '), css: css};
+  }
+
+  
 }

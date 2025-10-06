@@ -1,31 +1,53 @@
 /**
-* HBaseView - A container widget for displaying popups using:
-* 
-* - jQuery Dialog (popup)
-* - Bootstrap Modal
-* - Bootstrap Offcanvas
-* or inline (it may add header and footer)
-*
-* @package     Heurist academic knowledge management system
-* @link        https://HeuristNetwork.org
-* @copyright   (C) 2005-2023 University of Sydney, (C) 2024 onwards Heurist Network
-* @author      Artem Osmakov   <osmakov@gmail.com>
-* @version     7.0
-*/
-
-
-/*
-* HBasePopup
-*
-*/
+ * @file HBaseView.js
+ * @brief A container widget for displaying popups using jQuery Dialog, Bootstrap Modal, Bootstrap Offcanvas, or inline.
+ * @fileOverview A container widget for displaying popups using:
+ * - jQuery Dialog (popup)
+ * - Bootstrap Modal
+ * - Bootstrap Offcanvas
+ * or inline (it may add header and footer)
+ * @project     Heurist academic knowledge management system
+ * @link        https://HeuristNetwork.org
+ * @copyright   (C) 2005-2023 University of Sydney, (C) 2024 onwards Heurist Network
+ * @author      Artem Osmakov   <osmakov@gmail.com>
+ * @author      Ian Johnson <ian.johnson.heurist@gmail.com>
+ * @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
+ * @since       7.0
+ */
 import './HBaseWidget.js';
 
+/* global bootstrap */
+
+/**
+ * @class HBaseView
+ * @augments {HBaseWidget}
+ * @memberof Widgets.UI
+ * @description A container widget for displaying popups using jQuery Dialog, Bootstrap Modal, Bootstrap Offcanvas, or inline.
+ * @param {object} options - Configuration options for the widget.
+ */
 $.widget( 'heurist.HBaseView', $.heurist.HBaseWidget, {
 
-    // Default options
+    /**
+     * @memberof Widgets.UI.HBaseView
+     * @type {object}
+     * @property {string} viewMode - The view mode.
+     * @property {boolean} showMargin - Whether to show the margin.
+     * @property {string} default_palette_class - The default palette class.
+     * @property {number} height - The height of the view.
+     * @property {number} width - The width of the view.
+     * @property {object} position - The position of the view.
+     * @property {boolean} modal - Whether the view is modal.
+     * @property {string} title - The title of the view.
+     * @property {string} helpContent - The help content.
+     * @property {boolean} isTitleVisible - Whether the title is visible.
+     * @property {boolean} isHeaderVisible - Whether the header is visible.
+     * @property {function} beforeClose - The function to call before closing.
+     * @property {function} onClose - The function to call after closing.
+     * @property {boolean} keepInstance - Whether to keep the instance.
+     */
     options: {
         // View mode: Determines how the content is displayed
-        viewMode: 'popup', // Options: 'offcanvas-*', 'modal-*', 'popup' (jQuery dialog), 'inline'
+        viewMode: 'popup', // Options: 'offcanvas-*', 'modal-*', 'popup' (jQuery dialog), 'inline', 'full' (over main), 'container' (by dom id)
         showMargin: true,
 
         // Dialog-specific options
@@ -35,7 +57,8 @@ $.widget( 'heurist.HBaseView', $.heurist.HBaseWidget, {
         position: null,
         modal: true,
         title: '',
-
+        helpContent: null,
+        
         // Visibility toggles
         isTitleVisible: false, // Hide title
         isHeaderVisible: true,  // Show header as a top panel
@@ -54,10 +77,12 @@ $.widget( 'heurist.HBaseView', $.heurist.HBaseWidget, {
 
     // Flag to track close event context
     // Variable to be passed to options.onClose
-    _context_on_close:false, 
+    _contextOnClose:false, 
     
     /**
-     * Initialize the widget.
+     * @private
+     * @memberof Widgets.UI.HBaseView
+     * @description Initialize the widget.
      */
     _init: function() {
         if (this.options.viewMode === 'inline') {
@@ -65,25 +90,29 @@ $.widget( 'heurist.HBaseView', $.heurist.HBaseWidget, {
         }
 
         // Handle Bootstrap modals and offcanvas
-        if (this.options.viewMode !== 'popup') {
-            const mode = this.options.viewMode.split('-')[0];
-            this._container = this._$(`.${mode}-body`);
-
-            if (this._container.length === 0) {
-                // Load modal/offcanvas layout or header/footer for inline
-                let url = `${this.HAPI.baseURL}hclient/widgets/HBase/HBaseView.html div.${mode}`;
-                                    //+ '?t='+this.$H.random();
-                this.loadHtmlContent(this.element, url, this._init);
-                return;
-            }
+        if (this.options.viewMode === 'popup' || (this.options.viewMode === 'inline' && !this.options.isHeaderVisible)) {
+            this._super();
+            return;
         }
+        
+        const mode = this.options.viewMode.split('-')[0];
+        this._container = this._$(`.${mode}-body`); //inline-body
 
+        if (this._container.length === 0) {
+            // Load modal/offcanvas layout or header/footer for inline
+            let url = `${this.HAPI.baseURL}hclient/widgets/HBase/HBaseView.html div.${mode}`;
+                                //+ '?t='+this.$H.random();
+            this.loadHtmlContent(this.element, url, this._init);
+            return;
+        }
         // Call parent `_init`
         this._super();
     },
         
     /**
-     * Destroy the widget and clean up modal/dialog instances.
+     * @private
+     * @memberof Widgets.UI.HBaseView
+     * @description Destroy the widget and clean up modal/dialog instances.
      */
     _destroy: function() {
         if (this.bsModal) this.bsModal.dispose();
@@ -95,7 +124,9 @@ $.widget( 'heurist.HBaseView', $.heurist.HBaseWidget, {
     },
     
     /**
-     * Initializes UI elements and event listeners.
+     * @private
+     * @memberof Widgets.UI.HBaseView
+     * @description Initializes UI elements and event listeners.
      */
     _initControls: function() {
         if (this.options.viewMode.startsWith('modal')) {
@@ -112,14 +143,18 @@ $.widget( 'heurist.HBaseView', $.heurist.HBaseWidget, {
     },
     
     /**
-     * Returns the container element.
+     * @memberof Widgets.UI.HBaseView
+     * @description Returns the container element.
+     * @returns {HTMLElement} The container element.
      */
     getContainer: function() {
+        //for inline and jquery popup this is this.element
         return this._container[0];
     },
 
     /**
-     * Opens the widget in the appropriate display mode.
+     * @memberof Widgets.UI.HBaseView
+     * @description Opens the widget in the appropriate display mode.
      */
     show: function() {
         if (this.bsModal) {
@@ -132,7 +167,8 @@ $.widget( 'heurist.HBaseView', $.heurist.HBaseWidget, {
     },
 
     /**
-     * Closes the widget.
+     * @memberof Widgets.UI.HBaseView
+     * @description Closes the widget.
      * @param {boolean} isForce - Whether to force close without confirmation.
      */
     close: function(isForce) {
@@ -147,7 +183,7 @@ $.widget( 'heurist.HBaseView', $.heurist.HBaseWidget, {
             }
             if(canClose){
                 if(window.hWin.HEURIST4.util.isFunction(this.options.onClose)){
-                    this.options.onClose( this._context_on_close );
+                    this.options.onClose( this._contextOnClose );
                 }
             }
             this.element.hide();
@@ -163,7 +199,9 @@ $.widget( 'heurist.HBaseView', $.heurist.HBaseWidget, {
     
     
     /**
-     * Initializes Bootstrap modal.
+     * @private
+     * @memberof Widgets.UI.HBaseView
+     * @description Initializes Bootstrap modal.
      */
     _initModal: function() {
         let modal = this._$('[data-heurist-role="container-modal"]')[0];
@@ -187,7 +225,9 @@ $.widget( 'heurist.HBaseView', $.heurist.HBaseWidget, {
     },
 
     /**
-     * Initializes Bootstrap offcanvas.
+     * @private
+     * @memberof Widgets.UI.HBaseView
+     * @description Initializes Bootstrap offcanvas.
      */
     _initOffcanvas: function() {
         let offcanvas = this._$('[data-heurist-role="container-offcanvas"]')[0];
@@ -202,10 +242,12 @@ $.widget( 'heurist.HBaseView', $.heurist.HBaseWidget, {
         else if (this.options.viewMode.includes('-bottom')) handles = 'n';
         else if (this.options.viewMode.includes('-end')) handles = 's';
 
+        /*temp disable   jquery ui-resizable sets position:relative
         $(offcanvas).resizable({
             minWidth: 400,
             handles: handles,
         });
+        */
 
         this.bsOffcanvas = bootstrap.Offcanvas.getOrCreateInstance(offcanvas);
 
@@ -224,7 +266,9 @@ $.widget( 'heurist.HBaseView', $.heurist.HBaseWidget, {
 
     
     /**
-     * Initializes jQuery dialog.
+     * @private
+     * @memberof Widgets.UI.HBaseView
+     * @description Initializes jQuery dialog.
      */
     _initDialog: function(){
         
@@ -251,7 +295,7 @@ $.widget( 'heurist.HBaseView', $.heurist.HBaseWidget, {
             beforeClose: options.beforeClose,
             close: () => {
                 if(this.$H.isFunction(this.options.onClose)){
-                    this.options.onClose(this._context_on_close);
+                    this.options.onClose(this._contextOnClose);
                 }
                 if (!this.options.keepInstance) {
                     this.jqDialog.remove();
@@ -267,7 +311,9 @@ $.widget( 'heurist.HBaseView', $.heurist.HBaseWidget, {
     },
 
     /**
-     * Opens the jQuery dialog.
+     * @private
+     * @memberof Widgets.UI.HBaseView
+     * @description Opens the jQuery dialog.
      */
     _popupDialog: function(){
 
@@ -285,6 +331,12 @@ $.widget( 'heurist.HBaseView', $.heurist.HBaseWidget, {
                 this.element.addClass('ui-heurist-bg-light');
             }
 
+            if(this.options.helpContent){
+                const helpURL = window.hWin.HRes( this.options.helpContent )+' #content';
+                window.hWin.HEURIST4.ui.initDialogHintButtons(this.jqDialog, null, helpURL, false);    
+            }
+            
+            
             /* TBD
             if(this.options.supress_dialog_title) $dlg.parent().find('.ui-dialog-titlebar').hide();
 
@@ -301,7 +353,9 @@ $.widget( 'heurist.HBaseView', $.heurist.HBaseWidget, {
     
 
     /**
-     * Closes the jQuery dialog.
+     * @private
+     * @memberof Widgets.UI.HBaseView
+     * @description Closes the jQuery dialog.
      * @param {boolean} isForce - Whether to force close without confirmation.
      */
     _closeDialog: function(isForce){
@@ -315,7 +369,9 @@ $.widget( 'heurist.HBaseView', $.heurist.HBaseWidget, {
     },
     
     /**
-     * Adds/hides an inner header for inline mode.
+     * @private
+     * @memberof Widgets.UI.HBaseView
+     * @description Adds/hides an inner header for inline mode.
      */
     _initInnerHeader: function() {
         if (!this.options.isHeaderVisible) {
@@ -325,15 +381,18 @@ $.widget( 'heurist.HBaseView', $.heurist.HBaseWidget, {
     },
 
     /**
-     * Returns action buttons for jQuery dialogs.
+     * @private
+     * @memberof Widgets.UI.HBaseView
+     * @description Returns action buttons for jQuery dialogs.
      * If function returns an empty array - buttons panel will be hidden
+     * @returns {Array} The action buttons.
      */
     _getActionButtons: function() {
         return [{
             text: window.hWin.HR('Close'),
             class: 'btnCancel',
             css: { 'float': 'right', 'margin-left': '30px', 'margin-right': '20px' },
-            click: () => this._closeDialog()
+            click: () => this.close()
         }];
 /*        return [
                  {text:window.hWin.HR('Cancel'), 

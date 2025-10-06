@@ -1,46 +1,47 @@
 <?php
+/**
+ * autoload.php - Registers autoload function and includes common scripts.
+ *
+ * @fileOverview Registers an autoload function to enable classes and interfaces to be
+ * automatically loaded if they are not currently defined. It also includes
+ * common scripts such as configuration, constants, database access utilities,
+ * and other static utility classes.
+ * 
+ * @project     Heurist academic knowledge management system
+ * @package Core
+ * @link https://HeuristNetwork.org
+ * @copyright (C) 2005-2023 University of Sydney, (C) 2024 onwards Heurist Network
+ * @license https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
+ * @author Artem Osmakov <osmakov@gmail.com>
+ * @author Ian Johnson <ian.johnson.heurist@gmail.com>
+ * @since 6.0
+ */
+
+spl_autoload_register(
     /**
-    * Registers autload function to enable for classes and interfaces to be
-    * automatically loaded if they are currently not defined (by include/require).
-    *
-    * Includes common scripts: config, const, db access and 3 static classes
-    *
-    * @package     Heurist academic knowledge management system
-    * @link        https://HeuristNetwork.org
-    * @copyright   (C) 2005-2023 University of Sydney, (C) 2024 onwards Heurist Network
-    * @author      Artem Osmakov   <osmakov@gmail.com>
-    * @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
-    * @version     4.0
-    */
+     * Autoloads HSERV classes.
+     *
+     * PSR-4 style autoloader for classes under the 'hserv\' namespace.
+     *
+     * @param string $class The fully-qualified class name.
+     * @return void
+     */
+    function ($class) {
+        $prefix = 'hserv\\';
+        if (strpos($class, $prefix) !== 0) {
+            // Alternative: $prefix = __NAMESPACE__ . $class;
+            return;
+        }
 
-    /*
-    * Licensed under the GNU License, Version 3.0 (the "License"); you may not use this file except in compliance
-    * with the License. You may obtain a copy of the License at https://www.gnu.org/licenses/gpl-3.0.txt
-    * Unless required by applicable law or agreed to in writing, software distributed under the License is
-    * distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied
-    * See the License for the specific language governing permissions and limitations under the License.
-    */
+        $filename = str_replace('\\', DIRECTORY_SEPARATOR, $class) . '.php';
+        $filepath = __DIR__ . DIRECTORY_SEPARATOR . $filename;
 
-
-
-
-
-spl_autoload_register(function ($class) {
-
-    $prefix = 'hserv\\';
-    if (strpos($class, $prefix) !== 0) {
-        //alternative $prefix = __NAMESPACE__ . $class;
-        return;
+        if (!is_readable($filepath)) {
+            return;
+        }
+        require_once $filepath;
     }
-
-    $filename = str_replace('\\', DIRECTORY_SEPARATOR, $class) . '.php';
-    $filepath = __DIR__ . DIRECTORY_SEPARATOR . $filename;
-
-    if (!is_readable($filepath)) {
-        return;
-    }
-    require_once $filepath;
-});
+);
 require_once dirname(__FILE__).'/configIni.php';// read in the configuration file
 
 require_once dirname(__FILE__).'/hserv/consts.php';

@@ -1,0 +1,19 @@
+{
+    "source": {
+      "include": ["hclient","viewers"],
+      "includePattern": ".+\\.js$",
+      "excludePattern": "(^|\\/|\\\\)_"
+    },
+    "opts": {
+      "destination": "../JSdoc/",
+      "recurse": true,
+      "template": "templates/default"
+    },
+    "templates": {
+      "cleverLinks": false,
+      "monospaceLinks": false,
+      "default": {
+        "outputSourceFiles": false
+      }
+    }    
+}

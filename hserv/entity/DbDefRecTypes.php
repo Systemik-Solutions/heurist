@@ -1,45 +1,69 @@
 <?php
+/**
+* DbDefRecTypes.php - Class DbDefRecTypes
+*
+* Operations for the `defRecTypes` table.
+*
+* @project     Heurist academic knowledge management system
+* @package Entity 
+* @link        https://HeuristNetwork.org
+* @copyright   (C) 2005-2023 University of Sydney, (C) 2024 onwards Heurist Network
+* @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
+* @author      Artem Osmakov   <osmakov@gmail.com>
+* @author      Ian Johnson     <ian.johnson.heurist@gmail.com>
+* @since       4.0
+*/
 namespace hserv\entity;
 use hserv\entity\DbEntityBase;
 use hserv\utilities\USanitize;
 
 require_once dirname(__FILE__).'/../records/edit/recordTitleMask.php';
 
-    /**
-    * db access to defRecTypes table
-    *
-    *
-    * @package     Heurist academic knowledge management system
-    * @link        https://HeuristNetwork.org
-    * @copyright   (C) 2005-2023 University of Sydney, (C) 2024 onwards Heurist Network
-    * @author      Artem Osmakov   <osmakov@gmail.com>
-    * @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
-    * @version     4.0
-    */
-
-    /*
-    * Licensed under the GNU License, Version 3.0 (the "License"); you may not use this file except in compliance
-    * with the License. You may obtain a copy of the License at https://www.gnu.org/licenses/gpl-3.0.txt
-    * Unless required by applicable law or agreed to in writing, software distributed under the License is
-    * distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied
-    * See the License for the specific language governing permissions and limitations under the License.
-    */
+/**
+* Class DbDefRecTypes
+*
+* Provides database access and operations for the `defRecTypes` table,
+* which stores definitions for record types.
+*
+*/
 class DbDefRecTypes extends DbEntityBase
 {
     private $where_for_count = null;
     private $rty_counts = null;
 
     /**
-    *  search users
-    *
-    *  other parameters :
-    *  details - id|name|list|all or list of table fields
-    *  offset
-    *  limit
-    *  request_id
-    *
-    *  @todo overwrite
-    */
+     * Searches for Record Type definitions based on criteria in `$this->data`.
+     *
+     * This method extends the base search functionality. It first calls `parent::search()`
+     * to initialize the `DbEntitySearch` manager (`$this->searchMgr`) and validate
+     * common search parameters from `$this->data`.
+     *
+     * It then adds specific predicates for this entity:
+     * - `rty_ID`: If provided in `$this->data['rty_ID']`.
+     * - `rty_Name`: If provided in `$this->data['rty_Name']`.
+     * - `rty_RecTypeGroupID`: If provided in `$this->data['rty_RecTypeGroupID']`.
+     *
+     * The fields returned in the search results depend on `$this->data['details']` (defaults to 'full'):
+     * - 'id': Returns only `rty_ID`.
+     * - 'name': Returns `rty_ID`, `rty_Name`.
+     * - 'count': Returns `rty_ID`, `rty_Name`, and a calculated `rty_RecCount`.
+     * - 'list': Returns `rty_ID`, `rty_Name`, `rty_Description`, `rty_ShowInLists`, `rty_Status`, `rty_RecTypeGroupID`.
+     * - 'full': Returns a comprehensive set of fields including `rty_ID`, `rty_Name`, `rty_OrderInGroup`,
+     *   `rty_Description`, a human-readable `rty_TitleMask` (original stored in `rty_CanonicalTitleMask`),
+     *   `rty_Plural` (calculated if empty), `rty_Status`, `rty_OriginatingDBID`, `rty_IDInOriginatingDB`,
+     *   `rty_ShowInLists`, `rty_RecTypeGroupID`, `rty_ReferenceURL`, `rty_ShowURLOnEditForm`,
+     *   `rty_ShowDescriptionOnEditForm`, `rty_Modified`, and a calculated `rty_RecCount`.
+     *   The `rty_RecCount` and human-readable `rty_TitleMask` are added via a `$calculatedFields` callback.
+     * - If `$this->data['details']` is an array or comma-separated string, those specific fields are selected.
+     *
+     * The order of results is determined by `$this->searchMgr->setOrderBy()`. If no specific order is set,
+     * the default database order is used.
+     *
+     * @return array|false An array containing the search results as structured by `DbEntitySearch::execute()`,
+     *                     typically including 'records', 'count', 'total_count', etc.
+     *                     Returns `false` if `parent::search()` fails (e.g., parameter validation error)
+     *                     or if the database query fails.
+     */
     public function search(){
 
         if(parent::search()===false){
@@ -208,6 +232,20 @@ class DbDefRecTypes extends DbEntityBase
     //
     //
     //
+    /**
+     * Deletes a record type.
+     *
+     * Prevents deletion if the record type:
+     * - Is referenced in `defDetailTypes` (dty_PtrTargetRectypeIDs).
+     * - Is referenced as 'treat as places for mapping' in `sysIdentification`.
+     * - Has existing non-temporary data records.
+     *
+     * Deletes associated temporary records and `defRecStructure` entries before deleting the record type itself.
+     *
+     * @param bool $disable_foreign_checks If true, foreign key checks are disabled during deletion.
+     *                                     Parent class handles this, but this method passes true to parent::delete.
+     * @return bool|array False if deletion is blocked or fails, otherwise the result of `parent::delete()`.
+     */
     public function delete($disable_foreign_checks = false){
 
         if(!$this->deletePrepare()){
@@ -296,6 +334,13 @@ class DbDefRecTypes extends DbEntityBase
     //
     //
     //
+    /**
+     * Prepares multiple record type records before saving.
+     *
+     * Iterates through each record in `$this->records` and calls `prepareRecord()` for individual processing.
+     *
+     * @return bool True if all records are prepared successfully, false if any `prepareRecord()` call fails.
+     */
     protected function prepareRecords(){
 
         $ret = parent::prepareRecords();
@@ -310,6 +355,20 @@ class DbDefRecTypes extends DbEntityBase
         return $ret;
     }
 
+    /**
+     * Prepares a single record type record before saving.
+     *
+     * Handles:
+     * - Validating `rty_Name` for duplication and formatting.
+     * - Setting `is_new` flag.
+     * - Setting default values for new records (`rty_LocallyModified`, `rty_IDInOriginatingDB`, `rty_NonOwnerVisibility`).
+     * - Unsetting `rty_IDInOriginatingDB` and `rty_LocallyModified` if they are empty strings
+     *   for existing records (to allow NULL values).
+     * - Setting `rty_Modified` to the current date/time.
+     *
+     * @param int $idx The index of the record in `$this->records`.
+     * @return bool True if preparation is successful and validation passes, false otherwise.
+     */
     private function prepareRecord($idx){
 
         //validate duplication
@@ -468,6 +527,27 @@ class DbDefRecTypes extends DbEntityBase
     // 1) import rectype from another db - @todo
     // 2) import rectype from CSV import
     //
+    /**
+     * Performs batch actions, specifically CSV import for new record types.
+     *
+     * Validates CSV data (name and description presence, name uniqueness)
+     * and then saves the new record type definitions.
+     * Sets default `rty_Plural` and `rty_TitleMask` if not provided.
+     * Assigns to `rtg_ID` from `$this->data` if present.
+     *
+     * Expected `$this->data` structure for 'csv_import':
+     * [
+     *   'csv_import' => true,
+     *   'fields' => [ // array of records, or JSON string of this array
+     *     ['rty_Name' => 'Name1', 'rty_Description' => 'Desc1', ...],
+     *     // ... other records
+     *   ],
+     *   'rtg_ID' => (optional) ID of the record type group to assign new types to.
+     * ]
+     *
+     * @return array|false An array of results for each imported row (messages or created IDs),
+     *                     or false if the overall batch action fails.
+     */
     public function batch_action(){
 
         $mysqli = $this->system->getMysqli();
@@ -551,7 +631,7 @@ class DbDefRecTypes extends DbEntityBase
             }
         }
 
-        mysql__end_transaction($mysqli, $res, $keep_autocommit);
+        mysql__end_transaction($mysqli, $ret, $keep_autocommit);
 
         return $ret;
     }
@@ -559,6 +639,18 @@ class DbDefRecTypes extends DbEntityBase
     //
     // returns where conditions for record ownership/visibility
     //
+    /**
+     * Generates SQL conditions for record ownership and visibility based on user ID.
+     *
+     * Constructs parts of a WHERE clause to filter records based on whether the user
+     * is the owner, part of a group with access, or if the record is public/viewable.
+     *
+     * @param int $ugr_ID The user or group ID. If 0, represents the 'everybody' group.
+     *                    If > 0, represents a specific logged-in user.
+     * @return array An array containing two strings:
+     *               - The first string is the `FROM` clause additions (e.g., `LEFT JOIN usrRecPermissions...`).
+     *               - The second string is the `WHERE` clause condition.
+     */
     private function _getRecordOwnerConditions($ugr_ID){
 
         $from = '';
@@ -606,6 +698,15 @@ class DbDefRecTypes extends DbEntityBase
     //
     //
     //
+    /**
+     * Retrieves various counts related to record types.
+     *
+     * Supported modes (`$this->data['mode']`):
+     * - 'record_count': Calls `countsUsage()` to get usage counts of record types.
+     * - 'cms_record_count': Calls `countsUsageCMS()` to get usage counts specific to CMS record types.
+     *
+     * @return array|null|false The result from the specific count method, or null if mode is not recognized.
+     */
     public function counts(){
 
         $res = null;
@@ -627,6 +728,15 @@ class DbDefRecTypes extends DbEntityBase
     //
     //
     //
+    /**
+     * Counts the usage of record types in the `Records` table.
+     *
+     * Filters by user/group ownership and visibility if `ugr_ID` is provided in `$this->data`.
+     * Can also filter by a specific `rty_ID`.
+     *
+     * @return array|null An associative array mapping `rec_RecTypeID` to its count,
+     *                    or null if the query fails.
+     */
     private function countsUsage(){
 
 
@@ -654,6 +764,16 @@ class DbDefRecTypes extends DbEntityBase
     //
     //
     //
+    /**
+     * Counts usage of CMS-specific record types (RT_CMS_HOME, RT_CMS_MENU).
+     *
+     * Returns total count of RT_CMS_HOME records, counts of private home and menu pages,
+     * and IDs of private home pages.
+     * Filters by user/group ownership and visibility if `ugr_ID` is provided in `$this->data`.
+     *
+     * @return array An associative array with keys: 'all', 'private_home', 'private_menu',
+     *               'private' (merged IDs of private home and menu), 'private_home_ids'.
+     */
     private function countsUsageCMS(){
 
             $this->system->defineConstant('RT_CMS_HOME');

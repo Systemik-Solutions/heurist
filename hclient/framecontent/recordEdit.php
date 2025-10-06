@@ -1,31 +1,25 @@
 <?php
-
-    /**
-    *  Standalone record edit page. It may be used separately or within widget (in iframe)
-    *
-    *  Paramters
-    *  q or recID - edit set of records defined by q(uery) or one record defiend by recID
-    *
-    *  otherwise it adds new record with
-    *  rec_rectype, rec_owner, rec_visibility, tag, t -  title, u - url, d - description
-    *  visgroups - csv group ids if rec_visibility viewable
-    *
-    *
-    * @package     Heurist academic knowledge management system
-    * @link        https://HeuristNetwork.org
-    * @copyright   (C) 2005-2023 University of Sydney, (C) 2024 onwards Heurist Network
-    * @author      Artem Osmakov   <osmakov@gmail.com>
-    * @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
-    * @version     4.0
-    */
-
-    /*
-    * Licensed under the GNU License, Version 3.0 (the "License"); you may not use this file except in compliance
-    * with the License. You may obtain a copy of the License at https://www.gnu.org/licenses/gpl-3.0.txt
-    * Unless required by applicable law or agreed to in writing, software distributed under the License is
-    * distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied
-    * See the License for the specific language governing permissions and limitations under the License.
-    */
+/**
+*  recordEdit.php - Standalone record edit page
+* 
+*  It may be used separately or within widget (in iframe)
+*
+*  Paramters
+*  q or recID - edit set of records defined by q(uery) or one record defiend by recID
+*
+*  otherwise it adds new record with
+*  rec_rectype, rec_owner, rec_visibility, tag, t -  title, u - url, d - description
+*  visgroups - csv group ids if rec_visibility viewable
+*
+* @project     Heurist academic knowledge management system
+* @package  hclient\framecontent
+* @link        https://HeuristNetwork.org
+* @copyright   (C) 2005-2023 University of Sydney, (C) 2024 onwards Heurist Network
+* @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
+* @author      Artem Osmakov   <osmakov@gmail.com>
+* @author      Ian Johnson     <ian.johnson.heurist@gmail.com>
+* @since       5.0
+*/
 use hserv\structure\ConceptCode;
 
 require_once 'initPage.php';
@@ -184,6 +178,9 @@ $params['guest_data'] = (@$_REQUEST['guest_data']==1);
 print '<script>var prepared_params = '.json_encode($params).';</script>';
 
 ?>
+        <script type="text/javascript" src="<?php echo PDIR;?>external/jquery.widgets/evol.colorpicker.js" charset="utf-8"></script>
+        <link href="<?php echo PDIR;?>external/jquery.widgets/evol.colorpicker.css" rel="stylesheet" type="text/css">
+
         <script type="text/javascript" src="<?php echo PDIR;?>external/jquery.widgets/ui.tabs.paging.js"></script>
         <script type="text/javascript" src="<?php echo PDIR;?>external/jquery.widgets/jquery.layout.js"></script>
         <script type="text/javascript" src="<?php echo PDIR;?>hclient/widgets/viewers/resultList.js"></script>
@@ -214,8 +211,20 @@ print '<script>var prepared_params = '.json_encode($params).';</script>';
         <script type="text/javascript" src="<?php echo PDIR;?>hclient/widgets/cpanel/buttonsMenu.js"></script>
 
         <script type="text/javascript">
+            /** @type {jQuery} A jQuery object representing the main container for the record editing UI. */
             var $container;
-            // Callback function on page initialization
+            /** @type {object} An object populated by PHP, containing pre-processed parameters for record editing or creation. */
+            // var prepared_params; // Initialized by PHP: print '<script>var prepared_params = '.json_encode($params).';
+
+            /**
+             * Callback function executed when the main page initialization (from initPage.php) is complete.
+             * It ensures the user is logged in, then sets up the record editing interface
+             * using the manageRecords widget. It determines whether to edit an existing record
+             * or create a new one based on parameters passed from PHP via `prepared_params`
+             * or directly from URL parameters.
+             *
+             * @param {boolean} success - Indicates whether the HAPI initialization was successful.
+             */
             function onPageInit(success){
                 if(success){
 
@@ -229,6 +238,14 @@ print '<script>var prepared_params = '.json_encode($params).';</script>';
 
                     var isPopup = (window.hWin.HEURIST4.util.getUrlParameter('popup', window.location.search)==1);
 
+                    /**
+                     * Helper function to retrieve a parameter's value.
+                     * It first checks the `prepared_params` object (populated by PHP from various request parameters)
+                     * and falls back to checking direct URL parameters if not found there.
+                     *
+                     * @param {string} pname - The name of the parameter to retrieve.
+                     * @returns {*} The value of the parameter, or undefined if not found.
+                     */
                     function __param(pname){
                         //in case of bookmarklet or annotation addition url parameters may be parsed and prepared
                         if($.isEmptyObject(prepared_params) ||
@@ -340,6 +357,10 @@ print '<script>var prepared_params = '.json_encode($params).';</script>';
                 }
             }
 
+            /**
+             * Function called before the window is closed.
+             * It triggers the 'saveUiPreferences' method on the manageRecords widget.
+             */
             function onBeforeClose(){
                 $container.manageRecords('saveUiPreferences');
             }

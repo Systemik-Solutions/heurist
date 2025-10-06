@@ -1,25 +1,47 @@
 /**
-* recordDataTable.js - select fields to be visible in DataTable for particular record type
+* @file recordDataTable.js
+* @brief Select fields to be visible in DataTable for particular record type.
+* @fileOverview This file defines the `recordDataTable` widget, which allows users to configure the
+* visible columns and their properties for DataTables displaying records of a specific record type.
+* Users can select fields from the record type's structure (including linked records up to a certain
+* depth) and specify visibility and width for each selected column. These configurations can be saved
+* and loaded.
 *
-* @package     Heurist academic knowledge management system
+* @project     Heurist academic knowledge management system
 * @link        https://HeuristNetwork.org
 * @copyright   (C) 2005-2023 University of Sydney, (C) 2024 onwards Heurist Network
 * @author      Artem Osmakov   <osmakov@gmail.com>
+* @author      Ian Johnson <ian.johnson.heurist@gmail.com>
 * @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
-* @version     4.0
+* @since       4.0
 */
 
-/*  
-* Licensed under the GNU License, Version 3.0 (the "License"); you may not use this file except in compliance
-* with the License. You may obtain a copy of the License at https://www.gnu.org/licenses/gpl-3.0.txt
-* Unless required by applicable law or agreed to in writing, software distributed under the License is
-* distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied
-* See the License for the specific language governing permissions and limitations under the License.
-*/
 
+
+/**
+ * @class recordDataTable
+ * @augments {recordAction}
+ * @memberof Widgets.Records
+ * @description jQuery widget for configuring columns to be displayed in a DataTable for a specific record type.
+ * Users can select fields from a tree view of the record type's structure (including fields from linked records)
+ * and set visibility and width for these columns. Configurations can be saved and loaded using the `configEntity` widget.
+ *
+ * @param {object} options - Configuration options for the widget.
+ */
 $.widget( "heurist.recordDataTable", $.heurist.recordAction, {
 
-    // default options
+    /**
+     * @memberof Widgets.Records.recordDataTable
+     * @type {object}
+     * @property {number} [height=780] - Dialog height.
+     * @property {number} [width=800] - Dialog width.
+     * @property {boolean} [modal=true] - Is dialog modal.
+     * @property {string} [title='Configure DataTable columns'] - Dialog title.
+     * @property {string} [htmlContent='recordDataTable.html'] - HTML content file.
+     * @property {?object} initial_cfg - Initial configuration object to load.
+     *                                   Should contain `cfg_name`, `rty_ID`, `fields` (array of field codes),
+     *                                   and `columns` (array of DataTable column definition objects).
+     */
     options: {
     
         height: 780,
@@ -32,9 +54,38 @@ $.widget( "heurist.recordDataTable", $.heurist.recordAction, {
         initial_cfg: null
     },
 
+    /**
+     * @member {?Array<string>} selectedFields
+     * @memberof Widgets.Records.recordDataTable
+     * @description An array of codes for fields selected in the Fancytree.
+     *              These codes represent the path to the field (e.g., '3:lt134:12:id').
+     */
     selectedFields:null,
+    /**
+     * @member {?Array<object>} selectedColumns
+     * @memberof Widgets.Records.recordDataTable
+     * @description An array of column definition objects for the DataTable,
+     *              derived from `selectedFields` and user adjustments (visibility, width).
+     */
     selectedColumns:null,
+    /**
+     * @member {?number} _selectedRtyID
+     * @memberof Widgets.Records.recordDataTable
+     * @private
+     * @description Stores the currently selected Record Type ID for which columns are being configured.
+     */
+    _selectedRtyID: null,
     
+    /**
+     * @function _initControls
+     * @memberof Widgets.Records.recordDataTable
+     * @private
+     * @description Initializes controls after HTML content is loaded.
+     * Ensures `configEntity.js` is loaded. Sets up the `configEntity` widget for loading/saving configurations.
+     * Initializes "Select All" and "Uncheck All" buttons for the field selection tree.
+     * Loads initial configuration if provided.
+     * @returns {boolean|undefined} True if initialization proceeds, undefined if waiting for script load.
+     */
     _initControls: function() {
 
 
@@ -122,9 +173,14 @@ $.widget( "heurist.recordDataTable", $.heurist.recordAction, {
         return true;
     },
 
-    //
-    // TO UI
-    //
+    /**
+     * @function setSettings
+     * @memberof Widgets.Records.recordDataTable
+     * @description Applies a given configuration settings object to the widget.
+     * Populates `this.selectedFields` and `this.selectedColumns` from the settings.
+     * Reloads and updates the Fancytree to reflect the selected fields and their order/visibility in the column list.
+     * @param {?object} settings - The configuration object to apply. Expected to have `fields` and `columns`.
+     */
     setSettings: function(settings){
         
         this.selectedFields = [];
@@ -162,9 +218,14 @@ $.widget( "heurist.recordDataTable", $.heurist.recordAction, {
         }
     },
     
-    //
-    // assign selected fields in tree
-    //
+    /**
+     * @function _assignSelectedFields
+     * @memberof Widgets.Records.recordDataTable
+     * @private
+     * @description Updates the Fancytree and the sortable list of selected columns based on
+     * `this.selectedFields` and `this.selectedColumns`. Marks fields as selected in the tree
+     * and sets visibility/width/order in the list.
+     */
     _assignSelectedFields: function(){
 
         if(this.selectedFields && this.selectedFields.length>0){
@@ -202,10 +263,17 @@ $.widget( "heurist.recordDataTable", $.heurist.recordAction, {
         }
     },
 
-    //
-    // add selected field to right hand column list
-    // code: 3:lt134:12:id
-    //    
+    /**
+     * @function _addSelectedColumn
+     * @memberof Widgets.Records.recordDataTable
+     * @private
+     * @description Adds a field (column) to the sortable list of selected columns on the right.
+     * This is typically called when a field is selected in the Fancytree.
+     * It handles creating the UI element for the column, including visibility checkbox and width selector.
+     * It also handles adding parent pointer fields if a field from a linked record is selected.
+     * @param {string} code - The unique code of the field from Fancytree node data (e.g., '3:lt134:12:id').
+     * @param {string} title - The display title of the field.
+     */
     _addSelectedColumn: function(code, title){
         
             let ids = code.split(':');
@@ -217,9 +285,9 @@ $.widget( "heurist.recordDataTable", $.heurist.recordAction, {
                 //include parent resource (record pointer) field
                 let parent_rtid = ids[0];
                 let parent_dtid = ids[1];
-                let linktype = parent_dtid.substr(0,2); //remove link type lt ot rt  10:lt34
+                let linktype = parent_dtid.slice(0,2); //remove link type lt ot rt  10:lt34
                 if(isNaN(Number(linktype))){
-                    parent_dtid = parent_dtid.substr(2);
+                    parent_dtid = parent_dtid.slice(2);
                 }
                 parentcode = parent_rtid+':'+parent_dtid;
                 
@@ -266,9 +334,13 @@ $.widget( "heurist.recordDataTable", $.heurist.recordAction, {
             }
     },
   
-    //    
-    //
-    //
+    /**
+     * @function _getActionButtons
+     * @memberof Widgets.Records.recordDataTable
+     * @private
+     * @description Gets action buttons for the dialog, setting labels to 'Apply' and 'Close'.
+     * @returns {Array<object>} Array of button definition objects.
+     */
     _getActionButtons: function(){
         let res = this._super();
         res[1].text = window.hWin.HR('Apply');
@@ -276,9 +348,14 @@ $.widget( "heurist.recordDataTable", $.heurist.recordAction, {
         return res;
     },    
         
-    //
-    // overwrite parent's method (called fron super._initControls)
-    //
+    /**
+     * @function _fillSelectRecordScope
+     * @memberof Widgets.Records.recordDataTable
+     * @private
+     * @description Populates the record type selector dropdown.
+     * Uses record types from the current recordset and any from `options.initial_cfg`.
+     * Overrides the parent widget's method.
+     */
     _fillSelectRecordScope: function (){
 
         this.selectRecordScope.empty();
@@ -286,7 +363,7 @@ $.widget( "heurist.recordDataTable", $.heurist.recordAction, {
         let selScope = this.selectRecordScope.get(0);
 
         let rectype_Ids = this._currentRecordset.getRectypes();
-        let init_rectype = rectype_Ids.length > 1 ? this.options.initial_cfg.rty_ID : rectype_Ids[0];
+        let init_rectype = rectype_Ids.length > 1 && this.options.initial_cfg ? this.options.initial_cfg.rty_ID : rectype_Ids[0];
 
         if(rectype_Ids.length>0 && 
            this.options.initial_cfg && 
@@ -323,9 +400,15 @@ $.widget( "heurist.recordDataTable", $.heurist.recordAction, {
         window.hWin.HEURIST4.ui.initHSelect(selScope);
     },
             
-    //
-    // getSettings, saveSetting and close with settings as context
-    //
+    /**
+     * @function doAction
+     * @memberof Widgets.Records.recordDataTable
+     * @private
+     * @description Handles the 'Apply' action. Retrieves the current settings using `getSettings()`.
+     * If the configuration has changed, it prompts to save the settings via the `configEntity` widget.
+     * Sets `_context_on_close` with the final settings (including `cfg_name`) and closes the dialog.
+     * @param {any} [mode] - (Unused in this implementation)
+     */
     doAction: function(mode){
 
             let settings = this.getSettings(true);            
@@ -354,10 +437,18 @@ $.widget( "heurist.recordDataTable", $.heurist.recordAction, {
     
     // FROM UI
     // mode_action true - returns columns for DataTable, false - returns codes of selected nodes
-    //
-    // 1) need to add "t" prefix for record types 10.1 will be t10.1 (to avoid mix with field id)
-    // 2) remove "r" for relationship fields  r.6 will be 6
-    //
+    /**
+     * @function getSettings
+     * @memberof Widgets.Records.recordDataTable
+     * @description Retrieves the current DataTable column configuration from the UI.
+     * Collects selected fields from the Fancytree and column properties (visibility, width, order)
+     * from the sortable list. Ensures 'rec_ID' and 'typename' are included if not already.
+     * @param {boolean} mode_action - If true, formats column data for DataTable instantiation.
+     *                              If false (or not provided), returns the raw codes of selected nodes.
+     *                              (Note: parameter seems to be intended for different output formats but current logic mainly builds DataTable columns).
+     * @returns {object|false} An object containing `rty_ID`, `fields` (array of codes), and `columns` (array for DataTable).
+     *                         Returns `false` if no fields are selected.
+     */
     getSettings: function( mode_action ){
 
         //get selected fields from treeview
@@ -432,9 +523,16 @@ $.widget( "heurist.recordDataTable", $.heurist.recordAction, {
         return { rty_ID:this.selectRecordScope.val(), fields: selectedFields, columns: selectedCols };
     },
 
-    //
-    // overwritten
-    //
+    /**
+     * @function _onRecordScopeChange
+     * @memberof Widgets.Records.recordDataTable
+     * @private
+     * @description Handles changes in the record type selector.
+     * Reloads the Fancytree with the structure for the newly selected record type.
+     * Updates the `configEntity` widget list for the selected record type.
+     * Overrides the parent widget's method.
+     * @returns {boolean} The disabled state from the parent's `_onRecordScopeChange`.
+     */
     _onRecordScopeChange: function() 
     {
         let isdisabled = this._super();
@@ -464,9 +562,16 @@ $.widget( "heurist.recordDataTable", $.heurist.recordAction, {
         return isdisabled;
     },
     
-    //
-    // show treeview with record type structure
-    //
+    /**
+     * @function _loadRecordTypesTreeView
+     * @memberof Widgets.Records.recordDataTable
+     * @private
+     * @description Loads or reloads the Fancytree with the field structure for the given `rtyID`.
+     * It generates tree data using `window.hWin.HEURIST4.dbs.createRectypeStructureTree`.
+     * Configures Fancytree options for selection, rendering, lazy loading, and event handling (select, click, dblclick).
+     * When a node is selected/deselected in the tree, `_addSelectedColumn` or removal logic is triggered.
+     * @param {number|string} rtyID - The Record Type ID for which to display the structure.
+     */
     _loadRecordTypesTreeView: function(rtyID){
         
         let that = this;

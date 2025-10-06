@@ -1,24 +1,20 @@
 <?php
-
-    /**
-    * Determines rectype relations for a certain database.
-    *
-    * @package     Heurist academic knowledge management system
-    * @link        https://HeuristNetwork.org
-    * @copyright   (C) 2005-2023 University of Sydney, (C) 2024 onwards Heurist Network
-    * @author      Jan Jaap de Groot  <jjedegroot@gmail.com>
-    * @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
-    * @version     4.0
-    */
-
-    /*
-    * Licensed under the GNU License, Version 3.0 (the "License"); you may not use this file except in compliance
-    * with the License. You may obtain a copy of the License at https://www.gnu.org/licenses/gpl-3.0.txt
-    * Unless required by applicable law or agreed to in writing, software distributed under the License is
-    * distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied
-    * See the License for the specific language governing permissions and limitations under the License.
-    */
-
+/**
+* rectype_relations.php - Determines record type relations for a certain database
+* 
+* It is used in network diagram only.
+* 
+* @todo - use general database defintions methods 
+*
+* @project     Heurist academic knowledge management system
+* @package Controller
+* @link        https://HeuristNetwork.org
+* @copyright   (C) 2005-2023 University of Sydney, (C) 2024 onwards Heurist Network
+* @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
+* @author      Jan Jaap de Groot  <jjedegroot@gmail.com>
+* @author      Ian Johnson     <ian.johnson.heurist@gmail.com>
+* @since       4.0
+*/
     require_once dirname(__FILE__).'/../../autoload.php';
 
     if(isset($_REQUEST['db'])) {
@@ -56,10 +52,12 @@
     }
 
     /**
-    * Retrieves all RecTypes
-    * @param mixed $system System reference
-    * @return Array of nodes
-    */
+     * Retrieves all Record Types and their instance counts.
+     *
+     * @param \hserv\System $system System reference.
+     * @return array An array of stdClass objects, each representing a record type
+     *               with properties: id, name, count (non-temporary instances), and image URL.
+     */
     function getRectypes($system) {
         $rectypes = array();
 
@@ -84,8 +82,11 @@
     *
     * Find all constrained resource (record pointer) and relmarker fields
     *
-    * @param mixed $system   System reference
-    * @param mixed $rectype  Record type
+    * @param \hserv\System $system System reference.
+    * @param \stdClass $rectype A stdClass object representing the record type (must have an 'id' property).
+    * @return array An array of stdClass objects, each representing a relation field
+    *               with properties: id (detail type ID), name (display name), count (initialized to 0),
+    *               type (relation type, e.g., 'resource', 'relmarker'), and ids (comma-separated target rectype IDs).
     */
     function getConstrainedResourceAndRelmarkerFields($system, $rectype) {
         $relations = array();
@@ -117,9 +118,11 @@
     /**
     * Find count of links/relation by pair of source->target rectypes
     *
-    * @param mixed $system   System reference
-    * @param mixed $rectype  Parent rectype
-    * @param mixed $relation Relation object
+    * @param \hserv\System $system System reference.
+    * @param \stdClass $rectype Parent record type object (must have an 'id' property).
+    * @param \stdClass $relation Relation object (must have 'id', 'ids', and 'type' properties).
+    * @return array An array of stdClass objects, each representing a target record type
+    *               with properties: id (target record type ID) and count (number of links).
     */
     function getTargets($system, $rectype, $relation) {
         $targets = array();
@@ -168,9 +171,9 @@
     /**
     * Helper method to find the index of $target in the $rectypes array
     *
-    * @param mixed $rectypes Array of rectypes
-    * @param mixed $target   A target object
-    * @return mixed The index
+    * @param array $rectypes Array of record type objects (each must have an 'id' property).
+    * @param \stdClass $target A target object (must have an 'id' property).
+    * @return int The index of the target record type in the $rectypes array, or 0 if not found.
     */
     function getIndex($rectypes, $target) {
         for($i = 0; $i < sizeof($rectypes); $i++) {
@@ -184,8 +187,11 @@
     /**
     * Retrieves all links for a certain RecType
     *
-    * @param mixed $system  System reference
-    * @param mixed $rectype Rectype reference
+    * @param \hserv\System $system System reference.
+    * @param array $rectypes Array of record type objects (nodes).
+    * @return array An array of stdClass objects, each representing a link between record types.
+    *               Each link object has properties: source (index in $rectypes), target (index in $rectypes),
+    *               relation (the relation object), targetcount, and relation->count.
     */
     function getLinks($system, $rectypes) {
         $links = array();
