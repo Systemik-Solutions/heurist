@@ -378,7 +378,27 @@ $.widget( "heurist.navigation", {
 
             }else{
             
-                let menuName = (home_page_id==page_id)?top.HR('Home'):resdata.fld(record, DT_NAME, this.options.language);
+                // ---- SAFE HR LOOKUP (no cross-origin access) ----
+                const getHR = () => {
+                    // prefer a local HR if available
+                    if (typeof window.HR === 'function') return window.HR;
+                    if (typeof window.hWin?.HR === 'function') return window.hWin.HR;
+
+                    // only use top.HR if we are *same origin* (won't be on balipaintings.org)
+                    try {
+                        if (window.top && window.top.location.origin === window.location.origin && typeof window.top.HR === 'function') {
+                            return window.top.HR;
+                        }
+                    } catch (e) { /* cross-origin -> ignore */ }
+
+                    return null; // fallback to string
+                };
+                const HRsafe = getHR();
+
+                let menuName = (home_page_id == page_id)
+                    ? (HRsafe ? HRsafe('Home') : 'Home')
+                    : resdata.fld(record, DT_NAME, this.options.language);
+
                 let menuTitle = (home_page_id==page_id)?'':resdata.fld(record, DT_SHORT_SUMMARY, this.options.language);
                 let menuIcon = (home_page_id==page_id)?null:resdata.fld(record, DT_THUMBNAIL);
 
