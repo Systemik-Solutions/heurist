@@ -96,17 +96,18 @@ class HLayoutMgr {
             pageTreeData = this.convertHTMLtoJSON(container, 0);
       }
 
+      let that = this;
       //****************************
       //find all elements with data-heurist-cms
       $.each(container.find('[data-heurist-cms]'), (idx, ele) => {
           ele = $(ele);
           
-          let widget_cfg = this.#convertWidgetHTMLtoJSON(ele);
+          let widget_cfg = that.#convertWidgetHTMLtoJSON(ele);
           if(widget_cfg && widget_cfg.appid){
                //widget_cfg.key = this.pnl_counter;
-               //this.pnl_counter++;
+               //that.pnl_counter++;
                ele.attr('data-hid', widget_cfg.key); //.addClass('cms-element');
-               this.#layoutInitWidget(widget_cfg, ele);
+               that.#layoutInitWidget(widget_cfg, ele);
           }
       });
       
@@ -163,9 +164,9 @@ class HLayoutMgr {
       layout = [layout];
     }
 
-    if (isFirstLevel === true) {
+    if (isFirstLevel === true && layout.length>0) {
       if (this._supp_options.page_name) {
-        layout[0].name = "Page";
+        layout[0].name = 'Page';
       }
       if (this._supp_options.keep_top_config && this._isEditMode) {
         this._main_layout_cfg = layout;
@@ -201,7 +202,7 @@ class HLayoutMgr {
     if (forStorage) {
       return container.html();
     } else {
-      if (isFirstLevel && this._supp_options && !this._supp_options.heurist_isJsAllowed) {
+      if (isFirstLevel===true && this._supp_options && !this._supp_options.heurist_isJsAllowed) {
 //remove all javascript event attributes
         this.#layoutSanitize(container);
       }
@@ -301,6 +302,7 @@ class HLayoutMgr {
   
   */
   #layoutSetCssAndClasses(layout, element){
+    if (!element) return;
     if (!layout.css) layout.css = {};
     if (layout.css && !$.isEmptyObject(layout.css)) {
       element.css(layout.css);
@@ -332,7 +334,6 @@ class HLayoutMgr {
   * assign text content to element
   */
   #layoutInitText(layout, container, forStorage) {
-
         const $d = this.#layoutCreateDiv(
             layout,
             !forStorage && this._isEditMode ? 'tinymce-body cms-element brick' : '', //later need to use either cms-element or brick
@@ -432,7 +433,7 @@ console.log(content);
         if(app.minw>0 && !layout.css['minWidth']){
             layout.css['minWidth'] = app.minw;
         }
-        if(app.minh>0 && !layout.css['minHeight']){
+        if(app.minh>0 && !layout.css['minHeight'] && !layout.css['min-height']){
             layout.css['minHeight'] = app.minh;
         }
 
@@ -1306,9 +1307,9 @@ console.log(content);
    * @param {number} i - The index of the element in the layout array to process.
    * @returns {void}
    */
-    layoutInitKey(layout, i) {
+  layoutInitKey(layout, i) {
         this.#layoutInitKey(layout, i);
-    }
+  }
 
   /**
    * Finds a specific layout element within a layout configuration tree by its internal key.
@@ -1317,9 +1318,9 @@ console.log(content);
    * @param {(string|number)} ele_key - The unique key of the element to find.
    * @returns {Object|null} The found layout element configuration, or null if not found.
    */
-   layoutContentFindElement(layout_cfg, ele_key) {
+  layoutContentFindElement(layout_cfg, ele_key) {
     return this.#layoutContentFindElement(layout_cfg, ele_key);
-   }
+  }
 
 
   /**
@@ -1329,7 +1330,7 @@ console.log(content);
    * @param {(string|number)} ele_key - The key of the element whose parent is to be found.
    * @returns {Object|string|false} The parent configuration object, 'root' if the element is at the top level, or false if not found.
    */
-   layoutContentFindParent(parent_config, ele_key) {
+  layoutContentFindParent(parent_config, ele_key) {
     return this.#layoutContentFindParent(parent_config, ele_key);
   }
 
@@ -1341,7 +1342,7 @@ console.log(content);
    * @param {string} widget_name - The `appid` of the widget to find.
    * @returns {Object|null} The found widget configuration object, or null if not found.
    */
-   layoutContentFindWidget(layout_cfg, widget_name) {
+  layoutContentFindWidget(layout_cfg, widget_name) {
     return this.#layoutContentFindWidget(layout_cfg, widget_name);
   }
 
@@ -1353,7 +1354,7 @@ console.log(content);
    * @param {(Array<Object>|Object)} layout_cfg - The layout configuration to analyze.
    * @returns {string} The `search_realm` ID that appears most often, or an empty string if none are found.
    */
-   layoutContentFindMainRealm(layout_cfg) {
+  layoutContentFindMainRealm(layout_cfg) {
     return this.#layoutContentFindMainRealm(layout_cfg);
   }
 
@@ -1366,7 +1367,7 @@ console.log(content);
    * @param {Object} new_cfg - The new configuration for the element, including its `key`.
    * @returns {boolean} True if the element was found and updated, false otherwise.
    */
-   layoutContentSaveElement(layout_cfg, new_cfg) {
+  layoutContentSaveElement(layout_cfg, new_cfg) {
     return this.#layoutContentSaveElement(layout_cfg, new_cfg);
   }
 
@@ -1377,7 +1378,7 @@ console.log(content);
    * @param {boolean} newmode - True to enable edit mode, false to disable.
    * @returns {void}
    */
-   setEditMode(newmode) {
+  setEditMode(newmode) {
     this.isEditMode = newmode;
   }
 
@@ -1390,9 +1391,9 @@ console.log(content);
    * It's called with `this` set to the HLayoutMgr instance and the relevant part of the layout as an argument.
    * @returns {boolean|undefined} True if an asynchronous operation (like script loading) was initiated, otherwise undefined.
    */
-    prepareTemplate(layout_config, callback) {
+  prepareTemplate(layout_config, callback) {
         return this.#prepareTemplate(layout_config, callback); // Added return
-      }
+  }
 
 
   /**
@@ -1426,7 +1427,7 @@ console.log(content);
    * @param {string} id - The ID of the predefined layout to find.
    * @returns {Object|null} The layout configuration object if found, otherwise null.
    */
-  layoutGetById(id){
+ layoutGetById(id){
         if(id){
             id = id.toLowerCase();
             for(let i=0; i<window.hWin.cfg_layouts.length; i++){
@@ -1436,10 +1437,10 @@ console.log(content);
             }
         }
         return null;
-  }    
+ }    
 
 
-  /**
+ /**
    * Main method to initialize a layout. It generates HTML from the given layout configuration
    * (which can be JSON, HTML string, or sourced from the container itself) and initializes any widgets.
    *
@@ -1451,15 +1452,17 @@ console.log(content);
    * @returns {Object|Array<Object>|false|void} The processed layout configuration (if from JSON),
    * false if old v1 HTML format was processed, or void if initialized from existing HTML.
    */
-  layoutInit(layout, container, supp_options, isEditMode) 
-  {
+ layoutInit(layout, container, supp_options, isEditMode, isFirstLevel) 
+ {
 //console.log(layout, supp_options);  
     this._supp_options = supp_options || {};
     this._isEditMode = isEditMode;
+    
+    isFirstLevel = (isFirstLevel!==false); //first level by default
   
     //main content
     if(layout && window.hWin.HEURIST4.util.isJSON(layout)){ //init from json
-        return this.#layoutInitFromJSON(layout, container, false, true);
+        return this.#layoutInitFromJSON(layout, container, false, isFirstLevel);
     }
     
     //not json, assing html to container and init widgets
@@ -1482,7 +1485,7 @@ console.log(content);
   {
     isFirstLevel = (isFirstLevel!==false);
     this._supp_options = supp_options || {};
-    return this.#layoutInitFromJSON(layout_json, container_element, false, true);
+    return this.#layoutInitFromJSON(layout_json, container_element, false, isFirstLevel);
   }
   
   /*

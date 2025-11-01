@@ -644,20 +644,26 @@ class USystem {
         $root_folder = HEURIST_FILESTORE_ROOT;
         
         $archiveFolder = $root_folder."AAA_LOGS/";
+        $logFolder = $root_folder."_LOGS/";
         $logs_to_be_emailed = array();
         $y1 = null;
         $y2 = null;
+        $logFileForYesterday = null;
 
         //1. check if log files for previous 30 days exist
         for($i=1;$i<31;$i++){
             $now = getNow();
             $yesterday = $now->sub(new \DateInterval('P'.sprintf('%02d', $i).'D'));
             $arc_logfile = 'errors_'.$yesterday->format('Y-m-d').'.log';
+            if($i==1){
+                $logFileForYesterday = $logFolder.$arc_logfile;
+            }
+            
             //if yesterday log file exists
-            if(file_exists($root_folder.$arc_logfile)){
+            if(file_exists($logFolder.$arc_logfile)){
                 //2. copy to log archive folder
-                fileCopy($root_folder.$arc_logfile, $archiveFolder.$arc_logfile);
-                unlink($root_folder.$arc_logfile);
+                fileCopy($logFolder.$arc_logfile, $archiveFolder.$arc_logfile);
+                unlink($logFolder.$arc_logfile);
 
                 $logs_to_be_emailed[] = $archiveFolder.$arc_logfile;
 
@@ -666,16 +672,18 @@ class USystem {
             }
         }
 
-        if(!empty($logs_to_be_emailed)){
-
+        if(empty($logs_to_be_emailed)){
+            $msgTitle = 'No serious errors logged '.HEURIST_SERVER_NAME;
+            $msg = $msgTitle . '<br>('.$logFileForYesterday.' was not created)';
+        }else{
             $msgTitle = 'Error report '.HEURIST_SERVER_NAME.' for '.$y1.($y2==$y1?'':(' ~ '.$y2));
             $msg = $msgTitle;
             foreach($logs_to_be_emailed as $log_file){
                 $msg = $msg.'<br>'.file_get_contents($log_file);
             }
-            //'Bug reporter',
-            sendEmail(HEURIST_MAIL_TO_BUG, $msgTitle, $msg, true);
         }
+        //'Bug reporter',
+        sendEmail(HEURIST_MAIL_TO_BUG, $msgTitle, $msg, true);
         
         // TODO: needs an else in case there are no logfiles corresponding with the expected path and name
         //       this code seems rather too fragile to be portable between systems
@@ -817,10 +825,10 @@ class USystem {
     }
     
     /**
-     *
-     * @return bool true is current user or database is a member of association
+     * $context if defined, it means it is called from initPage.php for standalone app (such as crosstabs)
+     * @return string true if current user or database is a member of association
      */    
-    public static function checkAssociationMembership($system, $context=null)
+    public static function checkAssociationMembership($system, $context=null):string
     {
         
         $currentUser = $system->getCurrentUser();
@@ -832,6 +840,7 @@ class USystem {
             return false;
         }
         
+        // false && 
         if(session_status() === PHP_SESSION_ACTIVE && isset($_SESSION[$database]['isAssociationMember'])){
             
             if($context && 'nonmember'==$_SESSION[$database]['isAssociationMember']){
@@ -841,14 +850,16 @@ class USystem {
             return $_SESSION[$database]['isAssociationMember'];
         }
         
-        $isMember = checkHeuristNetworkMembership($currentUser['ugr_eMail'], $server, $database, $context??'');
+        $dbowner = user_getDbOwner($system->getMysqli());
+        
+        $membershipStatus = checkHeuristNetworkMembership($dbowner['ugr_eMail'], $currentUser['ugr_eMail'], $server, $database, $context??'');
         //$isMember = 'individual';
         if(session_status() === PHP_SESSION_ACTIVE){
             @session_start();
-            $_SESSION[$database]['isAssociationMember'] = $isMember;
+            $_SESSION[$database]['isAssociationMember'] = $membershipStatus;
         }
         
-        return $isMember;
+        return $membershipStatus;
         
     }
     
@@ -870,81 +881,84 @@ class USystem {
 
     /**
      * Gets the latest Heurist code version from the main server and compares it with the local version.
-     * Caches the fetched server version for 24 hours in a file (`lastAdviceSent.ini`) to reduce server requests.
+     * Caches the fetched server version for 24 hours in a file (`_latestVersionReceived.ini`) to reduce server requests.
      * Distinguishes between alpha and stable release channels.
      *
      * @return string The latest known code version from the main server (e.g., "4.1.0"), or "unknown" if fetching fails.
      */
-    public static function getLastCodeAndDbVersion(){
+    public static function getLastCodeAndDbVersion($getDatabaseVersion = false){
 
-        $isAlpha = (preg_match("/h\d+\-alpha|alpha\//", HEURIST_BASE_URL) === 1) ? true :false;
+        $getAlpha = preg_match("/h\d+\-alpha|alpha\//", HEURIST_BASE_URL) === 1 ? true : false;
+        $key = $getAlpha ? 'alpha' : 'stable';
+        $dayAgo = time() - 24 * 60 * 60;
 
-        $version_last_check = 'unknown';
-        $need_check_main_server = true;
+        $fileName = HEURIST_FILESTORE_ROOT."_latestVersionReceived.ini";
 
-        $fname = HEURIST_FILESTORE_ROOT."lastAdviceSent.ini";
+        $versionDetails = [];
+        $lastVersion = 'unknown';
+        $lastDatabase = 'unknown';
 
-        $release = ($isAlpha ? 'alpha' : 'stable');
-
-        if (file_exists($fname)){
-            //last check and version
-            list($date_last_check, $version_last_check, $release_last_check) = explode("|", file_get_contents($fname));
-
-            if($release_last_check && strncmp($release_last_check, $release, strlen($release)) == 0 
-                && $date_last_check && strtotime($date_last_check) ){
-                    $days = intval((time()-strtotime($date_last_check))/(3600*24));//days since last check
-
-                    if(intval($days)<1){
-                        $need_check_main_server = false;
-                    }
+        if(file_exists($fileName)){
+            $versionDetails = parse_ini_file($fileName, true);
+            if(!empty($versionDetails) && array_key_exists($key, $versionDetails) && $versionDetails[$key]['timestamp'] > $dayAgo){
+                return $getDatabaseVersion ? $versionDetails[$key]['database'] : $versionDetails[$key]['version'];
             }
-        }//file exitst     
-        
-        if(!$need_check_main_server){
-            return $version_last_check;
         }
 
-        $rawdata = null;
+        // Prepare for new details
+        $versionDetails[$key] = [
+            'version' => $lastVersion,
+            'database' => $lastDatabase,
+            'timestamp' => time()
+        ];
 
-        //send request to main server at HEURIST_INDEX_BASE_URL
-        // HEURIST_INDEX_DATABASE is the refernece standard for current database version
-        if(strpos(strtolower(HEURIST_INDEX_BASE_URL), strtolower(HEURIST_SERVER_URL))===0){ //same domain
+        if(strpos(strtolower(HEURIST_INDEX_BASE_URL), strtolower(HEURIST_SERVER_URL)) === 0){
 
             $mysql_indexdb = mysql__init(HEURIST_INDEX_DATABASE);
             $db_version = getDbVersion($mysql_indexdb);
             if($db_version){
-                $rawdata = HEURIST_VERSION."|".$db_version;    
+                $rawdata = HEURIST_VERSION."|{$db_version}";    
             }
 
         }else{
-            $url = ($isAlpha
-                ? HEURIST_MAIN_SERVER . '/h7-alpha/'
-                : HEURIST_INDEX_BASE_URL)
-            . "admin/setup/dbproperties/getCurrentVersion.php?db=".HEURIST_INDEX_DATABASE."&check=1";
-            $rawdata = loadRemoteURLContentSpecial($url);//it returns HEURIST_VERSION."|".HEURIST_DBVERSION
+            $url = ($getAlpha ? HEURIST_MAIN_SERVER . '/h7-alpha/' : HEURIST_INDEX_BASE_URL) . "admin/setup/dbproperties/getCurrentVersion.php?db=".HEURIST_INDEX_DATABASE."&check=1";
+            $rawdata = loadRemoteURLContentSpecial($url); // it returns HEURIST_VERSION|HEURIST_DBVERSION
         }
 
         if($rawdata){
-            $current_version = explode("|", $rawdata);
 
-            if (!empty($current_version))
-            {
-                $curver = explode(".", $current_version[0]);
-                if( count($curver)>=2
-                && intval($curver[0]) > 0
-                && is_numeric($curver[1])
-                && intval($curver[1])>=0 )
-                {
-                    $version_last_check = $current_version[0];
+            [$lastVersion, $lastDatabase] = explode('|', $rawdata);
+
+            if(!empty($lastVersion)){
+
+                $latestVer = explode('.', $lastVersion);
+                if(count($latestVer) < 2 || !isPositiveInt($latestVer[0]) || !is_numeric($latestVer[1])){
+                    $lastVersion = 'unknown';
                 }
             }
         }
 
-        $version_in_session = date("Y-m-d").'|'.$version_last_check.'|'.$release;
-        fileSave($version_in_session, $fname);//save last version
-    
+        // Add new version numbers
+        $versionDetails[$key]['version'] = $lastVersion;
+        $versionDetails[$key]['database'] = $lastDatabase;
 
-        return $version_last_check;
+        // Re-add comment
+        $versionDetails['@comment'] = <<<DOC
+        ; The purpose of this file is to the retain the latest Heurist and database versions retrieved from the main server (HeuristRef.net)
+        ; These details are refreshed once per day and used per instance of Heurist
+        ; 'unknown' is used as a replacement when the main server cannot be contacted or provides an invalid response
+        ; 'version' refers to the Heurist version (e.g. 6.5.0 or 7.0.0)
+        ; 'database' refers to the Heurist database version, updated only when necessary
+        ; 'timestamp' the unix timestamp of when the details were retrieved
+
+        DOC;
+
+        fileDelete($fileName);
+        ksort($versionDetails);
+        saveIniFile($fileName, $versionDetails, true);
+        //fileDelete(HEURIST_FILESTORE_ROOT."lastAdviceSent.ini"); // remove original file
+
+        return $getDatabaseVersion ? $versionDetails[$key]['database'] : $versionDetails[$key]['version'];
     }
 
     /**
@@ -982,14 +996,18 @@ class USystem {
             return $response;
         }
 
-        $fname = HEURIST_FILESTORE_ROOT."lastAdviceSent.ini";
+        $fname = HEURIST_FILESTORE_ROOT."_latestVersionReceived.ini";
         $versionNumbers = [];
         array_push($versionNumbers, explode('.', HEURIST_VERSION)[0]);// Check using current major version
 
-        if (file_exists($fname)){
-            [, $versionLastCheck,] = explode("|", file_get_contents($fname));
-            if($versionNumbers[0] < explode('.', $versionLastCheck)[0]){
-                array_unshift($versionNumbers, explode('.', $versionLastCheck)[0]);// Check using new major version, performed first
+        if(file_exists($fname)){
+
+            $latestVersions = parse_ini_file($fname, true);
+            $latestVersion = array_key_exists('alpha', $latestVersions) && strpos($latestVersions['alpha']['version'], '.') > 0
+                ? explode('.', $latestVersions['alpha']['version'])[0] : 0;
+
+            if($versionNumbers[0] < $latestVersion){
+                array_unshift($versionNumbers, intval($latestVersion));
             }
         }
 

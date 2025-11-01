@@ -133,12 +133,16 @@ class HSystemMgr {
   * @returns {void}
   */
   verify_credentials(callback, requiredLevel, password_protected, password_entered, requiredPermission, associationMembershipContext) {
-      
-      if(associationMembershipContext && 'nonmember'==window.hWin.HAPI4.sysinfo['is_association_member']){
+  
+      if(associationMembershipContext && 'nonmember'==window.hWin.HAPI4.sysinfo['associationMembershipStatus']){
           
-        window.hWin.HEURIST4.msg.showMsgDlgUrl(
+        let $dlg = window.hWin.HEURIST4.msg.showMsgDlgUrl(
                       `${window.hWin.HAPI4.baseURL}?disclaimer=association_membership.html #content`,
-                       null, 'Heurist Network Association', {enable_buttons_after:5000, closeOnEscape:false, noClose:true});
+                       null, 'Heurist Network Association', 
+                       {enable_buttons_after:5000, closeOnEscape:false, noClose:true,
+                       open:function(event, ui){$dlg.find('#noteAboutFunction').show()},
+                       container: 'dlg-association-teaser'
+                       });
                        
         //call logger
         let request = {
@@ -1364,10 +1368,11 @@ class HSystemMgr {
                           hideTitle: false, // Show title
                           closeOnEscape: false,
                           open: function (event, ui) {
-                              let $dlg = window.hWin.HEURIST4.msg.getMsgDlg();
+                              let $dlg = window.hWin.HEURIST4.msg.getMsgDlg('dlg-heurist-updated');
                               $dlg.find('#version_cache').text(version_in_cache);
                               $dlg.find('#version_srv').text(current_server_version);
-                          }
+                          },
+                          container: 'dlg-heurist-updated'
                       }
                   );
               }

@@ -562,7 +562,7 @@ When we open "iiif_image" in mirador viewer we generate manifest dynamically.
         $files_dir = HEURIST_FILES_DIR;
         $current_db = $this->system->dbname();
 
-        if(strpos($this->system->getSysDir(), $current_db) === false){
+        if(strpos($files_dir, "/$current_db/") === false){
 
             $parts = explode("/", $thumb_dir);
             $idx = array_search("HEURIST_FILESTORE", $parts);
@@ -992,6 +992,16 @@ When we open "iiif_image" in mirador viewer we generate manifest dynamically.
             $ret = $this->replaceLocalFiles();
 
         }
+        elseif(@$this->data['create_scaled_images']){
+
+            $ret = $this->createScaledImages();
+
+        }
+        elseif(@$this->data['bulk_upload_repository']){
+
+            $ret = $this->bulkUploadToRepository();
+
+        }
         elseif(@$this->data['import_data']){ // importing file metadata
 
             $import_type = intval($this->data['import_data']);// import type; 1 - keep existing, 2 - append, 3 - replace
@@ -1418,25 +1428,25 @@ When we open "iiif_image" in mirador viewer we generate manifest dynamically.
 
        if($fields!==false){
 
-                if($tiledImageStack){
-                    //special case for tiled images stack
-                    $path_parts = pathinfo($fields['ulf_OrigFileName']);
-                    $fields['ulf_OrigFileName'] = ULF_TILED_IMAGE.'@'.$path_parts['filename'];
-                    $fields['ulf_PreferredSource'] = 'tiled';
-                }else{
-                    $fields['ulf_PreferredSource'] = 'local';
-                }
+            if($tiledImageStack){
+                //special case for tiled images stack
+                $path_parts = pathinfo($fields['ulf_OrigFileName']);
+                $fields['ulf_OrigFileName'] = ULF_TILED_IMAGE.'@'.$path_parts['filename'];
+                $fields['ulf_PreferredSource'] = 'tiled';
+            }else{
+                $fields['ulf_PreferredSource'] = 'local';
+            }
 
-                if(@$_fields['ulf_Description']!=null){
-                    $fields['ulf_Description'] = $_fields['ulf_Description'];
-                }
+            if(@$_fields['ulf_Description']!=null){
+                $fields['ulf_Description'] = $_fields['ulf_Description'];
+            }
 
-                $fileinfo = array('entity'=>'recUploadedFiles', 'fields'=>$fields);
+            $fileinfo = array('entity'=>'recUploadedFiles', 'fields'=>$fields);
 
-                $this->setData($fileinfo);
-                $ret = $this->save();//copies temp from scratch to file_upload it returns ulf_ID
+            $this->setData($fileinfo);
+            $ret = $this->save();//copies temp from scratch to file_upload it returns ulf_ID
 
-                return $ret;
+            return $ret;
        }else{
            return false;
        }
@@ -2590,6 +2600,161 @@ When we open "iiif_image" in mirador viewer we generate manifest dynamically.
             }
 
             $results['skipped'][] = "{$id} - Error: {$this->system->getErrorMsg()}";
+        }
+
+        return $results;
+    }
+
+    private function createScaledImages(){
+
+        $files = @$this->data['create_scaled_images'];
+        $files = $files === true ? true : prepareIds($files);
+        $localOnly = 'ulf_OrigFileName IS NOT NULL AND ulf_OrigFileName <> "_remote" AND ulf_OrigFileName NOT LIKE "' . ULF_IIIF . '%"';
+
+        if($files === true){
+            $files = mysql__select_assoc2($this->system->getMysqli(), "SELECT ulf_ID, ulf_ObfuscatedFileID FROM recUploadedFiles WHERE $localOnly");
+        }elseif(!empty($files)){
+            $fileCond = count($files) > 1 ? 'IN ('. implode(',', $files) .')' : "= {$files[0]}";
+            $files = mysql__select_assoc2($this->system->getMysqli(), "SELECT ulf_ID, ulf_ObfuscatedFileID FROM recUploadedFiles WHERE ulf_ID $fileCond AND $localOnly");
+        }
+
+        if(!is_array($files) || empty($files)){
+            $this->system->addError(HEURIST_INVALID_REQUEST, 'Invalid files have been provided.');
+            return false;
+        }
+
+        $results = [
+            'error' => [],
+            'done' => []
+        ];
+        foreach($files as $ulfID => $ulfObfuscatedID){
+
+            $fileDetails = fileGetFullInfo($this->system, $ulfObfuscatedID);
+            if(!$fileDetails){
+                $results['error'][$ulfID] = $this->system->getErrorMsg();
+                continue;
+            }
+
+            $cachedPath = getWebImageCache($this->system, $fileDetails, false);
+            if(!$cachedPath){
+                $results['error'][$ulfID] = $this->system->getErrorMsg();
+                continue;
+            }
+
+            $results['done'][] = $ulfID;
+        }
+
+        return $results;
+    }
+
+    /**
+     * Uploads the provided files to Nakala, only file ulf_ID are accepted
+     *  On successful upload, the new Nakala deposite is used as an external file and replaces the previous local file
+     *  On failure, the file is skipped
+     *
+     * @return false|array{done: array, error: array} array of results, false on general error
+     */
+    private function bulkUploadToRepository(){
+
+        $apiKey = '';
+        $mysqli = $this->system->getMysqli();
+        $files = @$this->data['bulk_upload_repository'];
+        $files = prepareIds($files);
+        $localOnly = 'ulf_OrigFileName IS NOT NULL AND ulf_OrigFileName <> "_remote" AND ulf_OrigFileName NOT LIKE "' . ULF_IIIF . '%"';
+        $modDate = date(DATE_8601);
+
+        $serviceID = @$this->data['nakalaID'];
+        $credentials = user_getRepositoryCredentials2($this->system, $serviceID);
+        if($credentials==null){
+            $this->system->addError(HEURIST_ACTION_BLOCKED, 'Credentials for sepecified repository and user/group not found');
+            return false;
+        }elseif(!@$credentials[$serviceID]['params']['writeApiKey']){
+            $this->system->addError(HEURIST_ACTION_BLOCKED, 'Write Credentials for sepecified repository and user/group not defined');
+            return false;
+        }
+        $apiKey = $credentials[$serviceID]['params']['writeApiKey'];
+        $useTestURL = @$this->data['use_test_url'] == 1 || strpos($serviceID,'nakala')===1 ? 1 : 0;
+
+        if(!empty($files)){
+            $fileCond = count($files) > 1 ? 'IN (' . implode(',', $files) . ')' : "= {$files[0]}";
+            $files = mysql__select_list2($mysqli, "SELECT ulf_ID FROM recUploadedFiles WHERE ulf_ID {$fileCond} AND {$localOnly}");
+        }
+
+        if(!is_array($files) || empty($files)){
+            $this->system->addError(HEURIST_INVALID_REQUEST, 'Invalid files have been provided.');
+            return false;
+        }
+
+        $results = [
+            'error' => [],
+            'done' => []
+        ];
+
+        $metaValues = [];
+        $metaValues['creator'] = [
+            'value' => null,
+            'lang' => null,
+            'typeUri' => null,
+            'propertyUri' => NAKALA_REPO.'terms#creator'
+        ];
+        // Provided by user - used for all files
+        $metaValues['license'] = [
+            'value' => $this->data['license'],
+            'lang' => null,
+            'typeUri' => XML_SCHEMA,
+            'propertyUri' => NAKALA_REPO.'terms#license'
+        ];
+
+        foreach($files as $ulfID){
+
+            [$fileData, $file] = getFileDetailsForNakala($mysqli, $ulfID);
+            if(!$fileData){
+                $results['error'][$ulfID] = $file;
+                continue;
+            }
+
+            $fileData = array_merge($fileData, $metaValues);
+
+            $rtn = uploadFileToNakala($this->system, [
+                'api_key' => $apiKey, 'file' => $file,
+                'meta' => $fileData, 'status' => 'published',
+                'use_test_url' => $useTestURL
+            ]);
+
+            $new_ulfID = $ulfID;
+            if($rtn){ // register URL
+
+                $fields = null;
+                if($serviceID){
+                    $fields = ['ulf_Parameters'=>'{"repository":"'.$serviceID.'"}'];
+                }
+
+                $new_ulfID = $this->registerURL($rtn, false, 0, $fields);// register nakala url
+                if(!is_numeric($new_ulfID) || $new_ulfID > 0){
+                    $results['error'][$ulfID] = FILE_NO . $ulfID . R_ARROW . $mysqli->error;
+                    continue;
+                }
+            }else{
+
+                $errMsg = $this->system->getError();
+                $errMsg = array_key_exists('message', $errMsg) ? $errMsg['message'] : 'Unknown error occurred while uploading to Nakala';
+
+                $results['error'][$ulfID] = FILE_NO . $ulfID . R_ARROW . $errMsg;
+                continue;
+            }
+
+            $updateQuery = "UPDATE recDetails SET dtl_Modified = {$modDate}, dtl_UploadedFileID = {$new_ulfID} WHERE dtl_UploadedFileID = {$ulfID}";
+            $updateResult = $mysqli->query($updateQuery);
+
+            if(!$updateResult){
+                $results['error'][$ulfID] = FILE_NO . $ulfID . R_ARROW . $mysqli->error;
+                continue;
+            }
+
+            $this->setData(['ulf_ID' => $ulfID]);
+            $this->delete();
+
+            $results['done'][] = $ulfID;
         }
 
         return $results;

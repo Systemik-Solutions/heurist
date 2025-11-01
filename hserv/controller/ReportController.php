@@ -108,7 +108,7 @@ class ReportController
             if ($template_file && $action == null) {
                 $action = 'execute'; //by default
             }
-
+            
             switch ($action) {
                 case 'execute':
                     $repExec = new ReportExecute($this->system, $this->req_params);
@@ -281,19 +281,21 @@ class ReportController
                     'template' => $row['rps_Template'],
                     'rps_id' => $row['rps_ID'],
                     'void' => $is_void
+                     
                 ];
+
 
                 $hquery = $row['rps_HQuery'];
                 if (strpos($hquery, "&q=") > 0) {
                     parse_str($hquery, $params2);
                     $params = array_merge($params, $params2);
                 } else {
-                    $params = ["q" => $hquery];
+                    $params['q'] = $hquery; //was incorrect $params = ['q'=>$hquery];
                 }
 
                 $repExec->setParameters($params);
 
-                //result: 0 - error, 1 - created, 2 - updated, 3 - intakted
+                //result: 0 - error, 1 - created, 2 - updated, 3 - intacted
                 //check that report is already exists
                 $result = 1;
 

@@ -233,7 +233,7 @@ abstract class DbEntityBase
      *
      * This is typically used before update or delete actions.
      *
-     * @param array $records An array of records.
+     * @param array|null $records An array of records.
      * @return void
      */
     public function setRecords($records){
@@ -1277,7 +1277,7 @@ abstract class DbEntityBase
 
             $entity_name = $this->config['entityName'];
 
-            list($filename, $content_type, $url) = resolveEntityFilename($entity_name, $recID, $version, $db_name, $extension);
+            list($filename, $content_type, $url) = resolveEntityFilename($entity_name, $recID, $version, $this->system->dbname(), $extension);
 
             return $filename;
     }

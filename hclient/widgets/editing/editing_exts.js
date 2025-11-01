@@ -1114,12 +1114,12 @@ function openSearchMenu(that, $select, has_filter=true, is_terms=false){
                         // Correct cursor position
                         start_pos = ++start;
                         $input[0].setSelectionRange(start_pos, start_pos);
-                    }else if(is_enter && $menu.find('.ui-menu-item:visible').length == 2){ // auto select only result
+                    }else if(is_enter && $menu.find('.ui-menu-item:visible').length == 1){ // auto select only result
 
                         window.hWin.HEURIST4.util.stopEvent(event);
                         event.stopImmediatePropagation();
 
-                        $($menu.find('.ui-menu-item:visible')[1]).trigger('click'); // trigger selection
+                        $menu.find('.ui-menu-item:visible').trigger('mouseover').trigger('click'); // trigger selection, needs focus first
                     }else if(is_tab && $menu.find('.ui-menu-item:visible').length > 1){ // focus first item
 
                         window.hWin.HEURIST4.util.stopEvent(event);
@@ -1835,6 +1835,7 @@ function browseTerms(_editing_input, $input, value){
         }
 
         $input.empty();
+        if(!$input[0]) return;
         window.hWin.HEURIST4.ui.addoption($input[0], '', '&nbsp;');
         if(window.hWin.HEURIST4.util.isNumber(trm_ID) && trm_ID>0){
             

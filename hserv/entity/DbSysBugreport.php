@@ -18,6 +18,7 @@ namespace hserv\entity;
 use hserv\entity\DbEntityBase;
 use hserv\System;
 use hserv\entity\DbRecUploadedFiles;
+use hserv\utilities\USystem;
 
 require_once dirname(__FILE__).'/../records/search/recordFile.php';
 
@@ -58,12 +59,22 @@ class DbSysBugreport extends DbEntityBase
     For current and resolved issues list see: <a href="__DB_JOBTRAK__/web/64/1526">__DB_JOBTRAK__</a><br><br>
     <br>
     Reporter: __NAME__ [__EMAIL__]<br>
-    Database: __DBLINK__<br><br>
+    Database: __DBLINK__<br>
+    __MEMBER__<br>
     Bug description:__DESC__
     EMAIL;
+
+    /** @var string Message about membership for non-member emails, replaces __MEMBER__ within the report email. */
+    private $membershipString = <<<MEMBERSHIP
+    Priority is given to fixing critical bugs affecting many users and to tickets submitted by members<br>
+    of the <em>Heurist Network</em> association. Please consider <a href="https://forms.gle/xdAhjcZaSxpzkAsh9" target=_blank>joining the association</a> to support Heurist.<br>
+    MEMBERSHIP;
     
     /** @var int The Heurist Record Type ID for bug reports/tasks (typically 56). */
     private $bugReportType = 56;
+
+    /** @var bool Whether the current server is the main server */
+    private $isMainServer = false;
 
     /**
      * Constructor for DbSysBugreport.
@@ -77,6 +88,8 @@ class DbSysBugreport extends DbEntityBase
     public function __construct( $system, $data=null ) {
         parent::__construct( $system, $data );
         $this->requireAdminRights = false;
+
+        $this->isMainServer = strpos(strtolower(HEURIST_BASE_URL), strtolower(HEURIST_MAIN_SERVER)) !== false;
     }
 
     /**
@@ -97,8 +110,7 @@ class DbSysBugreport extends DbEntityBase
 
         if(!$res){
 
-            $attempt_public_login = strpos(strtolower(HEURIST_BASE_URL), strtolower(HEURIST_MAIN_SERVER)) !== false
-                                    && $this->system->dbname() == HEURIST_BUGREPORT_DATABASE;
+            $attempt_public_login = $this->isMainServer && $this->system->dbname() == HEURIST_BUGREPORT_DATABASE; //dbnameWithoutHost
 
             $this->performLogout = $attempt_public_login ? $this->system->doLogin('extern', null, 'public', true) : false; // attempt login to publicly available guest account
 
@@ -238,7 +250,7 @@ class DbSysBugreport extends DbEntityBase
         $reportDetails['958'] = ['Location' => $new_record['details']['958']];
 
         $url = @$record['bug_URL'];
-        $cur_url = HEURIST_BASE_URL.'?db='.HEURIST_DBNAME;
+        $cur_url = HEURIST_BASE_URL.'?db='.$this->system->dbname();
         if(!empty($url)){
             $new_record['details']['993'] = [$url, $cur_url];
             $reportDetails['993'] = ['URL' => [$url, $cur_url]];
@@ -289,8 +301,15 @@ class DbSysBugreport extends DbEntityBase
             }
         }
 
+        $memberString = '';
+        if($this->performLogout || USystem::checkAssociationMembership($this->system) !== 'nonmember'){
+            $new_record['details']['1067'] = ['7643'];
+        }else{
+            $new_record['details']['1067'] = [];
+        }
+
         $res = false;
-        if(strpos(strtolower(HEURIST_BASE_URL), strtolower(HEURIST_MAIN_SERVER)) !== false){ // on server with Heurist_Job_Tracker DB
+        if($this->isMainServer){ // on server with Heurist_Job_Tracker DB
             $res = $this->createBugReportRecord($new_record);
         }else{
 
@@ -335,8 +354,13 @@ class DbSysBugreport extends DbEntityBase
 
                 $toAddresses = is_array($user_info) ? ['to' => [$user_email, HEURIST_MAIL_TO_BUG]] : $toAddresses;
 
-                $res = str_replace(['__LINK__', '__DESC__','__NAME__','__EMAIL__','__DBLINK__','__DB_JOBTRAK__','__EDIT__'],
-                    [$report_link, $record['details']['3'], $user_name, $user_email, $cur_url, HEURIST_MAIN_SERVER.'/'.HEURIST_BUGREPORT_DATABASE,$report_edit],
+                $memberString = $this->membershipString;
+                if(!empty(@$new_record['details']['1067'])){
+                    $memberString = '';
+                }
+
+                $res = str_replace(['__LINK__', '__DESC__','__NAME__','__EMAIL__','__DBLINK__','__DB_JOBTRAK__','__EDIT__','__MEMBER__'],
+                    [$report_link, $record['details']['3'], $user_name, $user_email, $cur_url, HEURIST_MAIN_SERVER.'/'.HEURIST_BUGREPORT_DATABASE,$report_edit,$memberString],
                     $this->reportEmail);
 
             }elseif(is_array($res)){
@@ -382,9 +406,9 @@ class DbSysBugreport extends DbEntityBase
             return false;
         }
 
-        $using_db = $this->system->dbname() == HEURIST_BUGREPORT_DATABASE;
+        $using_db = $this->system->dbname() == HEURIST_BUGREPORT_DATABASE; //dbnameWithoutHost
         $report_system = $using_db ? $this->system : null;
-        if(!$using_db && strpos(strtolower(HEURIST_BASE_URL), strtolower(HEURIST_MAIN_SERVER)) !== false){
+        if(!$using_db && $this->isMainServer){
 
             $report_system = new System();
             $using_db = $report_system->init(HEURIST_BUGREPORT_DATABASE, true, false);
@@ -405,24 +429,39 @@ class DbSysBugreport extends DbEntityBase
         $files = [];
         $rec_uploads = new DbRecUploadedFiles($report_system);
         if(!empty($record['details']['38']) && $rec_uploads){
+
             foreach($record['details']['38'] as $idx => $file_url){
 
                 $file_name = explode("\\", $file_url);
                 $file_name = str_replace('~', 'bugreport_img_', array_pop($file_name));
 
-                $record['details']['38'][$idx] = $rec_uploads->downloadAndRegisterdURL($file_url, ['ulf_NewName' => $file_name], 2);
+                $fileResult = null;
+                if(strpos($file_url, HEURIST_SERVER_URL)){ // same server, attempt local registeration
 
-                if(!$record['details']['38'][$idx]){ // backup: register as external image
-                    $record['details']['38'][$idx] = $rec_uploads->registerURL($file_url, false, 0);
+                    $urlBase = $this->system->getSysUrl(DIR_ENTITY);
+                    $dirBase = $this->system->getSysDir(DIR_ENTITY);
+
+                    $file = str_replace($urlBase, $dirBase, $file_url);
+                    $record['details']['38'][$idx] = $rec_uploads->registerFile($file, null);
                 }
 
-                if(!$record['details']['38'][$idx]){
+                if(!$fileResult){
+                    $fileResult = $rec_uploads->downloadAndRegisterdURL($file_url, ['ulf_NewName' => $file_name], 2);
+                }
+
+                if(!$fileResult && $this->system->dbname() !== HEURIST_BUGREPORT_DATABASE){ //dbnameWithoutHost backup: register as external image
+                    $fileResult = $rec_uploads->registerURL($file_url, false, 0);
+                }
+
+                if(!$fileResult){
                     continue;
                 }
 
+                $record['details']['38'][$idx] = $fileResult;
                 $ulf_file_name = mysql__select_value($this->system->getMysqli(), "SELECT ulf_FileName FROM recUploadedFiles WHERE ulf_ID = {$record['details']['38'][$idx]}");
                 $files[] = $this->system->getSysDir(DIR_FILEUPLOADS) . $ulf_file_name;
             }
+
             $record['details']['38'] = array_filter($record['details']['38']); // remove null/false values
         }
 
@@ -461,8 +500,13 @@ class DbSysBugreport extends DbEntityBase
 
             $db_link = is_array($record['details']['993']) ? $record['details']['993'][1] : $record['details']['993'];
 
-            $msg = str_replace(['__LINK__', '__DESC__', '__NAME__', '__EMAIL__','__DBLINK__','__DB_JOBTRAK__','__EDIT__'],
-             [$report_link, $record['details']['3'], $user_name, $user_email, $db_link,HEURIST_MAIN_SERVER.'/'.HEURIST_BUGREPORT_DATABASE, $report_edit],
+            $memberString = $this->membershipString;
+            if(!empty(@$record['details']['1067'])){
+                $memberString = '';
+            }
+
+            $msg = str_replace(['__LINK__', '__DESC__', '__NAME__', '__EMAIL__','__DBLINK__','__DB_JOBTRAK__','__EDIT__','__MEMBER__'],
+             [$report_link, $record['details']['3'], $user_name, $user_email, $db_link,HEURIST_MAIN_SERVER.'/'.HEURIST_BUGREPORT_DATABASE, $report_edit, $memberString],
               $this->reportEmail);
 
             $user_query = "SELECT ugr_eMail FROM sysUsrGrpLinks LEFT JOIN sysUGrps ON ugr_ID = ugl_UserID WHERE ugl_GroupID = 1 AND ugl_Role='admin'";

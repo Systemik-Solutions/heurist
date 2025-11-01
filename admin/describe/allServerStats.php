@@ -70,19 +70,19 @@ if(extension_loaded('fileinfo')){
     $file_type = strtolower(pathinfo($temp_file, PATHINFO_EXTENSION));
 }
 
-$is_zip = $file_type !== 'application/zip' && $file_type !== 'zip';
+$is_zip = $file_type === 'application/zip' && $file_type === 'zip';
 if(!$is_zip && $file_type !== 'text/plain' && $file_type !== 'txt'){
     $system->errorExitApi('Invalid file provided', HEURIST_ACTION_BLOCKED, false);
 }elseif(!$is_zip && count($stat_types) > 1){
     $system->errorExitApi('Multiple loose files are not handled', HEURIST_ACTION_BLOCKED, false);
 }
 
-$dir_name = explode('/', $dir);
+$dir_name = explode('/', ALL_STATS);
 $dir_name = array_pop($dir_name);
 
-$is_dir_writable = folderExists($dir, true);
+$is_dir_writable = folderExists(ALL_STATS, true);
 if($is_dir_writable === -1){
-    $res = folderCreate2($dir, '');
+    $res = folderCreate2(ALL_STATS, '');
     if($res !== ''){
         $system->errorExitApi("Heurist is unable to create the {$dir_name} directory", HEURIST_ERROR, false);
     }
@@ -117,7 +117,7 @@ function transferTextFile($remote_file, $server_name, $file_name){
     global $system;
 
     $to_zip = new ZipArchive();
-    if($to_zip->open(ALL_STATS . "/{$server_name}.zip", ZipArchive::CREATE)){
+    if($to_zip->open(ALL_STATS . "/{$server_name}.zip", ZipArchive::CREATE) !== true){
         $system->errorExitApi('Unable to create local zip for remote server', HEURIST_ERROR, false);
     }
 
@@ -143,13 +143,13 @@ function transferZipFiles($remote_zip, $server_name, $allowed_stats){
     $local_zip = ALL_STATS . "/{$server_name}.zip";
 
     $from_zip = new ZipArchive();
-    if(!$from_zip->open($remote_zip)){
+    if($from_zip->open($remote_zip) !== true){
         fileDelete($remote_zip);
         $system->errorExitApi('Unable to open archive from remote server', HEURIST_ERROR, false);
     }
 
     $to_zip = new ZipArchive();
-    if($to_zip->open($local_zip, ZipArchive::CREATE)){
+    if($to_zip->open($local_zip, ZipArchive::CREATE) !== true){
         fileDelete($remote_zip);
         $system->errorExitApi('Unable to create local zip for remote server', HEURIST_ERROR, false);
     }
@@ -170,6 +170,7 @@ function transferZipFiles($remote_zip, $server_name, $allowed_stats){
 
         $to_zip->addFromString("{$file_name}.txt", $from_zip->getFromIndex($idx));
     }
+    finfo_close($finfo);
 
     $to_zip->close();
     $from_zip->close();

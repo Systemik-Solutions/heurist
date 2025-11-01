@@ -456,6 +456,8 @@ class UImage {
      * @return \GdImage|false A GD image resource on success, or false if loading fails or the image type is unsupported.
      */
     public static function safeLoadImage($filename, $mimeExt){
+        
+        global $system;
 
         $img = null;
 
@@ -469,7 +471,7 @@ class UImage {
 
                 $errline_prev=$errline;
                 //database, record ID and name of bad image
-                sendEmail(HEURIST_MAIL_TO_ADMIN, 'Cannot load image file. DB:'.HEURIST_DBNAME,
+                sendEmail(HEURIST_MAIL_TO_ADMIN, 'Cannot load image file. DB:'.$system->dbname(),
                     'File :'.$filename.' is corrupted. System message: '.$errstr);
                 //ID#'.$file['ulf_ID'].'
 
@@ -521,6 +523,7 @@ class UImage {
         $mimeExt = UImage::getImageType($filename);
 
         if($mimeExt){
+
             $errorMsg = UImage::checkMemoryForImage($filename, $mimeExt);
 
             if(!$errorMsg){
@@ -552,6 +555,8 @@ class UImage {
                 return file_exists($scaled_file)?true:$errorMsg;
             }
         }
+
+        return '';
     }
 
 
@@ -582,7 +587,7 @@ class UImage {
         $rx = $x / $orig_x;
         $ry = $y / $orig_y;
 
-        $scale = $rx ? $ry ? min($rx, $ry) : $rx : $ry;
+        $scale = $rx ? ($ry ? min($rx, $ry) : $rx) : $ry;
 
         if ($no_enlarge  &&  $scale > 1) {
             $scale = 1;
@@ -591,7 +596,7 @@ class UImage {
         $new_x = ceil($orig_x * $scale);
         $new_y = ceil($orig_y * $scale);
 
-        $img_resized = imagecreatetruecolor($new_x, $new_y)  or die;
+        $img_resized = imagecreatetruecolor($new_x, $new_y) or die;
 
         // Handle transparency
         imagecolortransparent($img_resized, imagecolorallocate($img_resized, 0, 0, 0));
@@ -859,6 +864,7 @@ class UImage {
      * @return bool True on success, false on failure.
      */
     public static function getPdfThumbnail( $filename, $thumbnail_file ){
+        global $system;
 
         if(!extension_loaded('imagick')){
 
@@ -886,7 +892,7 @@ class UImage {
                 $im->writeImage($thumbnail_file);
 
             } catch(\ImagickException $e) {
-                USanitize::errorLog($e . ', From Database: ' . HEURIST_DBNAME);
+                USanitize::errorLog($e . ', From Database: ' . $system->dbname());
                 return false;
             }
 
@@ -1079,7 +1085,7 @@ class UImage {
         }
 
         $write_func = 'imagepng';
-        $image_quality = 9;
+        $image_quality = $scale_type == 'jpg' ? 80 : 9;
         /*
         $image_oriented = false;
         if (!empty($options['auto_orient']) && $this->gd_orient_image(

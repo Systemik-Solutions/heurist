@@ -72,7 +72,7 @@ if (empty($emailRecTypeId)) {
     <script>
         // Initialize the HAPI4 library if not already available.
         if (!window.hWin.HAPI4 && typeof hAPI === 'function') {
-            window.hWin.HAPI4 = new hAPI('<?php echo HEURIST_DBNAME; ?>', $.noop);
+            window.hWin.HAPI4 = new hAPI('<?php echo $system->dbname(); ?>', $.noop);
         }
 
         $(document).ready(() => {
@@ -314,6 +314,13 @@ $stmt->close();
                 vertical-align: middle;
             }
 
+            #btnSwitchEditor{
+                color: blue;
+                text-decoration: underline;
+
+                cursor: pointer;
+            }
+
         </style>
 
         <script type="text/javascript">
@@ -330,11 +337,14 @@ $stmt->close();
             const emailRecords = <?php echo json_encode($emails)?>;// Object of Email records id->title
             let emailRec = 0; // Current email details being displayed
 
+            const SESSION_ID = window.hWin.HEURIST4.util.random();
             const BASE_URL = "<?php echo HEURIST_BASE_URL ?>";
             const CURRENT_DB = "<?php echo $currentDb ?>";
-            var gettingDatabases = false; // Flag for database retrieval operation in progress; true - general, 1 - intial list, false - none
-            var runFilter = false;
-            var callInProgress = false;
+            const MAILCONTROLLER = `${BASE_URL}admin/utilities/bulkEmailController.php`;
+
+            let gettingDatabases = false; // Flag for database retrieval operation in progress; true - general, 1 - intial list, false - none
+            let runFilter = false;
+            let callInProgress = false;
 
             const handledSorts = Object.freeze(['name', 'rec_count', 'last_update']);
             let databaseDetails = []; // [{name: db_name, rec_count: db_rec_count, last_update: db_last_update}, ...]
@@ -788,7 +798,7 @@ $stmt->close();
                 $("#btnEmail").on("click", function(event){
                     if(validateForm(event)){
                         getDbList();
-                        sendEmails();
+                        presendEmailContent('send');
                         return false;
                     }
                 });
@@ -796,7 +806,7 @@ $stmt->close();
                 $("#btnCSVExport").on("click", function(event){
                     if(validateForm(event)){
                         getDbList();
-                        exportCSV();
+                        presendEmailContent('csv');
                         return false;
                     }
                 });
@@ -807,6 +817,68 @@ $stmt->close();
                 });
 
                 $('input[id="name"]').prop('checked', true);
+            }
+
+            async function presendEmailContent(action){
+
+                if(callInProgress){
+                    window.hWin.HEURIST4.msg.showMsgFlash('A server call is already in progress, please wait for it to finish...', 6000);
+                    return;
+                }
+
+                let appendToExisting = false;
+                _presendEmailBody = async function(emailBodyPart){
+
+                    return new Promise((resolve) => {
+
+                        let parameters = {
+                            a: 'prepare_email',
+                            db: CURRENT_DB,
+                            emailBody: emailBodyPart,
+                            sessionID: SESSION_ID,
+                            append: appendToExisting
+                        };
+
+                        window.hWin.HEURIST4.util.sendRequest(MAILCONTROLLER, parameters, null, (response) => {
+
+                            appendToExisting = true;
+
+                            if(response.status === 'ok'){
+                                resolve(true);
+                            }
+
+                            window.hWin.HEURIST4.msg.showMsgErr(response);
+                            resolve(false);
+                        });
+                    });
+
+                }
+
+                let emailBody = $('#emailBody').val();
+                const chunkLimit = 2000;
+
+                if(emailBody.length === 0){
+                    return;
+                }
+
+                let chunks = Math.ceil(emailBody.length / chunkLimit);
+                let start = 0;
+
+                callInProgress = true;
+                for(let i = 0; i < chunks; i++){
+                    let result = await _presendEmailBody(emailBody.substring(start, start + chunkLimit));
+                    if(!result){
+                        return;
+                    }
+                    start += chunkLimit;
+                }
+                callInProgress = false;
+
+                if(action === 'send'){
+                    sendEmails();
+                }else if(action === 'csv'){
+                    exportCSV();
+                }
             }
 
             /**
@@ -823,12 +895,15 @@ $stmt->close();
                 }
                 callInProgress = true;
 
-                const SESSION_ID = window.hWin.HEURIST4.util.random();
                 let params = {};
                 let $prog_dlg;
                 let interval;
 
                 $('#emailOptions').serializeArray().reduce((params, value) => {
+
+                    if(value['name'] === 'emailBody'){
+                        return params;
+                    }
 
                     if(window.hWin.HEURIST4.util.isempty(value['value'])){
                         value['value'] = 0;
@@ -841,9 +916,7 @@ $stmt->close();
                 params['a'] = 'send_emails';
                 params['sessionID'] = SESSION_ID;
 
-                let mail_url = `${BASE_URL}admin/utilities/bulkEmailController.php`;
-
-                window.hWin.HEURIST4.util.sendRequest(mail_url, params, null, (response) => {
+                window.hWin.HEURIST4.util.sendRequest(MAILCONTROLLER, params, null, (response) => {
 
                     callInProgress = false;
 
@@ -856,7 +929,7 @@ $stmt->close();
                         $prog_dlg.find('#email-results').html('<strong>CANCELLED</strong>');
                         return;
                     }
-                    
+
                     if(response.status != 'ok'){
                         $prog_dlg.find('#email-results').html(`<strong>${response.message}</strong>`);
                         return;
@@ -864,8 +937,7 @@ $stmt->close();
                         $prog_dlg.find('#email-results').html(`<strong>Saved final receipt as a Note record: ID #${response.data} ${response.rec_Title}</strong>`);
                     }
 
-                    window.hWin.HEURIST4.util.sendRequest(mail_url, {a: 'session', session: SESSION_ID, db: CURRENT_DB}, null, (session_resp) => {
-
+                    window.hWin.HEURIST4.util.sendRequest(MAILCONTROLLER, {a: 'session', session: SESSION_ID, db: CURRENT_DB}, null, (session_resp) => {
                         if(session_resp.status == 'ok'){
                             $prog_dlg.find('#progress-report').html(session_resp.data);
                         
@@ -890,14 +962,23 @@ $stmt->close();
 
                     let request = { t: new Date().getMilliseconds(), session: SESSION_ID, db: CURRENT_DB };
 
-                    window.hWin.HEURIST4.util.sendRequest(progress_url, request, null, (response) => {
+                    $.ajax(
+                    {url: progress_url, type: "POST", data: request, cache: false,
+                    success: function( response, textStatus, jqXHR ){
+//console.log('progress res', response);
                         if(response.message != 'terminate'){
                             $prog_dlg.find('#progress-report').html(response.message);
                         }else{
                             if(interval > 0) { clearInterval(interval); interval = null; }
                             return;
                         }
+                    },
+                    error: function(jqXHR, textStatus, errorThrown ) {
+//console.log('ERROR', jqXHR, textStatus)                        
+                    }
                     });
+                    
+                    //window.hWin.HEURIST4.util.sendRequest(progress_url, request, null, (response) => {});
                 }, 1000);
 
             }
@@ -915,12 +996,15 @@ $stmt->close();
                     return;
                 }
 
-                const SESSION_ID = window.hWin.HEURIST4.util.random();
                 let params = {};
                 let $prog_dlg;
                 let interval;
 
                 $('#emailOptions').serializeArray().reduce((params, value) => {
+
+                    if(value['name'] === 'emailBody'){
+                        return params;
+                    }
 
                     if(window.hWin.HEURIST4.util.isempty(value['value'])){
                         value['value'] = 0;
@@ -931,10 +1015,9 @@ $stmt->close();
                 }, params);
 
                 params['a'] = 'csv_export';
+                params['sessionID'] = SESSION_ID;
 
-                let mail_url = `${BASE_URL}admin/utilities/bulkEmailController.php?${(new URLSearchParams(params).toString())}`;
-
-                window.open(mail_url, '_blank');
+                window.open(`${MAILCONTROLLER}?${(new URLSearchParams(params).toString())}`, '_blank');
             }
 
             /**
@@ -1430,19 +1513,19 @@ $stmt->close();
 
                         <span class="non-selectable"> Database Last modified
 
-                            <select name="recModLogic" id="recModifiedLogic">
-                                <option value="more">more than</option>
-                                <option value="less" selected>less than</option>
-                            </select>
-
-                            <input type="number" class="input-num" name="recModVal" id="recModified" min="1" value="">
-
                             <select name="recModInt" id="recModifiedSel">
                                 <option value="DAY">Days</option>
                                 <option value="MONTH">Months</option>
                                 <option value="YEAR">Years</option>
                                 <option value="ALL" selected>All</option>
                             </select>
+
+                            <select name="recModLogic" id="recModifiedLogic">
+                                <option value="more">more than</option>
+                                <option value="less" selected>less than</option>
+                            </select>
+
+                            <input type="number" class="input-num" name="recModVal" id="recModified" min="1" value="">
 
                             Ago
                         </span>

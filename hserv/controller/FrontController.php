@@ -21,6 +21,7 @@ use hserv\System;
 use hserv\utilities\USanitize;
 use hserv\structure\ConceptCode;
 use hserv\web\WebSite;
+use hserv\utilities\UJwt;
 
 /**
  * Class FrontController
@@ -76,6 +77,8 @@ class FrontController
      */
     public function run()
     {
+        global $jwt_Secret; 
+        
         if (!(isset($this->system) && $this->system->isInited())) {
             return;
         }
@@ -86,14 +89,38 @@ class FrontController
             || @$this->req_params['template_body']
             || @$this->req_params['template_id']) {
 
+            //validate authentication via TOKEN
+            if(isset($jwt_Secret) && strlen($jwt_Secret)>7)
+            {
+                $auth = UJwt::get_auth_header();
+                
+
+                if ($auth && preg_match('/^Bearer\s+(.+)$/i', $auth, $m)) {
+                    
+                    $payload = UJwt::jwt_verify($m[1], $jwt_Secret);
+                    if ($payload === false) {
+                        //UJwt::json_out(401, ['error'=>'invalid_token'], ['WWW-Authenticate'=>'Bearer error="invalid_token"']);
+                    }else{
+                        // Optional: check scopes
+                        // if (!in_array('read:data', (array)($payload['scope'] ?? []))) { ... }
+                        $userID = $payload['sub'];
+                        $this->system->setCurrentUser([
+                                'ugr_ID'=>$userID, 
+                                'ugr_Groups'=>user_getWorkgroups( $this->system->getMysqli(), $userID )
+                        ]);
+
+                    }
+                }
+            }
+                
             $controller = new ReportController($this->system, $this->req_params);
             $controller->handleRequest(@$this->req_params['action']);
 
         }elseif(array_key_exists('website', $this->req_params)){
 
-            $controller = new WebSite($this->system, $this->req_params);
+            $website = new WebSite($this->system, $this->req_params);
             
-            $controller->execute();    
+            $website->execute();    
             
         }elseif(@$this->req_params['controller'] == 'ImportAnnotations'){
             
@@ -108,4 +135,12 @@ class FrontController
             dataOutput($result);            
         }
     }
+    
+    public function getWebsiteVersion(){
+        
+        $website = new WebSite($this->system, $this->req_params);
+        
+        return $website->getWebSiteVersion();
+    }
+    
 }

@@ -173,7 +173,7 @@ class DbUtils {
     public static function databaseDrop( $verbose=false, $database_name=null, $createArchive=false ){
 
         // 1. Create an SQL dump in the filestore direcory
-        // 2. Zip the filestore directories (using bzip2) directly into the DELETED_DATABASES directory
+        // 2. Zip the filestore directories (using bzip2) directly into the _DELETED_DATABASES directory
         // 3. Delete filestore directory for the database
         // 4. Drop database
         // 5. Append row to DELETED_DATABASES_LOG.csv in the Heurist filestore.
@@ -208,13 +208,13 @@ class DbUtils {
         list($database_name_full, $database_name) = mysql__get_names( $database_name );
         $msg_prefix = "Unable to delete <b> $database_name </b>. ";
 
-        if(defined('HEURIST_DBNAME') && $database_name!=HEURIST_DBNAME){ //switch to database
+        if($database_name!=$system->dbname()){ //switch to database
            $connected = (mysql__usedatabase($mysqli, $database_name_full)===true);
         }else{
            $connected = true;
         }
 
-        $archiveFolder = HEURIST_FILESTORE_ROOT."DELETED_DATABASES/";
+        $archiveFolder = HEURIST_FILESTORE_ROOT."_DELETED_DATABASES/";
         $db_dump_file = null;
 
         $source = HEURIST_FILESTORE_ROOT.$database_name.'/';//  HEURIST_FILESTORE_DIR;  database upload folder
@@ -229,7 +229,7 @@ class DbUtils {
             self::$db_del_in_progress = null;
             return false;
         }elseif($createArchive) {
-            // Create DELETED_DATABASES directory if needed
+            // Create _DELETED_DATABASES directory if needed
             if(!folderCreate($archiveFolder, true)){
                     $system->addError(HEURIST_ACTION_BLOCKED,
                         $msg_prefix.' Cannot create archive folder for database to be deleteted.');
@@ -395,7 +395,7 @@ class DbUtils {
 
         $mysqli = self::$mysqli;
 
-        if(defined('HEURIST_DBNAME') && $database_name!=HEURIST_DBNAME){ //switch to database
+        if($database_name!=self::$system->dbname()){ //switch to database
            $connected = (mysql__usedatabase($mysqli, $database_name_full)===true);
         }else{
            $connected = true;
@@ -865,10 +865,10 @@ class DbUtils {
      * @param string $database_name Name of the target database to create/restore.
      * @param string $archive_file Name of the archive file (e.g., .zip, .tar.bz2).
      * @param int $archive_folder Identifier for the source folder of the archive.
-     *                            1: DELETED_DATABASES (default)
+     *                            1: _DELETED_DATABASES (default)
      *                            2: /srv/BACKUP/
      *                            3: /srv/BACKUP/ARCHIVE/ (or HEURIST_FILESTORE_ROOT.'BACKUP/ARCHIVE/' for local dev)
-     *                            4: DBS_TO_RESTORE
+     *                            4: _DBS_TO_RESTORE
      * @return bool True on success, false on failure.
      */
     public static function databaseRestoreFromArchive($database_name, $archive_file, $archive_folder=1){
@@ -888,10 +888,10 @@ class DbUtils {
                 $lib_path = '/srv/BACKUP/ARCHIVE/';
             }
         }elseif($source==4){
-            $lib_path = $upload_root.'DBS_TO_RESTORE/';
+            $lib_path = $upload_root.'_DBS_TO_RESTORE/';
         }else{
             //default
-            $lib_path = $upload_root.'DELETED_DATABASES/';
+            $lib_path = $upload_root.'_DELETED_DATABASES/';
         }
 
         $archive_file = $lib_path.basename($archive_file);
@@ -926,6 +926,7 @@ class DbUtils {
 
         self::setSessionVal(2);//folders created
 
+        //if true the archive is sql dump - need to copy the minimal set of files from current database
         $needCopyCurrentDbFolder = false;
         //unpack archive into this folder
         $unzip_error = null;
@@ -979,6 +980,10 @@ class DbUtils {
 
                 if(folderRecurseCopy( HEURIST_FILESTORE_DIR, $database_folder )){
                     self::databaseUpdateFilePaths(self::$system->dbname() , $database_name);
+                    
+                    //drop defintions cache
+                    $entityDir = self::$system->getSysDir('entity', $database_name);
+                    fileDelete( $entityDir. 'dbdef_cache.json');
                 }else{
                     folderDelete($database_folder);
                     self::$system->addError(HEURIST_ACTION_BLOCKED,
@@ -1269,7 +1274,7 @@ class DbUtils {
 
         $res = true;
 
-        if($database_name!=HEURIST_DBNAME){ //switch to database
+        if($database_name!=$system->dbname()){ //switch to database
            $connected = (mysql__usedatabase($mysqli, $database_name_full)==true);
         }else{
            $connected = true;
@@ -1539,7 +1544,7 @@ class DbUtils {
     /**
      * Clones an entire database, including its file structure and data.
      *
-     * @param string|null $db_source Source database name. Defaults to the current database (HEURIST_DBNAME) if null.
+     * @param string|null $db_source Source database name. Defaults to the current database ($system->dbname()) if null.
      * @param string $db_target Target database name.
      * @param bool $nodata Optional. If true, only definitions and structure are cloned (no record data). Defaults to false.
      * @param bool $isCloneTemplate Optional. If true, specific logic for cloning a template database is applied.
@@ -1553,7 +1558,7 @@ class DbUtils {
         self::initialize();
 
         if($db_source==null){
-            $db_source = HEURIST_DBNAME;
+            $db_source = self::$system->dbname();
         }
 
         //$system = self::$system;
@@ -1573,7 +1578,7 @@ class DbUtils {
         }
 
         //additional check for self clone/rename
-        if($db_source==HEURIST_DBNAME && !self::$system->isAdmin()){
+        if($db_source==self::$system->dbname() && !self::$system->isAdmin()){
 
                 self::$system->addError(HEURIST_REQUEST_DENIED,
                             'To perform this action you must be logged in as Administrator of group \'Database Managers\' or as Database Owner');

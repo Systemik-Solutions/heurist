@@ -135,6 +135,11 @@ if(!$init_client || @$_REQUEST['session']>0){ //2a. init operation on client sid
                 }else{
                     $('#q_blanks').hide();
                 }
+                
+                if(response.data['q_updates'] || response.data['q_cleared']){
+                    $('#updateTitlesLink').show();
+                }
+                
 
                 var sErrors = '';
                 if(response.data['errors']){
@@ -201,13 +206,13 @@ if($init_client){
 
     if($res['q_updates']){
         $q_updates = HEURIST_BASE_URL.'?w=all&q='.$res['q_updates']
-            .'&db='.HEURIST_DBNAME;
+            .'&db='.$system->dbname();
     }else{
         $q_updates = '';
     }
     if($res['q_cleared']){
         $q_cleared = HEURIST_BASE_URL.'?w=all&q='.$res['q_cleared']
-            .'&db='.HEURIST_DBNAME;
+            .'&db='.$system->dbname();
     }else{
         $q_cleared = '';
     }
@@ -259,6 +264,14 @@ if($init_client){
                 <?php
                 }
                 ?>
+                <span id="updateTitlesLink" style="display: none;">
+                <h2 style="margin:0">Record titles depend on calculated fields</h2>
+                <p>
+                    If you think your record titles need updating, 
+                    <a href="<?php echo HEURIST_BASE_URL; ?>admin/verification/longOperationInit.php?type=titles&db=<?php echo $system->dbname(); ?>">Rebuild record titles</a>
+                </p>
+                </span>
+                
             </div>
 <?php
 

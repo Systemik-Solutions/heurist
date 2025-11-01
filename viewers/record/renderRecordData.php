@@ -84,7 +84,7 @@ if(array_key_exists('hideImages', $_REQUEST)){
 // How to handle fields set to hidden
 $show_hidden_fields = $is_production || $is_map_popup ? -1 : $system->userGetPreference('recordData_HiddenFields', 0);
 
-//                                                    
+//
 if(array_key_exists('fontsize', $_REQUEST)){
     $usr_font_size = intval($_REQUEST['fontsize']);    
 }else{
@@ -97,6 +97,12 @@ if(!$is_map_popup && $usr_font_size != 0){
 }
 define('FONT_SIZE', $font_size);
 
+$useRelmarkerTitle = 0;
+if(array_key_exists('useRelmarkerTitle', $_REQUEST)){
+    $useRelmarkerTitle = intval($_REQUEST['useRelmarkerTitle']);
+}else{
+    $useRelmarkerTitle = intval($system->userGetPreference('useRelmarkerTitle', 0));
+}
 
 $rectypesStructure = dbs_GetRectypeStructures($system);//getAllRectypeStructures();//get all rectype names
 
@@ -220,7 +226,7 @@ if(!$system->hasAccess()){
         <script type="text/javascript">
 
             if(!window.hWin.HAPI4 && typeof hAPI === 'function'){
-                window.hWin.HAPI4 = new hAPI('<?php echo HEURIST_DBNAME; ?>', $.noop);
+                window.hWin.HAPI4 = new hAPI('<?php echo $system->dbname(); ?>', $.noop);
             }
             if(typeof window.hWin.HR !== 'function'){
                 window.hWin.HR = (res) => res; // to allow dialog creation
@@ -230,7 +236,7 @@ if(!$system->hasAccess()){
             var rec_Files_IIIF_and_3D = [];
             var rec_Files_IIIF_and_3D_linked = [];
             var baseURL = '<?php echo HEURIST_BASE_URL;?>';
-            var database = '<?php echo HEURIST_DBNAME;?>';
+            var database = '<?php echo $system->dbname();?>';
             var hint_popup = null, $map_frame = null;
 
             function zoomInOut(obj,thumb,url) {
@@ -762,7 +768,21 @@ if(!$system->hasAccess()){
                     //data-id
                 };
 
+                function __openOpenSeadragonViewer(event){
+
+                    let ele = $(event.target);
+                    if(!ele.attr('data-id')){
+                        ele = ele.parents('[data-id]');
+                    }
+                    let ulf_recID = ele.attr('data-id');
+
+                    let url = `${baseURL}hclient/widgets/viewers/openSeadragonViewer.php?db=${database}&recID=${ulf_recID}`;
+
+                    window.open(url, '_blank');
+                };
+
                 $('.miradorViewer_link').on('click', __openMiradorViewer);
+                $('.openSeadragonViewer_link').on('click', __openOpenSeadragonViewer);
 
                 $('.popupMedia_link').on('click', (e) => {
 
@@ -1127,7 +1147,7 @@ if(!empty($import_webfonts)){
             text-align: right;
             padding: 5px 10px 0px 5px;
             font-size: 0.8em; /*9px;*/
-            min-width: 80px;
+            min-width: 9em;
             cursor: default;
         }
         .download_link a,
@@ -1433,7 +1453,7 @@ function print_header_line($bib) {
         <?php if($system->hasAccess()){ ?>
 
             <span class="link"><a id=edit-link class="normal"
-                target=_new href="<?php echo HEURIST_BASE_URL;?>?fmt=edit&db=<?=HEURIST_DBNAME?>&recID=<?= $bib['rec_ID'] ?>">
+                target=_new href="<?php echo HEURIST_BASE_URL;?>?fmt=edit&db=<?=$system->dbname()?>&recID=<?= $bib['rec_ID'] ?>">
                 <img class="rv-editpencil" src="<?php echo HEURIST_BASE_URL;?>hclient/assets/edit-pencil.png" alt="Edit record" title="Edit record" style="vertical-align: top"></a>
             </span>
 
@@ -1442,7 +1462,7 @@ function print_header_line($bib) {
         <?php }
         if(!empty($wfs_details)){
 
-            $wfs_icon = HEURIST_BASE_URL . '?db=' . HEURIST_DBNAME . '&entity=defTerms&icon=' . intval($wfs_details[0]);
+            $wfs_icon = HEURIST_BASE_URL . '?db=' . $system->dbname() . '&entity=defTerms&icon=' . intval($wfs_details[0]);
         ?>
 
             <span style="cursor: default; padding-left: 20px;">
@@ -1535,7 +1555,7 @@ function print_private_details($bib) {
     <div class="detailRow fieldRow" style="<?php echo $is_map_popup?CSS_HIDDEN:''?>">
         <div class=detailType>Cite as</div><div class="detail<?php echo $is_map_popup?' truncate" style="max-width:400px;"':'"';?>>
             <a target=_blank class="external-link"
-                href="<?= HEURIST_SERVER_URL.HEURIST_DEF_DIR ?>?recID=<?= $bib['rec_ID']."&db=".HEURIST_DBNAME ?>">XML
+                href="<?php echo $system->recordLink($bib['rec_ID'], 'hml');?>">XML
             </a>
             &nbsp;&nbsp;
             <a target=_blank class="external-link"
@@ -1638,7 +1658,7 @@ function print_private_details($bib) {
                                 $grp_kwd = $grp.'\\\\'.$kwd;
                                 $label = 'Tag "'.$grp_kwd.'"';
                                 if (preg_match('/\\s/', $grp_kwd)) {$grp_kwd = '"'.$grp_kwd.'"';}
-                                print htmlspecialchars($grp.' - ').'<a class=normal style="vertical-align: top;" target=_parent href="'.HEURIST_BASE_URL.'?db='.HEURIST_DBNAME.'&ver=1&amp;q=tag:'.urlencode($grp_kwd).'&amp;w=all&amp;label='.urlencode($label).'" title="Search for records with tag: '.htmlspecialchars($kwd).'">'.htmlspecialchars($kwd).'<img style="vertical-align: middle; margin: 1px; border: 0;" class="rv-magglass" src="'.HEURIST_BASE_URL.'hclient/assets/v6/magglass_12x11.gif"></a>';
+                                print htmlspecialchars($grp.' - ').'<a class=normal style="vertical-align: top;" target=_parent href="'.HEURIST_BASE_URL.'?db='.$system->dbname().'&ver=1&amp;q=tag:'.urlencode($grp_kwd).'&amp;w=all&amp;label='.urlencode($label).'" title="Search for records with tag: '.htmlspecialchars($kwd).'">'.htmlspecialchars($kwd).'<img style="vertical-align: middle; margin: 1px; border: 0;" class="rv-magglass" src="'.HEURIST_BASE_URL.'hclient/assets/v6/magglass_12x11.gif"></a>';
                             }
                             ?>
                         </div>
@@ -1676,7 +1696,7 @@ function print_personal_details($bkmk) {
                     $tag = $tags[$i];
                     $label = 'Tag "'.$tag.'"';
                     if (preg_match('/\\s/', $tag)) {$tag = '"'.$tag.'"';}
-                    print '<a class=normal style="vertical-align: top;" target=_parent href="'.HEURIST_BASE_URL.'?db='.HEURIST_DBNAME.'&ver=1&amp;q=tag:'.urlencode($tag).'&amp;w=bookmark&amp;label='.urlencode($label).'" title="Search for records with tag: '.htmlspecialchars($tags[$i]).'">'.htmlspecialchars($tags[$i]).'<img style="vertical-align: middle; margin: 1px; border: 0;" class="rv-magglass" src="'.HEURIST_BASE_URL.'hclient/assets/v6/magglass_12x11.gif"></a>';
+                    print '<a class=normal style="vertical-align: top;" target=_parent href="'.HEURIST_BASE_URL.'?db='.$system->dbname().'&ver=1&amp;q=tag:'.urlencode($tag).'&amp;w=bookmark&amp;label='.urlencode($label).'" title="Search for records with tag: '.htmlspecialchars($tags[$i]).'">'.htmlspecialchars($tags[$i]).'<img style="vertical-align: middle; margin: 1px; border: 0;" class="rv-magglass" src="'.HEURIST_BASE_URL.'hclient/assets/v6/magglass_12x11.gif"></a>';
                 }
                 if (!empty($tags)) {
                     print "<br>\n";
@@ -1855,7 +1875,7 @@ function print_public_details($bib) {
                         function($matches){
                             global $system;
 
-                            return 'onclick="return link_open(this, false);" href="'
+                            return 'onclick="return (typeof link_open === \'function\')?link_open(this, false):true;" href="'
                                     .$system->recordLink($matches[1]).'"';
                         },
                         $bd['val']);
@@ -1933,9 +1953,9 @@ function print_public_details($bib) {
                     $fileSize = $fileinfo['ulf_FileSizeKB'];
                     $file_nonce = $fileinfo['ulf_ObfuscatedFileID'];
 
-                    $file_playerURL = HEURIST_BASE_URL.'?db='.HEURIST_DBNAME."&file=$file_nonce&mode=tag";
-                    $file_thumbURL  = HEURIST_BASE_URL.'?db='.HEURIST_DBNAME.'&offer_download=1&thumb='.$file_nonce;
-                    $file_URL   = HEURIST_BASE_URL.'?db='.HEURIST_DBNAME."&file=$file_nonce"; //download
+                    $file_playerURL = HEURIST_BASE_URL.'?db='.$system->dbname()."&file=$file_nonce&mode=tag";
+                    $file_thumbURL  = HEURIST_BASE_URL.'?db='.$system->dbname().'&offer_download=1&thumb='.$file_nonce;
+                    $file_URL   = HEURIST_BASE_URL.'?db='.$system->dbname()."&file=$file_nonce"; //download
 
                     array_push($thumbs, array(
                         'id' => $bd['dtl_UploadedFileID'],
@@ -2158,8 +2178,8 @@ function print_public_details($bib) {
 
             $url = (@$thumb['external_url'] && strpos($thumb['external_url'],'http://')!==0)
                         ?$thumb['external_url']            //direct for https
-                        :(HEURIST_BASE_URL.'?db='.HEURIST_DBNAME.'&file='.$thumb['nonce']);
-            $download_url = HEURIST_BASE_URL.'?db='.HEURIST_DBNAME.'&debug=3&download=1&file='.$thumb['nonce'];
+                        :(HEURIST_BASE_URL.'?db='.$system->dbname().'&file='.$thumb['nonce']);
+            $download_url = HEURIST_BASE_URL.'?db='.$system->dbname().'&debug=3&download=1&file='.$thumb['nonce'];
 
             if(!$is_map_popup){
                 print '<div class="download_link">';
@@ -2184,6 +2204,12 @@ function print_public_details($bib) {
                         .'<span class="ui-icon ui-icon-mirador" style="width:12px;height:12px;margin-left:5px;font-size:1em;display:inline-block;vertical-align: middle;'
                         .'filter: invert(35%) sepia(91%) saturate(792%) hue-rotate(174deg) brightness(96%) contrast(89%);'
                         .'"></span>&nbsp;Mirador</a>';
+                }
+
+                if(strpos($thumb['mimeType'], 'image/') === 0 || $thumb['orig_name'] == ULF_IIIF_IMAGE){
+
+                    print '<a href="#" data-id="'. $thumb['id'] .'" class="openSeadragonViewer_link">'
+                        .'<span class="ui-icon ui-icon-image" style="display: inline-block;"></span>&nbsp;OpenSeadragon</a>';
                 }
 
                 if(@$thumb['external_url']){
@@ -2422,7 +2448,7 @@ function print_other_tags($bib) {
 function print_relation_details($bib) {
 
     global $system, $relRT,$relSrcDT,$relTrgDT,
-        $ACCESSABLE_OWNER_IDS, $ACCESS_CONDITION,
+        $ACCESSABLE_OWNER_IDS, $ACCESS_CONDITION, $useRelmarkerTitle,
         $is_map_popup, $is_production, $rectypesStructure, $defTerms;
 
     $mysqli = $system->getMysqli();
@@ -2517,14 +2543,22 @@ function print_relation_details($bib) {
             }
 
             // get title mask for display
-            if(array_key_exists('rec_Title',$bd['RelatedRecID'])){
+            $recTitle = "Record ID #{$relatedRecID}";
+            if($useRelmarkerTitle){
+                $recTitle = $bd['recTitle'];
+            }elseif(array_key_exists('rec_Title',$bd['RelatedRecID'])){
+
                 $recTitle = $bd['RelatedRecID']['rec_Title'];
 
                 if($field_name !== false && array_key_exists('RelTerm',$bd)){
                     $recTitle = $bd['RelTerm'] . ' - > ' . $recTitle;
                 }
-            }else{
-                $recTitle = 'record id ' . $relatedRecID;
+                if(@$bd['StartDate']){
+                    $recTitle .= '&nbsp;&nbsp;' . htmlspecialchars($bd['StartDate']);
+                }
+                if(@$bd['EndDate']){
+                    $recTitle .= ' until ' . htmlspecialchars($bd['EndDate']);
+                }
             }
 
             print '<div class="detailRow fieldRow" data-id="'. $bd['recID'] .'" style="'.($is_map_popup?CSS_HIDDEN:'').'">';//FONT_SIZE. && $link_cnt>2 linkRow
@@ -2538,17 +2572,15 @@ function print_relation_details($bib) {
             }
 
             print '<div class="detail" '. $extra_styling .'>';
-                if (@$bd['RelatedRecID']) {
+            if (@$bd['RelatedRecID']) {
 
-                    print composeRecTypeIcon($bd['RelatedRecID']['rec_RecTypeID']);
+                print composeRecTypeIcon($bd['RelatedRecID']['rec_RecTypeID']);
 
-                    print composeRecLink($bd['RelatedRecID']['rec_ID'], $recTitle);
-                } else {
-                    print USanitize::sanitizeString($bd['Title'],ALLOWED_TAGS);
-                }
-                print '&nbsp;&nbsp;';
-                if (@$bd['StartDate']) {print Temporal::toHumanReadable($bd['StartDate'], true, 1);}//compact
-                if (@$bd['EndDate']) {print ' until ' . Temporal::toHumanReadable($bd['EndDate'], true, 1);}
+                print composeRecLink($bd['RelatedRecID']['rec_ID'], $recTitle);
+            } else {
+                print USanitize::sanitizeString($bd['Title'],ALLOWED_TAGS);
+            }
+
             print DIV_E.DIV_E;
         }
         $from_res->close();
@@ -2562,7 +2594,6 @@ function print_relation_details($bib) {
                 continue;
             }
             $relatedRecID = $bd['RelatedRecID']['rec_ID'];
-
 
             if(mysql__select_value($mysqli,
                 "select count(rec_ID) from Records where rec_ID =$relatedRecID and $ACCESS_CONDITION")==0){
@@ -2604,14 +2635,22 @@ function print_relation_details($bib) {
             }
 
             // get title mask for display
-            if(array_key_exists('rec_Title',$bd['RelatedRecID'])){
+            $recTitle = "Record ID #{$relatedRecID}";
+            if($useRelmarkerTitle){
+                $recTitle = $bd['recTitle'];
+            }elseif(array_key_exists('rec_Title',$bd['RelatedRecID'])){
+
                 $recTitle = $bd['RelatedRecID']['rec_Title'];
 
                 if($field_name !== false && array_key_exists('RelTerm',$bd)){
                     $recTitle = $bd['RelTerm'] . ' - > ' . $recTitle;
                 }
-            }else{
-                $recTitle = 'record id ' . $relatedRecID;
+                if(@$bd['StartDate']){
+                    $recTitle .= '&nbsp;&nbsp;' . htmlspecialchars($bd['StartDate']);
+                }
+                if(@$bd['EndDate']){
+                    $recTitle .= ' until ' . htmlspecialchars($bd['EndDate']);
+                }
             }
 
             print '<div class="detailRow fieldRow" data-id="'. $bd['recID'] .'" style="'.($is_map_popup?CSS_HIDDEN:'').'">';//FONT_SIZE. && $link_cnt>2 linkRow
@@ -2624,17 +2663,15 @@ function print_relation_details($bib) {
             }
 
             print '<div class="detail" '. $extra_styling .'>';
-                if (@$bd['RelatedRecID']) {
+            if (@$bd['RelatedRecID']) {
 
-                    print composeRecTypeIcon($bd['RelatedRecID']['rec_RecTypeID']);
+                print composeRecTypeIcon($bd['RelatedRecID']['rec_RecTypeID']);
 
-                    print composeRecLink($bd['RelatedRecID']['rec_ID'], $recTitle);
-                } else {
-                    print USanitize::sanitizeString($bd['Title'],ALLOWED_TAGS);
-                }
-                print '&nbsp;&nbsp;';
-                if (@$bd['StartDate']) {print htmlspecialchars($bd['StartDate']);}
-                if (@$bd['EndDate']) {print ' until ' . htmlspecialchars($bd['EndDate']);}
+                print composeRecLink($bd['RelatedRecID']['rec_ID'], $recTitle);
+            } else {
+                print USanitize::sanitizeString($bd['Title'],ALLOWED_TAGS);
+            }
+
             print DIV_E.DIV_E;
         }
         $to_res->close();
@@ -2652,7 +2689,7 @@ function print_relation_details($bib) {
 
 
 function print_linked_details_header($bib){
-   global $is_map_popup, $is_production;
+   global $is_map_popup, $is_production, $system;
 
     if($is_map_popup){
        print '<div class="detailType fieldRow" style="display:none;line-height:21px">Linked from</div>';
@@ -2663,7 +2700,7 @@ function print_linked_details_header($bib){
     ?>
         <div style="position: relative;top: -7px;margin-bottom: 5px;">
             <div class=detailType style="width: auto;">Referenced by</div>
-            <div class="detail"><a href="<?=HEURIST_BASE_URL?>?db=<?=HEURIST_DBNAME?>&w=all&q=linkedto:<?=$bib['rec_ID']?>"
+            <div class="detail"><a href="<?=HEURIST_BASE_URL?>?db=<?=$system->dbname()?>&w=all&q=linkedto:<?=$bib['rec_ID']?>"
                     onClick="top.location.href = this.href; return false;"><b>Show list below as search results</b></a>
                 <!--  <br> <i>Search = linkedto:<?=$bib['rec_ID']?> <br>(returns records pointing TO this record)</i> -->
             </div>
@@ -2806,7 +2843,7 @@ function composeRecLink($rec_ID, $rec_Title){
     global $system;
 
     return '<a target="_popup" href="'.$system->recordLink($rec_ID)
-                            .'" onclick="return link_open(this);">'
+                            .'" onclick="return (typeof link_open === \'function\')?link_open(this, false):true;">'
                             .USanitize::sanitizeString($rec_Title,ALLOWED_TAGS).'</a>';
 }
 

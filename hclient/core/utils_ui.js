@@ -1868,11 +1868,10 @@ window.hWin.HEURIST4.ui = {
     //
     // selector_function opens select dialog. it it is true it opens record edit popup dialog
     createRecordLinkInfo:function(container, info, selector_function){
-        
-        //headers[targetID][0], headers[targetID][2] + headers[targetID][3]
-       
-        let rec_Title = info['rec_Title'];
-        if(info['dtl_StartDate'] || info['dtl_EndDate']){
+
+        const titleOnly = window.hWin.HAPI4.get_prefs_def('useRelmarkerTitle', 0) == 1 && !window.hWin.HEURIST4.util.isempty(info.relTitle);
+        let rec_Title = titleOnly ? info.relTitle : info['rec_Title'];
+        if(!titleOnly && (info['dtl_StartDate'] || info['dtl_EndDate'])){
             rec_Title += ': ';
             if(info['dtl_StartDate']){
                 rec_Title += info['dtl_StartDate'];
@@ -1889,14 +1888,13 @@ window.hWin.HEURIST4.ui = {
         let isHiddenRecord = false;
         
         if(selector_function !== false ){
-                
-            
-                let not_owner = !(window.hWin.HAPI4.is_admin() || window.hWin.HAPI4.is_member( info['rec_OwnerUGrpID'] ));
-                if(not_owner){
-                     selector_function = false;
-                     //this record hidden for current user
-                     isHiddenRecord = (info['rec_NonOwnerVisibility']=='hidden');
-                }
+
+            let not_owner = !(window.hWin.HAPI4.is_admin() || window.hWin.HAPI4.is_member( info['rec_OwnerUGrpID'] ));
+            if(not_owner){
+                    selector_function = false;
+                    //this record hidden for current user
+                    isHiddenRecord = (info['rec_NonOwnerVisibility']=='hidden');
+            }
         }
         
         let isEdit = (selector_function!==false);
@@ -1912,14 +1910,14 @@ window.hWin.HEURIST4.ui = {
         }
         
         let reltype = ''
-        if(info['trm_ID']>0){
+        if(!titleOnly && info['trm_ID']>0){
             let term_ID = info['trm_ID'];
             if (info['is_inward']){
                 term_ID = window.hWin.HEURIST4.dbs.getInverseTermById(term_ID);    
             }
             let lbl = $Db.trm(term_ID, 'trm_Label');
-            let len = lbl.length;
-            lbl = window.hWin.HEURIST4.util.htmlEscape(lbl);
+            let len = lbl?lbl.length:0;
+            lbl = lbl?window.hWin.HEURIST4.util.htmlEscape(lbl):'';
            
             reltype = '<div style="display:table-cell;min-width:'+(Math.min(20,len)+1)+'ex;'
                 +'color: #999999;text-transform: none;padding-left:4px;vertical-align: middle;">'
@@ -2283,11 +2281,19 @@ window.hWin.HEURIST4.ui = {
                     }
 
                     let context = response.data;
-                    
-                    let opts = topOptions?topOptions:[];
-                    if(context?.length>0){
+                    let hasReports = context?.length > 0;
+                    let depth = 0;
+
+                    let opts = topOptions ? topOptions : [];
+                    if((opts?.length > 1 || (opts?.length > 0 && !opts[0]?.title?.startsWith('select '))) && hasReports){
+                        // Add group header before custom reports
+                        opts.push({group: 1, disabled: true, key: 'custom_report_heading', title: 'CUSTOM REPORTS'})
+                        depth ++;
+                    }
+
+                    if(hasReports){
                         for (let i=0; i<context.length; i++){
-                            opts.push({key:context[i].filename, title:context[i].name});
+                            opts.push({key:context[i].filename, title:context[i].name, depth: depth});
                         } // for
                     }
 
@@ -2296,7 +2302,11 @@ window.hWin.HEURIST4.ui = {
                         $select.val( defValue );
                     }
                     
-                    window.hWin.HEURIST4.ui.initHSelect($select[0], false, null, options?.eventHandlers, options?.extraOptions);
+                    window.hWin.HEURIST4.ui.initHSelect($select[0], options?.useHtmlSelect, null, options?.eventHandlers, options?.extraOptions);
+
+                    if(typeof options?.onComplete === 'function'){
+                        options.onComplete();
+                    }
 
                 } else {
                     window.hWin.HEURIST4.msg.showMsgErr(response);
@@ -2686,7 +2696,8 @@ window.hWin.HEURIST4.ui = {
         let surl = window.hWin.HAPI4.baseURL;
         
         if(window.hWin.HAPI4.sysinfo.use_redirect){
-            surl = surl + `/${window.hWin.HAPI4.database}/tpl/${smarty_template}/`+encodeURIComponent(query);
+            let extraSlash = surl.endsWith('/') ? '' : '/';
+            surl += `${extraSlash}${window.hWin.HAPI4.database}/tpl/${smarty_template}/`+encodeURIComponent(query);
         }else{
             if(window.hWin.HEURIST4.util.isPositiveInt(query)){
                 query = 'ids:'+query;
@@ -3193,8 +3204,10 @@ window.hWin.HEURIST4.ui = {
   hidePlayer: function(id, container){
     //clear and hide player div
     let elem = container.querySelector('#player'+id);
-    elem.innerHTML = '';
-    elem.style.display = 'none';
+    if(elem){
+        elem.innerHTML = '';
+        elem.style.display = 'none';
+    }
 
     //hide show tumbnail link
     elem = (container.querySelector('#lnk'+id)) ? container.querySelector('#lnk'+id) : container.parentNode.querySelector('#lnk'+id);
@@ -3206,6 +3219,10 @@ window.hWin.HEURIST4.ui = {
     elem = container.querySelector('#img'+id);
     $(container).toggleClass("thumb_image fullSize");
 
+    if(!elem){
+        return;
+    }
+    
     elem.style.display = 'inline-block';
 
     //restore

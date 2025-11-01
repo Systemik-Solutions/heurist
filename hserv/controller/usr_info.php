@@ -317,7 +317,7 @@
             }
         }
     }elseif($action == "translate_string"){ // translate given string using Deepl's API, if able
-        $res = getExternalTranslation($system, @$req_params['string'], @$req_params['target'], @$req_params['source']);
+        $res = getDeepLTranslation($system, @$req_params['string'], @$req_params['target'], @$req_params['source']);
     }else{
 
         $mysqli = $system->getMysqli();
@@ -383,7 +383,7 @@
 
                   $source = intval($source);
                   if($source==1){
-                      $lib_path = HEURIST_FILESTORE_ROOT.'DELETED_DATABASES/';
+                      $lib_path = HEURIST_FILESTORE_ROOT.'_DELETED_DATABASES/';
                   }elseif($source==2){
                       $lib_path = '/srv/BACKUP';
                       $include_dates = true;
@@ -395,7 +395,7 @@
                           $lib_path = '/srv/BACKUP/ARCHIVE';
                       }
                   }elseif($source==4){
-                      $lib_path = HEURIST_FILESTORE_ROOT.'DBS_TO_RESTORE/';
+                      $lib_path = HEURIST_FILESTORE_ROOT.'_DBS_TO_RESTORE/';
                   }
 
                   $lib_path = array($lib_path);
@@ -558,7 +558,7 @@
                 if($username && $system->doLogin($username, $password, $session_type, $skip_pwd_check, $is_guest)){
                     $res = $system->getCurrentUserAndSysInfo( true, $is_guest );//including reccount and dashboard entries
 
-                    checkDatabaseFunctions($mysqli);
+                    checkDatabaseFunctions($system);
 
                     $system->userLogActivity('Login');
                 }

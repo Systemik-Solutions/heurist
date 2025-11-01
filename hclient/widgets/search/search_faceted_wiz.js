@@ -458,10 +458,11 @@ $.widget( "heurist.search_faceted_wiz", {
         
         let topPos = 0;
         let pos = this._dialog.dialog('option', 'position');
+        pos.of = pos.of && pos.of instanceof jQuery ? pos.of[0] : pos.of;
         if (pos && pos.of && !$(pos.of).is(window) && typeof pos.of.getClientRects === 'function') 
         {
             let offset = $(pos.of).offset();
-            if(offset) topPos = offset.top+40;
+            if(offset) topPos = offset.top + 60;
         }
 
         let dh =  this._dialog.dialog('option', 'height');
@@ -1744,7 +1745,7 @@ $.widget( "heurist.search_faceted_wiz", {
                     }
 
                     let node = fieldIds[j].toDict();
-                    if (!node.data?.code) continue;
+                    if(!node.data?.code) continue;
                     node.data.code = allRectypesIds + node.data.code.slice(idx_replace); //was rectypes[i] 
 
                     //final_list.push(node);

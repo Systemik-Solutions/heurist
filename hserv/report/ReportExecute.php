@@ -156,6 +156,7 @@ class ReportExecute
             $content = $this->loadTemplateContent();
 
             if ($content) {
+                
                 // Fetch record IDs based on search query
                 $query_result = $this->fetchRecordIDs();
 
