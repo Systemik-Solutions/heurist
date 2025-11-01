@@ -193,9 +193,9 @@ $.widget( "heurist.manageRecUploadedFiles", $.heurist.manageEntity, {
                         
                         this._createMediaRecords();
                         
-                    }else if(action=='menu-file-export-csv'){ 
-                        
-                        this._downloadFileRefs()
+                    }else if(action == 'menu-file-export-csv-essential' || action == 'menu-file-export-csv'){
+
+                        this._downloadFileRefs(false, action == 'menu-file-export-csv-essential');
 
                     }else if(action=='menu-file-delete-selected'){ 
                         
@@ -213,6 +213,13 @@ $.widget( "heurist.manageRecUploadedFiles", $.heurist.manageEntity, {
                         
                         this._checkFiles();
                         
+                    }else if(action == 'menu-file-scaled-images'){
+
+                        this._createScaledImages();
+
+                    }else if(action == 'menu-file-refrec-localremote'){
+
+                        this._showMessageAboutRepositories();
                     }
                 },
                 "searchrecuploadedfilesonresult": this.updateRecordList
@@ -364,7 +371,7 @@ $.widget( "heurist.manageRecUploadedFiles", $.heurist.manageEntity, {
             let relations = this._currentEditRecordset.getRelations();    
             if(relations?.direct?.length > 0){
 
-                this.mediaViewer.css({width: '50em', float: 'left'});
+                this.mediaviewer.css({width: '50em', float: 'left'});
 
                 let $container = $('<div>', { style: 'display: inline-block; width: 26em; margin-top: 1em;'}).appendTo(this.editForm)
                 $('<div class="detailRowHeader">Records that refer this file</div>').appendTo($container);
@@ -1346,7 +1353,7 @@ window.hWin.HAPI4.baseURL+'?db=' + window.hWin.HAPI4.database  //(needplayer?'&p
     //
     // Download file references for current resultset
     //
-    _downloadFileRefs: function(_download_entire_set){
+    _downloadFileRefs: function(_download_entire_set, essentialsOnly = false){
         
         if(!this._checkUserPermissions(1)){
             return;
@@ -1364,7 +1371,7 @@ window.hWin.HAPI4.baseURL+'?db=' + window.hWin.HAPI4.database  //(needplayer?'&p
 
             if(!window.hWin.HEURIST4.util.isArrayNotEmpty(ids)){
                 window.hWin.HEURIST4.msg.showMsg('There are not selected files/url references. Download CSV for entire set?',
-                            {buttons:function(){that._downloadFileRefs(true);}, 
+                            {buttons:function(){that._downloadFileRefs(true, essentialsOnly);}, 
                             labels:{title:'Warning',yes:'Proceed',no:'Cancel'},
                             default_palette_class:this.options.default_palette_class});
                     
@@ -1382,6 +1389,9 @@ window.hWin.HAPI4.baseURL+'?db=' + window.hWin.HAPI4.database  //(needplayer?'&p
         }
 
         let url = `${window.hWin.HAPI4.baseURL}hserv/controller/record_output.php?db=${window.hWin.HAPI4.database}&file_refs=1&ids=${ids}`;
+        if(essentialsOnly){
+            url += '&essential=1';
+        }
         window.open(url, '_blank');
     },
 
@@ -1591,7 +1601,7 @@ window.hWin.HAPI4.baseURL+'?db=' + window.hWin.HAPI4.database  //(needplayer?'&p
 
                 // Click handler for author search
                 $dlg.find('#lookup_author').on('click',() => {
-                    this._loadAuthorLookup();
+                    this._loadAuthorLookup($dlg);
                 });
 
                 // Hide dialog while getting license and type values
@@ -2115,15 +2125,15 @@ window.hWin.HAPI4.baseURL+'?db=' + window.hWin.HAPI4.database  //(needplayer?'&p
             }
         });
     },
-    
-    _loadAuthorLookup: function(){
+
+    _loadAuthorLookup: function($dialogForm){
 
         let that = this;
 
         if(!window.hWin.HEURIST4.util.isFunction($('body')['lookupBase'])){
 
             $.getScript(`${window.hWin.HAPI4.baseURL}hclient/widgets/lookup/lookupBase.js`, () => {
-                that._loadAuthorLookup();
+                that._loadAuthorLookup($dialogForm);
             }).fail(() => {
                 window.hWin.HEURIST4.msg.showMsgErr({
                     status: window.hWin.ResponseStatus.UNKNOWN_ERROR,
@@ -2134,7 +2144,7 @@ window.hWin.HAPI4.baseURL+'?db=' + window.hWin.HAPI4.database  //(needplayer?'&p
 
             return;
         }
-        let $dlg;
+
         let dlg_opts = {
             mapping: {
                 dialog: 'lookupNakalaAuthor',
@@ -2151,11 +2161,11 @@ window.hWin.HAPI4.baseURL+'?db=' + window.hWin.HAPI4.database  //(needplayer?'&p
             }, 
             path: 'widgets/lookup/',
             onClose: (recset) => {
-                if(Object.keys(recset).length > 0){ // has response
-                    $dlg.find('#fcreator').val(recset[1]);
-                    $dlg.find('#lcreator').val(recset[2]);
-                    $dlg.find('#idcreator').val(recset[4]);
-                    $dlg.find('#orcid').val(recset[3]);
+                if($dialogForm instanceof jQuery && Object.keys(recset).length > 0){ // has response
+                    $dialogForm.find('#fcreator').val(recset[1]);
+                    $dialogForm.find('#lcreator').val(recset[2]);
+                    $dialogForm.find('#idcreator').val(recset[4]);
+                    $dialogForm.find('#orcid').val(recset[3]);
                 }
             }
         };
@@ -2273,5 +2283,67 @@ window.hWin.HAPI4.baseURL+'?db=' + window.hWin.HAPI4.database  //(needplayer?'&p
                 }
             });
         });
+    },
+
+    _createScaledImages: function(){
+
+        let ids = this._getSelected(5000);
+        if(!ids || ids.length === 0){
+            ids = true;
+        }
+
+        let request = {
+            a: 'batch',
+            entity: this.options.entity.entityName,
+            create_scaled_images: ids instanceof Array ? ids.join(',') : true
+        };
+
+        window.hWin.HAPI4.EntityMgr.doRequest(request, (response) => {
+
+            if(response.status !== window.hWin.ResponseStatus.OK){
+                window.hWin.HEURIST4.msg.showMsgErr(response);
+                return;
+            }
+
+            let message = `Scaled images created: ${response.data.done.length}<br>`;
+            if(response.data.error && Object.keys(response.data.error).length > 0){
+                message += `<br>The following errors occurred:<br>`;
+                for(const [ulfID, errorMsg] of Object.entries(response.data.error)){
+                    message += `<div style="display: grid; grid-template-columns: 4em 30em; margin: 5px;">
+                        <span style="font-weight: bold;">${ulfID}</span><span class="truncate" title="${errorMsg}">${errorMsg}</span>
+                    </div>`;
+                }
+            }
+
+            window.hWin.HEURIST4.msg.showMsgDlg(message);
+        });
+    },
+
+    _showMessageAboutRepositories: function(){
+
+        let $dlg;
+
+        let msg = `<div>
+            To upload 'local' files (that is, files stored in your database) to a remote repository such as<br>
+            Nakala, or to download files from a repository and store them as 'local' files in your database:<br>
+            <ol>
+                <li>find and select the files in the list below</li>
+                <li>choose <strong>Show records referencing selection</strong> in this menu</li>
+                <li>
+                    select the appropriate direction from the <strong>Recode</strong> menu above the list of records:
+                    <ul>
+                        <li><strong>Local files to remote repository</strong></li>
+                        <li><strong>Remote files to local (your database)</strong></li>
+                    </ul>
+                </li>
+            </ol>
+            Note that these functions do not specifically target the selected images, but allow you to choose<br>
+            a specific file field in the records displayed and apply the request to all files in that field in the selected records.
+        </div>`;
+
+        let btn = {};
+        btn[window.hWin.HR('Close')] = () => $dlg.dialog('close');
+
+        $dlg = window.hWin.HEURIST4.msg.showMsgDlg(msg, btn, {title: 'Transferring to/from remote storage'}, {default_palette_class: 'ui-heurist-populate', dialogId: 'upload-to-repo'});
     }
 });

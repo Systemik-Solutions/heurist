@@ -188,6 +188,14 @@ if(!$hasAccess){
     exit;
 }
 
+if(__getValue($rec, '2-49')==3){
+
+    $message = 'Sorry, this website uses website format version 3 in old viewer. Remove parameter "ver=2"';
+    include_once ERROR_REDIR;
+    exit;
+}
+
+
 $showWarnAboutPublic = !$edit_OldEditor && ($rec['rec_NonOwnerVisibility'] != 'public');
 
 $hasAccess = ($system->isAdmin() || $system->isMember($rec['rec_OwnerUGrpID']));
@@ -321,6 +329,7 @@ if($system->defineConstant('DT_SYMBOLOGY')){
 // returns link to uploaded file
 //
 function __getFile(&$rec, $id, $def){
+    global $system;
 
     if(is_string($id) && strpos($id,'-')){
         $id = ConceptCode::getDetailTypeLocalID($id);
@@ -330,7 +339,7 @@ function __getFile(&$rec, $id, $def){
 
     if(is_array($file)){
         $file = array_shift($file);
-        $file = (array_key_exists('embed', $_REQUEST)?PDIR:HEURIST_BASE_URL).'?db='.HEURIST_DBNAME.'&file='.$file['fileid'];
+        $file = (array_key_exists('embed', $_REQUEST)?PDIR:HEURIST_BASE_URL).'?db='.$system->dbname().'&file='.$file['fileid'];
     }else{
         $file = $def;
     }

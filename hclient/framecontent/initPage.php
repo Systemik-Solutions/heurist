@@ -72,14 +72,14 @@ if(defined('IS_INDEX_PAGE')){
 
     if(is_array($missed)){
         if(!empty($missed)){
-            $message = 'Database <b>'.HEURIST_DBNAME
+            $message = 'Database <b>'.$system->dbname()
             .'</b> is missing the following tables:<br><br><i>'
             .implode(', ',$missed)
             .'</i><p>Either the database has not been fully reated (if new) or fully restored from archive. '
             .CRITICAL_DB_ERROR_CONTACT_SYSADMIN.'</p>';
 
             //to add to error log
-            $system->addError(HEURIST_DB_ERROR, 'Database '.HEURIST_DBNAME
+            $system->addError(HEURIST_DB_ERROR, 'Database '.$system->dbname()
                     .' is missing the following tables: '.implode(', ',$missed));
 
             include_once ERROR_REDIR;
@@ -88,7 +88,7 @@ if(defined('IS_INDEX_PAGE')){
     }else{
         $message = 'There is database server intermittens. '.CRITICAL_DB_ERROR_CONTACT_SYSADMIN;
 
-        $system->addError(HEURIST_DB_ERROR, 'Database '.HEURIST_DBNAME, $missed);
+        $system->addError(HEURIST_DB_ERROR, 'Database '.$system->dbname(), $missed);
 
         include_once ERROR_REDIR;
         exit;
@@ -160,7 +160,7 @@ if(defined('LOGIN_REQUIRED') && !$system->hasAccess()){
         && 'nonmember' == USystem::checkAssociationMembership($system, ASSOC_MEMBERSHIP_REQUIRED)){
     
         $is_error = false;
-        $message = file_get_contents(dirname(__FILE__).'/../../movetoparent/association_membership.html');
+        $message = file_get_contents(dirname(__FILE__).'/../../admin/verification/association_membership.html');
         if (preg_match('/<div id="content">(.*?)<\/div>/is', $message, $matches)) {
                 $message = $matches[0]; 
         }
@@ -334,8 +334,13 @@ if(!$invalid_access && (defined('CREATE_RECORDS') || defined('DELETE_RECORDS')))
             console.error(e);
         }
         
-        // Standalone check
-        if(!window.hWin.HAPI4){
+        if(!window.hWin){ //detectHeurist is not able to return window
+            //windows 
+            console.error('detectHeurist was not able to detect Heurist window');
+            return;
+        }    
+        
+        if(!window.hWin.HAPI4){ // Standalone check
             window.hWin.HAPI4 = new hAPI('<?php echo htmlspecialchars($_REQUEST['db'])?>', onHapiInit);
         }else if(!window.isHapiInited){
             // Not standalone, use HAPI from parent window

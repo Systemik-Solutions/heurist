@@ -40,20 +40,23 @@ declare(strict_types=1);
 * @since       7.0
 */
 const HN_MEMBERS_FILE = '/var/www/html/HEURIST/association_members.txt';
+//const HN_MEMBERS_FILE = 'c:/xampp/htdocs/association_members.txt';
 const HN_LOG_FILE     = '/var/www/html/HEURIST/HEURIST_FILESTORE/_HEURISTNETWORK_membership_checkpoint.log';
 const HN_TIMEZONE     = 'Australia/Sydney';
 
 
 // map hostnames/URLs to the "server name" stored in the CSV (3rd column of DATABASE rows).
 const HOSTNAME_TO_SERVERNAME = [
-    'huma-num.fr'   => 'Fr Huma-Num',
-    'heurist.huma-num.fr'   => 'Fr Huma-Num',
-    'heurist2025.huma-num.fr'=> 'Fr Huma-Num',
+    'huma-num.fr'   => 'Heurist.Huma-Num.fr',
+    'heurist.huma-num.fr'   => 'Heurist.Huma-Num.fr',
+    'heurist2025.huma-num.fr'=> 'Heurist.Huma-Num.fr',
 ];
 
 function getMainServerUrl(): ?string
 {
-    $isMainServer = (@$_SERVER["SERVER_NAME"]=='heuristref.net');
+    $isMainServer = (defined('HEURIST_SERVER_NAME') && HEURIST_SERVER_NAME=='heuristref.net') ||
+                    (isset($serverName) && $serverName=='heuristref.net') ||
+                    (@$_SERVER["SERVER_NAME"]=='heuristref.net');
     
     if($isMainServer){
         return null;    
@@ -70,18 +73,21 @@ function getMainServerUrl(): ?string
  *   'individual|database'  – if both match
  *   'nonmember'            – otherwise (also logs a line unless context indicates initial sign-in)
  */
-function checkHeuristNetworkMembership(string $email, string $host = '', ?string $database = null, ?string $context = '', string $firstName = '', string $lastName = ''): string
+function checkHeuristNetworkMembership(string $dbowner_email, string $email, string $host = '', 
+            ?string $database = null, ?string $context = '', string $firstName = '', string $lastName = ''): string
 {
     $base = getMainServerUrl();
     if( $base==null ){ 
-        return checkMembershipInFile($email, $host, $database, $context, $firstName, $lastName);
+        $res = checkMembershipInFile($dbowner_email, $email, $host, $database, $context, $firstName, $lastName);
+        return $res;
     }
 
     $url = $base . 'admin/utilities/checkMembershipApi.php'
         . '?email=' . rawurlencode($email)
         . '&host='  . rawurlencode($host)
         . '&db='    . rawurlencode((string)$database)
-        . '&ctx='   . rawurlencode($context??'');
+        . '&ctx='   . rawurlencode($context??'')
+        . '&dbo='   . rawurlencode($dbowner_email);
 
     $resp = httpGet($url);
     return $resp !== '' ? $resp : 'nonmember';
@@ -100,13 +106,14 @@ function normalizeServerName(string $input): string
         return strtolower(HOSTNAME_TO_SERVERNAME[$raw]);
     }
 
+    /*
     // Otherwise: convert host into "com domain" style
     $parts = explode('.', $raw);
     if (count($parts) > 1) {
         // Drop the first label (subdomain), keep the rest, reverse order
         $parts = array_reverse($parts);
         return implode(' ', array_splice($parts,0,2));
-    }
+    }*/
 
     // Fallback: just return raw
     return $raw;
@@ -119,11 +126,12 @@ function normalizeDbName(?string $database): string
     return (strpos($db, 'hdb_') === 0) ? substr($db, 4) : $db;
 }
 
-function checkMembershipInFile(string $email, string $host = '', ?string $database = null, string $context = '', string $firstName = '', string $lastName = ''): string
+function checkMembershipInFile($dbowner_email, string $email, string $host = '', ?string $database = null, string $context = '', string $firstName = '', string $lastName = ''): string
 {
     $hits = [];
     $toCheck = 0;
     
+    $dbowner_email = strtolower(trim($dbowner_email));
     $email = strtolower(trim($email));
     $firstName = strtolower(trim($firstName));
     $lastName = strtolower(trim($lastName));
@@ -161,15 +169,22 @@ function checkMembershipInFile(string $email, string $host = '', ?string $databa
 
         // Robust CSV parsing with quotes and escapes
         $parts = str_getcsv($line, ',', '"', '\\');
-        if (!$parts || count($parts) < 4) { continue; }
+        if (!$parts || count($parts) < 3 || (@$parts[0] !== 'DATABASE' && count($parts) < 4)) { continue; }
         
         $type = strtoupper(trim($parts[0]));
 
         if ($type === 'INDIVIDUAL'){
             
+            $email2 = strtolower(trim($parts[1]));
+            
+            if($dbowner_email !== ''){
+                if ($email2 == $dbowner_email) {
+                    $hits['viaowner'] = true;
+                }
+            }
+            
             if($email !== '') {
                 // INDIVIDUAL,email,"last name","firstname"
-                $email2 = strtolower(trim($parts[1]));
                 if ($email2 == $email) {
                     $hits['individual'] = true;
                 }
@@ -185,10 +200,22 @@ function checkMembershipInFile(string $email, string $host = '', ?string $databa
             
         } elseif ($type === 'DATABASE' && $serverName !== '' && $dbName !== '') {
             // DATABASE, contactEmail, ServerName, DbName
-            $server = strtolower(trim($parts[2]));
-            $db     = strtolower(trim($parts[3]));
+            $serverIdx = 1; //filter_var($parts[1], FILTER_VALIDATE_EMAIL) ? 2 : 1;
+            $dbIdxStart = $serverIdx + 1;
+            $server = strtolower(trim($parts[$serverIdx]));
+            /*$db = strtolower(trim($parts[$dbIdxStart]));
             if ($server === $serverName && $db === $dbName) {
                 $hits['database'] = true;
+                break;
+            }*/
+            
+            $dbs = array_slice($parts, $dbIdxStart); 
+            foreach($dbs as $db){
+                $db = strtolower(trim($db));
+                if ($server === $serverName && $db === $dbName) {
+                    $hits['database'] = true;
+                    break;
+                }
             }
         }
         

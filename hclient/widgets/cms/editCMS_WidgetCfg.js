@@ -194,16 +194,16 @@ function editCMS_WidgetCfg( widget_cfg, _layout_content, $dlg, main_callback, on
         
         //fill page list
         let selPage = $dlg.find('select[name="search_page"]');
-        
+
+        //note: version3 does not have main-menu > heurist_Navigation       
         let main_menu = $('#main-menu > div[widgetid="heurist_Navigation"]');
-        
         if(main_menu.length>0 && widget_name!='heurist_StoryMap'){
             let pages = main_menu.navigation('getMenuContent','list');
-            if(!pages){
-                selPage.parent().hide();
-            }else{
+            if(Array.isArray(pages)){
                 pages.unshift({key:'',title:''});   
                 window.hWin.HEURIST4.ui.createSelector(selPage[0], pages);
+            }else{
+                selPage.parent().hide();
             }
            
         }else{
@@ -255,7 +255,8 @@ function editCMS_WidgetCfg( widget_cfg, _layout_content, $dlg, main_callback, on
 
                 if(opts.layout_params){
                     
-                    $dlg.find("#use_timeline").prop('checked', !opts.layout_params.notimeline);    
+                    $dlg.find("#use_map").prop('checked', Object.hasOwn(opts.layout_params, 'nomap') ? !opts.layout_params.nomap : true);
+                    $dlg.find("#use_timeline").prop('checked', !opts.layout_params.notimeline);
                     $dlg.find("#map_rollover").prop('checked', opts.layout_params.map_rollover);    
                     $dlg.find("#use_cluster").prop('checked', !opts.layout_params.nocluster);    
                     $dlg.find("#editstyle").prop('checked', opts.layout_params.editstyle);    
@@ -298,6 +299,18 @@ function editCMS_WidgetCfg( widget_cfg, _layout_content, $dlg, main_callback, on
                     }
                     if(opts.layout_params['template']){
                         $dlg.find('select[name="map_template"]').attr('data-template', opts.layout_params['template']);        
+                    }
+                    if(opts.layout_params['clusterTemplate']){
+                        $dlg.find('select[name="map_clusterTemplate"]').attr('data-template', opts.layout_params['clusterTemplate']);        
+                    }
+                    if(opts.layout_params['clusterDownloadTemplate']){
+                        $dlg.find('select[name="map_clusterDownloadTemplate"]').attr('data-template', opts.layout_params['clusterDownloadTemplate']);        
+                    }
+                    if(opts.layout_params['clusterSpiderMax']){
+                        $dlg.find('#map_clusterSpiderMax').val(opts.layout_params['clusterSpiderMax']);        
+                    }
+                    if(opts.layout_params['clusterDownloadText']){
+                        $dlg.find('#map_clusterDownloadText').val(opts.layout_params['clusterDownloadText']);        
                     }
                     let popup = 'standard';
                     if(opts.layout_params['template']=='none'){
@@ -952,7 +965,18 @@ function editCMS_WidgetCfg( widget_cfg, _layout_content, $dlg, main_callback, on
                 window.hWin.HEURIST4.ui.createTemplateSelector( $selectMapTemplate
                     ,[{key:'',title:'Standard popup template'}], $selectMapTemplate.attr('data-template')
                     , {extraOptions: {menu_parent: $dlg}});
-                    //,{key:'none',title:'Disable popup'}
+
+                let $selectClusterTemplate = $dlg.find('select[name="map_clusterTemplate"]'); 
+
+                window.hWin.HEURIST4.ui.createTemplateSelector( $selectClusterTemplate
+                    ,[{key:'',title:'Default cluster popup'}], $selectMapTemplate.attr('data-template')
+                    , {extraOptions: {menu_parent: $dlg}});
+
+                let $selectClusterDownloadTemplate = $dlg.find('select[name="map_clusterDownloadTemplate"]'); 
+
+                window.hWin.HEURIST4.ui.createTemplateSelector( $selectClusterDownloadTemplate
+                    ,[{key:'',title:'Default format only'}], $selectMapTemplate.attr('data-template')
+                    , {extraOptions: {menu_parent: $dlg}});
 
                 //======================================
                     
@@ -1224,6 +1248,7 @@ function editCMS_WidgetCfg( widget_cfg, _layout_content, $dlg, main_callback, on
 
             let layout_params = {};//special option for leaflet mapping
             //parameters for controls
+            layout_params['nomap'] = !$dlg.find("#use_map").is(':checked');
             layout_params['notimeline'] = !$dlg.find("#use_timeline").is(':checked');
             layout_params['nocluster'] = !$dlg.find("#use_cluster").is(':checked');
             layout_params['editstyle'] = $dlg.find("#editstyle").is(':checked');
@@ -1265,6 +1290,8 @@ function editCMS_WidgetCfg( widget_cfg, _layout_content, $dlg, main_callback, on
             
             layout_params['published'] = 1;
             layout_params['template'] = $dlg.find('select[name="map_template"]').val();
+            layout_params['clusterTemplate'] = $dlg.find('select[name="map_clusterTemplate"]').val();
+            layout_params['clusterDownloadTemplate'] = $dlg.find('select[name="map_clusterDownloadTemplate"]').val();
             layout_params['basemap'] = $dlg.find('select[name="map_basemap"]').val();
             layout_params['basemaps'] = $dlg.find('input[name="basemaps"]').val();
             layout_params['basemap_filter'] = $dlg.find('input[name="map_basemap_filter"]').val();
@@ -1313,8 +1340,11 @@ function editCMS_WidgetCfg( widget_cfg, _layout_content, $dlg, main_callback, on
             opts['current_search_filter'] = $dlg.find('input[name="current_search_filter"]').val();   
 
             layout_params['style'] = $dlg.find('#map_default_style').val();   
-            layout_params['selection_style'] = $dlg.find('#map_select_style').val();   
-            
+            layout_params['selection_style'] = $dlg.find('#map_select_style').val();
+
+            layout_params['clusterSpiderMax'] = $dlg.find('#map_clusterSpiderMax').val();
+            layout_params['clusterDownloadText'] = $dlg.find('#map_clusterDownloadText').val();
+
             opts['layout_params'] = layout_params;
             opts['leaflet'] = true;
         }//heurist_Map
@@ -1421,6 +1451,8 @@ function editCMS_WidgetCfg( widget_cfg, _layout_content, $dlg, main_callback, on
             opts['is_popup'] = $dlg.find('#is_popup_report').is(':checked');
             opts['popup_position'] = $dlg.find('#popup_report_position').val();
 
+            opts['useRelmarkerTitle'] = opts['useRelmarkerTitle'] === true ? 1 : 0;
+
         }else if(widget_name=='heurist_resultList'){
             opts['show_toolbar'] = opts['show_counter'] || opts['show_viewmode'] || opts['show_export_button'] || opts['support_collection'];
             if(window.hWin.HEURIST4.util.isempty(opts['recordview_onselect'])){
@@ -1428,6 +1460,8 @@ function editCMS_WidgetCfg( widget_cfg, _layout_content, $dlg, main_callback, on
             }
             opts['empty_remark'] = empty_remark;
             opts['placeholder_text'] = placeholder;
+
+            opts['useRelmarkerTitle'] = opts['useRelmarkerTitle'] === true ? 1 : 0;
 
             let h_unit = opts['dialog_height'] > 0 ? opts['dialog_hunit'] : '';
             let w_unit = opts['dialog_width'] > 0 ? opts['dialog_wunit'] : '';

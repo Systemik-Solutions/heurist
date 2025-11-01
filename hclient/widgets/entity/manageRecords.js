@@ -1283,7 +1283,7 @@ $.widget( "heurist.manageRecords", $.heurist.manageEntity, {
             }
             
             
-            let recset = this.recordList.resultList('getRecordSet');
+            let recset = this.recordList && this.recordList.resultList('instance') && this.recordList.resultList('getRecordSet');
             if(recset && recset.length()>1 && recID>0){
                 if(this._toolbar){
                     this._toolbar.find('.btnPrev').css({'display':'inline-block','height':'2.1em','background':'#f2f2f2'});
@@ -1744,8 +1744,11 @@ $.widget( "heurist.manageRecords", $.heurist.manageEntity, {
 
            function __getEditFieldValue(sField){
                let ele = that._editing.getFieldByName(sField);
-               let vals = ele.editing_input('getValues');
-               return vals[0];
+               if(ele && ele.editing_input('instance')){
+                   let vals = ele.editing_input('getValues');
+                   return vals[0];
+               }
+               return '';
            }
                     
            //
@@ -2842,7 +2845,7 @@ $.widget( "heurist.manageRecords", $.heurist.manageEntity, {
         
         return ffr;
     },
-               
+
     //
     // 
     /**
@@ -3076,7 +3079,7 @@ $Db.rty(rectypeID, 'rty_Name') + ' is defined as a child of <b>'+names.join(', '
             // fields_ids - fields in rt structure (standard fields)
             // s_fields - sorted 
             // field_in_recset - all fields in record 
-            
+
             let rst_details =  $Db.rst(rectypeID);  //array of dty_ID:rst_ID
             let s_fields = [];  //sorted fields including hidden fields from record header 
             let fields_ids = []; //fields in structure
@@ -4272,7 +4275,13 @@ $Db.rty(rectypeID, 'rty_Name') + ' is defined as a child of <b>'+names.join(', '
                     }
 
                     break;
-
+                    
+                case 'skippedCalcFields':
+                
+                    contents += issues;
+                    has_msg = true;
+                
+                    break;
                 case 'languages':{
 
                     if(issues?.added && Object.keys(issues.added).length > 0){
@@ -5090,7 +5099,9 @@ $Db.rty(rectypeID, 'rty_Name') + ' is defined as a child of <b>'+names.join(', '
                 },
                 blur: (event) => { // Remove node focus
                 
-                    if(!(that.options.rts_editor && that.options.rts_editor.manageDefRecStructure('instance'))){
+                    if(!(that.options.rts_editor 
+                        && typeof that.options.rts_editor.manageDefRecStructure === 'function'
+                        && that.options.rts_editor.manageDefRecStructure('instance'))){
                         return;
                     }
 
@@ -5178,7 +5189,9 @@ $Db.rty(rectypeID, 'rty_Name') + ' is defined as a child of <b>'+names.join(', '
         let rt_icon = window.hWin.HAPI4.iconBaseURL+this._currentEditRecTypeID+this._icon_timer_suffix;
 
         this.element.find('.rt-info-header img.rt-icon').css('background-image',`url('${rt_icon}')`);
-        this.editFormSummary.find('.summary-accordion').first().find('img.rt-icon').css('background-image',`url('${rt_icon}')`);
+        if(this.editFormSummary){
+            this.editFormSummary.find('.summary-accordion').first().find('img.rt-icon').css('background-image',`url('${rt_icon}')`);    
+        }
         
         //
         //
@@ -6526,7 +6539,8 @@ $Db.rty(rectypeID, 'rty_Name') + ' is defined as a child of <b>'+names.join(', '
 
                     let trm_label = $Db.trm($sel.val(), 'trm_Label');
 
-                    window.hWin.HEURIST4.msg.showMsgDlg(`Are you sure you wish to use ${trm_label} in place of ${org_label}?`, function(){
+                    window.hWin.HEURIST4.msg.showMsgDlg(`Are you sure you wish to use ${trm_label} in place of ${org_label}?`, 
+                    function(){
                         new_terms[cur_term[0]].push($sel.val());
                         $dlg.dialog('close');
                         that.processTermFields(completed_fields, new_terms);

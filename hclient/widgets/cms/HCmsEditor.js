@@ -263,7 +263,7 @@ class HCmsEditor {
       if(this.website_id>0){
             const pageURL = window.hWin.HEURIST4.ui.getCmsLink({websiteid:this.website_id,version:3});//,lang:this.currentLanguage
             
-            this._editor_panel.find('.website-url').text(pageURL).attr('title', `Click to copy ${pageURL} to clipboard`).on('click', function(){ // save website url to clipboard
+            this._editor_panel.find('.website-url').text(pageURL).attr('href', pageURL).attr('title', `Click to copy ${pageURL} to clipboard`).on('click', function(){ // save website url to clipboard
                 window.hWin.HEURIST4.util.copyStringToClipboard(`${pageURL}`);
                 window.hWin.HEURIST4.msg.showMsgFlash('Website URL saved to clipboard', 3000);
             }).show();
@@ -601,6 +601,9 @@ class HCmsEditor {
   // returns only classes started with the given prefix
   //
   static getBsClassesAsString(element, withPrefix){
+      if(!element?.classList){
+          return '';
+      }
       let classes = Array.from(element?.classList);
       let bsClasses = HCmsEditor.getBsClasses(classes, withPrefix);
       return bsClasses.join(' ').trim();

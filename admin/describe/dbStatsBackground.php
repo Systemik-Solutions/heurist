@@ -48,7 +48,7 @@ if(!$isPublic || SERVER_NAME == 'localhost' || SERVER_NAME == '127.0.0.1' || SER
     exit;
 }
 
-$forcedRefresh = !empty($sysadmin_pwd) && $system->verifyActionPassword($sysadmin_pwd, $passwordForServerFunctions);
+$forcedRefresh = !empty($sysadmin_pwd) && !$system->verifyActionPassword($sysadmin_pwd, $passwordForServerFunctions);
 
 $is_main_server = strpos(strtolower(HEURIST_BASE_URL), strtolower(HEURIST_MAIN_SERVER)) !== false;
 
@@ -135,7 +135,7 @@ function sendStatsToMain(){
 
     global $system, $is_main_server;
 
-    $script = HEURIST_MAIN_SERVER . '/heurist/admin/describe/allServerStats.php';
+    $script = HEURIST_MAIN_SERVER . '/h7-alpha/admin/describe/allServerStats.php'; // @todo: replace '/h7-alpha' with '/heurist', once /heurist has been updated
 
     if(!file_exists(DB_STATS_FILE) && !createStats()){
         exitScript(null, null, true);
@@ -250,7 +250,7 @@ function zipStats($file_to_zip, $server_name, $delete_original = false){
 
     // Zip text file
     $zip = new ZipArchive();
-    if(!$zip->open($zip_name, ZipArchive::CREATE)){
+    if($zip->open($zip_name, ZipArchive::CREATE) !== true){
         exitScript(HEURIST_ERROR, 'Failed to create zip folder for stats', true);
     }
 

@@ -66,6 +66,19 @@ if (!@$dbHost) {$dbHost= "";}// Optional, blank = localhost for single tier, or 
 if (!@$dbAdminUsername) {$dbAdminUsername = getenv("DB_ADMIN_USERNAME") ?getenv("DB_ADMIN_USERNAME") : "";}// required
 if (!@$dbAdminPassword) {$dbAdminPassword = getenv("DB_ADMIN_PASSWORD") ?getenv("DB_ADMIN_PASSWORD") : "";}// required
 
+// REMOTE SERVER DATABASE ACCESS
+// This array defines other Heurist servers whose databases can be accessed from this server. 
+// They should open a MySQL port and an SSH connection exclusively to other trusted Heurist servers.
+// This server will need an appropriate SSH connection to each of the defined servers using a keyfile 
+// for file transfers in both directions using rsync.
+// Note: The server identifier eg. HN, HR, HN2, MUST be uppercase letters or digits only, maximum 6, no punctuation
+/*
+$remoteServers = [
+    'HN' => ['server' => 'heurist.huma-num.fr', 'port' => 3306, 'sshuser' => 'dbtunnel', 'dbuser' => 'heurist',  'dbpass' => 'xxxx'], 
+    'HR' => ['server' => 'xxxx.xxxx.xx', 'port' => 3306, 'sshuser' => 'xxxx', 'dbuser' => 'xxxx',  'dbpass' => 'xxxx'] 
+];
+*/
+
 // [FOLDERS]
 
 // REQUIRED: defines URL of Heurist filestore (contains files associated with databases)

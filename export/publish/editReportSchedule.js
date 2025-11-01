@@ -42,7 +42,7 @@ function ReportScheduleEditor() {
      *                            Expected structure: `{ fieldNames: [...], records: { recID: [...] } }`.
      */
     let _reports = null;
-
+   
     /**
      * Initializes the editor form.
      * Sets up help text and fetches the report schedule data if editing an existing record,
@@ -63,7 +63,6 @@ function ReportScheduleEditor() {
             
         const _url = window.hWin.HAPI4.baseURL + 'export/publish/loadReports.php';
         const request = { method: 'getreport', recID: _recID };
-            
         // Send AJAX request to fetch report data.
         window.hWin.HEURIST4.util.sendRequest(_url, request, null, _continueInit);
     }
@@ -107,7 +106,7 @@ function ReportScheduleEditor() {
         }
 
         // Try to get the entity being edited.
-        _entity = (_recID > 0 && _reports?.records?._recID) ? _reports.records[_recID] : null;
+        _entity = (_recID > 0 && _reports?.records?.[_recID]) ? _reports.records[_recID] : null;
 
         if (Number(_recID) > 0 && window.hWin.HEURIST4.util.isnull(_entity)) {
             document.getElementById("statusMsg").innerHTML = "<strong>Error: Report Schedule #" + _recID + "  was not found. Clicking 'save' button will create a new Schedule.</strong><br><br>";
@@ -123,28 +122,9 @@ function ReportScheduleEditor() {
         // Auto-fill FileName based on Title (cleaned for filenames).
         document.getElementById('rps_Title').onchange = function(event) {
             document.getElementById('rps_FileName').value = window.hWin.HEURIST4.ui.cleanFilename(event.target.value);
-            _updateTemplatesList(); // Populate template dropdown.
         };
         
-        _updateTemplatesList(); // Populate template dropdown.
         _fromArrayToUI();     // Populate form fields from _entity data.
-    }
-
-    /**
-     * Populates the template selector dropdown (`#rps_Template`).
-     * Uses `window.hWin.HEURIST4.ui.createTemplateSelector` for dynamic population.
-     *
-     * @private
-     * @todo Consider if `#todo - filter based on record types in result set` is still relevant.
-     */
-    function _updateTemplatesList() {
-        let sel = $('#rps_Template');
-        const keepSelValue = sel.val(); // Preserve current selection if possible.
-
-        sel.empty(); // Clear existing options.
-
-        // Use Heurist utility to populate template selector.
-        window.hWin.HEURIST4.ui.createTemplateSelector(sel, null, keepSelValue, null);
     }
 
     /**
@@ -167,6 +147,11 @@ function ReportScheduleEditor() {
             if (!window.hWin.HEURIST4.util.isnull(el)) {
                 el.value = (_entity && !window.hWin.HEURIST4.util.isnull(_entity[i])) ?_entity[i] :''; // Ensure null/undefined are empty strings
             }
+            if(fname=='rps_Template'){
+                let sel = $('#rps_Template');
+                window.hWin.HEURIST4.ui.createTemplateSelector(sel, null, _entity[i]??'');
+                        //{extraOptions: {menu_parent: $('#detailTypeValues') }});             
+            }
         }
 
         // Update UI elements based on new/edit mode.
@@ -185,6 +170,7 @@ function ReportScheduleEditor() {
         if (window.hWin.HEURIST4.util.isempty(interval) || isNaN(parseInt(interval)) || parseInt(interval) < 0) {
             intervalEl.value = 1440; // Default to 1 day (1440 minutes).
         }
+        
     }
 
     /**
@@ -351,7 +337,6 @@ function ReportScheduleEditor() {
                     window.close(null);
                 }
             }
-        }
     };
 
     _init(); // Initialize the editor when a new instance is created.

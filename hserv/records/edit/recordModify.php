@@ -459,6 +459,7 @@ function recordSave($system, $record, $use_transaction=true, $suppress_parent_ch
     $is_insert = ($recID<1);
     $is_save_new_record = false;
     $missingParents = [];
+    $msgSkippedCalcFields = null;
     $entryMaskIssues = [];
     $languageIssues = [];
 
@@ -710,14 +711,18 @@ function recordSave($system, $record, $use_transaction=true, $suppress_parent_ch
         return $system->getError();
     }
 
+    if(!$modeImport){
+        mysql__supress_trigger($mysqli, true);
+        recordUpdateCalcFields( $system, $recID, $rectype );//update calculated fields in this record
+        mysql__supress_trigger($mysqli, false);
+    }
+    
     $newTitle = recordUpdateTitle($system, $recID, $rectype, @$record['Title']); //for main record on save
     $rty_counts = null;
 
     if(!$is_insert && !$modeImport)
     {
         mysql__supress_trigger($mysqli, true);
-
-        recordUpdateCalcFields( $system, $recID, $rectype );//update calculated fields in this record
 
         $entryMaskIssues = recordUpdateMaskFields($system, $recID, $rectype);
 
@@ -726,7 +731,10 @@ function recordSave($system, $record, $use_transaction=true, $suppress_parent_ch
         //check that this record my affect other records with calculated fields
         //1. cfn_RecTypeIDs -> cfn_ID
         //2. defRecStructure where rst_CalcFunctionID  -> rst_RecTypeID+rst_DetailTypeID
-        //it may consume waste of time findAndUpdateAffectedCalcFields( $system, $rectype )
+        $res3 = findAndUpdateAffectedCalcFields( $system, $rectype );
+        if(isset($res3['skipped'])){
+            $msgSkippedCalcFields = $res3['skipped'];
+        }
 
         removeReverseChildToParentPointer($system, $recID, $rectype);
 
@@ -734,7 +742,7 @@ function recordSave($system, $record, $use_transaction=true, $suppress_parent_ch
         $relRecsIDs = array();
 
         //@todo - rollback in case of error
-        $mask = mysql__select_value($mysqli,"select rty_TitleMask from defRecTypes where rty_ID=".RT_RELATION);
+        $mask = mysql__select_value($mysqli, "select rty_TitleMask from defRecTypes where rty_ID=".RT_RELATION);
 
         $relRecs = recordGetRelationship($system, $recID, null, array('detail'=>'ids'));
         if(!isEmptyArray($relRecs)){
@@ -789,9 +797,9 @@ function recordSave($system, $record, $use_transaction=true, $suppress_parent_ch
         $user = @$user['ugr_FullName'];
         $user = $user ?: $system->getUserId();
 
-        $title = HEURIST_DBNAME . ", ID: $recID >> workflow: $stage_name";
+        $title = $system->dbname() . ", ID: $recID >> workflow: $stage_name";
         $msg = !empty($swf_body) ? $swf_body : '<b>'.$title.'</b> '
-        .'<a href="'.HEURIST_BASE_URL.'hclient/framecontent/recordEdit.php?db='.HEURIST_DBNAME.'&recID='.$recID.'">Record #'.$recID
+        .'<a href="'.HEURIST_BASE_URL.'hclient/framecontent/recordEdit.php?db='.$system->dbname().'&recID='.$recID.'">Record #'.$recID
         .'  "'.USanitize::sanitizeString($newTitle, false).'"</a><br>'
         .' has been changed to "'.$stage_name
         .'"<br><br> by user: '.$user;
@@ -803,14 +811,14 @@ function recordSave($system, $record, $use_transaction=true, $suppress_parent_ch
         $rec_view = $system->recordLink($recID);
         $rec_edit = strpos($rec_view, '/view/') !== false
                         ? str_replace('/view/', '/edit/', $rec_view)
-                        : HEURIST_BASE_URL_PRO . "?fmt=edit&recID={$recID}&db=" . HEURIST_DBNAME;
+                        : HEURIST_BASE_URL_PRO . "?fmt=edit&recID={$recID}&db=" . $system->dbname();
 
         $msg = str_replace(['#title#', '#link_v#', '#link_e#'], [$newTitle, $rec_view, $rec_edit], $msg);
 
         $firstEmail = array_pop($swf_emails);
         $swf_emails = empty($swf_emails) ? [$firstEmail] : ['to' => [$firstEmail], 'bcc' => $swf_emails];
 
-        $res = sendPHPMailer(HEURIST_MAIL_TO_ADMIN, 'Heurist DB '.HEURIST_DBNAME.'. ID: '.$recID, //'Workflow stage update notification',
+        $res = sendPHPMailer(HEURIST_MAIL_TO_ADMIN, 'Heurist DB '.$system->dbname().'. ID: '.$recID, //'Workflow stage update notification',
                     $swf_emails, $title, $msg, null, true);
 
         if($total_record_count > 1 && $res){ // block further emails for imports, only if the email was sent
@@ -825,7 +833,10 @@ function recordSave($system, $record, $use_transaction=true, $suppress_parent_ch
         'affectedRty' =>$rectype,
         'issues' => []
     ];
-
+    
+    if($msgSkippedCalcFields!=null){
+        $rtn['issues']['skippedCalcFields'] = $msgSkippedCalcFields;
+    }
     if(!empty($missingParents)){
         $rtn['issues']['parents'] = $missingParents;
     }
@@ -1540,7 +1551,7 @@ function deleteOneRecord($system, $id, $rectype){
             }
         }
 
-        ElasticSearch::deleteRecordIndexEntry(HEURIST_DBNAME, $rectype, $id);
+        ElasticSearch::deleteRecordIndexEntry($system->dbname(), $rectype, $id);
 
         $mysqli->query('delete from usrReminders where rem_RecID = ' . $id);
         if ($mysqli->error) {break;}
@@ -2053,16 +2064,19 @@ function findAndUpdateAffectedCalcFields( $system, $rty_ID ){
 
     $query = 'SELECT cfn_ID FROM defCalcFunctions WHERE find_in_set('.$mysqli->real_escape_string($rty_ID).',cfn_RecTypeIDs) <> 0';
     $field_ids = mysql__select_list2($mysqli, $query);
+    
+    $res = null;
 
     if(!isEmptyArray($field_ids)){
 
-        $query = 'SELECT rst_RecTypeID WHERE rst_CalcFunctionID IN ('.implode(',',$field_ids).')';
+        $query = 'SELECT rst_RecTypeID FROM defRecStructure WHERE rst_CalcFunctionID IN ('.implode(',',$field_ids).')';
         $rectype_ids = mysql__select_list2($mysqli, $query);
 
         if(!isEmptyArray($rectype_ids)){
-            recordUpdateCalcFields($system, null, $rectype_ids);
+            $res = recordUpdateCalcFields($system, null, $rectype_ids, null, 100);
         }
     }
+    return $res;
 }
 
 /**
@@ -2114,7 +2128,7 @@ function findAndUpdateAffectedCalcFields( $system, $rty_ID ){
  *                     Returns `['message' => 'Smarty init error...']` or `['message' => 'Operation terminated...']`
  *                     in case of Smarty setup failure or user termination via progress session.
  */
-function recordUpdateCalcFields($system, $recID, $rty_ID=null, $progress_session_id=null)
+function recordUpdateCalcFields($system, $recID, $rty_ID=null, $progress_session_id=null, $limitOnUpdate=100)
 {
     $mysqli = $system->getMysqli();
 
@@ -2159,7 +2173,7 @@ function recordUpdateCalcFields($system, $recID, $rty_ID=null, $progress_session
 
         $rectypes = array($rty_ID=>array($recID));
         $rec_count = 1;
-    }else //record is not defined - update all records
+    }else //record is not defined - update all records with givent $rty_ID
     {
 
         if($rty_ID!=null && !is_array($rty_ID)){
@@ -2173,6 +2187,12 @@ function recordUpdateCalcFields($system, $recID, $rty_ID=null, $progress_session
         }else{
             $rec_count = mysql__select_value($mysqli, 'SELECT count(rec_ID) FROM Records '
             .'WHERE (rec_RecTypeID IN ('.implode(',',$rty_ID).')) AND (NOT rec_FlagTemporary)');
+            
+            if($rec_count>$limitOnUpdate){
+                //
+                return array('skipped'=>'There are '.$rec_count
+.' records that have dependent calculation fields based type of updated record. To avoid slowdown, please use Admin > Rebuild Calc');    
+            }
         }
         $rectypes = array();
         foreach ($rty_ID as $id){
@@ -3338,9 +3358,9 @@ function prepareGeoValue($mysqli, $dtl_Value){
 
 }
 //
+//  $likedRtyID is used to duplicate records of sepcified type linked to given record $id
 //
-//
-function recordDuplicate($system, $id){
+function recordDuplicate($system, $id, &$processedIds, $newPermissionValues=null, $likedRtyID=null, $namePrefix=null){
 
     // Check that the user is allowed to create records
     $is_allowed = userCheckPermissions($system, 'add');
@@ -3355,13 +3375,21 @@ function recordDuplicate($system, $id){
         return $system->addError(HEURIST_INVALID_REQUEST, "Record ID is not defined");
     }
 
-    $def_params = recordAddDefaultValues($system);
-    $new_owner = $def_params['owner_grps'][0];
-    $access = $def_params['access'];
-    $access_grps = $def_params['access_grps'];
-
     $currentUserId = $system->getUserId();
+    
+    if(is_array($newPermissionValues))
+    {
+        $def_params = $newPermissionValues;
+    }else{
+        $def_params = recordAddDefaultValues($system);
+    }
+    $new_owner = $def_params['owner_grps'][0]??$currentUserId;
+    $access = @$def_params['access'];
+    $access_grps = @$def_params['access_grps'];
+    
 
+    $processedIds[] = $id;
+    
     $row = mysql__select_row($mysqli, "SELECT rec_OwnerUGrpID, rec_RecTypeID FROM Records WHERE rec_ID = ".$id);
     //$owner = $row[0];
     $recTypeID = intval($row[1]);
@@ -3378,6 +3406,7 @@ function recordDuplicate($system, $id){
 
     $system->defineConstant('DT_TARGET_RESOURCE');
     $system->defineConstant('DT_PRIMARY_RESOURCE');
+    $system->defineConstant('DT_NAME');
 
     $prefixDbErrorMsg = 'database error - ';
 
@@ -3445,8 +3474,19 @@ function recordDuplicate($system, $id){
                 }
             }//for
         }
+        
+        //update field name DT_NAME and add $duplicatePrefix
+        if(isset($namePrefix)){
+            $query = 'UPDATE recDetails set dtl_Value=CONCAT(?," ",dtl_Value)'
+            ." where dtl_RecID=$new_id and dtl_DetailTypeID=".DT_NAME;
 
+            $res = mysql__exec_param_query($mysqli, $query, array('s', $namePrefix));
+            
+            $query = 'UPDATE Records set rec_Title=CONCAT(?," ",rec_Title)'
+            ." where rec_ID=$new_id";
 
+            $res = mysql__exec_param_query($mysqli, $query, array('s', $namePrefix));
+        }
 
         //remove pointer fields where Parent-Child flag is ON
         $query = 'DELETE FROM recDetails where dtl_RecID='.$new_id.' and dtl_DetailTypeID in '
@@ -3479,7 +3519,11 @@ function recordDuplicate($system, $id){
 
         foreach ($refs_res as $rel_recid){
 
-            $res = recordDuplicate($system, $rel_recid);
+            if( in_array($rel_recid, $processedIds) ){
+                continue;    
+            }
+
+            $res = recordDuplicate($system, $rel_recid, $processedIds);
 
             if($res && @$res['status']==HEURIST_OK){
 
@@ -3505,7 +3549,52 @@ function recordDuplicate($system, $id){
                 $error = @$res['message'];
             }
         } //foreach
+        
+        
+        if(!isset($likedRtyID) || !isPositiveInt($likedRtyID)){
+            break;
+        }
 
+        //duplicate linked record of specified type
+        $query = 'select rl_TargetId, rl_DetailTypeID from recLinks, Records where rl_SourceID='
+        .$id.' and rl_RelationTypeID is null and rl_TargetId=rec_ID and rec_RecTypeID='.intval($likedRtyID);
+        
+        $refs_res = mysql__select_assoc2($mysqli, $query);
+
+        foreach ($refs_res as $linked_recid=>$dtyId){
+
+            if( in_array($linked_recid, $processedIds) ){
+                continue;    
+            }
+            
+            $res = recordDuplicate($system, $linked_recid, $newPermissionValues, $likedRtyID, $namePrefix);
+
+            if($res && @$res['status']==HEURIST_OK){
+
+                $linked_recid_new = intval(@$res['data']['added']);
+
+                if($linked_recid_new>0){
+
+                    //change reference to old record id to new one
+                    $query = 'UPDATE recDetails set dtl_Value='.$linked_recid_new
+                    .' where dtl_RecID='.$new_id
+                    .' and dtl_Value='.$linked_recid   //old record id
+                    .' and (dtl_DetailTypeID='.$dtyId.')';
+
+                    $res = $mysqli->query($query);
+                    if(!$res){
+                        $error = $prefixDbErrorMsg .$mysqli->error;
+                        break;
+                    }else{
+                        $rels_count++;
+                    }
+                }
+            }else{
+                $error = @$res['message'];
+            }
+        } //foreach
+        
+        
         break;
     }//while
 

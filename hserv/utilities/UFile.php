@@ -248,27 +248,40 @@ use hserv\utilities\USystem;
      * @param bool $rmdir If true, removes the directory itself after deleting its contents.
      * @return bool True if the operation was successful or the directory didn't exist, false if rmdir failed.
      */
-    function folderDelete2($dir, $rmdir) {
-
-        if(file_exists($dir)){
-
-            $files = new RecursiveIteratorIterator(
-                        new RecursiveDirectoryIterator($dir, RecursiveDirectoryIterator::SKIP_DOTS),
-                        RecursiveIteratorIterator::CHILD_FIRST
-            );
-
-            foreach ($files as $fileinfo) {
-                $todo = ($fileinfo->isDir() ? 'rmdir' : 'unlink');
-                $todo($fileinfo->getRealPath());
-            }
-
-            if($rmdir){
-                $res = rmdir($dir);
-                return $res;
-            }
+    function folderDelete2(string $dir, bool $rmdir = true): bool
+    {
+        if (!is_dir($dir)) {
+            return true; // nothing to do
         }
-        return true;
+
+        try {
+            $it = new \RecursiveDirectoryIterator(
+                $dir,
+                \FilesystemIterator::SKIP_DOTS | \FilesystemIterator::CURRENT_AS_FILEINFO
+            );
+            $files = new \RecursiveIteratorIterator($it, \RecursiveIteratorIterator::CHILD_FIRST);
+
+            foreach ($files as $file) {
+                // Delete links and regular files without resolving outside the tree
+                if ($file->isLink() || $file->isFile()) {
+                    if (!@unlink($file->getPathname())) {
+                        return false;
+                    }
+                    continue;
+                }
+                if ($file->isDir()) {
+                    if (!@rmdir($file->getPathname())) {
+                        return false;
+                    }
+                }
+            }
+        } catch (\Throwable $e) {
+            return false; // unreadable path or iterator error
+        }
+
+        return $rmdir ? @rmdir($dir) : true;
     }
+
 
     /**
      * Gets a list of files in specified directories, optionally filtered by extensions.
@@ -2077,6 +2090,185 @@ function getFileSize($file_path, $clear_stat_cache = false) {
         // Return 0 if the file does not exist
         return 0;
     }
+}
+
+/**
+ * Saves the provided array data into a ini file
+ *
+ * @param string $file path to the ini file
+ * @param array<string> $data configuration data to be saved
+ * @param bool $keyAsSection whether the array keys are section headers
+ * @return bool whether the saving has been successful
+ */
+function saveIniFile($file, $data, $keyAsSection = false){
+
+    if(!is_array($data)){
+        return false;
+    }
+
+    if(array_key_exists('@comment', $data)){
+
+        $comments = $data['@comment'];
+        unset($data['@comment']);
+
+        if(is_array($comments)){
+            foreach($comments as $comment){
+    
+                $comment = preg_match('/(?:\r|\n)$/', $comment) === false ? $comment . PHP_EOL : $comment;
+                $comment = preg_match('/^(?:;|#)/', $comment) === false ? "; {$comment}" : $comment;
+                $size = fileAdd($comment, $file);
+    
+                if($size === 0 && !empty($comment)){
+                    return false;
+                }
+            }
+        }elseif(is_string($comments)){
+
+            $comments = preg_match('/(?:\r|\n)$/', $comments) === false ? $comments . PHP_EOL : $comments;
+            $comments = preg_match('/^(?:;|#)/', $comments) === false ? "; {$comments}" : $comments;
+            $size = fileAdd($comments, $file);
+
+            if($size === 0 && !empty($comments)){
+                return false;
+            }
+        }
+    }
+
+    $result = true;
+
+    if($keyAsSection){
+
+        foreach($data as $section => $sectionData){
+
+            if(!is_array($sectionData)){
+
+                $size = fileAdd("{$section}={$sectionData}" . PHP_EOL, $file);
+                if($size === 0){
+                    $result = false;
+                    break;
+                }
+
+                continue;
+            }
+
+            $size = fileAdd(PHP_EOL . "[{$section}]" . PHP_EOL, $file);
+            if($size === 0){
+                $result = false;
+                break;
+            }
+
+            $result = saveIniFile($file, $sectionData);
+            if($result === false){
+                break;
+            }
+        }
+    }else{
+
+        foreach($data as $key => $value){
+
+            $size = fileAdd("{$key}={$value}" . PHP_EOL, $file);
+            if($size === 0){
+                $result = false;
+                break;
+            }
+        }
+    }
+
+    return $result;
+}
+
+function getFileDetailsForNakala($mysqli, $ulfID){
+
+    $ulfID = intval($ulfID);
+    if($ulfID <= 0){
+        return [false, 'Invalid file ID provided'];
+    }
+
+    $fileQuery = "SELECT ulf_OrigFileName, concat(ulf_FilePath, ulf_FileName) AS 'fullPath', fxm_MimeType, ulf_Description, concat(ugr_FirstName, ' ', ugr_LastName) AS 'fullName', DATE(ulf_Added)
+    FROM recUploadedFiles, defFileExtToMimetype, sysUGrps
+    WHERE ulf_ID = {$ulfID} AND ulf_MimeExt = fxm_Extension AND ulf_UploaderUGrpID = ugr_ID";
+
+    $fileResult = $mysqli->query($fileQuery);
+    if(!$fileResult){ // another mysql error, skip
+        return [false, FILE_NO . $ulfID . R_ARROW . $mysqli->error];
+    }
+
+    /** $file_dtl:
+     * [0] => title
+     * [1] => file path
+     * [2] => mime type
+     * [3] => description
+     * [4] => Uploader's full name
+     * [5] => created date (no time)
+     */
+    $fileDetails = $fileResult->fetch_row();
+    $filePath = resolveFilePath($fileDetails[1]);
+    if(!file_exists($filePath)){
+        return [false, FILE_NO . $ulfID . R_ARROW . 'Unable to locate the local file for transfer'];
+    }
+
+    $file = [
+        'path' => $filePath,
+        'type' => $fileDetails[2],
+        'name' => $fileDetails[0],
+        'description' => $fileDetails[3]
+    ];
+
+    $metaValues = [];
+    $metaValues['title'] = [
+        'value' => $fileDetails[0],
+        'lang' => null,
+        'typeUri' => XML_SCHEMA,
+        'propertyUri' => NAKALA_REPO.'terms#title'
+    ];
+
+    $fileType = $fileDetails[2];
+
+    /** Use fxm_MimeType
+     * Nakala <=> Mime Type
+     * text <=> text | pdf
+     * image <=> image
+     * sound <=> sound | audio
+     * video <=> video
+     * other <=> anything else
+     */
+
+    if(strpos($fileType, 'text') !== false || strpos($fileType, 'pdf') !== false){
+        $fileType = 'http://purl.org/coar/resource_type/c_1843';
+    }elseif(strpos($fileType, 'sound') !== false || strpos($fileType, 'audio') !== false){
+        $fileType = 'http://purl.org/coar/resource_type/c_18cc';
+    }elseif(strpos($fileType, 'image') !== false){
+        $fileType = 'http://purl.org/coar/resource_type/c_c513';
+    }elseif(strpos($fileType, 'video') !== false){
+        $fileType = 'http://purl.org/coar/resource_type/c_12ce';
+    }else{ // other
+        $fileType = 'http://purl.org/coar/resource_type/c_1843';
+    }
+
+    $metaValues['type'] = [
+        'value' => $fileType,
+        'lang' => null,
+        'typeUri' => 'http://www.w3.org/2001/XMLSchema#anyURI',
+        'propertyUri' => NAKALA_REPO.'terms#type'
+    ];
+
+    // Current Heurist user
+    $metaValues['alt_creator'] = [
+        'value' => $fileDetails[4],
+        'lang' => null,
+        'typeUri' => XML_SCHEMA,
+        'propertyUri' => 'http://purl.org/dc/terms/creator'
+    ];
+
+    // ulf_Added
+    $metaValues['created'] = [
+        'value' => $fileDetails[5],//date('Y-m-d', $file_dtl[5]),
+        'lang' => null,
+        'typeUri' => XML_SCHEMA,
+        'propertyUri' => NAKALA_REPO.'terms#created'
+    ];
+
+    return [$metaValues, $file];
 }
 
 ?>

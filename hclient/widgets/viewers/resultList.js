@@ -87,6 +87,7 @@ $.widget( "heurist.resultList", {
         renderer: null,    // custom renderer function to draw item
         rendererHeader: null,   // renderer function to draw header for list view-mode (for content)
         rendererGroupHeader: null,   // renderer function for group header (see groupByField)
+        onaction: null, //custom on action (if renderer is defined)
         
         recordDivClass: '', // additional class that modifies recordDiv appearance (see for example "public" or "outline_supress" in h4styles.css) 
                             // it is used if renderer is null
@@ -158,6 +159,7 @@ $.widget( "heurist.resultList", {
         check_linked_media: true, // check linked records (only type "media") for an image
         
         fontsize: 0, //base font size for renderRecordData otherwise it takes from user preferences
+        useRelmarkerTitle: 0, // replace the curated relmarker string with the relationship record title
         
         language: 'def'
     },
@@ -243,6 +245,9 @@ $.widget( "heurist.resultList", {
 
         if(this.options.fontsize==0 && this.element.css('font-size')){
             this.options.fontsize = parseFloat(this.element.css('font-size'));
+        }
+        if(this.options.useRelmarkerTitle == 0){
+            window.hWin.HAPI4.get_prefs_def('useRelmarkerTitle', 0);
         }
         
         // Auto select record(s), retrieved from url
@@ -686,7 +691,8 @@ $.widget( "heurist.resultList", {
 
             this.action_buttons_div.css({'display':'inline-block', 'padding':'0 0 4px 1em'})
                 .hide().appendTo( this.div_toolbar );    
-            
+                
+                          
             for(let idx in this.options.action_buttons){
 
                 const key = this.options.action_buttons[idx].key;
@@ -2097,8 +2103,18 @@ $.widget( "heurist.resultList", {
 
         let action =  $target.attr('data-key') || $target.parents().attr('data-key');
         if(!window.hWin.HEURIST4.util.isempty(action)){ //action_btn && action_btn.length()>0){
+
+            //custom handler
+            if( window.hWin.HEURIST4.util.isFunction(this.options.onaction)
+                 && 
+                this.options.onaction.call(this, {action:action, recID:selected_rec_ID, target:$target})){
+                        
+                //custom onaction
+                return;
+            }
+
             if(this.options.renderer){
-                //custom handler
+                
                 this._trigger( "onaction", null, {action:action, recID:selected_rec_ID, target:$target});
                 return;
 
@@ -2113,11 +2129,13 @@ $.widget( "heurist.resultList", {
 
                 window.hWin.HEURIST4.ui.openRecordInPopup(selected_rec_ID, ordered_recordset, true, null);
                 //@todo callback to change rectitle
-
+                return;
+                
             }else if (action=='edit_ext'){
 
                 const url = window.hWin.HAPI4.baseURL + "?fmt=edit&db="+window.hWin.HAPI4.database+"&recID="+selected_rec_ID;
                 window.open(url, "_new");
+                return;
             }
             
             // remove this remark to prevent selection on action button click
@@ -2511,15 +2529,17 @@ $.widget( "heurist.resultList", {
                         if(that._is_publication && that.options.recviewer_images != 0){
                             infoURL += '&hideImages=' + that.options.recviewer_images;
                         }
+                        if(this.options.useRelmarkerTitle != 0){
+                            infoURL += `&useRelmarkerTitle=1`;
+                        }
                     }
-                    
+
                     if(that.options.language && that.options.language!='def'){
-                        infoURL = infoURL + '&lang='+that.options.language;
+                        infoURL += '&lang='+that.options.language;
                     }
                     if(this.options.fontsize>0){
-                        infoURL = infoURL + '&fontsize=' + this.options.fontsize;
+                        infoURL += '&fontsize=' + this.options.fontsize;
                     }
-                    
                     
                     //content is smarty report
                     if( this.options.rendererExpandInFrame ||  !isSmarty)
@@ -3270,7 +3290,7 @@ $.widget( "heurist.resultList", {
                 });*/
             }
         }
-
+        
         //activate tab mode        
         if(this.options.view_mode=='tabs'){
             if(rec_toload.length>0){
@@ -3534,6 +3554,11 @@ $.widget( "heurist.resultList", {
             });
         }
         
+        if(typeof this.options.afterPageRenderer === 'function'){
+            this.options.afterPageRenderer.call(this);
+            $allrecs = this.div_content.find('.recordDiv');
+        }
+                
         //
         //        
         this._on( $allrecs, {
@@ -3642,6 +3667,7 @@ $.widget( "heurist.resultList", {
         this._loadFullRecordData( rec_toload );
         
         this.setCollected( null );
+
         
         this._trigger( "onpagerender", null, this );
         

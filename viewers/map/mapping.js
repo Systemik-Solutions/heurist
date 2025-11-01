@@ -106,7 +106,12 @@ $.widget( "heurist.mapping", {
         
         map_margins: {padding: L.point(50, 50)},
 
-        recviewer_images: 1  // show images in record viewer; 0 - show all images, 1 - no linked media, 2 - no images
+        recviewer_images: 1,  // show images in record viewer; 0 - show all images, 1 - no linked media, 2 - no images
+
+        clusterSpiderMax: 6,
+        clusterTemplate: 'default',
+        clusterDownloadTemplate: '',
+        clusterDownloadText: 'download'
     },
     
     /* expremental 
@@ -197,7 +202,7 @@ $.widget( "heurist.mapping", {
     isMarkerClusterEnabled: true,
     markerClusterGridSize: 50,
     markerClusterMaxZoom: 18,
-    markerClusterMaxSpider: 5,
+    markerClusterMaxSpider: 6,
     isEditAllowed: true,
     
     
@@ -980,7 +985,6 @@ $.widget( "heurist.mapping", {
                 .then(arrayBuffer => {
         parseGeoraster(arrayBuffer).then(georaster => {          
         //direct load: parseGeoraster(url_to_geotiff_file).then(georaster => {
-                console.log("georaster:", georaster);
 
                 let new_layer = new GeoRasterLayer({
                     //attribution: "Unknown",  
@@ -1366,8 +1370,12 @@ $.widget( "heurist.mapping", {
                 // if no entries no need to redraw
                 return;
             }
-                
-            this.vistimeline.timeline('timelineRefresh', this.timeline_items, this.timeline_groups);          
+
+            try{
+                this.vistimeline.timeline('timelineRefresh', this.timeline_items, this.timeline_groups);              
+            }catch(e){
+                console.error('Unable refresh timeline',  e);
+            }                
             
             //this._updatePanels();
     },
@@ -1705,33 +1713,39 @@ $.widget( "heurist.mapping", {
                 
                 let zoom_params = $.extend({maxZoom: maxZoom}, this.options.map_margins);
 
-                if(fly_params){
-                    let duration = 5;
-                    if(fly_params===true){
-                        fly_params = {animate:true, duration:duration, maxZoom: maxZoom};
-                    }else{
-                        if(fly_params.duration>0){
-                            duration = fly_params.duration;
+                try{
+
+                    if(fly_params){
+                        let duration = 5;
+                        if(fly_params===true){
+                            fly_params = {animate:true, duration:duration, maxZoom: maxZoom};
                         }else{
-                            fly_params.duration = duration;
+                            if(fly_params.duration>0){
+                                duration = fly_params.duration;
+                            }else{
+                                fly_params.duration = duration;
+                            }
                         }
+                        fly_params = $.extend(fly_params, this.options.map_margins);
+                        this.nativemap.flyToBounds(bounds, fly_params);
+                        
+                        let that = this; //fly to bounds fits bounds wrong
+                        this._zoom_timeout = setTimeout(function(){
+                                that.nativemap.fitBounds(bounds, zoom_params);
+                                that._zoom_timeout = 0;
+                        }, duration*1000+200);
+
+                    }else{
+                        this.nativemap.fitBounds(bounds, zoom_params);
+                        //paddingTopLeft:L.point(500,50),paddingBottomRight:L.point(50,0)});
+                        //padding: L.point(50, 50)});  //padding - margins for map 
+                        //this.nativemap.fitBounds(bounds, {maxZoom: 0});   
                     }
-                    fly_params = $.extend(fly_params, this.options.map_margins);
-                    this.nativemap.flyToBounds(bounds, fly_params);
-                    
-                    let that = this; //fly to bounds fits bounds wrong
-                    this._zoom_timeout = setTimeout(function(){
-                            that.nativemap.fitBounds(bounds, zoom_params);
-                            that._zoom_timeout = 0;
-                    }
-                    ,duration*1000+200);      
-            
-                }else{
-                    this.nativemap.fitBounds(bounds, zoom_params);
-                    //paddingTopLeft:L.point(500,50),paddingBottomRight:L.point(50,0)});
-                    //padding: L.point(50, 50)});  //padding - margins for map 
-                    //this.nativemap.fitBounds(bounds, {maxZoom: 0});   
-                }             
+
+                }catch(e){
+                    console.error('Can not zoom to bounds ', bounds.toBBoxString());
+                }
+
             }
     },
 
@@ -2022,26 +2036,40 @@ $.widget( "heurist.mapping", {
                     
                     if(that.nativemap.getZoom()>=maxZoom ||
                         that.nativemap.getBoundsZoom(a.layer.getBounds())>=maxZoom ){
-                        if(a.layer.getAllChildMarkers().length>that.markerClusterMaxSpider){
-                            let markers = a.layer.getAllChildMarkers();
-                            
-                            let latlng = a.layer.getLatLng();
+
+                        let markers = a.layer.getAllChildMarkers();
+                        let latlng = a.layer.getLatLng();
+
+                        if(a.layer.getAllChildMarkers().length <= that.markerClusterMaxSpider){
+                            a.layer.spiderfy(); 
+                        }else if(that.options.clusterTemplate && that.options.clusterTemplate !== 'default'){
+
+                            let recIDs = [];
+                            $.each(markers, (i, top_layer) => {    
+                                if(top_layer.feature){
+                                    let id = top_layer.feature.properties.rec_ID;
+                                    recIDs.push(id);
+                                }
+                            });
+
+                            let templateURL = window.hWin.HEURIST4.ui.getTemplateLink(that.options.clusterTemplate, `ids:${recIDs.join(',')}`);
+                            that._showContentInPopup(latlng, templateURL);
+                        }else{
+
                             let selected_layers = {};
                             let sText = '';
-                            
+
                             //scan all markers in this cluster
                             $.each(markers, function(i, top_layer){    
                                 if(top_layer.feature){
                                     selected_layers[top_layer._leaflet_id] = top_layer;
                                     let title = top_layer.feature.properties.rec_Title;
-                                    sText = sText + '<div class="leaflet_layer_opt" title="'+ title +'" data-id="'+top_layer._leaflet_id+'">'+ title +'</div>';
+                                    let id = top_layer.feature.properties.rec_ID;
+                                    sText += `<div class="leaflet_layer_opt" title="${title}" data-recid="${id}" data-id="${top_layer._leaflet_id}" style="padding-left: 0.9em; text-indent: -0.9em;">${title}</div>`;
                                 }
                             });
                             
                             that._showMultiSelectionPopup(latlng, sText, selected_layers, false);
-                            
-                        }else{
-                           a.layer.spiderfy(); 
                         }
                     }else{
                         a.layer.zoomToBounds({padding: L.point(20, 20)});
@@ -2395,44 +2423,75 @@ $.widget( "heurist.mapping", {
 
             //add selected to other selected features
             let add_to_selection = (event.originalEvent.ctrlKey);
-            
-            if(layer.feature.properties.rec_ID>0){
+
+            if(layer.feature.properties.rec_ID > 0 &&
+                (layer instanceof L.Polygon || layer instanceof L.Circle || layer instanceof L.Rectangle)
+            ){
                 //find all overlapped polygones under click point
-                if(layer instanceof L.Polygon || layer instanceof L.Circle || layer instanceof L.Rectangle){
-                    
-                        let selected_layers = {};
-                        let sText = '';
-                        let latlng = event.latlng;
-                        
-                        //scan all visible layers
-                        this.nativemap.eachLayer(function(top_layer){    
-                            if(top_layer.feature && //top_layer.feature.properties.rec_ID!=layer.feature.properties.rec_ID && 
-                                (top_layer instanceof L.Polygon || top_layer instanceof L.Circle || top_layer instanceof L.Rectangle)){
-                                
-                                    if(top_layer.contains(latlng)){
-                                        selected_layers[top_layer._leaflet_id] = top_layer;
-                                        let title = top_layer.feature.properties.rec_Title;
-                                        sText = sText + '<div class="leaflet_layer_opt" title="'+title+'" data-id="'+top_layer._leaflet_id+'">'+title+'</div>';
-                                    }
-                                    
-                            }
-                        });
-                        
-                        let found_cnt = Object.keys(selected_layers).length;
-                        
-                        if(found_cnt>1){
-                            //show popup with selector
-                            this._showMultiSelectionPopup(latlng, sText, selected_layers, add_to_selection);
-                            return;
-                        }
-                        
+
+                let selected_layers = {};
+                let sText = '';
+                let latlng = event.latlng;
+                let recIDs = [];
+
+                //scan all visible layers
+                this.nativemap.eachLayer(function(top_layer){    
+                    if(top_layer.feature && top_layer.contains(latlng) &&
+                        (top_layer instanceof L.Polygon || top_layer instanceof L.Circle || top_layer instanceof L.Rectangle)
+                    ){
+
+                        selected_layers[top_layer._leaflet_id] = top_layer;
+                        let title = top_layer.feature.properties.rec_Title;
+                        let id = top_layer.feature.properties.rec_ID;
+                        recIDs.push(id);
+                        sText += `<div class="leaflet_layer_opt" title="${title}" data-recid="${id}" data-id="${top_layer._leaflet_id}" style="padding-left: 0.9em; text-indent: -0.9em;">${title}</div>`;
+                    }
+                });
+
+                let found_cnt = Object.keys(selected_layers).length;
+
+                if(found_cnt > 1){
+                    if(this.options.clusterTemplate && this.options.clusterTemplate !== 'default'){
+                        let templateURL = window.hWin.HEURIST4.ui.getTemplateLink(this.options.clusterTemplate, `ids:${recIDs.join(',')}`);
+                        this._showContentInPopup(latlng, templateURL);
+                    }else{
+                        //show popup with selector
+                        this._showMultiSelectionPopup(latlng, sText, selected_layers, add_to_selection);
+                    }
+                    return;
                 }
 
             }                
 
             this._onLayerSelect( layer, event.latlng, add_to_selection );
-            
         }
+    },
+
+    _showContentInPopup: function(latlng, content){
+
+        if(content.startsWith('http')){
+            
+            let frame = $('<iframe>');
+            frame.attr("src", content);
+            content = frame[0];
+            /*
+            $.get(content, (responseTxt, statusTxt) => {
+                if(statusTxt == "success"){
+                    this._showContentInPopup(latlng, responseTxt);
+                }
+            });
+            return;
+            */
+        }
+
+        this.main_popup.setLatLng(latlng)
+                        .setContent(content)
+                        .openOn(this.nativemap);
+
+        $(this.main_popup.getElement()).css({
+            width: '25em'
+        });
+
     },
 
     //
@@ -2441,17 +2500,13 @@ $.widget( "heurist.mapping", {
     _showMultiSelectionPopup: function(latlng, sText, selected_layers, add_to_selection){
         
         let found_cnt = Object.keys(selected_layers).length;        
-        
-        this.main_popup.setLatLng(latlng)
-                        .setContent('<p style="margin:12px;font-style:italic">'
-                                +found_cnt+' map objects found here. Select desired: </p>'
-                                +'<div style="width:100%;max-height: 170px;overflow-y: auto;border: none;outline: none; cursor:pointer">'
-                                +sText+'</div>') 
-                        .openOn(this.nativemap);
 
-        $(this.main_popup.getElement()).css({
-            width: '300px'
-        })
+        this._showContentInPopup(latlng, `<p style="margin: 12px 0px; font-style: italic; font-size: 0.9em;">
+                            ${found_cnt} map objects found here.<br>
+                            Select for more information<br>
+                            <span class="downloadLink" style="color: blue; cursor: pointer;">${this.options.clusterDownloadText}</span>
+                            <select class="downloadTemplate" style="display: none;"></select></p>
+                            <div style="width:100%;max-height: 170px;overflow-y: auto;border: none;outline: none; cursor:pointer">${sText}</div>`);
 
         let that = this;
             
@@ -2478,6 +2533,99 @@ $.widget( "heurist.mapping", {
                 that.setFeatureSelection([layer.feature.properties.rec_ID], false, false, add_to_selection); //highlight from popup
             }
         }});
+
+        let $selDownloadTemplate = $(this.main_popup._container).find('.downloadTemplate');
+        let $selDownloadLink = $(this.main_popup._container).find('.downloadLink');
+
+        let onDownloadTemplateChange = () => {
+
+            let format = $selDownloadTemplate.val();
+            if(window.hWin.HEURIST4.util.isempty(format)){
+                return;
+            }
+
+            $selDownloadLink.show();
+            if($selDownloadTemplate.hSelect('instance') !== undefined){
+                $selDownloadTemplate.hSelect('widget').hide();
+            }else{
+                $selDownloadTemplate.hide();
+            }
+
+            let recIDs = [];
+            $(this.main_popup._container).find('.leaflet_layer_opt').each((idx, ele) => {
+                recIDs.push(ele.getAttribute('data-recid'));
+            });
+
+            let url = '';
+            if(format === 'def'){
+                url = `${window.hWin.HAPI4.baseURL}hserv/controller/record_output.php?db=${window.hWin.HAPI4.database}&mapmarker_csv=1&ids=${recIDs.join(',')}`;
+            }else{
+                url = `${window.hWin.HAPI4.baseURL}?template=${format}&q=ids:${recIDs.join(',')}&db=${window.hWin.HAPI4.database}`;
+            }
+            window.open(url, '_blank');
+
+            $selDownloadTemplate.val('');
+
+            if($selDownloadTemplate.hSelect('instance') !== undefined){
+                $selDownloadTemplate.hSelect('refresh');
+            }
+        };
+
+        this._on($selDownloadLink, {
+            click: () => {
+
+                if(window.hWin.HEURIST4.util.isempty(this.options.clusterDownloadTemplate)){ // default template only
+                    $selDownloadTemplate.val('def').trigger('change');
+                    return;                    
+                }
+
+                $selDownloadLink.hide();
+                if($selDownloadTemplate.hSelect('instance') !== undefined){
+                    $selDownloadTemplate.hSelect('widget').show();
+                }else{
+                    $selDownloadTemplate.show();
+                }
+            }
+        });
+
+        if(window.hWin.HEURIST4.util.isempty(this.options.clusterDownloadTemplate)){
+            $('<option>', {value: 'def', title: 'Default format'}).appendTo($selDownloadTemplate);
+            this._on($selDownloadTemplate, {
+                change: onDownloadTemplateChange
+            });
+            $selDownloadTemplate.uniqueId();
+            return;
+        }
+
+        window.hWin.HEURIST4.ui.createTemplateSelector($selDownloadTemplate, [
+            {key: '', title: 'select a download format...'},
+            {key: 'def', title: 'Default CSV format'}
+        ], null, {
+            useHtmlSelect: true,
+            onComplete: () => {
+
+                if(!window.hWin.HEURIST4.util.isempty(this.options.clusterDownloadTemplate) && this.options.clusterDownloadTemplate !== 'all'){
+                    $.each($selDownloadTemplate.find('option'), (idx, option) => {
+                        if(idx <= 1){ // 0 - Placeholder, 1 - Default format
+                            return;
+                        }
+                        if(option.value !== this.options.clusterDownloadTemplate){
+                            option.setAttribute('disabled', true);
+                            option.setAttribute('hidden', true);
+                        }
+                    });
+                }
+
+                $selDownloadTemplate.hSelect({
+                    change: onDownloadTemplateChange,
+                    open: () => { this.main_popup.options.autoClose = false; },
+                    close: () => { this.main_popup.options.autoClose = true; }
+                });
+
+                $selDownloadTemplate.hSelect('widget').hide().css('width', '17em');
+            }
+        });
+
     },
 
     //
@@ -2490,7 +2638,7 @@ $.widget( "heurist.mapping", {
     //
     _onLayerSelect: function(layer, latlng, add_to_selection){
 
-        if(layer.options && layer.options.selectable===false)
+        if(layer && layer.options && layer.options.selectable===false)
         {
             return;  
         } 
@@ -2500,11 +2648,9 @@ $.widget( "heurist.mapping", {
 
         function __showPopup(content, latlng){
             
-            if(that.options.map_popup_mode=='standard'){ //show in map popup control
-                
-                that.main_popup.setLatLng(latlng)
-                            .setContent(content)
-                            .openOn(that.nativemap);
+            if(that.options.map_popup_mode=='standard' || that.options.map_popup_mode=='standard_frame'){ //show in map popup control
+
+                that._showContentInPopup(latlng, content);
 
                 let $popup_ele = $(that.main_popup.getElement()); // popup container
                 let $content = $popup_ele.find('.leaflet-popup-content'); // content container
@@ -2528,6 +2674,10 @@ $.widget( "heurist.mapping", {
                 }else if(behaviour == 'scale'){
                     maxw = (that.options.layout_params['popup_width'] != null) ? that.options.layout_params['popup_width'] : '';
                     maxh = (that.options.layout_params['popup_height'] != null) ? that.options.layout_params['popup_height'] : '94%';
+                }
+
+                if(width === 'auto'){
+                    $popup_ele.css('min-width', '30em');
                 }
 
                 // user preference, session cached only
@@ -2591,8 +2741,10 @@ $.widget( "heurist.mapping", {
         if(layer.feature.properties.rec_ID>0){
             
             that.setFeatureSelection([layer.feature.properties.rec_ID], false, false, add_to_selection); //highlight without zoom
-            
-            if(!add_to_selection){
+
+            if(add_to_selection){
+                return;
+            }
 
             let info = layer.feature.properties.rec_Info; //popup info may be already prepared
             if(info){
@@ -2622,7 +2774,7 @@ $.widget( "heurist.mapping", {
                     popupURL = window.hWin.HAPI4.baseURL + 'viewers/record/renderRecordData.php?recID='
                             +layer.feature.properties.rec_ID
                             +'&db='+db;
-                    
+
                     if(that.options.map_popup_mode=='dialog' || that.mapPopUpTemplate=='standard'){
                         that.options.map_popup_mode='dialog';
                         popupURL = popupURL + '&ll=WebSearch';
@@ -2639,29 +2791,33 @@ $.widget( "heurist.mapping", {
             if(popupURL){
                 
                 if(that.options.map_popup_mode=='dialog'){
-                    
-                        let opts = { 
-                                is_h6style: true,
-                                modal: false,
-                                dialogid: 'recordview_popup',    
-                                //onmouseover: function(){that._clearTimeouts();},
-                                title:window.hWin.HR('Info')}                
-                    
-                        window.hWin.HEURIST4.msg.showDialog(popupURL, opts);
-                        
+
+                    let opts = { 
+                        is_h6style: true,
+                        modal: false,
+                        dialogid: 'recordview_popup',    
+                        //onmouseover: function(){that._clearTimeouts();},
+                        title:window.hWin.HR('Info')
+                    };                
+
+                    window.hWin.HEURIST4.msg.showDialog(popupURL, opts);
+
                 }else if(that.options.map_popup_mode!='none'){
-                    $.get(popupURL, function(responseTxt, statusTxt, xhr){
-                        if(statusTxt == "success"){
-                            __showPopup(responseTxt, latlng);
-                        }
-                    });
+                    
+                    if(that.options.map_popup_mode=='standard_frame'){
+                        __showPopup(popupURL, latlng);
+                    }else{
+                        $.get(popupURL, function(responseTxt, statusTxt, xhr){
+                            if(statusTxt == "success"){
+                                __showPopup(responseTxt, latlng);
+                            }
+                        });
+                    }
                 }
             }else{
                 __showPopup(info, latlng);
             }
-            
-            }  // !add_to_selection
-    
+
         }else{
             // show multiple selection
             let sText = '';    
@@ -2911,12 +3067,13 @@ $.widget( "heurist.mapping", {
                 }
                 this.highlightedMarkers.push(new_layer);
             }
-        }        
-          
-        //this.main_layer.remove();
-        //this.main_layer.addTo( this.nativemap );
+        }
+
         if (!(_from_timeline===true || this.notimeline)) {
             this.vistimeline.timeline('setSelection', this.selected_rec_ids);
+        }else if(_from_timeline && this.nomap && !add_to_selection){
+            this.options.map_popup_mode = 'dialog';
+            this._onLayerSelect(selected_markers.at(-1), false, false);
         }
         if(_need_zoom){    
             this.zoomToSelection();        
@@ -3407,7 +3564,7 @@ $.widget( "heurist.mapping", {
             
             this.markerClusterGridSize = parseInt(window.hWin.HAPI4.get_prefs_def('mapcluster_grid', 50));
             this.markerClusterMaxZoom = parseInt(window.hWin.HAPI4.get_prefs_def('mapcluster_zoom', 18));
-            this.markerClusterMaxSpider = parseInt(window.hWin.HAPI4.get_prefs_def('mapcluster_spider', 5));
+            this.markerClusterMaxSpider = Number.parseInt(this.options.clusterSpiderMax, 10) || window.hWin.HAPI4.get_prefs_def('mapcluster_spider', 6);
         }
         
         
@@ -3472,6 +3629,20 @@ $.widget( "heurist.mapping", {
             if(!(this.options.zoomToPointInKM>0)){
                 this.options.zoomToPointInKM  = 5; //default value
             }
+        }
+
+        if(params['clusterTemplate']){
+            this.options.clusterTemplate = params['clusterTemplate'];
+        }
+        if(params['clusterDownloadTemplate']){
+            this.options.clusterDownloadTemplate = params['clusterDownloadTemplate'];
+        }
+        if(params['clusterDownloadText']){
+            this.options.clusterDownloadText = params['clusterDownloadText'];
+        }
+        if(params['clusterSpiderMax']){
+            this.options.clusterSpiderMax = Number.parseInt(params['clusterSpiderMax'], 10) || 6;
+            this.markerClusterMaxSpider = this.options.clusterSpiderMax;
         }
 
         //special case - till thematic map is not developed - for custom style
@@ -4077,7 +4248,12 @@ $.widget( "heurist.mapping", {
             //status has been changed - action
             if(this.options.element_layout){
                 if(!this.is_timeline_disabled && !this.is_map_disabled){
-                    this.timeline_height = $(this.options.element_layout).find('.ui-layout-south').height() + 7;
+                    try{
+                        this.timeline_height = $(this.options.element_layout).find('.ui-layout-south').height() + 7;    
+                    }catch(e){
+                        this.timeline_height = 0;
+                    }
+                    
                     //this.timeline_height = window.hWin.HAPI4.LayoutMgr.cardinalPanel('getSize', ['south','layoutHeight']
                     //    , $(this.options.element_layout) );
                 }

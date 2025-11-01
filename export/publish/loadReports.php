@@ -93,7 +93,7 @@ if ($method == "searchreports") {
     $res = $mysqli->query($query);
     if ($res) {
         while ($row = $res->fetch_assoc()) {
-            $row['status'] = getStatus($row); // Determine status of the report (e.g., file existence)
+            $row['status'] = getStatus($row, true); // Determine status of the report (e.g., file existence)
             $records[] = $row;
         }
         $res->close();
@@ -188,8 +188,9 @@ exit; // Ensure script terminates after handling the request.
      * Status is determined by the existence of its Smarty template, output folder, and output file.
      *
      * @param array $row Associative array containing report schedule data (must include 'rps_Template', 'rps_FilePath', 'rps_FileName').
+     * @param bool $returnLastModified Instead of returning 0 for OK, return the last modification timestamp for the file
      * @return int Status code:
-     *             0 - OK (all files/folders exist).
+     *             0/timestamp - OK (all files/folders exist).
      *             1 - Template file missing.
      *             2 - Output folder does not exist.
      *             3 - Output file does not exist.
@@ -197,7 +198,7 @@ exit; // Ensure script terminates after handling the request.
      * @uses HEURIST_SMARTY_TEMPLATES_DIR Path to Smarty templates.
      * @uses HEURIST_FILESTORE_DIR Path to the Heurist filestore.
      */
-    function getStatus($row)
+    function getStatus($row, $returnLastModified = false)
     {
         // Check if the Smarty template file exists
         if (!file_exists(HEURIST_SMARTY_TEMPLATES_DIR.$row['rps_Template'])) {
@@ -205,14 +206,16 @@ exit; // Ensure script terminates after handling the request.
         }
 
         // Determine the output directory path
+        /* OUTPUT FOLDER is always generated-reports
         if ($row['rps_FilePath'] != null) {
             $dir = $row['rps_FilePath'];
             if (substr($dir, -1) != "/") {
                 $dir = $dir."/";
             }
-        } else {
-            $dir = HEURIST_FILESTORE_DIR."generated-reports/"; // Default directory
         }
+        */
+            
+        $dir = HEURIST_FILESTORE_DIR."generated-reports/"; // Default directory
 
         // Check if the output directory exists
         if (!file_exists($dir)) {
@@ -227,14 +230,20 @@ exit; // Ensure script terminates after handling the request.
         $path_parts = pathinfo($outputfile);
         $ext = array_key_exists('extension', $path_parts) ? $path_parts['extension'] : null;
         if ($ext == null) {
-            $outputfile = $outputfile.".html";
+            //take extension from rps_URL
+            if(!empty($row['rps_URL'])){
+                $outputfile = $outputfile.'.'.$row['rps_URL'];
+            }else{
+                $outputfile = $outputfile.'.html';    
+            }
         }
 
         // Check if the output file exists
         if (!file_exists($outputfile)) {
             return 3; // Output file does not exist
         } else {
-            return 0; // OK
+            $lastModified = filemtime($outputfile);
+            return $returnLastModified ? date('Y-m-d H:i', $lastModified) : 0; // OK
         }
     }
 

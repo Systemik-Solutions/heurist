@@ -376,7 +376,7 @@ function editCMS2(website_document){
 
         let url = window.hWin.HEURIST4.ui.getCmsLink({version:2, websiteid:home_page_record_id});
         
-        _editor_panel.find('.website-url').text(url).attr('title', `Click to copy ${url} to clipboard`).on('click', function(){ // save website url to clipboard
+        _editor_panel.find('.website-url').text(url).attr('href', url).attr('title', `Click to copy ${url} to clipboard`).on('click', function(){ // save website url to clipboard
             window.hWin.HEURIST4.util.copyStringToClipboard(`${url}`);
             window.hWin.HEURIST4.msg.showMsgFlash('Website URL saved to clipboard', 3000);
         });
@@ -552,7 +552,8 @@ function editCMS2(website_document){
         
         //2. reload content
         window.hWin.HAPI4.layoutMgr.setEditMode(false);
-        window.hWin.HAPI4.layoutMgr.layoutInit(_layout_content, _layout_container, {rec_ID:home_page_record_id, lang:current_language});
+        window.hWin.HAPI4.layoutMgr.layoutInit(_layout_content, _layout_container, 
+                                        {rec_ID:home_page_record_id, lang:current_language}, false);
 
         // Display cms editor button
         _ws_body.find('#btnOpenCMSeditor').show().html('website editor');
@@ -607,7 +608,9 @@ const sMsg = '<p>The internal storage format of web pages has changed for greate
         
         opts.keep_top_config = true;
         opts.lang = current_language;
-        const res = window.hWin.HAPI4.layoutMgr.layoutInitFromJSON(_layout_content, _layout_container, opts);
+        const res = window.hWin.HAPI4.layoutMgr.layoutInit(_layout_content, _layout_container, opts, true)
+        //window.hWin.HAPI4.layoutMgr.setEditMode( true );
+        //const res = window.hWin.HAPI4.layoutMgr.layoutInitFromJSON(_layout_content, _layout_container, opts);
       
 //console.log(res);      
         
@@ -657,7 +660,6 @@ const sMsg = '<p>The internal storage format of web pages has changed for greate
 
             return;
         }
-      
         tinymce.remove('.tinymce-body'); //detach
         _layout_container.find('.lid-actionmenu').remove();
         
@@ -674,7 +676,6 @@ const sMsg = '<p>The internal storage format of web pages has changed for greate
         if(Object.hasOwn(custom_formatting, 'block_formats') && custom_formatting.block_formats.length > 0){
             style_formats.push({ title: 'Custom blocks', items: custom_formatting.block_formats });
         }
-
         let inlineConfig = {
             selector: selector,
             menubar: false,
@@ -1119,8 +1120,10 @@ const sMsg = '<p>The internal storage format of web pages has changed for greate
     
         _layout_container.find('div[data-hid]').removeClass('cms-element-editing headline marching-ants marching');                        
         
-        _panel_treePage.find('span.fancytree-title').css({'font-style':'normal', 'text-decoration':'none'});
-        _panel_treePage.find('.fancytree-node').removeClass('fancytree-active');
+        if(_panel_treePage){
+            _panel_treePage.find('span.fancytree-title').css({'font-style':'normal', 'text-decoration':'none'});
+            _panel_treePage.find('.fancytree-node').removeClass('fancytree-active');
+        }
         
         _hideMenuInTree();
 
@@ -1133,8 +1136,10 @@ const sMsg = '<p>The internal storage format of web pages has changed for greate
             _editor_panel.find('.page_tree').show();
             
             _onPageChange();
-            
-            _panel_treePage[0].style.removeProperty('height');
+        
+            if(_panel_treePage){    
+                _panel_treePage[0].style.removeProperty('height');
+            }
         }
         
         _panel_propertyView.hide();
@@ -1684,7 +1689,8 @@ function(value){
         }else if(parent_element && parent_element.type=='tabs'){
             window.hWin.HAPI4.layoutMgr.layoutInitTabs(parent_element, parent_container)
         }else{
-            window.hWin.HAPI4.layoutMgr.layoutInit(parent_children, parent_container, {rec_ID:home_page_record_id, lang:current_language}); 
+            window.hWin.HAPI4.layoutMgr.layoutInit(parent_children, parent_container, 
+                        {rec_ID:home_page_record_id, lang:current_language}, true, false); 
         }
         
         page_was_modified = true;
@@ -1751,7 +1757,7 @@ function(value){
         }
         
         //redraw page
-        window.hWin.HAPI4.layoutMgr.layoutInit(_layout_content, _layout_container, {rec_ID:home_page_record_id, lang:current_language});
+        window.hWin.HAPI4.layoutMgr.layoutInit(_layout_content, _layout_container, {rec_ID:home_page_record_id, lang:current_language}, true);
         _updateActionIcons(200); //it inits tinyMCE also
         
         page_was_modified = true;
@@ -1810,6 +1816,11 @@ function(value){
             _layout_container.find('div[data-hid]').removeClass('cms-element-editing headline marching-ants marching');                        
         }
 
+        let element_cfg = window.hWin.HAPI4.layoutMgr.layoutContentFindElement(_layout_content, ele_id);  //json
+        if(!element_cfg){
+            //element to be edited not found
+            return;
+        }
       
         //1. show div with properties over treeview
         let h = _panel_treePage.find('ul.fancytree-container').height() + 10;
@@ -1845,8 +1856,6 @@ function(value){
         if(!ele.css('background-image') || ele.css('background-image')=='none'){
             ele.addClass('headline marching-ants marching');
         }
-        
-        let element_cfg = window.hWin.HAPI4.layoutMgr.layoutContentFindElement(_layout_content, ele_id);  //json
         
         let is_cardinal = (element_cfg.type=='north' || element_cfg.type=='south' || 
                 element_cfg.type=='east' || element_cfg.type=='west' || element_cfg.type=='center');
@@ -2092,7 +2101,9 @@ function(value){
         if(Array.isArray(new_element_json) && new_element_json.length==1){
             new_element_json = new_element_json[0];
         }
-
+        if(!Array.isArray(parent_children)){
+            parent_children = [];
+        }
         parent_children.push(new_element_json);
         window.hWin.HAPI4.layoutMgr.layoutInitKey(parent_children, parent_children.length-1);
 
@@ -2103,7 +2114,8 @@ function(value){
             window.hWin.HAPI4.layoutMgr.layoutInitTabs(parent_element, parent_container)
             //window.hWin.HAPI4.layoutMgr.layoutInit(_layout_content, _layout_container);    
         }else{
-            window.hWin.HAPI4.layoutMgr.layoutInit(parent_children, parent_container, {rec_ID:home_page_record_id, lang:current_language});
+            window.hWin.HAPI4.layoutMgr.layoutInit(parent_children, parent_container, 
+                    {rec_ID:home_page_record_id, lang:current_language}, true, false);
         }   
 
 
@@ -2202,7 +2214,7 @@ function(value){
         }
         __cleanLayout(newval);
 
-        let newname = newval[0].name;
+        //let newname = newval[0].name;
         
         // if page consist one group and one text without css - save only content of this text
         // it allows edit content in standard record edit

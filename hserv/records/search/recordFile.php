@@ -656,7 +656,7 @@ function downloadFile($mimeType, $filename, $originalFileName=null){
 /**
  * Downloads a file along with metadata as a ZIP file.
  *
- * @param System $system - The system object to interact with the environment.
+ * @param hserv\System $system - The system object to interact with the environment.
  * @param array $fileinfo - Information about the file (obtained by fileGetFullInfo).
  * @param int $rec_ID - The record ID associated with the file.
  */
@@ -889,8 +889,8 @@ EXP;
 
         $iiif_type = $params['var'][0]['ulf_OrigFileName'];//image or manifest
 
-        $miradorViewer = HEURIST_BASE_URL.'hclient/widgets/viewers/miradorViewer.php?db='
-                    .$system->dbname();
+        $miradorViewer = HEURIST_BASE_URL.'hclient/widgets/viewers/miradorViewer.php?db='.$system->dbname();
+        
         if(($iiif_type==ULF_IIIF_IMAGE || $params['var'][0]['ulf_PreferredSource']=='iiif_image')
             && @$params['var'][0]['rec_ID']>0){
             $miradorViewer = $miradorViewer.'&q=ids:'.intval($params['var'][0]['rec_ID']);
@@ -1026,7 +1026,7 @@ function isNotLocalFile($origName){
  *  Only performs this if the file is greater than 500 KB
  *  Also, scales the image down to at most 1000x1000 pixels
  *
- * @param System $system - initialised Heurist system object
+ * @param hserv\System $system - initialised Heurist system object
  * @param $fileinfo - data obtained by fileGetFullInfo
  * @param bool $return_url - return url to file instead of file path
  *
@@ -1391,7 +1391,7 @@ function fileCreateThumbnail( $system, $fileid, $is_download ){
 
                 if($errorMsg){
                     //database, record ID and name of bad image
-                    sendEmail(HEURIST_MAIL_TO_ADMIN, 'Cant create thumbnail image. DB:'.HEURIST_DBNAME,
+                    sendEmail(HEURIST_MAIL_TO_ADMIN, 'Cant create thumbnail image. DB:'.$system->dbname(),
                             'File ID#'.$file['ulf_ID'].'  '.$filename.'. '.$errorMsg);
 
                     $img = UImage::createFromString('Thumbnail not created. '.$errorMsg);

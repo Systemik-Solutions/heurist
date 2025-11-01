@@ -82,6 +82,7 @@ $.widget( "heurist.manageDefRecTypes", $.heurist.manageEntity, {
         
         //define it to load recordtypes from other server/database - if defined it allows selection only
         if(this.options.import_structure){ //for example HEURIST_INDEX_BASE_URL?db=Heurist_Reference_Set
+        
             if(this.options.select_mode=='manager') this.options.select_mode='select_single';
             this.options.use_cache = true;
             this.options.use_structure = true; //use HEURIST4.remote.rectypes for import structures    
@@ -326,7 +327,7 @@ $.widget( "heurist.manageDefRecTypes", $.heurist.manageEntity, {
                                 res = res.getIds();                     
                             }
                             
-                            if(res && Array.isArray(res) && res.length>0){
+                            if(res && Array.isArray(res) && res.length>0 && that.searchForm.searchDefRecTypes('instance')){
                                 that.options.rtg_ID = res[0];
                                 that.searchForm.searchDefRecTypes('option','rtg_ID', that.options.rtg_ID);
                             }
@@ -341,7 +342,9 @@ $.widget( "heurist.manageDefRecTypes", $.heurist.manageEntity, {
                                 that.searchForm.find('#chb_show_all_groups').prop('checked', false);
                                 that.searchForm.find('#input_sort_type').val('name');
 
-                                that.searchForm.searchDefRecTypes('startSearch');
+                                if(that.searchForm.searchDefRecTypes('instance')){
+                                    that.searchForm.searchDefRecTypes('startSearch');    
+                                }
                             }
                         },
                         add_to_begin: true
@@ -357,9 +360,8 @@ $.widget( "heurist.manageDefRecTypes", $.heurist.manageEntity, {
             that.recordList.css({'top':iheight});     
             //!!!! that.changeUI(null, that.options.ui_params);    
         }
-        if(this.searchForm && typeof searchDefRecTypes === 'function'){
-            this.searchForm.searchDefRecTypes(this.options);    
-        }
+        
+        this.searchForm.searchDefRecTypes(this.options);    
         
         if(this.options.use_cache){
            

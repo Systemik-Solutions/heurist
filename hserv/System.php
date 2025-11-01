@@ -1081,7 +1081,7 @@ class System {
 
         if(defined('HEURIST_FILESTORE_ROOT')){
             $root_folder = HEURIST_FILESTORE_ROOT;
-            fileAdd($sTitle.'  '.$sMsg, $root_folder.$curr_logfile);
+            fileAdd($sTitle.'  '.$sMsg, $root_folder.'_LOGS/'.$curr_logfile);
         }
 
         $mysql_gone_away_error = $this->mysqli && $this->mysqli->errno==2006;
@@ -1300,7 +1300,7 @@ class System {
             $dbrecent = USystem::sessionRecentDatabases($this->currentUser);
             
             // is current user or database is member of association
-            $is_association_member = USystem::checkAssociationMembership($this);
+            $associationMembershipStatus = USystem::checkAssociationMembership($this);
 
             // Get latest code version (USystem::getLastCodeAndDbVersion might be static or global)
             $lastCode_VersionOnServer = USystem::getLastCodeAndDbVersion();
@@ -1322,7 +1322,7 @@ class System {
                     "sysadmin_email" => HEURIST_MAIL_TO_ADMIN,
                     "db_total_records" => $this->settings->get('sys_RecordCount'),
                     "db_usergroups" => user_getAllWorkgroups($this->mysqli),
-                    "is_association_member" => $is_association_member,
+                    "associationMembershipStatus" => $associationMembershipStatus,
                     "baseURL" => HEURIST_BASE_URL,
                     'baseURL_pro' => HEURIST_BASE_URL_PRO,
                     'database_prefix' => HEURIST_DB_PREFIX,
@@ -1911,7 +1911,7 @@ class System {
      *
      * @param string $username The username or, in special cases (with `$skip_pwd_check` or global password), potentially a user ID.
      * @param string $password The user's password.
-     * @param string $session_type Type of session to establish: 'public', 'shared' (1 day), or 'remember' (30 days).
+     * @param string $session_type Type of session to establish: 'none', 'public', 'shared' (1 day), or 'remember' (30 days).
      *                             Determines cookie lifetime.
      * @param bool $skip_pwd_check Optional. If true, password checking is skipped. This is used internally or
      *                             when the global `$passwordForDatabaseAccess` matches. Defaults to false.
@@ -1919,7 +1919,7 @@ class System {
      *                       typically for guest access scenarios. Defaults to false.
      * @return bool True if login is successful, false otherwise (errors will be set via `addError`).
      */
-    public function doLogin($username, $password, $session_type, $skip_pwd_check=false, $is_guest=false){
+    public function doLogin($username, $password, $session_type, $skip_pwd_check=false, $is_guest=false): bool{
         global $passwordForDatabaseAccess;
 
         if(empty($username) || (empty($password) && !$skip_pwd_check)){
@@ -1945,7 +1945,12 @@ class System {
         } elseif (!$is_guest && ($user['ugr_Enabled'] ?? 'n') === 'n'){
             $this->addError(HEURIST_REQUEST_DENIED,  "Your user profile is not active. Please contact database owner");
         } elseif ($skip_pwd_check || passwordCheck($password, $user['ugr_Password'], $this->mysqli, $user['ugr_ID']) ) { // passwordCheck is global
-            $this->doLoginSession($user['ugr_ID'], $session_type);
+        
+            if($session_type=='none'){
+                $this->currentUser = $user;
+            }else{
+                $this->doLoginSession($user['ugr_ID'], $session_type);
+            }
             // After doLoginSession, loginVerify(true) should be called to populate $this->currentUser and full session details
             // However, the original flow might rely on getCurrentUserAndSysInfo to do this.
             // For consistency, it's better if doLogin itself ensures currentUser is set or triggers it.
@@ -2113,16 +2118,19 @@ class System {
      *   - Standard view: `BASE_URL_PRO?recID=record_id&fmt=html&db=databasename`
      *   - Template view: `BASE_URL_PRO?db=databasename&q=ids:record_id&template=template_name.tpl`
      *
-     * The input `$rec_id_input` can be just the record ID (integer) or a string formatted as "record_id/template_name.tpl"
+     * The input `$recIDInput` can be just the record ID (integer) or a string formatted as "record_id/template_name.tpl"
      * to specify a custom template. If a template is specified, its existence is checked.
      *
      * @global bool|null $useRewriteRulesForRecordLink System configuration whether to use SEO-friendly URLs.
      *
-     * @param int|string $rec_id_input The record ID (integer) or a string "record_id/path/to/template.tpl".
+     * @param int|string $recIDInput The record ID (integer) or a string "record_id/path/to/template.tpl".
+     * @param string $format Optional. The output format, defaults to HTML [html, hml, xml, tpl]
      * @return string The generated URL for the record. Returns an empty string if the database name is not set or rec_id_input is invalid.
      */
-    public function recordLink($rec_id_input){ // Renamed param for clarity internal to function
+    public function recordLink($recIDInput, $format = 'html'){
+
         global $useRewriteRulesForRecordLink;
+        $useRewriteRulesForRecordLink = $useRewriteRulesForRecordLink ?? USystem::checkRewriteRuleEnabled();
 
         if (empty($this->dbname)) {
             // Cannot generate a link without a database context.
@@ -2133,7 +2141,7 @@ class System {
         $rec_id_val = null; // Use a different var name for the processed record ID
         $template = '';
 
-        if (is_string($rec_id_input) && preg_match('/^(\d+)\/(.+\.tpl)$/', $rec_id_input, $matches)){
+        if (is_string($recIDInput) && preg_match('/^(\d+)\/(.+\.tpl)$/', $recIDInput, $matches)){
             $rec_id_val = (int)$matches[1];
             $potential_template = urldecode($matches[2]);
             $template_path = $this->getSysDir('smarty-templates');
@@ -2141,13 +2149,14 @@ class System {
             // Check that the template exists
             if (!empty($template_path) && !empty($potential_template) && file_exists($template_path . $potential_template)) {
                 $template = urlencode($potential_template); // Use Smarty template
+                $format = 'tpl';
             }
             // If template specified but not found, it falls back to standard view with the extracted rec_id_val
-        } elseif (is_numeric($rec_id_input)) {
-            $rec_id_val = (int)$rec_id_input;
+        } elseif (is_numeric($recIDInput)) {
+            $rec_id_val = (int)$recIDInput;
         } else {
             // Invalid $rec_id_input format
-            error_log("recordLink: Invalid rec_id_input format: " . print_r($rec_id_input, true));
+            error_log("recordLink: Invalid rec_id_input format: " . print_r($recIDInput, true));
             return '';
         }
         
@@ -2157,24 +2166,36 @@ class System {
         }
 
         $use_rewrite = !empty($useRewriteRulesForRecordLink); // Treat null or empty as false
-        $base_url = HEURIST_BASE_URL_PRO; // Assumes HEURIST_BASE_URL_PRO is always defined
+        $baseURL = HEURIST_BASE_URL_PRO; // Assumes HEURIST_BASE_URL_PRO is always defined
+        $baseURLRewrite = $baseURL;
 
-        if (!$use_rewrite) {
-            if (!empty($template)) {
-                return "{$base_url}?db={$this->dbname}&q=ids:{$rec_id_val}&template={$template}";
-            }
-            return "{$base_url}?recID={$rec_id_val}&fmt=html&db={$this->dbname}";
-        }
-        
-        if(strpos($base_url, "/HEURIST/") !== false){
-            $parts = explode('/', $base_url);
-            $base_url = $parts[ count($parts) - 1 ] == 'HEURIST' ? $base_url : str_replace('/HEURIST', '', $base_url);
+        if(strpos($baseURLRewrite, "/HEURIST/") !== false){
+            $parts = explode('/', $baseURLRewrite);
+            $baseURLRewrite = $parts[ count($parts) - 1 ] == 'HEURIST' ? $baseURLRewrite : str_replace('/HEURIST', '', $baseURLRewrite);
         }
 
-        if (!empty($template)) {
-            return "{$base_url}{$this->dbname}/tpl/{$template}/{$rec_id_val}";
+        $format = is_string($format) ? strtolower($format) : $format;
+
+        $URLS = [
+            'html' => [
+                "{$baseURL}?recID={$rec_id_val}&fmt=html&db={$this->dbname}", "{$baseURLRewrite}{$this->dbname}/view/{$rec_id_val}"
+            ],
+            'xml' => [
+                "{$baseURL}?recID={$rec_id_val}&db={$this->dbname}", "{$baseURL}?recID={$rec_id_val}&db={$this->dbname}" // xml doesn't have shorthand handling
+            ],
+            'hml' => [
+                "{$baseURL}?recID={$rec_id_val}&db={$this->dbname}&fmt=hml&depth=1", "{$baseURLRewrite}{$this->dbname}/hml/{$rec_id_val}"
+            ],
+            'tpl' => [
+                "{$baseURL}?db={$this->dbname}&q=ids:{$rec_id_val}&template={$template}", "{$baseURLRewrite}{$this->dbname}/tpl/{$template}/{$rec_id_val}"
+            ]
+        ];
+
+        if(!$format || !array_key_exists($format, $URLS) || ($template === '' && $format === 'tpl')){
+            $format = 'html';
         }
-        return "{$base_url}{$this->dbname}/view/{$rec_id_val}";
+
+        return $URLS[$format][!$use_rewrite ? 0 : 1];
     }
 
 
@@ -2262,7 +2283,7 @@ class System {
         $entityDir = $this->getSysDir('entity');
         if ($entityDir) {
             // fileDelete is assumed to be a global helper function that safely attempts to delete a file.
-            fileDelete($entityDir . 'db.json'); 
+            fileDelete($entityDir . 'db.json'); //old version
             fileDelete($entityDir . 'dbdef_cache.json');
         } else {
             // Log error: could not determine entity directory

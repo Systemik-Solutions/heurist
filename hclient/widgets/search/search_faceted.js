@@ -1534,7 +1534,12 @@ $.widget( "heurist.search_faceted", {
                             if(facets[facet_index]["var"] == val.substring(2)){ //find facet by variable
 
                                 if(facets[facet_index]['isfacet']==that._FT_INPUT){  //this is direct input
-                                    let sel = $(_inputs[val]).editing_input('getValues');
+                                    
+                                    let sel = null;
+                                    let ele = $(_inputs[val]);
+                                    if(ele.length>0 && ele.editing_input('instance')){
+                                        sel = ele.editing_input('getValues');
+                                    }
                                     if(sel && sel.length>0){
 
                                         let next_idx = false;
@@ -3002,7 +3007,7 @@ let s_time = new Date().getTime() / 1000;
                                             let slider_width = $slide_range.width();
 
                                             // Diagram's Container
-                                            let $diagram = $('<div id="facet_histo_'+facet_index+'">')
+                                            let $diagram = $('<div>', {id: `facet_histo_${facet_index}`, class: 'heuristFacetHistogram'})
                                             .css({
                                                 'height': '50px', 
                                                 'max-height': '50px', 
@@ -3067,7 +3072,7 @@ let s_time = new Date().getTime() / 1000;
                                                     }
                                                 }
 
-                                                $('<div id="histo_col_'+i+'">')
+                                                $('<div>', {id: `histo_col_${facet_index}_${i}`, class: 'heuristFacetHistogramColumn'})
                                                 .css({
                                                     'background-color': 'gray', 
                                                     'width': col_width+'px', 

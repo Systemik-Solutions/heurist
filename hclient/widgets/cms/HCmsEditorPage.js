@@ -65,8 +65,6 @@ class HCmsEditorPage {
   //
   #initTinyMCE( key ){
 
-        this.tinymce = this._cmsEditor.getTinymce();
-      
         let that = this;
         if(!Object.hasOwn(window.hWin.HAPI4.dbSettings, 'TinyMCE_formats')){ // retrieve custom formatting
 
@@ -87,8 +85,12 @@ class HCmsEditorPage {
 
             return;
         }
-        
+
+        this.tinymce = this._cmsEditor.getTinymce();
         this.detachTinyMCE(false);
+        if(!this.tinymce){
+            return;
+        }
         
         let selector = '.tinymce-body';
         if(key>0){
@@ -293,7 +295,11 @@ class HCmsEditorPage {
 
         };
       
+        
         this.tinymce.init(inlineConfig);
+        //try{}catch(e){
+        //    console.log('Can not init tinymce. Selector: "'.selector.'". Found:'.$(selector).length);
+        //}
 
         // Correct image and embedded urls
         this._layout_container.find('img, embed').each(function(i,ele){window.hWin.HEURIST4.util.restoreRelativeURL(ele);});
@@ -1154,7 +1160,7 @@ function(value){
 
             //remove child
             parent_element = this.layoutMgr.layoutContentFindElement(this._layout_content, parentnode.key);
-            parent_children = parent_element.children;
+            parent_children = parent_element?parent_element.children:[];
             parent_container = this._layout_container.find('.cms-element[data-hid='+parentnode.key+']');
             
         }
@@ -1169,8 +1175,9 @@ function(value){
           }   
         }        
         //from json
-        parent_children.splice(idx, 1); //remove from children
-
+        if(idx>=0){
+            parent_children.splice(idx, 1); //remove from children
+        }
         //from tree
         node.remove();
         
@@ -1182,7 +1189,7 @@ function(value){
             this.layoutMgr.layoutInitTabs(parent_element, parent_container)
         }else{
             this.layoutMgr.layoutInit(parent_children, parent_container, 
-                        {rec_ID:this._cmsEditor.website_id, lang:this._cmsEditor.current_language}, true); 
+                        {rec_ID:this._cmsEditor.website_id, lang:this._cmsEditor.current_language}, true, false); 
         }
         
         this.page_was_modified = true;
@@ -1245,7 +1252,7 @@ function(value){
         
         //redraw page
         this.layoutMgr.layoutInit(this._layout_content, this._layout_container, 
-                {rec_ID:this._cmsEditor.website_id, lang:this._cmsEditor.current_language}, true);
+                {rec_ID:this._cmsEditor.website_id, lang:this._cmsEditor.current_language}, true, true);
         this.#updateActionIcons(200); //it inits tinyMCE also
         
         this.page_was_modified = true;
@@ -1341,6 +1348,11 @@ function(value){
         
         let element_cfg = this.layoutMgr.layoutContentFindElement(this._layout_content, ele_id);  //json
         
+        if(!element_cfg){
+            //element not found
+            return;
+        }
+        
         let is_cardinal = (element_cfg.type=='north' || element_cfg.type=='south' || 
                 element_cfg.type=='east' || element_cfg.type=='west' || element_cfg.type=='center');
             
@@ -1372,10 +1384,11 @@ function(value){
 
                         //update treeview                    
                         let node = $.ui.fancytree.getTree( that._panel_treePage ).getNodeByKey(''+new_cfg.key);
-                        node.setTitle(new_cfg.title);
-                        that.#defineActionIcons($(node.li).find('span.fancytree-node:first'), new_cfg.key, 
+                        if(node){
+                            node.setTitle(new_cfg.title);
+                            that.#defineActionIcons($(node.li).find('span.fancytree-node:first'), new_cfg.key, 
                                     'position:absolute;right:8px;padding:2px;margin-top:0px;');
-                               
+                        }       
                         if(new_cfg.type=='cardinal'){ //????
                             //recreate cardinal layout
                             that.layoutMgr.setEditMode(true);
@@ -1630,10 +1643,9 @@ function(value){
             this.layoutMgr.layoutInitAccordion(parent_element, parent_container)
         }else if(parent_element && parent_element.type=='tabs'){
             this.layoutMgr.layoutInitTabs(parent_element, parent_container)
-            //this.layoutMgr.layoutInit(this._layout_content, this._layout_container);    
         }else{
            this.layoutMgr.layoutInit(parent_children, parent_container, 
-                    {rec_ID:this._cmsEditor.website_id, lang:this._cmsEditor.current_language}, true);
+                    {rec_ID:this._cmsEditor.website_id, lang:this._cmsEditor.current_language}, true, false);
         }   
 
 
@@ -1724,6 +1736,21 @@ function(value){
         }
         
         window.hWin.HEURIST4.msg.bringCoverallToFront();
+       
+        
+        if(this._cmsEditor.webSite.version!=3 && window.hWin.DT_VERSION>0){
+
+            this._cmsEditor.webSite.version = 3;
+            let request = {a: 'addreplace',
+                            recIDs: this._cmsEditor.page_id,
+                            dtyID: window.hWin.DT_VERSION,
+                            insert_new_values: 1,
+                            rVal: 3};
+            
+            window.hWin.HAPI4.RecordMgr.batch_details(request, response=>{this.#saveLayoutCfg( callback )});
+            return;
+        }
+               
         
         let newval = window.hWin.HEURIST4.util.cloneJSON(this._layout_content);
         
@@ -1765,7 +1792,7 @@ function(value){
         }else{
             newval = JSON.stringify(newval);    
         }*/
-        
+
         newval = JSON.stringify(newval);
         
         let request = {a: 'addreplace',

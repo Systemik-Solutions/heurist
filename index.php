@@ -75,14 +75,27 @@ if( @$_REQUEST['isalive']==1){
     {
         $format = 'website';
 
-        if(@$_REQUEST['ver']==3){
+        $controller = new FrontController(isset($params)?$params:null);
+        
+        if(array_key_exists('ver', $_REQUEST)){
+            $websiteVersion = $_REQUEST['ver'];
+        }else{
+            //auto detect version of website
+            $websiteVersion = $controller->getWebsiteVersion();    
+            
+            if($websiteVersion==3 && @$_REQUEST['edit']){
+                $_REQUEST['edit'] = 'start';
+            }
+        }
+
+        if($websiteVersion==3){
             
             if(@$_REQUEST['edit']=='start'){
                 unset($_REQUEST['edit']);
                 if(!defined('PDIR')) {define('PDIR','');}
                 include_once dirname(__FILE__).'/hclient/widgets/cms/WebSiteEditor.php';
             }else{
-                $controller = new FrontController(isset($params)?$params:null);
+                //$controller = new FrontController(isset($params)?$params:null);
                 $controller->run();
             }
         }else{
@@ -110,8 +123,12 @@ if( @$_REQUEST['isalive']==1){
         $format = 'xml';
     }
 
-    redirectURL('redirects/resolver.php?db='.@$_REQUEST['db'].'&recID='.$recid.'&fmt='.$format
-            .(@$_REQUEST['noheader']?'&noheader=1':''));
+    $database = @$_REQUEST['db'];
+    $noheader = @$_REQUEST['noheader'] ? '&noheader=1' : '';
+    $depth = is_numeric(@$_REQUEST['depth']) ? '&depth=' . intval($_REQUEST['depth']) : '';
+
+    redirectURL("redirects/resolver.php?db={$database}&recID={$recid}&fmt={$format}{$noheader}{$depth}");
+
     return;
 
 }elseif (@$_REQUEST['ent']){
@@ -216,17 +233,20 @@ if( @$_REQUEST['isalive']==1){
     $params = USanitize::sanitizeInputArray();
 
     $name = $_REQUEST['disclaimer'];
-
-    $extension = strtolower(pathinfo($name, PATHINFO_EXTENSION));
-    if(empty($extension)){
-        $name .= '.html';
+    
+    if($name=='association_membership.html'){
+        $path = 'admin/verification/';
+    }elseif ($name=='terms_and_conditions.html'){
+        /*xtension = strtolower(pathinfo($name, PATHINFO_EXTENSION));
+        if(empty($extension)){
+            $name .= '.html';
+        }*/
+        $path = 'movetoparent/';
+    }else{
+        exit('Requested document is not allowed: ' . htmlspecialchars($name));
     }
-
-    $file = '../' . basename($name);
-    $backupFile = 'movetoparent/' . basename($name);
-    if(!file_exists($file)){
-        $file = $backupFile;
-    }
+    
+    $file = $path.basename($name);
 
     if(file_exists($file)){
         header("Location: {$file}");
@@ -359,7 +379,7 @@ require_once dirname(__FILE__).'/hclient/framecontent/initPage.php';
 <script type="text/javascript" src="<?php echo PDIR;?>external/js/platform.js"></script>
 
 <?php
-if(false && $isLocalHost){
+if($isLocalHost){
     ?>
     <link rel="stylesheet" type="text/css" href="<?php echo PDIR;?>external/js/datatable/datatables.min.css"/>
     <script type="text/javascript" src="<?php echo PDIR;?>external/js/datatable/datatables.min.js"></script>
@@ -500,7 +520,24 @@ if(@$_SERVER['REQUEST_METHOD']=='POST'){
                 //version is old
                 return;
             }
-
+            
+            if('nonmember'==window.hWin.HAPI4.sysinfo['associationMembershipStatus'] 
+            || 'viaowner'==window.hWin.HAPI4.sysinfo['associationMembershipStatus']){
+                
+                const lastcheck = window.hWin.HAPI4.get_prefs('association_teaser_last_shown');
+                const currdate =  new Date().toISOString().slice(0, 10);
+                if(lastcheck!=currdate){
+                
+                    window.hWin.HAPI4.save_pref('association_teaser_last_shown',  currdate);
+                
+                    window.hWin.HEURIST4.msg.showMsgDlgUrl(
+                              `${window.hWin.HAPI4.baseURL}?disclaimer=association_membership.html #content`,
+                               null, 'Heurist Network Association', 
+                               {enable_buttons_after:5000, closeOnEscape:false, noClose:true,
+                               container: 'dlg-association-teaser'});
+                }
+            }
+                
 
             var editRecID = window.hWin.HEURIST4.util.getUrlParameter('edit_id', window.location.search);
             if(editRecID>0){

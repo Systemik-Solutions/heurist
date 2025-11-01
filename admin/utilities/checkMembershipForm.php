@@ -18,9 +18,9 @@ $ENDPOINT = 'https://heuristref.net/h7-alpha/admin/utilities/checkMembershipApi.
 function postToEndpoint(array $payload, string $endpoint): string
 {
     $isMainServer = (@$_SERVER["SERVER_NAME"]=='heuristref.net');
-    
+
     if($isMainServer){
-        return checkMembershipInFile($payload['email'], $payload['host'], $payload['db'], '', $payload['firstName'], $payload['lastName']);
+        return checkMembershipInFile('', $payload['email'], $payload['host'], $payload['db'], '', $payload['firstName'], $payload['lastName']);
     }
     
     $postFields = http_build_query($payload, '', '&');
@@ -64,7 +64,7 @@ $values = array(
     'email'         => '',
     'firstName'     => '',
     'lastName'      => '',
-    'server_sel'    => 'huma-num.fr',
+    'server_sel'    => 'heurist.huma-num.fr',
     'server_custom' => '',
     'db'            => '',
 );
@@ -92,7 +92,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     if (!$validCombo) {
-        $statusMsg = '❌ Please provide at least one valid combination: Email OR (First name + Last name) OR (Server + Database).';
+        $statusMsg = 'Please provide at least one valid combination: Email OR (First name + Last name) OR (Server + Database).';
     } else {
         // Ensure DB has hdb_ prefix
         $dbName = strtolower($values['db']);
@@ -108,7 +108,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'lastName'  => $values['lastName'],
         );
 
-        $statusMsg = postToEndpoint($payload, $ENDPOINT);
+        $statusMsg = [];
+        $membership = postToEndpoint($payload, $ENDPOINT);
+        if(strpos($membership, 'database')!==false){
+          $statusMsg[] = 'project database';
+        }
+        if(strpos($membership, 'viaowner')!==false){
+          $statusMsg[] = 'database owner';
+        }
+        if(strpos($membership, 'individual')!==false){
+          $statusMsg[] = 'association member';
+        }
+        if(strpos($membership, 'nonmember')!==false){
+          $statusMsg = 'NO - please contact <a href="mailto:support@heuristnetwork.org">support@heuristnetwork.org</a> if incorrect';
+        }else{
+          $statusMsg = 'YES, member - ' . implode(' & ', $statusMsg);
+        }
     }
 }
 ?>
@@ -193,64 +208,70 @@ function clearForm(){
   <div class="card">
     <h1>HeuristNetwork Association — Membership Check</h1>
 
-    <?php if ($statusMsg !== ''): ?>
-      <div class="status">
-        <?php echo htmlspecialchars($statusMsg, ENT_QUOTES, 'UTF-8'); ?>
-      </div>
-    <?php endif; ?>
-
     <form method="post" action="" onsubmit="return disableButtonsOnSubmit(this);">
       <div class="full hr"></div>
 
       <div>
         <label for="email">Email</label>
-        <input id="email" name="email" type="email" placeholder="name@example.org"
+        <input id="email" name="email" type="email" placeholder=""
                value="<?php echo htmlspecialchars($values['email'], ENT_QUOTES, 'UTF-8'); ?>">
       </div>
 
-      <div></div>
+      <div class="full hr"></div>
 
-      <div>
-        <label for="firstName">First name</label>
-        <input id="firstName" name="firstName" type="text" placeholder="First name"
+      <div>  
+        <label for="firstName"><b>OR</b><br>First name</label>
+        <input id="firstName" name="firstName" type="text" placeholder=""
                value="<?php echo htmlspecialchars($values['firstName'], ENT_QUOTES, 'UTF-8'); ?>">
       </div>
 
-      <div>
+      <div> 
+        <br>
         <label for="lastName">Last name</label>
-        <input id="lastName" name="lastName" type="text" placeholder="Last name"
+        <input id="lastName" name="lastName" type="text" placeholder=""
                value="<?php echo htmlspecialchars($values['lastName'], ENT_QUOTES, 'UTF-8'); ?>">
       </div>
 
       <div class="full hr"></div>
 
       <div>
-        <label for="server_sel">Server name</label>
+        <label for="server_sel"><b>OR</b><br>Server name</label>
         <select id="server_sel" name="server_sel" onchange="toggleCustomServer(this)">
-          <option value="huma-num.fr" <?php echo $values['server_sel']==='huma-num.fr'?'selected':''; ?>>huma-num.fr</option>
+          <option value="heurist.huma-num.fr" <?php echo $values['server_sel']==='huma-num.fr'?'selected':''; ?>>heurist.huma-num.fr</option>
           <option value="heuristref.net" <?php echo $values['server_sel']==='heuristref.net'?'selected':''; ?>>heuristref.net</option>
-          <option value="other" <?php echo $values['server_sel']==='other'?'selected':''; ?>>Other (type below)</option>
+          <option value="other" <?php echo $values['server_sel']==='other'?'selected':''; ?>>Other (specify on the right)</option>
         </select>
       </div>
 
       <div>
-        <label for="server_custom">Custom server name</label>
-        <input id="server_custom" name="server_custom" type="text" placeholder="e.g. heurist.huma-num.fr"
+        <br>
+        <label for="server_custom">Other server (name only, omit https://)</label>
+        <input id="server_custom" name="server_custom" type="text" placeholder=""
                value="<?php echo htmlspecialchars($values['server_custom'], ENT_QUOTES, 'UTF-8'); ?>"
                <?php echo ($values['server_sel']==='other')?'':'disabled style="opacity:.6"'; ?>>
       </div>
 
       <div class="full">
         <label for="db">Database name</label>
-        <input id="db" name="db" type="text" placeholder="e.g. New_Shahnama_Project"
+        <input id="db" name="db" type="text" placeholder=""
                value="<?php echo htmlspecialchars($values['db'], ENT_QUOTES, 'UTF-8'); ?>">
       </div>
 
+      <div class="full hr"></div>
+
       <div class="full actions">
         <button type="submit" class="primary" id="checkBtn">CHECK</button>
-        <button type="button" id="clearBtn" onclick="clearForm()">Clear Form</button>
+        <button type="button" id="clearBtn" onclick="clearForm()">Reset Form</button>
       </div>
     </form>
+    
+<!-- Display the result -->
+   <?php if ($statusMsg !== ''): ?>
+      <div class="status">
+        <?php echo $statusMsg; ?>
+      </div>
+    <?php endif; ?>
+
   </div>
 </div>
 </body>
