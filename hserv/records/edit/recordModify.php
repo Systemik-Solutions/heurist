@@ -2433,6 +2433,7 @@ function executeSmarty($system, $smarty, $params, $mode=null, $heuristRec=null){
 
   $smarty->assign('heurist', $heuristRec);
 
+  $smarty->assign('HEURIST_DBNAME', $system->dbname());
   $smarty->assign('results', $record_ids);//assign
   $smarty->error_reporting = 0;
   $smarty->debugging = false;
