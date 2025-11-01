@@ -70,7 +70,7 @@ if($recTypeID==RT_EVENT){
                                 $comment = getFieldValue($relation1, 0, DT_EXTENDED_DESCRIPTION);
 
                                 print '<li>'.$event_address.' '
-                                .' <a href="dh_popup.php?db='.HEURIST_DBNAME.'&full=1&recID='.$addrID.'">'
+                                .' <a href="dh_popup.php?db='.$system->dbname().'&full=1&recID='.$addrID.'">'
                                 .getFieldValue($records_address, $addrID, 'rec_Title')
                                 .'</a><br> '.$comment
                                 .'</li>';
@@ -129,7 +129,7 @@ if($recTypeID==RT_EVENT){
                                     $relation1 = recordGetRealtionship_2($system, $personID , $addrID, 'address for person');
 
                                     print '<li>'.getTermById_2( getFieldValue($relation1, 0, DT_RELATION_TYPE))
-                                    .' at <a href="dh_popup.php?db='.HEURIST_DBNAME.'&full=1&recID='.$addrID.'">'
+                                    .' at <a href="dh_popup.php?db='.$system->dbname().'&full=1&recID='.$addrID.'">'
                                     .getFieldValue($records_address, $addrID, 'rec_Title')
                                     .'</a> on '.composeDates( $relation1, 0)
                                     .'</li>';

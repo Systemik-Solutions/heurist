@@ -394,7 +394,7 @@ IIIF;
 
         //although anyURI is defined it is not recognized by gephi v0.92
 
-        $heurist_url = HEURIST_BASE_URL.'?db='.HEURIST_DBNAME;
+        $heurist_url = HEURIST_BASE_URL.'?db='.$system->dbname();
 
         $rec_fields = '';
         if(!empty(@$params['columns'])){
@@ -877,7 +877,7 @@ IIIF;
 
             $name   = htmlspecialchars($record['rec_Title']);
             $image  = htmlspecialchars(HEURIST_RTY_ICON.$rty_ID);
-            $recURL = htmlspecialchars(HEURIST_BASE_URL.'recID='.$recID.'&fmt=html&db='.HEURIST_DBNAME);
+            $recURL = htmlspecialchars(HEURIST_BASE_URL.'recID='.$recID.'&fmt=html&db='.$system->dbname());
 
             $rec_values = '';
             if(is_array($retrieve_detail_fields)){
@@ -2315,7 +2315,7 @@ public static function getIiifResource($record, $ulf_ObfuscatedFileID, $type_res
             $resource_url = $external_url;  //external
         }else{
             //to itself
-            $resource_url = HEURIST_BASE_URL_PRO."?db=".HEURIST_DBNAME."&file=".$fileid;
+            $resource_url = HEURIST_BASE_URL_PRO."?db=".$system->dbname()."&file=".$fileid;
         }
 
         $height = 800;
@@ -2331,10 +2331,10 @@ public static function getIiifResource($record, $ulf_ObfuscatedFileID, $type_res
 
         $thumbfile = HEURIST_THUMB_DIR.'ulf_'.$fileid.'.png';
         if(file_exists($thumbfile)){
-            $tumbnail_url = HEURIST_BASE_URL_PRO.'?db='.HEURIST_DBNAME.'&thumb='.$fileid;
+            $tumbnail_url = HEURIST_BASE_URL_PRO.'?db='.$system->dbname().'&thumb='.$fileid;
         }else{
             //if thumb not exists - rectype thumb (HEURIST_RTY_ICON)
-            $tumbnail_url = HEURIST_BASE_URL_PRO.'?db='.HEURIST_DBNAME.'&version=thumb&icon='.$rectypeID;
+            $tumbnail_url = HEURIST_BASE_URL_PRO.'?db='.$system->dbname().'&version=thumb&icon='.$rectypeID;
         }
 
         $service = '';
@@ -2460,7 +2460,7 @@ if($resource_id){ //this is iiif image
 
 
 }else{
-    $root_uri = HEURIST_BASE_URL_PRO.'api/'.HEURIST_DBNAME.'/iiif/';
+    $root_uri = HEURIST_BASE_URL_PRO.'api/'.$system->dbname().'/iiif/';
     $canvas_uri = $root_uri.'canvas/'.$fileid;
     $annopage_uri = $root_uri.'page/'.$fileid;
     $annotation_uri = $root_uri.'annotation/'.$fileid;
@@ -2606,7 +2606,7 @@ private static function _processFieldData($dty_ID, &$values){
                 $f_id = $value['file']['ulf_ObfuscatedFileID'];
                 $external_url = $value['file']['ulf_ExternalFileReference'];
 
-                $value = empty($external_url) ? HEURIST_BASE_URL_PRO."?db=".HEURIST_DBNAME."&file={$f_id}" : $external_url;
+                $value = empty($external_url) ? HEURIST_BASE_URL_PRO."?db=".$system->dbname()."&file={$f_id}" : $external_url;
                 break;
 
             case 'enum': // get term label

@@ -1244,7 +1244,7 @@ if(defined('FONT_SIZE') && FONT_SIZE!==''){
 
         <script type="text/javascript" src="<?=HEURIST_BASE_URL?>viewers/gmap/mapViewer.js"></script>
         <script>
-            mapStaticURL = "<?php echo HEURIST_BASE_URL;?>viewers/gmap/mapStatic.php?width=300&height=300&db=<?php echo HEURIST_DBNAME;?>";
+            mapStaticURL = "<?php echo HEURIST_BASE_URL;?>viewers/gmap/mapStatic.php?width=300&height=300&db=<?php echo $system->dbname();?>";
         </script>
 
         <?php

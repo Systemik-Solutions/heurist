@@ -93,7 +93,7 @@ if($recTypeID==RT_PERSON){
                                 $comment = getFieldValue($relation1, 0, DT_EXTENDED_DESCRIPTION);
 
                                 print '<li>'.getTermById_2( getFieldValue($relation1, 0, DT_RELATION_TYPE))
-                                .' at <a href="dh_popup.php?db='.HEURIST_DBNAME.'&full=1&recID='.$addrID.'">'
+                                .' at <a href="dh_popup.php?db='.$system->dbname().'&full=1&recID='.$addrID.'">'
                                 .getFieldValue($records_address, $addrID, 'rec_Title')
                                 .'</a> on '.composeDates( $relation1, 0).' '
                                 .$comment
@@ -167,7 +167,7 @@ if($recTypeID==RT_PERSON){
                                 $date_out = composeDates( $records_events, $eventID, '<b>Date: </b>');
                                 $time_out = composeTime( $records_events, $eventID, '<b>Time: </b>' );
 
-                                print '<li><a href="dh_popup.php?db='.HEURIST_DBNAME.'&full=1&recID='.$eventID.'">'
+                                print '<li><a href="dh_popup.php?db='.$system->dbname().'&full=1&recID='.$eventID.'">'
                                 .getFieldValue($records_events, $eventID, DT_NAME).'</a> ('
                                 .getTermById( getFieldValue($records_events, $eventID, DT_EVENT_TYPE) )
                                 .')';
@@ -193,7 +193,7 @@ if($recTypeID==RT_PERSON){
                                     $comment = getFieldValue($relation1, 0, DT_EXTENDED_DESCRIPTION);
 
                                     print '<li>'.$event_address.' '
-                                    .' <a href="dh_popup.php?db='.HEURIST_DBNAME.'&full=1&recID='.$addrID.'">'
+                                    .' <a href="dh_popup.php?db='.$system->dbname().'&full=1&recID='.$addrID.'">'
                                     .getFieldValue($records_address, $addrID, 'rec_Title')
                                     .'</a><br> '.$comment
                                     .'</li>';

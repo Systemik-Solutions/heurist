@@ -37,7 +37,7 @@ if(!(@$_REQUEST['db'] && $system->init(@$_REQUEST['db']))){
     exit;
 }
 
-define('HEURIST_TERM_ICON_URL', HEURIST_BASE_URL.'?db='.HEURIST_DBNAME.'&entity=trm&icon=');
+define('HEURIST_TERM_ICON_URL', HEURIST_BASE_URL.'?db='.$system->dbname().'&entity=trm&icon=');
 ?>
 
 
